@@ -16,6 +16,7 @@ function ConnexionForm() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +32,23 @@ function ConnexionForm() {
 
     toast.success('Connexion réussie')
     window.location.href = redirectTo
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error('Saisissez votre email ci-dessus puis cliquez sur ce lien')
+      return
+    }
+    setResetLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+    })
+    setResetLoading(false)
+    if (error) {
+      toast.error('Erreur lors de l\'envoi de l\'email')
+    } else {
+      toast.success('Email de réinitialisation envoyé !')
+    }
   }
 
   return (
@@ -73,6 +91,17 @@ function ConnexionForm() {
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
+        </div>
+
+        <div className="text-right -mt-2">
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            className="text-sm text-gold-600 hover:underline disabled:opacity-50"
+          >
+            {resetLoading ? 'Envoi...' : 'Mot de passe oublié ?'}
+          </button>
         </div>
 
         <button
