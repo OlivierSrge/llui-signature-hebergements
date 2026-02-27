@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-gold: #C9A84C;
+    --color-beige: #F5F0E8;
+    --color-dark: #1A1A1A;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-dark antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  * {
+    @apply border-beige-200;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-gold-500 text-white font-medium rounded-lg transition-all duration-200 hover:bg-gold-600 active:scale-95 shadow-gold focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-dark font-medium rounded-lg border border-beige-300 transition-all duration-200 hover:bg-beige-100 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2;
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-transparent text-gold-600 font-medium rounded-lg border-2 border-gold-500 transition-all duration-200 hover:bg-gold-500 hover:text-white active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-card overflow-hidden transition-all duration-300 hover:shadow-card-hover;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-beige-300 rounded-lg text-dark placeholder-beige-400 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-gold-400 transition-colors duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-dark/70 mb-1.5;
+  }
+
+  .section-title {
+    @apply font-serif text-3xl md:text-4xl font-semibold text-dark;
+  }
+
+  .section-subtitle {
+    @apply text-dark/60 text-lg max-w-2xl;
+  }
+
+  .gold-divider {
+    @apply w-16 h-0.5 bg-gold-500;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border;
+  }
+
+  /* Scrollbar premium */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-beige-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gold-400 rounded-full;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-gold-500 to-gold-700 bg-clip-text text-transparent;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+}
