@@ -2,13 +2,12 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 
 function ConnexionForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
   const supabase = createClient()
@@ -31,8 +30,7 @@ function ConnexionForm() {
     }
 
     toast.success('Connexion réussie')
-    router.push(redirectTo)
-    router.refresh()
+    window.location.href = redirectTo
   }
 
   return (
