@@ -27,7 +27,7 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
         ? await updateAccommodation(accommodation.id, formData)
         : await createAccommodation(formData)
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error)
         return
       }
@@ -44,7 +44,7 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
 
     setDeleting(true)
     const result = await deleteAccommodation(accommodation.id)
-    if (result.error) {
+    if (!result.success) {
       toast.error(result.error)
     } else {
       toast.success('Hébergement désactivé')

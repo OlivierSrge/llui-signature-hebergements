@@ -44,7 +44,7 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
       is_available: false,
     }))
     const result = await updateAvailability(accommodationId, dates)
-    if (result.error) {
+    if (!result.success) {
       toast.error(result.error)
     } else {
       const newBlocked = new Set(blocked)
@@ -68,7 +68,7 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
       is_available: true,
     }))
     const result = await updateAvailability(accommodationId, dates)
-    if (result.error) {
+    if (!result.success) {
       toast.error(result.error)
     } else {
       const newBlocked = new Set(blocked)

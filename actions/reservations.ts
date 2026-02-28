@@ -1,73 +1,63 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
+type ActionResult = { success: true; reservationId?: string } | { success: false; error: string }
+
 export async function createReservation(
   accommodationId: string,
   formData: ReservationFormData
-) {
-  const supabase = await createClient()
+): Promise<ActionResult> {
+  try {
+    const accDoc = await db.collection('hebergements').doc(accommodationId).get()
+    if (!accDoc.exists) return { success: false, error: 'Hébergement introuvable' }
 
-  // Récupérer l'hébergement
-  const { data: accommodation, error: accError } = await supabase
-    .from('accommodations')
-    .select('*, partner:partners(*)')
-    .eq('id', accommodationId)
-    .single()
+    const accommodation = { id: accDoc.id, ...accDoc.data() } as any
+    const { nights, subtotal, commissionAmount } = calculateReservation(
+      accommodation.price_per_night,
+      formData.check_in,
+      formData.check_out,
+      accommodation.commission_rate
+    )
 
-  if (accError || !accommodation) {
-    return { error: 'Hébergement introuvable' }
-  }
+    if (nights <= 0) return { success: false, error: 'Les dates sélectionnées sont invalides' }
 
-  // Calculer les montants
-  const { nights, subtotal, commissionAmount } = calculateReservation(
-    accommodation.price_per_night,
-    formData.check_in,
-    formData.check_out,
-    accommodation.commission_rate
-  )
+    const blockedSnap = await db.collection('disponibilites')
+      .where('accommodation_id', '==', accommodationId)
+      .get()
+    const blockedDates = blockedSnap.docs.map((d) => d.data().date as string)
 
-  if (nights <= 0) {
-    return { error: 'Les dates sélectionnées sont invalides' }
-  }
+    for (let d = new Date(formData.check_in); d < new Date(formData.check_out); d.setDate(d.getDate() + 1)) {
+      if (blockedDates.includes(d.toISOString().split('T')[0])) {
+        return { success: false, error: 'Ces dates ne sont plus disponibles.' }
+      }
+    }
 
-  // Vérifier la disponibilité
-  const { data: blockedDates } = await supabase
-    .from('availability')
-    .select('date')
-    .eq('accommodation_id', accommodationId)
-    .eq('is_available', false)
-    .gte('date', formData.check_in)
-    .lt('date', formData.check_out)
+    const existingSnap = await db.collection('reservations')
+      .where('accommodation_id', '==', accommodationId)
+      .where('reservation_status', '==', 'confirmee')
+      .get()
 
-  if (blockedDates && blockedDates.length > 0) {
-    return { error: 'Ces dates ne sont plus disponibles. Veuillez choisir d\'autres dates.' }
-  }
+    for (const doc of existingSnap.docs) {
+      const res = doc.data()
+      if (formData.check_in < res.check_out && formData.check_out > res.check_in) {
+        return { success: false, error: 'Ces dates sont déjà réservées.' }
+      }
+    }
 
-  // Vérifier les réservations confirmées existantes
-  const { data: existingRes } = await supabase
-    .from('reservations')
-    .select('id')
-    .eq('accommodation_id', accommodationId)
-    .eq('reservation_status', 'confirmee')
-    .or(`check_in.lt.${formData.check_out},check_out.gt.${formData.check_in}`)
-
-  if (existingRes && existingRes.length > 0) {
-    return { error: 'Ces dates sont déjà réservées. Veuillez choisir d\'autres dates.' }
-  }
-
-  // Récupérer l'utilisateur connecté
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Créer la réservation
-  const { data: reservation, error } = await supabase
-    .from('reservations')
-    .insert({
+    const docRef = db.collection('reservations').doc()
+    await docRef.set({
       accommodation_id: accommodationId,
-      user_id: user?.id || null,
+      accommodation: {
+        name: accommodation.name,
+        images: accommodation.images,
+        slug: accommodation.slug,
+        location: accommodation.location,
+        partner: { name: accommodation.partner?.name || '' },
+      },
       guest_first_name: formData.guest_first_name,
       guest_last_name: formData.guest_last_name,
       guest_email: formData.guest_email,
@@ -75,26 +65,31 @@ export async function createReservation(
       check_in: formData.check_in,
       check_out: formData.check_out,
       guests: formData.guests,
+      nights,
       price_per_night: accommodation.price_per_night,
       subtotal,
       commission_rate: accommodation.commission_rate,
       commission_amount: commissionAmount,
       total_price: subtotal,
       payment_method: formData.payment_method,
+      payment_status: 'en_attente',
+      payment_reference: null,
+      payment_date: null,
+      reservation_status: 'en_attente',
+      confirmed_at: null,
+      cancelled_at: null,
+      cancellation_reason: null,
       notes: formData.notes || null,
+      admin_notes: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
-    .select()
-    .single()
 
-  if (error) {
-    console.error('Reservation error:', error)
-    return { error: 'Une erreur est survenue lors de la création de la réservation' }
+    revalidatePath('/admin/reservations')
+    return { success: true, reservationId: docRef.id }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Une erreur est survenue' }
   }
-
-  revalidatePath('/espace-client')
-  revalidatePath('/admin/reservations')
-
-  return { success: true, reservationId: reservation.id }
 }
 
 export async function updateReservationStatus(
@@ -102,55 +97,48 @@ export async function updateReservationStatus(
   status: 'confirmee' | 'annulee',
   adminNotes?: string,
   cancellationReason?: string
-) {
-  const supabase = await createClient()
+): Promise<ActionResult> {
+  try {
+    const updateData: Record<string, unknown> = {
+      reservation_status: status,
+      admin_notes: adminNotes || null,
+      updated_at: new Date().toISOString(),
+    }
+    if (status === 'confirmee') updateData.confirmed_at = new Date().toISOString()
+    if (status === 'annulee') {
+      updateData.cancelled_at = new Date().toISOString()
+      if (cancellationReason) updateData.cancellation_reason = cancellationReason
+    }
 
-  const updateData: Record<string, unknown> = {
-    reservation_status: status,
-    admin_notes: adminNotes,
+    await db.collection('reservations').doc(reservationId).update(updateData)
+    revalidatePath('/admin/reservations')
+    revalidatePath(`/admin/reservations/${reservationId}`)
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la mise à jour' }
   }
-
-  if (status === 'confirmee') updateData.confirmed_at = new Date().toISOString()
-  if (status === 'annulee') {
-    updateData.cancelled_at = new Date().toISOString()
-    if (cancellationReason) updateData.cancellation_reason = cancellationReason
-  }
-
-  const { error } = await supabase
-    .from('reservations')
-    .update(updateData)
-    .eq('id', reservationId)
-
-  if (error) return { error: 'Erreur lors de la mise à jour' }
-
-  revalidatePath('/admin/reservations')
-  revalidatePath(`/admin/reservations/${reservationId}`)
-
-  return { success: true }
 }
 
 export async function updatePaymentStatus(
   reservationId: string,
   paymentStatus: 'en_attente' | 'paye' | 'annule',
   paymentReference?: string
-) {
-  const supabase = await createClient()
+): Promise<ActionResult> {
+  try {
+    const updateData: Record<string, unknown> = {
+      payment_status: paymentStatus,
+      updated_at: new Date().toISOString(),
+    }
+    if (paymentStatus === 'paye') {
+      updateData.payment_date = new Date().toISOString()
+      if (paymentReference) updateData.payment_reference = paymentReference
+    }
 
-  const updateData: Record<string, unknown> = { payment_status: paymentStatus }
-  if (paymentStatus === 'paye') {
-    updateData.payment_date = new Date().toISOString()
-    if (paymentReference) updateData.payment_reference = paymentReference
+    await db.collection('reservations').doc(reservationId).update(updateData)
+    revalidatePath('/admin/reservations')
+    revalidatePath(`/admin/reservations/${reservationId}`)
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la mise à jour du paiement' }
   }
-
-  const { error } = await supabase
-    .from('reservations')
-    .update(updateData)
-    .eq('id', reservationId)
-
-  if (error) return { error: 'Erreur lors de la mise à jour du paiement' }
-
-  revalidatePath('/admin/reservations')
-  revalidatePath(`/admin/reservations/${reservationId}`)
-
-  return { success: true }
 }

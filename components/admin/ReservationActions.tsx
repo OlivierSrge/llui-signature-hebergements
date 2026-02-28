@@ -23,7 +23,7 @@ export default function ReservationActions({ reservation: res }: Props) {
     setLoading(action)
     try {
       const result = await fn()
-      if (result.error) toast.error(result.error)
+      if (!result.success) toast.error(result.error || 'Erreur')
       else {
         toast.success('Mise à jour réussie')
         router.refresh()

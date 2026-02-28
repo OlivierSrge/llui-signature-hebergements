@@ -1,77 +1,47 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Lock, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { createClient } from '@/lib/supabase/client'
+import { Suspense } from 'react'
 
 function ConnexionForm() {
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/'
-  const supabase = createClient()
+  const redirectTo = searchParams.get('redirect') || '/admin'
+  const router = useRouter()
 
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [resetLoading, setResetLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
 
-    if (error) {
-      toast.error('Email ou mot de passe incorrect')
+    if (!res.ok) {
+      toast.error('Mot de passe incorrect')
       setLoading(false)
       return
     }
 
     toast.success('Connexion réussie')
-    window.location.href = redirectTo
-  }
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      toast.error('Saisissez votre email ci-dessus puis cliquez sur ce lien')
-      return
-    }
-    setResetLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
-    })
-    setResetLoading(false)
-    if (error) {
-      toast.error('Erreur lors de l\'envoi de l\'email')
-    } else {
-      toast.success('Email de réinitialisation envoyé !')
-    }
+    router.push(redirectTo)
+    router.refresh()
   }
 
   return (
     <div className="bg-white rounded-2xl shadow-card p-8">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="label">Adresse email</label>
-          <div className="relative">
-            <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.cm"
-              className="input-field pl-10"
-              autoComplete="email"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="label">Mot de passe</label>
+          <label className="label">Mot de passe administrateur</label>
           <div className="relative">
             <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
             <input
@@ -93,39 +63,16 @@ function ConnexionForm() {
           </div>
         </div>
 
-        <div className="text-right -mt-2">
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            disabled={resetLoading}
-            className="text-sm text-gold-600 hover:underline disabled:opacity-50"
-          >
-            {resetLoading ? 'Envoi...' : 'Mot de passe oublié ?'}
-          </button>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full btn-primary py-3.5 font-semibold"
-        >
+        <button type="submit" disabled={loading} className="w-full btn-primary py-3.5 font-semibold">
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <Loader2 size={17} className="animate-spin" />
-              Connexion...
+              <Loader2 size={17} className="animate-spin" /> Connexion...
             </span>
           ) : (
-            'Se connecter'
+            'Accéder au tableau de bord'
           )}
         </button>
       </form>
-
-      <div className="mt-6 text-center text-sm text-dark/50">
-        Pas encore de compte ?{' '}
-        <Link href="/auth/inscription" className="text-gold-600 font-medium hover:underline">
-          S&apos;inscrire
-        </Link>
-      </div>
     </div>
   )
 }
@@ -139,13 +86,16 @@ export default function ConnexionPage() {
             L<span className="text-gold-500">&</span>Lui Signature
           </Link>
           <h1 className="font-serif text-2xl font-semibold text-dark mt-6 mb-2">
-            Bon retour !
+            Administration
           </h1>
-          <p className="text-dark/50 text-sm">Connectez-vous à votre espace personnel</p>
+          <p className="text-dark/50 text-sm">Accès réservé à l&apos;équipe L&amp;Lui</p>
         </div>
-        <Suspense fallback={<div className="h-64 bg-white rounded-2xl animate-pulse" />}>
+        <Suspense fallback={<div className="h-40 bg-white rounded-2xl animate-pulse" />}>
           <ConnexionForm />
         </Suspense>
+        <p className="text-center mt-6 text-sm text-dark/40">
+          <Link href="/" className="hover:text-dark transition-colors">← Retour au site</Link>
+        </p>
       </div>
     </div>
   )

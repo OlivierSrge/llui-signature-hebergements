@@ -83,7 +83,7 @@ export default function ReservationForm({
         notes: form.notes || undefined,
       })
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error)
         return
       }

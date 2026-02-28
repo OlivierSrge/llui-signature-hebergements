@@ -1,29 +1,37 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+
+import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import {
   TrendingUp, Clock, CheckCircle, XCircle,
-  DollarSign, Percent, CalendarDays, Home, ArrowRight
+  DollarSign, Percent, CalendarDays, Home, ArrowRight,
 } from 'lucide-react'
 import { formatPrice, formatDate, getReservationStatusColor, getReservationStatusLabel } from '@/lib/utils'
-import type { AdminStats, Reservation } from '@/lib/types'
+import type { AdminStats } from '@/lib/types'
 
 async function getAdminStats(): Promise<AdminStats> {
-  const supabase = await createClient()
-  const { data } = await supabase.from('admin_stats').select('*').single()
-  return data || {
-    total_reservations: 0, pending_reservations: 0, confirmed_reservations: 0,
-    cancelled_reservations: 0, total_revenue: 0, total_commission: 0, pending_payment: 0,
+  const snap = await db.collection('reservations').get()
+  const reservations = snap.docs.map((d) => d.data())
+  const confirmed = reservations.filter((r) => r.reservation_status === 'confirmee')
+  return {
+    total_reservations: reservations.length,
+    pending_reservations: reservations.filter((r) => r.reservation_status === 'en_attente').length,
+    confirmed_reservations: confirmed.length,
+    cancelled_reservations: reservations.filter((r) => r.reservation_status === 'annulee').length,
+    total_revenue: confirmed.reduce((sum, r) => sum + (r.total_price || 0), 0),
+    total_commission: confirmed.reduce((sum, r) => sum + (r.commission_amount || 0), 0),
+    pending_payment: confirmed
+      .filter((r) => r.payment_status === 'en_attente')
+      .reduce((sum, r) => sum + (r.commission_amount || 0), 0),
   }
 }
 
-async function getRecentReservations(): Promise<Reservation[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('reservations')
-    .select('*, accommodation:accommodations(name, images)')
-    .order('created_at', { ascending: false })
-    .limit(8)
-  return data || []
+async function getRecentReservations() {
+  const snap = await db.collection('reservations').get()
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0)
+    .slice(0, 8) as any[]
 }
 
 export const metadata = { title: 'Dashboard' }
@@ -33,55 +41,22 @@ export default async function AdminDashboard() {
 
   return (
     <div className="p-6 sm:p-8 pt-6 lg:pt-8 mt-14 lg:mt-0">
-      {/* Page header */}
       <div className="mb-8">
         <h1 className="font-serif text-3xl font-semibold text-dark">Dashboard</h1>
-        <p className="text-dark/50 text-sm mt-1">
-          Vue d&apos;ensemble — L&amp;Lui Signature
-        </p>
+        <p className="text-dark/50 text-sm mt-1">Vue d&apos;ensemble — L&amp;Lui Signature</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard
-          title="Total réservations"
-          value={String(stats.total_reservations)}
-          icon={CalendarDays}
-          color="bg-blue-50 text-blue-600"
-          sub={`${stats.confirmed_reservations} confirmées`}
-        />
-        <KpiCard
-          title="En attente"
-          value={String(stats.pending_reservations)}
-          icon={Clock}
-          color="bg-amber-50 text-amber-600"
-          sub="À traiter"
-          urgent={stats.pending_reservations > 0}
-        />
-        <KpiCard
-          title="Chiffre d'affaires"
-          value={formatPrice(stats.total_revenue)}
-          icon={TrendingUp}
-          color="bg-green-50 text-green-600"
-          sub="Réservations confirmées"
-        />
-        <KpiCard
-          title="Commissions L&Lui"
-          value={formatPrice(stats.total_commission)}
-          icon={Percent}
-          color="bg-gold-50 text-gold-600"
-          sub={`${formatPrice(stats.pending_payment)} à encaisser`}
-        />
+        <KpiCard title="Total réservations" value={String(stats.total_reservations)} icon={CalendarDays} color="bg-blue-50 text-blue-600" sub={`${stats.confirmed_reservations} confirmées`} />
+        <KpiCard title="En attente" value={String(stats.pending_reservations)} icon={Clock} color="bg-amber-50 text-amber-600" sub="À traiter" urgent={stats.pending_reservations > 0} />
+        <KpiCard title="Chiffre d'affaires" value={formatPrice(stats.total_revenue)} icon={TrendingUp} color="bg-green-50 text-green-600" sub="Réservations confirmées" />
+        <KpiCard title="Commissions L&Lui" value={formatPrice(stats.total_commission)} icon={Percent} color="bg-gold-50 text-gold-600" sub={`${formatPrice(stats.pending_payment)} à encaisser`} />
       </div>
 
-      {/* Recent reservations */}
       <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-beige-200 flex items-center justify-between">
           <h2 className="font-semibold text-dark">Réservations récentes</h2>
-          <Link
-            href="/admin/reservations"
-            className="text-sm text-gold-600 hover:text-gold-700 flex items-center gap-1"
-          >
+          <Link href="/admin/reservations" className="text-sm text-gold-600 hover:text-gold-700 flex items-center gap-1">
             Voir tout <ArrowRight size={14} />
           </Link>
         </div>
@@ -96,80 +71,46 @@ export default async function AdminDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-beige-200">
-                  <th className="text-left px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest">
-                    Réf.
-                  </th>
-                  <th className="text-left px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest">
-                    Client
-                  </th>
-                  <th className="text-left px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest hidden md:table-cell">
-                    Hébergement
-                  </th>
-                  <th className="text-left px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest hidden lg:table-cell">
-                    Dates
-                  </th>
-                  <th className="text-right px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest">
-                    Total
-                  </th>
-                  <th className="text-center px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest">
-                    Statut
-                  </th>
+                  {['Réf.', 'Client', 'Hébergement', 'Dates', 'Total', 'Statut'].map((h) => (
+                    <th key={h} className="text-left px-6 py-3 text-xs text-dark/50 font-semibold uppercase tracking-widest">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {recent.map((res) => {
-                  const acc = res.accommodation as any
-                  return (
-                    <tr
-                      key={res.id}
-                      className="border-b border-beige-100 hover:bg-beige-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <Link
-                          href={`/admin/reservations/${res.id}`}
-                          className="font-mono text-xs font-bold text-gold-600 hover:underline"
-                        >
-                          #{res.id.slice(-8).toUpperCase()}
-                        </Link>
-                        <p className="text-xs text-dark/40 mt-0.5">
-                          {formatDate(res.created_at, 'dd/MM')}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-dark">
-                          {res.guest_first_name} {res.guest_last_name}
-                        </p>
-                        <p className="text-xs text-dark/40">{res.guest_email}</p>
-                      </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
-                        <p className="text-dark/70 truncate max-w-[140px]">{acc?.name}</p>
-                      </td>
-                      <td className="px-6 py-4 hidden lg:table-cell text-dark/60">
-                        {formatDate(res.check_in, 'dd/MM')} → {formatDate(res.check_out, 'dd/MM/yy')}
-                      </td>
-                      <td className="px-6 py-4 text-right font-semibold text-dark">
-                        {formatPrice(res.total_price)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`badge ${getReservationStatusColor(res.reservation_status)}`}>
-                          {getReservationStatusLabel(res.reservation_status)}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {recent.map((res) => (
+                  <tr key={res.id} className="border-b border-beige-100 hover:bg-beige-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <Link href={`/admin/reservations/${res.id}`} className="font-mono text-xs font-bold text-gold-600 hover:underline">
+                        #{res.id.slice(-8).toUpperCase()}
+                      </Link>
+                      <p className="text-xs text-dark/40 mt-0.5">{formatDate(res.created_at, 'dd/MM')}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-dark">{res.guest_first_name} {res.guest_last_name}</p>
+                      <p className="text-xs text-dark/40">{res.guest_email}</p>
+                    </td>
+                    <td className="px-6 py-4 hidden md:table-cell">
+                      <p className="text-dark/70 truncate max-w-[140px]">{res.accommodation?.name}</p>
+                    </td>
+                    <td className="px-6 py-4 hidden lg:table-cell text-dark/60">
+                      {formatDate(res.check_in, 'dd/MM')} → {formatDate(res.check_out, 'dd/MM/yy')}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-dark">{formatPrice(res.total_price)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`badge ${getReservationStatusColor(res.reservation_status)}`}>
+                        {getReservationStatusLabel(res.reservation_status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-        <Link
-          href="/admin/hebergements/nouveau"
-          className="flex items-center gap-4 p-5 bg-white rounded-xl border border-beige-200 hover:shadow-card transition-shadow"
-        >
+        <Link href="/admin/hebergements/nouveau" className="flex items-center gap-4 p-5 bg-white rounded-xl border border-beige-200 hover:shadow-card transition-shadow">
           <div className="w-10 h-10 rounded-xl bg-gold-100 flex items-center justify-center">
             <Home size={18} className="text-gold-600" />
           </div>
@@ -180,18 +121,13 @@ export default async function AdminDashboard() {
           <ArrowRight size={16} className="text-dark/30 ml-auto" />
         </Link>
 
-        <Link
-          href="/admin/reservations?status=en_attente"
-          className="flex items-center gap-4 p-5 bg-white rounded-xl border border-beige-200 hover:shadow-card transition-shadow"
-        >
+        <Link href="/admin/reservations?status=en_attente" className="flex items-center gap-4 p-5 bg-white rounded-xl border border-beige-200 hover:shadow-card transition-shadow">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
             <Clock size={18} className="text-amber-600" />
           </div>
           <div>
             <p className="font-semibold text-dark text-sm">Traiter les demandes</p>
-            <p className="text-dark/50 text-xs">
-              {stats.pending_reservations} réservation{stats.pending_reservations > 1 ? 's' : ''} en attente
-            </p>
+            <p className="text-dark/50 text-xs">{stats.pending_reservations} réservation{stats.pending_reservations > 1 ? 's' : ''} en attente</p>
           </div>
           <ArrowRight size={16} className="text-dark/30 ml-auto" />
         </Link>
@@ -200,11 +136,8 @@ export default async function AdminDashboard() {
   )
 }
 
-function KpiCard({
-  title, value, icon: Icon, color, sub, urgent,
-}: {
-  title: string; value: string; icon: React.ElementType
-  color: string; sub: string; urgent?: boolean
+function KpiCard({ title, value, icon: Icon, color, sub, urgent }: {
+  title: string; value: string; icon: React.ElementType; color: string; sub: string; urgent?: boolean
 }) {
   return (
     <div className={`bg-white rounded-xl border p-5 ${urgent ? 'border-amber-300 shadow-amber-100 shadow-md' : 'border-beige-200'}`}>
