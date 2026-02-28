@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
+import { sendReservationEmails } from '@/lib/email'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
@@ -86,6 +87,28 @@ export async function createReservation(
     })
 
     revalidatePath('/admin/reservations')
+
+    // Send email notifications (non-blocking)
+    sendReservationEmails({
+      id: docRef.id,
+      accommodation: {
+        name: accommodation.name,
+        slug: accommodation.slug,
+        location: accommodation.location,
+      },
+      guest_first_name: formData.guest_first_name,
+      guest_last_name: formData.guest_last_name,
+      guest_email: formData.guest_email,
+      guest_phone: formData.guest_phone,
+      check_in: formData.check_in,
+      check_out: formData.check_out,
+      nights,
+      guests: formData.guests,
+      total_price: subtotal,
+      payment_method: formData.payment_method,
+      notes: formData.notes,
+    }).catch(() => {}) // email failure doesn't block the reservation
+
     return { success: true, reservationId: docRef.id }
   } catch (e: any) {
     return { success: false, error: e.message || 'Une erreur est survenue' }

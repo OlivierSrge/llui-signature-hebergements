@@ -151,6 +151,27 @@ export interface AccommodationFilters {
 }
 
 // ============================================================
+// Packs
+// ============================================================
+export type PackType = 'f3' | 'vip' | 'signature'
+
+export interface Pack {
+  id: string
+  name: string
+  slug: string
+  pack_type: PackType
+  short_description: string
+  description: string | null
+  accommodation_ids: string[]
+  images: string[]
+  featured: boolean
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+  accommodations?: Accommodation[]
+}
+
+// ============================================================
 // Admin Stats
 // ============================================================
 export interface AdminStats {

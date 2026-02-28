@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/reservations', label: 'Réservations', icon: CalendarDays },
   { href: '/admin/hebergements', label: 'Hébergements', icon: Home },
+  { href: '/admin/packs', label: 'Packs', icon: Package },
 ]
 
 export default function AdminSidebar() {

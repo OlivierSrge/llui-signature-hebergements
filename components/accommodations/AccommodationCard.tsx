@@ -15,7 +15,7 @@ export default function AccommodationCard({ accommodation: acc }: Props) {
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
-            src={acc.images[0] || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
+            src={acc.images?.[0] || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
             alt={acc.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"

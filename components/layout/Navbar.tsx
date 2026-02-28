@@ -20,6 +20,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Hébergements' },
+    { href: '/packs', label: 'Nos Packs' },
     { href: '/espace-client', label: 'Mes réservations' },
   ]
 

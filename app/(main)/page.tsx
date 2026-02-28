@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { db } from '@/lib/firebase'
 import AccommodationCard from '@/components/accommodations/AccommodationCard'
 import AccommodationFilters from '@/components/accommodations/AccommodationFilters'
-import { Award, Shield, HeartHandshake } from 'lucide-react'
+import { Award, Shield, HeartHandshake, Building2, Star, Crown, ArrowRight } from 'lucide-react'
 
 interface SearchParams {
   type?: string
@@ -69,6 +69,39 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               <p className="text-dark/60 text-sm leading-relaxed">{desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Packs section */}
+      <section className="py-16 px-4 sm:px-6 bg-dark">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-gold-400 text-sm font-medium tracking-widest uppercase mb-2">Offres groupées</p>
+            <h2 className="font-serif text-4xl font-semibold text-white mb-4">Nos Packs Logements</h2>
+            <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
+              Pour vos mariages, séminaires et séjours en groupe à Kribi — découvrez nos packs regroupant plusieurs logements sélectionnés.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+            {[
+              { href: '/packs#f3', icon: Building2, label: 'Packs F3', desc: 'Logements familiaux spacieux pour groupes', color: 'bg-blue-600' },
+              { href: '/packs#vip', icon: Star, label: 'Packs VIP', desc: 'Logements premium haut de gamme', color: 'bg-amber-500' },
+              { href: '/packs#signature', icon: Crown, label: 'Packs Signature', desc: 'Notre sélection d\'excellence', color: 'bg-gold-500' },
+            ].map(({ href, icon: Icon, label, desc, color }) => (
+              <a key={href} href={href} className="group flex flex-col items-center text-center p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+                <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center mb-4`}>
+                  <Icon size={24} className="text-white" />
+                </div>
+                <h3 className="font-serif text-lg font-semibold text-white mb-2">{label}</h3>
+                <p className="text-white/50 text-sm">{desc}</p>
+              </a>
+            ))}
+          </div>
+          <div className="text-center">
+            <a href="/packs" className="inline-flex items-center gap-2 btn-primary px-8 py-3.5">
+              Voir tous nos packs <ArrowRight size={16} />
+            </a>
+          </div>
         </div>
       </section>
 
