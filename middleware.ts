@@ -45,7 +45,9 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    const isAdmin = user.app_metadata?.role === 'admin' || profile?.role === 'admin'
+
+    if (!isAdmin) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
