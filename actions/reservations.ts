@@ -107,7 +107,7 @@ export async function createReservation(
       total_price: subtotal,
       payment_method: formData.payment_method,
       notes: formData.notes,
-    }).catch(() => {}) // email failure doesn't block the reservation
+    }).catch((err) => console.error('[email] sendReservationEmails failed:', err))
 
     return { success: true, reservationId: docRef.id }
   } catch (e: any) {
