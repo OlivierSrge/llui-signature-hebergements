@@ -35,7 +35,7 @@ const CATEGORIES = [
     label: 'Packs Signature',
     icon: Crown,
     color: 'bg-dark',
-    desc: 'La crème de la crème. Notre sélection d'excellence pour des événements inoubliables à Kribi.',
+    desc: "La crème de la crème. Notre sélection d'excellence pour des événements inoubliables à Kribi.",
   },
 ]
 
