@@ -84,18 +84,39 @@ export async function deletePack(id: string): Promise<ActionResult> {
 
 export async function requestPack(formData: FormData): Promise<ActionResult> {
   try {
-    await sendPackRequestEmail({
+    const data = {
       pack_name: formData.get('pack_name') as string,
       first_name: formData.get('first_name') as string,
       last_name: formData.get('last_name') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
-      event_date: (formData.get('event_date') as string) || undefined,
-      guests: formData.get('guests') ? Number(formData.get('guests')) : undefined,
-      message: (formData.get('message') as string) || undefined,
+      event_date: (formData.get('event_date') as string) || null,
+      guests: formData.get('guests') ? Number(formData.get('guests')) : null,
+      message: (formData.get('message') as string) || null,
+      promo_code: (formData.get('promo_code') as string) || null,
+    }
+
+    await db.collection('pack_requests').add({
+      ...data,
+      status: 'nouveau',
+      created_at: new Date().toISOString(),
     })
+
+    await sendPackRequestEmail(data)
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/pack-requests')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message || 'Erreur lors de l\'envoi' }
   }
+}
+
+export async function updatePackRequestStatus(
+  id: string,
+  status: 'traite' | 'annule'
+): Promise<void> {
+  await db.collection('pack_requests').doc(id).update({ status })
+  revalidatePath('/admin')
+  revalidatePath('/admin/pack-requests')
 }

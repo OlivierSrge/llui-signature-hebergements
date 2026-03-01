@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/admin/reservations', label: 'Réservations', icon: CalendarDays },
   { href: '/admin/hebergements', label: 'Hébergements', icon: Home },
   { href: '/admin/packs', label: 'Packs', icon: Package },
+  { href: '/admin/pack-requests', label: 'Demandes pack', icon: Inbox },
   { href: '/admin/promo-codes', label: 'Codes promo', icon: Tag },
 ]
 

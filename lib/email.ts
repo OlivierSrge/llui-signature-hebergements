@@ -175,11 +175,12 @@ export async function sendPackRequestEmail(data: {
   last_name: string
   email: string
   phone: string
-  event_date?: string
-  guests?: number
-  message?: string
+  event_date?: string | null
+  guests?: number | null
+  message?: string | null
+  promo_code?: string | null
 }) {
-  const { pack_name, first_name, last_name, email, phone, event_date, guests, message } = data
+  const { pack_name, first_name, last_name, email, phone, event_date, guests, message, promo_code } = data
 
   const emailBase = (content: string) => `
     <!DOCTYPE html>
@@ -218,9 +219,13 @@ export async function sendPackRequestEmail(data: {
         <td style="padding:10px 0;color:#666">Nombre de personnes</td>
         <td style="padding:10px 0;color:#1a1a1a">${guests}</td>
       </tr>` : ''}
-      ${message ? `<tr>
+      ${message ? `<tr style="border-bottom:1px solid #e8e0d5">
         <td style="padding:10px 0;color:#666;vertical-align:top">Message</td>
         <td style="padding:10px 0;color:#1a1a1a">${message}</td>
+      </tr>` : ''}
+      ${promo_code ? `<tr>
+        <td style="padding:10px 0;color:#666">Code promo</td>
+        <td style="padding:10px 0;font-weight:700;color:#c9a227;font-family:monospace;letter-spacing:.05em">${promo_code}</td>
       </tr>` : ''}
     </table>
   `)
