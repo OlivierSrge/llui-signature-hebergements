@@ -3,6 +3,7 @@
 import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
 import { sendReservationEmails } from '@/lib/email'
+import { validatePromoCode } from '@/actions/promo-codes'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
@@ -49,6 +50,18 @@ export async function createReservation(
       }
     }
 
+    // Validate promo code server-side if provided
+    let discountAmount = 0
+    let validPromoCode: string | null = null
+    if (formData.promo_code) {
+      const promoResult = await validatePromoCode(formData.promo_code, subtotal)
+      if (promoResult.valid) {
+        discountAmount = promoResult.discount_amount
+        validPromoCode = promoResult.code
+      }
+    }
+    const totalPrice = subtotal - discountAmount
+
     const docRef = db.collection('reservations').doc()
     await docRef.set({
       accommodation_id: accommodationId,
@@ -71,7 +84,9 @@ export async function createReservation(
       subtotal,
       commission_rate: accommodation.commission_rate,
       commission_amount: commissionAmount,
-      total_price: subtotal,
+      promo_code: validPromoCode,
+      discount_amount: discountAmount || null,
+      total_price: totalPrice,
       payment_method: formData.payment_method,
       payment_status: 'en_attente',
       payment_reference: null,
@@ -85,6 +100,17 @@ export async function createReservation(
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+
+    // Increment used_count on the promo code
+    if (validPromoCode) {
+      const promoSnap = await db.collection('promo_codes')
+        .where('code', '==', validPromoCode)
+        .limit(1)
+        .get()
+      if (!promoSnap.empty) {
+        await promoSnap.docs[0].ref.update({ used_count: (promoSnap.docs[0].data().used_count || 0) + 1 })
+      }
+    }
 
     revalidatePath('/admin/reservations')
 

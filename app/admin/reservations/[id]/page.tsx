@@ -107,6 +107,14 @@ export default async function AdminReservationDetailPage({ params }: { params: P
             <div className="space-y-3 text-sm">
               <Row label="Prix / nuit" value={formatPrice(res.price_per_night)} />
               <Row label={`× ${res.nights} nuit${(res.nights ?? 0) > 1 ? 's' : ''}`} value={formatPrice(res.subtotal)} />
+              {res.promo_code && res.discount_amount && (
+                <div className="flex justify-between items-center text-green-700">
+                  <span className="font-medium flex items-center gap-1">
+                    Code <span className="font-mono font-bold">{res.promo_code}</span>
+                  </span>
+                  <span className="font-bold">-{formatPrice(res.discount_amount)}</span>
+                </div>
+              )}
               <div className="border-t border-beige-200 pt-3 mt-3">
                 <Row label="Total client" value={formatPrice(res.total_price)} bold />
               </div>

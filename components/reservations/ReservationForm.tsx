@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { User, Mail, Phone, CreditCard, MessageSquare, Loader2 } from 'lucide-react'
+import { User, Mail, Phone, CreditCard, MessageSquare, Loader2, Tag, CheckCircle, XCircle } from 'lucide-react'
 import { createReservation } from '@/actions/reservations'
+import { validatePromoCode } from '@/actions/promo-codes'
 import type { PaymentMethod } from '@/lib/types'
+import type { PromoValidationResult } from '@/actions/promo-codes'
 
 interface Props {
   accommodationId: string
@@ -59,6 +61,26 @@ export default function ReservationForm({
     notes: '',
   })
 
+  const [promoInput, setPromoInput] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null)
+
+  const finalPrice = promoResult?.valid ? totalPrice - promoResult.discount_amount : totalPrice
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return
+    setPromoLoading(true)
+    const result = await validatePromoCode(promoInput, totalPrice)
+    setPromoResult(result)
+    setPromoLoading(false)
+    if (result.valid) toast.success('Code promo appliqué !')
+  }
+
+  const handleRemovePromo = () => {
+    setPromoInput('')
+    setPromoResult(null)
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
@@ -81,6 +103,8 @@ export default function ReservationForm({
         guests,
         payment_method: paymentMethod,
         notes: form.notes || undefined,
+        promo_code: promoResult?.valid ? promoResult.code : undefined,
+        discount_amount: promoResult?.valid ? promoResult.discount_amount : undefined,
       })
 
       if (!result.success) {
@@ -245,6 +269,60 @@ export default function ReservationForm({
             className="input-field pl-10 resize-none"
           />
         </div>
+      </div>
+
+      {/* Promo code */}
+      <div>
+        <label className="label">Code promo</label>
+        {promoResult?.valid ? (
+          <div className="flex items-center justify-between p-3.5 bg-green-50 border border-green-200 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle size={16} className="text-green-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-800">{promoResult.code}</p>
+                <p className="text-xs text-green-600">
+                  -{promoResult.discount_type === 'percent'
+                    ? `${promoResult.discount_value}%`
+                    : `${new Intl.NumberFormat('fr-FR').format(promoResult.discount_amount)} FCFA`}
+                  {' '}sur le total
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={handleRemovePromo} className="text-green-700 hover:text-green-900 transition-colors">
+              <XCircle size={18} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => {
+                  setPromoInput(e.target.value.toUpperCase())
+                  if (promoResult && !promoResult.valid) setPromoResult(null)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplyPromo())}
+                placeholder="KRIBI10"
+                className="input-field pl-10 uppercase tracking-widest"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleApplyPromo}
+              disabled={!promoInput.trim() || promoLoading}
+              className="px-4 py-2.5 bg-dark text-white text-sm font-medium rounded-xl hover:bg-dark/80 disabled:opacity-40 transition-colors flex-shrink-0"
+            >
+              {promoLoading ? <Loader2 size={15} className="animate-spin" /> : 'Appliquer'}
+            </button>
+          </div>
+        )}
+        {promoResult && !promoResult.valid && (
+          <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+            <XCircle size={13} /> {promoResult.error}
+          </p>
+        )}
       </div>
 
       {/* Submit */}

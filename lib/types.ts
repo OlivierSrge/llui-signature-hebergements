@@ -12,6 +12,8 @@ export type PaymentStatus = 'en_attente' | 'paye' | 'annule'
 
 export type PaymentMethod = 'orange_money' | 'virement' | 'especes'
 
+export type DiscountType = 'percent' | 'fixed'
+
 // ============================================================
 // Partner
 // ============================================================
@@ -118,6 +120,9 @@ export interface Reservation {
   notes: string | null
   admin_notes: string | null
 
+  promo_code: string | null
+  discount_amount: number | null
+
   created_at: string
   updated_at: string
 
@@ -138,6 +143,23 @@ export interface ReservationFormData {
   guests: number
   payment_method: PaymentMethod
   notes?: string
+  promo_code?: string
+  discount_amount?: number
+}
+
+// ============================================================
+// Promo Codes
+// ============================================================
+export interface PromoCode {
+  id: string
+  code: string
+  discount_type: DiscountType
+  discount_value: number
+  active: boolean
+  expires_at: string | null
+  max_uses: number | null
+  used_count: number
+  created_at: string
 }
 
 export interface AccommodationFilters {
