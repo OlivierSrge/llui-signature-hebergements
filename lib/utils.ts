@@ -128,6 +128,31 @@ export function generateSlug(name: string): string {
 }
 
 // ============================================================
+// Images
+// ============================================================
+/**
+ * Converts a Google Drive share URL (/view) to a direct thumbnail URL.
+ * Returns the original URL unchanged for non-Drive URLs.
+ */
+export function resolveImageUrl(url: string | undefined | null, size = 'w1200'): string {
+  if (!url) return ''
+
+  // Match /file/d/FILE_ID/ format
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+  if (fileMatch) {
+    return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=${size}`
+  }
+
+  // Match ?id=FILE_ID or &id=FILE_ID format (open, uc, etc.)
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+  if (url.includes('drive.google.com') && idMatch) {
+    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=${size}`
+  }
+
+  return url
+}
+
+// ============================================================
 // Truncate
 // ============================================================
 export function truncate(str: string, maxLength: number): string {

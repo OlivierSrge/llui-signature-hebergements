@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus, Edit, Calendar, Users, Percent } from 'lucide-react'
-import { formatPrice, getTypeLabel } from '@/lib/utils'
+import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
 
 async function getAccommodations() {
   const snap = await db.collection('hebergements').get()
@@ -53,7 +53,7 @@ function AccommodationAdminCard({ accommodation: acc }: { accommodation: any }) 
     <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden hover:shadow-card transition-shadow">
       <div className="relative aspect-video">
         <Image
-          src={acc.images?.[0] || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
+          src={resolveImageUrl(acc.images?.[0]) || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
           alt={acc.name}
           fill
           className="object-cover"

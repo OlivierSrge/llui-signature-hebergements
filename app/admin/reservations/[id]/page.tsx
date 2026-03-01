@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase'
 import { ChevronLeft, Calendar, Users, CreditCard, Building2, Phone, Mail } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor,
-  getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel,
+  getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel, resolveImageUrl,
 } from '@/lib/utils'
 import ReservationActions from '@/components/admin/ReservationActions'
 
@@ -70,7 +70,7 @@ export default async function AdminReservationDetailPage({ params }: { params: P
           <Section title="Hébergement" icon={Building2}>
             <div className="flex items-start gap-4">
               {acc?.images?.[0] && (
-                <img src={acc.images[0]} alt={acc.name} className="w-20 h-16 rounded-xl object-cover flex-shrink-0" />
+                <img src={resolveImageUrl(acc.images[0])} alt={acc.name} className="w-20 h-16 rounded-xl object-cover flex-shrink-0" />
               )}
               <div>
                 <p className="font-semibold text-dark">{acc?.name}</p>

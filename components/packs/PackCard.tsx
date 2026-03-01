@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Users, Building2, Star } from 'lucide-react'
+import { resolveImageUrl } from '@/lib/utils'
 import type { Pack } from '@/lib/types'
 
 const PACK_TYPE_CONFIG = {
@@ -22,7 +23,7 @@ export default function PackCard({ pack }: Props) {
       <article className="card h-full flex flex-col">
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
-            src={pack.images?.[0] || fallback}
+            src={resolveImageUrl(pack.images?.[0]) || fallback}
             alt={pack.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"

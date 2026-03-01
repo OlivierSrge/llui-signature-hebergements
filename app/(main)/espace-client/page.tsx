@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import { Calendar, Clock, CheckCircle, XCircle, ArrowRight, CreditCard, Search } from 'lucide-react'
-import { formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor, getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel } from '@/lib/utils'
+import { formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor, getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel, resolveImageUrl } from '@/lib/utils'
 
 async function getReservationsByEmail(email: string) {
   const snap = await db.collection('reservations')
@@ -87,7 +87,7 @@ export default async function EspaceClientPage({
                       <div className="flex flex-col sm:flex-row gap-4">
                         {acc?.images?.[0] && (
                           <div className="relative w-full sm:w-24 h-32 sm:h-24 rounded-xl overflow-hidden flex-shrink-0">
-                            <img src={acc.images[0]} alt={acc.name} className="w-full h-full object-cover" />
+                            <img src={resolveImageUrl(acc.images[0])} alt={acc.name} className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">

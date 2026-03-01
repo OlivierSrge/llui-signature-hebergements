@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import ReservationForm from '@/components/reservations/ReservationForm'
-import { formatPrice, formatDate, countNights, getTypeLabel } from '@/lib/utils'
+import { formatPrice, formatDate, countNights, getTypeLabel, resolveImageUrl } from '@/lib/utils'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft, MapPin, Users, Moon } from 'lucide-react'
@@ -44,7 +44,7 @@ export default async function ReservationPage({
             <h1 className="font-serif text-3xl font-semibold text-dark mb-8">Votre réservation</h1>
             <div className="card mb-6 flex flex-row gap-4 p-4">
               <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
-                <Image src={accommodation.images?.[0] || ''} alt={accommodation.name} fill className="object-cover" />
+                <Image src={resolveImageUrl(accommodation.images?.[0]) || ''} alt={accommodation.name} fill className="object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gold-600 font-medium mb-0.5">{getTypeLabel(accommodation.type)}</p>

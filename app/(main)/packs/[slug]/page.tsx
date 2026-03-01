@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import { ChevronLeft, Building2, Users, BedDouble, Bath, MapPin } from 'lucide-react'
-import { getTypeLabel, formatPrice } from '@/lib/utils'
+import { getTypeLabel, formatPrice, resolveImageUrl } from '@/lib/utils'
 import PackRequestForm from '@/components/packs/PackRequestForm'
 import type { Pack, Accommodation } from '@/lib/types'
 
@@ -51,7 +51,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
       {/* Hero image */}
       <div className="relative h-[50vh] min-h-[320px] overflow-hidden">
         <Image
-          src={pack.images?.[0] || fallback}
+          src={resolveImageUrl(pack.images?.[0]) || fallback}
           alt={pack.name}
           fill
           priority
@@ -96,7 +96,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {pack.images.slice(1).map((img, i) => (
                     <div key={i} className="relative aspect-video rounded-xl overflow-hidden">
-                      <Image src={img} alt={`${pack.name} ${i + 2}`} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="200px" />
+                      <Image src={resolveImageUrl(img)} alt={`${pack.name} ${i + 2}`} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="200px" />
                     </div>
                   ))}
                 </div>
@@ -117,7 +117,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
                     <div key={acc.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-beige-200 hover:shadow-card transition-shadow">
                       <div className="relative w-24 h-20 rounded-xl overflow-hidden flex-shrink-0">
                         <Image
-                          src={acc.images?.[0] || fallback}
+                          src={resolveImageUrl(acc.images?.[0]) || fallback}
                           alt={acc.name}
                           fill
                           className="object-cover"

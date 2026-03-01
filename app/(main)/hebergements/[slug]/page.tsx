@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import { Users, BedDouble, Bath, MapPin, Check, ChevronLeft, Star, Building2 } from 'lucide-react'
-import { formatPrice, getTypeLabel } from '@/lib/utils'
+import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
 import BookingWidget from '@/components/reservations/BookingWidget'
 
 async function getAccommodation(slug: string) {
@@ -60,7 +60,7 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
         <div className="grid grid-cols-4 grid-rows-2 gap-2 rounded-2xl overflow-hidden h-[400px] sm:h-[500px]">
           {(acc.images?.length ? acc.images : ['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800']).slice(0, 5).map((img: string, i: number) => (
             <div key={i} className={`relative overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'}`}>
-              <Image src={img} alt={`${acc.name} - photo ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-500 cursor-pointer" sizes="(max-width: 768px) 50vw, 25vw" />
+              <Image src={resolveImageUrl(img)} alt={`${acc.name} - photo ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-500 cursor-pointer" sizes="(max-width: 768px) 50vw, 25vw" />
               {i === 4 && acc.images.length > 5 && (
                 <div className="absolute inset-0 bg-dark/50 flex items-center justify-center">
                   <span className="text-white font-medium text-sm">+{acc.images.length - 5} photos</span>
