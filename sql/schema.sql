@@ -1,6 +1,7 @@
 -- ============================================================
 -- L&Lui Signature – Schéma SQL Supabase
--- Moteur de réservation d'hébergements premium – Kribi, Cameroun
+-- export const dynamic = 'force-dynamic'
+Moteur de réservation d'hébergements premium – Kribi, Cameroun
 -- ============================================================
 
 -- Extensions
