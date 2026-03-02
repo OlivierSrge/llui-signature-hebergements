@@ -1,7 +1,5 @@
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = { title: { template: '%s | Admin L&Lui', default: 'Dashboard Admin' } }
 export const dynamic = 'force-dynamic'
 
