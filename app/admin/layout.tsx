@@ -1,6 +1,7 @@
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export const metadata = { title: { template: '%s | Admin L&Lui', default: 'Dashboard Admin' } }
+export const dynamic = 'force-dynamic'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
