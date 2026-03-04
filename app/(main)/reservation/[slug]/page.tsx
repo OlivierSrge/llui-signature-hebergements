@@ -46,7 +46,7 @@ export default async function ReservationPage({
             <h1 className="font-serif text-3xl font-semibold text-dark mb-8">Votre réservation</h1>
             <div className="card mb-6 flex flex-row gap-4 p-4">
               <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
-                <Image src={resolveImageUrl(accommodation.images?.[0]) || ''} alt={accommodation.name} fill className="object-cover" />
+                <Image src={resolveImageUrl(accommodation.images?.[0]) || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'} alt={accommodation.name} fill className="object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gold-600 font-medium mb-0.5">{getTypeLabel(accommodation.type)}</p>

@@ -1,6 +1,10 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
+  return _resend
+}
 
 const FROM = process.env.FROM_EMAIL ?? 'L&Lui Signature <onboarding@resend.dev>'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contact@llui-signature.cm'
@@ -152,13 +156,13 @@ export async function sendReservationEmails(reservation: {
   `)
 
   await Promise.allSettled([
-    resend.emails.send({
+    getResend().emails.send({
       from: FROM,
       to: ADMIN_EMAIL,
       subject: `[L&Lui] Nouvelle réservation – ${accommodation.name} (#${id.slice(-8).toUpperCase()})`,
       html: adminHtml,
     }),
-    resend.emails.send({
+    getResend().emails.send({
       from: FROM,
       to: guest_email,
       subject: `Votre demande de réservation – ${accommodation.name}`,
@@ -246,13 +250,13 @@ export async function sendPackRequestEmail(data: {
   `)
 
   await Promise.allSettled([
-    resend.emails.send({
+    getResend().emails.send({
       from: FROM,
       to: ADMIN_EMAIL,
       subject: `[L&Lui] Demande pack – ${pack_name}`,
       html: adminHtml,
     }),
-    resend.emails.send({
+    getResend().emails.send({
       from: FROM,
       to: email,
       subject: `Votre demande de pack – ${pack_name}`,
