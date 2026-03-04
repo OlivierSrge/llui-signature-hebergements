@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, Trash2, Save } from 'lucide-react'
+import { Loader2, Trash2, Save, Copy, Check, Tag, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { createPartner, updatePartner, deletePartner } from '@/actions/partners'
 import type { Partner } from '@/lib/types'
 
@@ -15,7 +15,16 @@ export default function PartnerForm({ partner }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [deleting, setDeleting] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showPin, setShowPin] = useState(false)
   const isEdit = !!partner
+
+  const copyAccessCode = () => {
+    if (!partner?.access_code) return
+    navigator.clipboard.writeText(partner.access_code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -114,6 +123,98 @@ export default function PartnerForm({ partner }: Props) {
               <option value="true">Actif</option>
               <option value="false">Inactif</option>
             </select>
+          </div>
+        )}
+      </div>
+
+      {/* Code promo */}
+      <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
+        <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 flex items-center gap-2">
+          <Tag size={16} className="text-gold-500" /> Code promo dédié
+        </h2>
+        <div>
+          <label className="label">Code promo</label>
+          <input
+            name="promo_code" type="text"
+            defaultValue={partner?.promo_code || ''}
+            placeholder="EX: VILLA10"
+            className="input-field uppercase tracking-widest"
+            onChange={(e) => {
+              const input = e.currentTarget
+              input.value = input.value.toUpperCase()
+            }}
+          />
+          <p className="text-xs text-dark/40 mt-1">
+            Ce code sera proposé automatiquement aux clients de ce partenaire lors de la réservation.
+            Assurez-vous qu&apos;il est bien créé dans <strong>Codes promo</strong>.
+          </p>
+        </div>
+      </div>
+
+      {/* Portail partenaire */}
+      <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
+        <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 flex items-center gap-2">
+          <KeyRound size={16} className="text-gold-500" /> Accès portail partenaire
+        </h2>
+        <p className="text-xs text-dark/50">
+          Le partenaire peut se connecter sur <strong>/partenaire</strong> avec son code d&apos;accès et son PIN
+          pour consulter et mettre à jour le calendrier de ses hébergements.
+        </p>
+
+        {/* Code d'accès (affiché en édition uniquement) */}
+        {isEdit && partner.access_code && (
+          <div>
+            <label className="label">Code d&apos;accès (généré automatiquement)</label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 px-3 py-2.5 bg-beige-50 border border-beige-200 rounded-xl font-mono text-sm font-bold tracking-widest text-dark">
+                {partner.access_code}
+              </div>
+              <button
+                type="button"
+                onClick={copyAccessCode}
+                title="Copier"
+                className="p-2.5 border border-beige-200 rounded-xl hover:bg-beige-50 transition-colors text-dark/50 hover:text-dark"
+              >
+                {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <p className="text-xs text-dark/40 mt-1">À communiquer au partenaire. Non modifiable.</p>
+          </div>
+        )}
+
+        {/* PIN */}
+        <div>
+          <label className="label">
+            PIN d&apos;accès {!isEdit && <span className="text-dark/40 font-normal">(4 à 6 chiffres)</span>}
+          </label>
+          <div className="relative">
+            <input
+              name="access_pin"
+              type={showPin ? 'text' : 'password'}
+              defaultValue={partner?.access_pin || ''}
+              placeholder="ex: 1234"
+              pattern="[0-9]{4,6}"
+              maxLength={6}
+              className="input-field pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPin(!showPin)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark/30 hover:text-dark transition-colors"
+            >
+              {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {isEdit && (
+            <p className="text-xs text-dark/40 mt-1">Laisser vide pour conserver le PIN actuel.</p>
+          )}
+        </div>
+
+        {/* Lien portail */}
+        {isEdit && partner.access_code && (
+          <div className="bg-gold-50 border border-gold-200 rounded-xl p-3 text-xs text-dark/60">
+            <p className="font-medium text-dark mb-0.5">Lien à communiquer au partenaire</p>
+            <p className="font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/partenaire</p>
           </div>
         )}
       </div>

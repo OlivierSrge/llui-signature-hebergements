@@ -26,6 +26,9 @@ export interface Partner {
   address: string | null
   iban: string | null
   logo_url: string | null
+  promo_code: string | null       // code promo dédié à ce partenaire
+  access_code: string             // identifiant unique portail (ex: PART-AB12CD)
+  access_pin: string | null       // PIN 4-6 chiffres pour le portail
   is_active: boolean
   created_at: string
   updated_at: string
