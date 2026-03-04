@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { db } from '@/lib/firebase'
 import PackForm from '@/components/admin/PackForm'
 import type { Accommodation } from '@/lib/types'

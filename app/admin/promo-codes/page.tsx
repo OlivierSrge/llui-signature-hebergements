@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getPromoCodes } from '@/actions/promo-codes'
 import PromoCodesClient from './PromoCodesClient'
 

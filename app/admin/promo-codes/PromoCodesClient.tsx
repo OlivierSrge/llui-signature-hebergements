@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Tag, Plus, Trash2, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react'
 import { createPromoCode, togglePromoCode, deletePromoCode } from '@/actions/promo-codes'
@@ -11,6 +12,7 @@ function formatDate(iso: string) {
 }
 
 export default function PromoCodesClient({ initialCodes }: { initialCodes: PromoCode[] }) {
+  const router = useRouter()
   const [codes, setCodes] = useState<PromoCode[]>(initialCodes)
   const [showForm, setShowForm] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -40,8 +42,7 @@ export default function PromoCodesClient({ initialCodes }: { initialCodes: Promo
       toast.success('Code promo créé !')
       setShowForm(false)
       setForm({ code: '', discount_type: 'percent', discount_value: '', expires_at: '', max_uses: '' })
-      // Refresh list
-      window.location.reload()
+      router.refresh()
     })
   }
 
