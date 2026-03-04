@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Loader2, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { createAccommodation, updateAccommodation, deleteAccommodation } from '@/actions/accommodations'
+import { getAmenityIcon } from '@/lib/amenity-icons'
 import type { Accommodation, Partner } from '@/lib/types'
 
 // ─── Catalogue équipements ────────────────────────────────────────────────────
@@ -187,22 +188,26 @@ function AmenitiesPicker({
             {/* Items */}
             {!isCollapsed && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 px-4 py-2">
-                {items.map((item) => (
-                  <label
-                    key={item}
-                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:text-dark group"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(item)}
-                      onChange={() => toggle(item)}
-                      className="w-4 h-4 rounded border-beige-300 text-gold-500 focus:ring-gold-400 flex-shrink-0"
-                    />
-                    <span className="text-sm text-dark/70 group-hover:text-dark transition-colors">
-                      {item}
-                    </span>
-                  </label>
-                ))}
+                {items.map((item) => {
+                  const Icon = getAmenityIcon(item)
+                  return (
+                    <label
+                      key={item}
+                      className="flex items-center gap-3 py-2.5 cursor-pointer hover:text-dark group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(item)}
+                        onChange={() => toggle(item)}
+                        className="w-4 h-4 rounded border-beige-300 text-gold-500 focus:ring-gold-400 flex-shrink-0"
+                      />
+                      <Icon size={15} className="text-dark/40 group-hover:text-dark/70 flex-shrink-0 transition-colors" strokeWidth={1.5} />
+                      <span className="text-sm text-dark/70 group-hover:text-dark transition-colors">
+                        {item}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
             )}
           </div>
