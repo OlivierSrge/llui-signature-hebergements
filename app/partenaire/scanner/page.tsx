@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react'
 import QrScanner from '@/components/partner/QrScanner'
 
 export default async function PartnerScannerPage() {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 

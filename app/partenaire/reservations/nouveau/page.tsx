@@ -21,7 +21,7 @@ async function getPartnerAccommodations(partnerId: string) {
 }
 
 export default async function PartnerNewReservationPage() {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 

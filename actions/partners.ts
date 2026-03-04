@@ -175,7 +175,7 @@ export async function loginPartner(
   if (!partner.access_pin) return { success: false, error: 'Aucun PIN configuré pour ce compte' }
   if (partner.access_pin !== pin.trim()) return { success: false, error: 'PIN incorrect' }
 
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   cookieStore.set('partner_session', doc.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -188,12 +188,12 @@ export async function loginPartner(
 }
 
 export async function logoutPartner(): Promise<void> {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   cookieStore.delete('partner_session')
 }
 
 export async function getPartnerFromSession(): Promise<{ id: string; name: string; access_code: string } | null> {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) return null
 

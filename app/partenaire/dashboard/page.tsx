@@ -36,13 +36,15 @@ async function getUnavailableDates(accommodationId: string): Promise<string[]> {
 }
 
 async function getPartnerReservations(partnerId: string) {
+  // Pas d'orderBy pour éviter l'exigence d'index composite Firestore
   const snap = await db.collection('reservations')
     .where('partner_id', '==', partnerId)
     .where('source', '==', 'partenaire')
-    .orderBy('created_at', 'desc')
-    .limit(10)
     .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    .slice(0, 10) as any[]
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -56,8 +58,14 @@ const STATUS_COLOR: Record<string, string> = {
   annulee: 'bg-red-100 text-red-800',
 }
 
+async function handleLogout() {
+  'use server'
+  await logoutPartner()
+  redirect('/partenaire')
+}
+
 export default async function PartnerDashboardPage() {
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 
@@ -93,7 +101,7 @@ export default async function PartnerDashboardPage() {
               )}
             </h1>
           </div>
-          <form action={logoutPartner as () => void}>
+          <form action={handleLogout}>
             <button
               type="submit"
               className="flex items-center gap-2 px-4 py-2 text-sm text-dark/60 border border-beige-200 rounded-xl hover:bg-beige-50 transition-colors"

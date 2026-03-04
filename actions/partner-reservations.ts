@@ -23,7 +23,7 @@ function buildQrCodeUrl(confirmationCode: string, baseUrl: string): string {
 export async function createPartnerReservation(formData: FormData): Promise<ActionResult> {
   try {
     // Récupérer la session partenaire
-    const cookieStore = await cookies()
+    const cookieStore = cookies()
     const partnerId = cookieStore.get('partner_session')?.value
     if (!partnerId) return { success: false, error: 'Session expirée. Veuillez vous reconnecter.' }
 
