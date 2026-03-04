@@ -131,6 +131,31 @@ export async function updateAccommodation(id: string, formData: FormData): Promi
   }
 }
 
+export async function duplicateAccommodation(id: string): Promise<ActionResult> {
+  try {
+    const source = await db.collection('hebergements').doc(id).get()
+    if (!source.exists) return { success: false, error: 'Hébergement introuvable' }
+
+    const data = source.data() as Record<string, unknown>
+    const newName = `${data.name} (copie)`
+    const newDoc = db.collection('hebergements').doc()
+    await newDoc.set({
+      ...data,
+      name: newName,
+      slug: generateSlug(newName),
+      status: 'inactive',
+      featured: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+
+    revalidatePath('/admin/hebergements')
+    return { success: true, id: newDoc.id }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la duplication' }
+  }
+}
+
 export async function deleteAccommodation(id: string): Promise<ActionResult> {
   try {
     await db.collection('hebergements').doc(id).update({

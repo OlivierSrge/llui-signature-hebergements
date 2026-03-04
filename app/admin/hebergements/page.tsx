@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Plus, Edit, Calendar, Users, Percent } from 'lucide-react'
+import { Plus, Edit, Calendar, Users, Percent, Copy } from 'lucide-react'
 import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { duplicateAccommodation } from '@/actions/accommodations'
 
 async function getAccommodations() {
   const snap = await db.collection('hebergements').get()
@@ -83,9 +84,18 @@ function AccommodationAdminCard({ accommodation: acc }: { accommodation: any }) 
           <Link href={`/admin/hebergements/${acc.id}`} className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-beige-100 text-dark/70 rounded-lg text-xs font-medium hover:bg-beige-200 transition-colors">
             <Edit size={12} /> Modifier
           </Link>
-          <Link href={`/admin/hebergements/${acc.id}/disponibilites`} className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-gold-50 text-gold-700 rounded-lg text-xs font-medium hover:bg-gold-100 transition-colors border border-gold-200">
-            <Calendar size={12} /> Disponibilités
+          <Link href={`/admin/hebergements/${acc.id}/disponibilites`} className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gold-50 text-gold-700 rounded-lg text-xs font-medium hover:bg-gold-100 transition-colors border border-gold-200">
+            <Calendar size={12} /> Dispos
           </Link>
+          <form action={duplicateAccommodation.bind(null, acc.id)}>
+            <button
+              type="submit"
+              title="Dupliquer cette fiche"
+              className="flex items-center justify-center gap-1.5 py-2 px-3 bg-beige-50 text-dark/50 rounded-lg text-xs font-medium hover:bg-beige-100 hover:text-dark transition-colors border border-beige-200"
+            >
+              <Copy size={12} />
+            </button>
+          </form>
         </div>
       </div>
     </div>
