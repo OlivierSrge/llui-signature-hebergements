@@ -18,6 +18,7 @@ export default function AccommodationCard({ accommodation: acc }: Props) {
             src={resolveImageUrl(acc.images?.[0]) || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
             alt={acc.name}
             fill
+            unoptimized
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />

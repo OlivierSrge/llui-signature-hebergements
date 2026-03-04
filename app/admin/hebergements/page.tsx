@@ -56,6 +56,7 @@ function AccommodationAdminCard({ accommodation: acc }: { accommodation: any }) 
           src={resolveImageUrl(acc.images?.[0]) || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'}
           alt={acc.name}
           fill
+          unoptimized
           className="object-cover"
           sizes="(max-width: 640px) 100vw, 50vw"
         />

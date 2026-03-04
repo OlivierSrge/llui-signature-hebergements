@@ -55,6 +55,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
           alt={pack.name}
           fill
           priority
+          unoptimized
           className="object-cover"
           sizes="100vw"
         />
@@ -96,7 +97,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {pack.images.slice(1).map((img, i) => (
                     <div key={i} className="relative aspect-video rounded-xl overflow-hidden">
-                      <Image src={resolveImageUrl(img)} alt={`${pack.name} ${i + 2}`} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="200px" />
+                      <Image src={resolveImageUrl(img)} alt={`${pack.name} ${i + 2}`} fill unoptimized className="object-cover hover:scale-105 transition-transform duration-300" sizes="200px" />
                     </div>
                   ))}
                 </div>
@@ -120,6 +121,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
                           src={resolveImageUrl(acc.images?.[0]) || fallback}
                           alt={acc.name}
                           fill
+                          unoptimized
                           className="object-cover"
                           sizes="96px"
                         />
