@@ -3,6 +3,7 @@
 import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import type { DiscountType } from '@/lib/types'
 
 type ActionResult = { success: true; id?: string } | { success: false; error: string }
 
@@ -13,18 +14,60 @@ function generateAccessCode(): string {
   return code
 }
 
+/** Crée ou met à jour le code promo dans la collection promo_codes */
+async function upsertPromoCode(
+  code: string,
+  discountType: DiscountType,
+  discountValue: number,
+  partnerId: string,
+  partnerName: string
+): Promise<void> {
+  const existing = await db.collection('promo_codes').where('code', '==', code).limit(1).get()
+  if (!existing.empty) {
+    await existing.docs[0].ref.update({
+      discount_type: discountType,
+      discount_value: discountValue,
+      partner_id: partnerId,
+      partner_name: partnerName,
+      active: true,
+      updated_at: new Date().toISOString(),
+    })
+  } else {
+    await db.collection('promo_codes').add({
+      code,
+      discount_type: discountType,
+      discount_value: discountValue,
+      partner_id: partnerId,
+      partner_name: partnerName,
+      active: true,
+      expires_at: null,
+      max_uses: null,
+      used_count: 0,
+      created_at: new Date().toISOString(),
+    })
+  }
+}
+
 export async function createPartner(formData: FormData): Promise<ActionResult> {
   try {
+    const name = formData.get('name') as string
+    const promoCode = (formData.get('promo_code') as string)?.toUpperCase().trim() || null
+    const discountType = (formData.get('promo_discount_type') as DiscountType) || 'percent'
+    const discountValue = Number(formData.get('promo_discount_value')) || 0
+
     const docRef = db.collection('partenaires').doc()
+
     await docRef.set({
-      name: formData.get('name') as string,
+      name,
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
       description: (formData.get('description') as string) || null,
       address: (formData.get('address') as string) || null,
       iban: (formData.get('iban') as string) || null,
       logo_url: (formData.get('logo_url') as string) || null,
-      promo_code: (formData.get('promo_code') as string)?.toUpperCase().trim() || null,
+      promo_code: promoCode,
+      promo_discount_type: discountType,
+      promo_discount_value: discountValue,
       access_code: generateAccessCode(),
       access_pin: (formData.get('access_pin') as string)?.trim() || null,
       is_active: true,
@@ -32,7 +75,13 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
       updated_at: new Date().toISOString(),
     })
 
+    // Créer le code promo en base si renseigné
+    if (promoCode && discountValue > 0) {
+      await upsertPromoCode(promoCode, discountType, discountValue, docRef.id, name)
+    }
+
     revalidatePath('/admin/partenaires')
+    revalidatePath('/admin/promo-codes')
     return { success: true, id: docRef.id }
   } catch (e: any) {
     return { success: false, error: e.message || 'Erreur lors de la création' }
@@ -41,22 +90,35 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
 
 export async function updatePartner(id: string, formData: FormData): Promise<ActionResult> {
   try {
+    const name = formData.get('name') as string
+    const promoCode = (formData.get('promo_code') as string)?.toUpperCase().trim() || null
+    const discountType = (formData.get('promo_discount_type') as DiscountType) || 'percent'
+    const discountValue = Number(formData.get('promo_discount_value')) || 0
+
     await db.collection('partenaires').doc(id).update({
-      name: formData.get('name') as string,
+      name,
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
       description: (formData.get('description') as string) || null,
       address: (formData.get('address') as string) || null,
       iban: (formData.get('iban') as string) || null,
       logo_url: (formData.get('logo_url') as string) || null,
-      promo_code: (formData.get('promo_code') as string)?.toUpperCase().trim() || null,
+      promo_code: promoCode,
+      promo_discount_type: discountType,
+      promo_discount_value: discountValue,
       access_pin: (formData.get('access_pin') as string)?.trim() || null,
       is_active: formData.get('is_active') !== 'false',
       updated_at: new Date().toISOString(),
     })
 
+    // Synchroniser le code promo si renseigné
+    if (promoCode && discountValue > 0) {
+      await upsertPromoCode(promoCode, discountType, discountValue, id, name)
+    }
+
     revalidatePath('/admin/partenaires')
     revalidatePath(`/admin/partenaires/${id}`)
+    revalidatePath('/admin/promo-codes')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message || 'Erreur lors de la mise à jour' }

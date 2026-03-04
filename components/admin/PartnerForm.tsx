@@ -132,23 +132,59 @@ export default function PartnerForm({ partner }: Props) {
         <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 flex items-center gap-2">
           <Tag size={16} className="text-gold-500" /> Code promo dédié
         </h2>
+        <p className="text-xs text-dark/50">
+          Le code sera automatiquement créé (ou mis à jour) dans la liste <strong>Codes promo</strong> à l&apos;enregistrement.
+        </p>
+
         <div>
-          <label className="label">Code promo</label>
+          <label className="label">Code promo <span className="text-red-500">*</span></label>
           <input
             name="promo_code" type="text"
             defaultValue={partner?.promo_code || ''}
-            placeholder="EX: VILLA10"
-            className="input-field uppercase tracking-widest"
-            onChange={(e) => {
-              const input = e.currentTarget
-              input.value = input.value.toUpperCase()
-            }}
+            placeholder="ex: KRIBI10"
+            className="input-field uppercase tracking-widest font-mono"
+            onChange={(e) => { e.currentTarget.value = e.currentTarget.value.toUpperCase() }}
           />
-          <p className="text-xs text-dark/40 mt-1">
-            Ce code sera proposé automatiquement aux clients de ce partenaire lors de la réservation.
-            Assurez-vous qu&apos;il est bien créé dans <strong>Codes promo</strong>.
-          </p>
         </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Type de réduction <span className="text-red-500">*</span></label>
+            <select
+              name="promo_discount_type"
+              defaultValue={partner?.promo_discount_type || 'percent'}
+              className="input-field"
+            >
+              <option value="percent">Pourcentage (%)</option>
+              <option value="fixed">Montant fixe (FCFA)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Valeur <span className="text-red-500">*</span></label>
+            <input
+              name="promo_discount_value" type="number" min={1}
+              defaultValue={partner?.promo_discount_value || ''}
+              placeholder="ex: 10"
+              className="input-field"
+            />
+          </div>
+        </div>
+
+        {/* Aperçu du code si édition */}
+        {isEdit && partner?.promo_code && (
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm">
+            <Tag size={14} className="text-green-600 flex-shrink-0" />
+            <span className="text-green-800">
+              Code actif : <strong className="font-mono tracking-widest">{partner.promo_code}</strong>
+              {(partner as any).promo_discount_value > 0 && (
+                <> — {(partner as any).promo_discount_type === 'percent'
+                  ? `-${(partner as any).promo_discount_value}%`
+                  : `-${new Intl.NumberFormat('fr-FR').format((partner as any).promo_discount_value)} FCFA`}
+                </>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Portail partenaire */}
