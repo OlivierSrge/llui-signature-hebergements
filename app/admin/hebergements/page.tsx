@@ -87,7 +87,7 @@ function AccommodationAdminCard({ accommodation: acc }: { accommodation: any }) 
           <Link href={`/admin/hebergements/${acc.id}/disponibilites`} className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gold-50 text-gold-700 rounded-lg text-xs font-medium hover:bg-gold-100 transition-colors border border-gold-200">
             <Calendar size={12} /> Dispos
           </Link>
-          <form action={duplicateAccommodation.bind(null, acc.id)}>
+          <form action={duplicateAccommodation.bind(null, acc.id) as (payload: FormData) => void}>
             <button
               type="submit"
               title="Dupliquer cette fiche"

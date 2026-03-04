@@ -244,7 +244,7 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
 
     // Fusionner sélectionnés + personnalisés dans le champ amenities
     const custom = customAmenities.split('\n').map((s) => s.trim()).filter(Boolean)
-    const all = [...selectedAmenities, ...custom]
+    const all = Array.from(selectedAmenities).concat(custom)
     formData.set('amenities', all.join('\n'))
 
     startTransition(async () => {
