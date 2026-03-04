@@ -80,9 +80,13 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
         locale={fr}
         disabled={{ before: today }}
         modifiers={{ blocked: blockedDates }}
-        modifiersClassNames={{
-          blocked: 'rdp-day_blocked',
-          selected: 'rdp-day_selected',
+        modifiersStyles={{
+          blocked: {
+            backgroundColor: '#fecaca',
+            color: '#991b1b',
+            fontWeight: '600',
+            borderRadius: '100%',
+          },
         }}
         styles={{ root: { margin: 0 } }}
         numberOfMonths={2}
@@ -130,10 +134,6 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
         </div>
       )}
 
-      <style>{`
-        .rdp-day_blocked { background-color: #fecaca !important; color: #991b1b !important; }
-        .rdp-day_blocked:hover { background-color: #fca5a5 !important; }
-      `}</style>
     </div>
   )
 }

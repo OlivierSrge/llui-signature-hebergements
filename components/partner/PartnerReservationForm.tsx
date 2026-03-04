@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'react-hot-toast'
-import { Loader2, QrCode, MessageCircle, User, Calendar, CreditCard, CheckCircle2 } from 'lucide-react'
+import { Loader2, QrCode, MessageCircle, User, Calendar, CreditCard, CheckCircle2, Download } from 'lucide-react'
 import { createPartnerReservation } from '@/actions/partner-reservations'
 
 interface Accommodation {
@@ -47,11 +47,12 @@ export default function PartnerReservationForm({ accommodations }: Props) {
   // ─── Confirmation screen ──────────────────────────────────────────────────
   if (result) {
     const waPhone = guestPhone.replace(/\D/g, '')
+    // WhatsApp ne peut envoyer que du texte — on inclut l'URL du QR dans le message
     const waMessage = encodeURIComponent(
       `Bonjour,\n\nVotre réservation est confirmée chez L&Lui Signature !\n\n` +
-      `🔑 Code de confirmation : ${result.confirmationCode}\n\n` +
-      `Ce code vous sera demandé à votre arrivée. Vous pouvez également présenter le QR code ci-joint.\n\n` +
-      `Merci de votre confiance !`
+      `🔑 Code de confirmation : *${result.confirmationCode}*\n\n` +
+      `📲 Votre QR Code d'arrivée (à enregistrer) :\n${result.qrCodeUrl}\n\n` +
+      `Présentez ce QR code ou ce code à votre arrivée.\n\nMerci de votre confiance !`
     )
     const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMessage}` : null
 
@@ -74,7 +75,22 @@ export default function PartnerReservationForm({ accommodations }: Props) {
             alt="QR Code réservation"
             className="w-48 h-48 mx-auto rounded-xl border border-beige-200"
           />
+          <a
+            href={result.qrCodeUrl}
+            download={`qr-${result.confirmationCode}.png`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 mt-2 text-xs text-dark/50 hover:text-dark transition-colors"
+          >
+            <Download size={12} /> Télécharger le QR code
+          </a>
         </div>
+
+        {!waPhone && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
+            Aucun numéro WhatsApp renseigné. Partagez le QR code et le code manuellement.
+          </p>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {waUrl && (
@@ -84,7 +100,7 @@ export default function PartnerReservationForm({ accommodations }: Props) {
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
             >
-              <MessageCircle size={15} /> Envoyer au client via WhatsApp
+              <MessageCircle size={15} /> Envoyer le code au client (WhatsApp)
             </a>
           )}
           <button

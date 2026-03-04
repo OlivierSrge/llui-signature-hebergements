@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { Camera, ScanLine, CheckCircle2, XCircle, Loader2, KeyRound } from 'lucide-react'
 import { confirmCheckIn } from '@/actions/partner-reservations'
+import jsQR from 'jsqr'
 
 interface Props {
   partnerAccessCode: string
@@ -18,14 +19,16 @@ type ScanResult =
 
 export default function QrScanner({ partnerAccessCode }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [scanResult, setScanResult] = useState<ScanResult>({ status: 'idle' })
   const [manualCode, setManualCode] = useState('')
   const [cameraError, setCameraError] = useState<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const processingRef = useRef(false)
 
   const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = null
@@ -33,10 +36,22 @@ export default function QrScanner({ partnerAccessCode }: Props) {
   }, [])
 
   const processCode = useCallback(async (code: string) => {
+    if (processingRef.current) return
+    processingRef.current = true
     stopCamera()
     setScanResult({ status: 'confirming' })
 
-    const res = await confirmCheckIn(code, partnerAccessCode)
+    // Extraire le code de confirmation depuis une URL ou valeur brute
+    let confirmCode = code
+    try {
+      const url = new URL(code)
+      const param = url.searchParams.get('code')
+      if (param) confirmCode = param
+    } catch { /* pas une URL */ }
+
+    const res = await confirmCheckIn(confirmCode.trim().toUpperCase(), partnerAccessCode)
+    processingRef.current = false
+
     if (!res.success) {
       setScanResult({ status: 'error', message: res.error ?? 'Erreur inconnue' })
       return
@@ -46,50 +61,54 @@ export default function QrScanner({ partnerAccessCode }: Props) {
     if (!already) toast.success('Arrivée confirmée !')
   }, [partnerAccessCode, stopCamera])
 
+  /** Boucle de scan : dessine la frame vidéo sur canvas et passe les pixels à jsQR */
+  const scanFrame = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.readyState < 2 || processingRef.current) {
+      rafRef.current = requestAnimationFrame(scanFrame)
+      return
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) { rafRef.current = requestAnimationFrame(scanFrame); return }
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    })
+
+    if (code?.data) {
+      processCode(code.data)
+      return
+    }
+
+    rafRef.current = requestAnimationFrame(scanFrame)
+  }, [processCode])
+
   const startCamera = useCallback(async () => {
     setCameraError(null)
     setScanResult({ status: 'scanning' })
 
-    // Check BarcodeDetector support
-    if (!('BarcodeDetector' in window)) {
-      setCameraError('Votre navigateur ne supporte pas le scanner QR. Utilisez la saisie manuelle.')
-      setScanResult({ status: 'idle' })
-      return
-    }
-
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      })
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        videoRef.current.play()
+        await videoRef.current.play()
       }
-
-      // @ts-ignore — BarcodeDetector not yet in TS lib
-      const detector = new BarcodeDetector({ formats: ['qr_code'] })
-
-      scanIntervalRef.current = setInterval(async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) return
-        try {
-          const barcodes = await detector.detect(videoRef.current)
-          if (barcodes.length > 0) {
-            const raw = barcodes[0].rawValue as string
-            // Extract confirmation code from URL or raw value
-            let code = raw
-            try {
-              const url = new URL(raw)
-              const param = url.searchParams.get('code')
-              if (param) code = param
-            } catch { /* not a URL */ }
-            await processCode(code.trim().toUpperCase())
-          }
-        } catch { /* detection error, continue */ }
-      }, 500)
-    } catch (err: any) {
+      rafRef.current = requestAnimationFrame(scanFrame)
+    } catch {
       setCameraError("Impossible d'accéder à la caméra. Vérifiez les permissions.")
       setScanResult({ status: 'idle' })
     }
-  }, [processCode])
+  }, [scanFrame])
 
   useEffect(() => {
     return () => { stopCamera() }
@@ -103,6 +122,7 @@ export default function QrScanner({ partnerAccessCode }: Props) {
 
   const reset = () => {
     stopCamera()
+    processingRef.current = false
     setManualCode('')
     setScanResult({ status: 'idle' })
   }
@@ -114,7 +134,7 @@ export default function QrScanner({ partnerAccessCode }: Props) {
       <div className="bg-white rounded-2xl border border-beige-200 p-8 text-center space-y-4">
         <CheckCircle2
           size={56}
-          className={scanResult.alreadyConfirmed ? 'text-blue-400 mx-auto' : 'text-green-500 mx-auto'}
+          className={`mx-auto ${scanResult.alreadyConfirmed ? 'text-blue-400' : 'text-green-500'}`}
         />
         <div>
           <h2 className="font-serif text-xl font-semibold text-dark">
@@ -186,23 +206,36 @@ export default function QrScanner({ partnerAccessCode }: Props) {
       <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
         {scanResult.status === 'scanning' ? (
           <div className="relative">
-            <video ref={videoRef} className="w-full aspect-square object-cover" playsInline muted />
+            <video
+              ref={videoRef}
+              className="w-full aspect-square object-cover"
+              playsInline
+              muted
+            />
+            {/* Canvas caché utilisé par jsQR pour l'analyse des frames */}
+            <canvas ref={canvasRef} className="hidden" />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <ScanLine size={160} className="text-white/80 drop-shadow-lg" strokeWidth={1} />
+              <div className="w-52 h-52 border-2 border-white/70 rounded-2xl shadow-lg flex items-center justify-center">
+                <ScanLine size={40} className="text-white/80" strokeWidth={1.5} />
+              </div>
             </div>
-            <button
-              onClick={reset}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 text-white rounded-xl text-sm"
-            >
-              Arrêter
-            </button>
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-4 flex justify-center">
+              <button
+                onClick={reset}
+                className="px-5 py-2 bg-white/20 backdrop-blur text-white rounded-xl text-sm border border-white/30"
+              >
+                Arrêter
+              </button>
+            </div>
           </div>
         ) : (
           <div className="p-8 text-center space-y-4">
             <Camera size={48} className="text-dark/20 mx-auto" />
             <div>
-              <p className="font-semibold text-dark">Scanner le QR code</p>
-              <p className="text-dark/40 text-sm mt-1">Présentez le QR code du client devant la caméra.</p>
+              <p className="font-semibold text-dark">Scanner le QR code client</p>
+              <p className="text-dark/40 text-sm mt-1">
+                Fonctionne sur tous les navigateurs (Chrome, Firefox, Safari).
+              </p>
             </div>
             {cameraError && (
               <p className="text-xs text-red-600 bg-red-50 rounded-xl p-3">{cameraError}</p>
@@ -224,7 +257,7 @@ export default function QrScanner({ partnerAccessCode }: Props) {
             type="text"
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-            placeholder="ex: LLS-2025-AB3CD"
+            placeholder="LLS-2025-AB3CD"
             className="input-field flex-1 font-mono uppercase tracking-widest text-sm"
             maxLength={15}
           />
