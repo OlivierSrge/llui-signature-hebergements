@@ -17,7 +17,7 @@ import {
   // Extérieur & Nature
   TreePine, Mountain, MountainSnow, Tent, Leaf, Umbrella, Anchor,
   // Services & Accès
-  Car, ArrowUpDown, Shield, Lock, Key, Wheelchair, Baby, PawPrint,
+  Car, ArrowUpDown, Shield, Lock, Key, Accessibility, Baby, PawPrint,
   // Vues & Ambiance
   Sunrise, Sunset, Sparkles, Star, Eye,
   // Travail
@@ -93,7 +93,7 @@ const AMENITY_ICONS: { keywords: string[]; icon: LucideIcon }[] = [
   { keywords: ['sécurité', 'gardien', 'alarme', 'caméra', 'badge', 'interphone'], icon: Shield },
   { keywords: ['coffre-fort', 'coffre', 'consigne sécurisée'], icon: Lock },
   { keywords: ['check-in autonome', 'boîte à clés', 'accès autonome', "code d'accès"], icon: Key },
-  { keywords: ['accessible', 'pmr', 'handicapé', 'fauteuil roulant', 'mobilité réduite'], icon: Wheelchair },
+  { keywords: ['accessible', 'pmr', 'handicapé', 'fauteuil roulant', 'mobilité réduite'], icon: Accessibility },
   { keywords: ['bébé', 'enfant', 'lit bébé', 'chaise haute', 'parc bébé'], icon: Baby },
   { keywords: ['animal', 'animaux', 'chien', 'chat', 'pet', 'accepte les animaux'], icon: PawPrint },
 
