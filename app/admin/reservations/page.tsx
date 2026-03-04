@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { ArrowRight, Filter } from 'lucide-react'
+import { ArrowRight, Filter, Handshake } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusColor, getReservationStatusLabel,
   getPaymentStatusColor, getPaymentStatusLabel, getPaymentMethodLabel,
@@ -81,6 +81,11 @@ export default async function AdminReservationsPage({
                     <td className="px-4 pl-6 py-4">
                       <p className="font-mono text-xs font-bold text-gold-600">#{res.id.slice(-8).toUpperCase()}</p>
                       <p className="text-xs text-dark/40">{formatDate(res.created_at, 'dd/MM/yy')}</p>
+                      {res.source === 'partenaire' && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-full">
+                          <Handshake size={10} /> Via Partenaire
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <p className="font-medium text-dark">{res.guest_first_name} {res.guest_last_name}</p>

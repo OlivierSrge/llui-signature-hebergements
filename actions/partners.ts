@@ -61,6 +61,7 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
       name,
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
+      whatsapp_number: (formData.get('whatsapp_number') as string)?.replace(/\D/g, '') || null,
       description: (formData.get('description') as string) || null,
       address: (formData.get('address') as string) || null,
       iban: (formData.get('iban') as string) || null,
@@ -70,6 +71,9 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
       promo_discount_value: discountValue,
       access_code: generateAccessCode(),
       access_pin: (formData.get('access_pin') as string)?.trim() || null,
+      commission_usage_type: (formData.get('commission_usage_type') as string) || 'percent',
+      commission_usage_value: Number(formData.get('commission_usage_value')) || 0,
+      reliability_score: null,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -95,10 +99,12 @@ export async function updatePartner(id: string, formData: FormData): Promise<Act
     const discountType = (formData.get('promo_discount_type') as DiscountType) || 'percent'
     const discountValue = Number(formData.get('promo_discount_value')) || 0
 
-    await db.collection('partenaires').doc(id).update({
+    const pin = (formData.get('access_pin') as string)?.trim()
+    const updateData: Record<string, unknown> = {
       name,
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
+      whatsapp_number: (formData.get('whatsapp_number') as string)?.replace(/\D/g, '') || null,
       description: (formData.get('description') as string) || null,
       address: (formData.get('address') as string) || null,
       iban: (formData.get('iban') as string) || null,
@@ -106,10 +112,14 @@ export async function updatePartner(id: string, formData: FormData): Promise<Act
       promo_code: promoCode,
       promo_discount_type: discountType,
       promo_discount_value: discountValue,
-      access_pin: (formData.get('access_pin') as string)?.trim() || null,
+      commission_usage_type: (formData.get('commission_usage_type') as string) || 'percent',
+      commission_usage_value: Number(formData.get('commission_usage_value')) || 0,
       is_active: formData.get('is_active') !== 'false',
       updated_at: new Date().toISOString(),
-    })
+    }
+    if (pin) updateData.access_pin = pin
+
+    await db.collection('partenaires').doc(id).update(updateData)
 
     // Synchroniser le code promo si renseigné
     if (promoCode && discountValue > 0) {

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import PartnerForm from '@/components/admin/PartnerForm'
+import PartnerWhatsAppCard from '@/components/admin/PartnerWhatsAppCard'
 import type { Partner } from '@/lib/types'
 
 async function getPartner(id: string): Promise<Partner | null> {
@@ -24,6 +25,14 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
         <h1 className="font-serif text-3xl font-semibold text-dark">Modifier le partenaire</h1>
         <p className="text-dark/50 text-sm mt-1">{partner.name}</p>
       </div>
+
+      {/* Lien d'invitation WhatsApp */}
+      {partner.whatsapp_number && (
+        <div className="max-w-3xl mb-6">
+          <PartnerWhatsAppCard partner={partner} />
+        </div>
+      )}
+
       <PartnerForm partner={partner} />
     </div>
   )

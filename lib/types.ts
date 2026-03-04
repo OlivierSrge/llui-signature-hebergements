@@ -22,6 +22,7 @@ export interface Partner {
   name: string
   email: string | null
   phone: string | null
+  whatsapp_number: string | null       // numéro WhatsApp (format international, ex: 237612345678)
   description: string | null
   address: string | null
   iban: string | null
@@ -31,6 +32,9 @@ export interface Partner {
   promo_discount_value: number | null
   access_code: string                  // identifiant unique portail (ex: PART-AB12CD)
   access_pin: string | null            // PIN 4-6 chiffres pour le portail
+  commission_usage_type: DiscountType | null   // 'percent' ou 'fixed'
+  commission_usage_value: number | null         // valeur de la commission à l'usage
+  reliability_score: number | null              // score fiabilité 0–100
   is_active: boolean
   created_at: string
   updated_at: string
@@ -140,6 +144,19 @@ export interface Reservation {
   promo_code: string | null
   discount_amount: number | null
 
+  // Partenaire
+  source: 'direct' | 'partenaire' | null    // canal d'origine de la réservation
+  partner_id: string | null                  // partenaire ayant créé la réservation
+  partner_name: string | null
+  confirmation_code: string | null           // LLS-YYYY-XXXXX
+  qr_code_data: string | null               // URL du QR code
+  check_in_confirmed: boolean | null        // arrivée confirmée via scan
+  check_in_date: string | null
+  checked_in_by: string | null             // access_code du partenaire ayant scanné
+
+  // Commission à l'usage
+  usage_commission_amount: number | null
+
   created_at: string
   updated_at: string
 
@@ -208,6 +225,24 @@ export interface Pack {
   created_at: string
   updated_at: string
   accommodations?: Accommodation[]
+}
+
+// ============================================================
+// Commission à l'usage (partenaire)
+// ============================================================
+export interface CommissionUsage {
+  id: string
+  reservation_id: string
+  partner_id: string
+  partner_name: string
+  accommodation_id: string
+  accommodation_name: string
+  amount: number                // montant de la commission
+  commission_type: DiscountType // 'percent' ou 'fixed'
+  commission_value: number      // taux ou montant paramétré
+  paid: boolean
+  paid_at: string | null
+  created_at: string
 }
 
 // ============================================================

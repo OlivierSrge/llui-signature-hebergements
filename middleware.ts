@@ -12,7 +12,8 @@ export function middleware(request: NextRequest) {
   }
 
   // Protection portail partenaire
-  if (pathname.startsWith('/partenaire/dashboard')) {
+  const partnerProtectedPaths = ['/partenaire/dashboard', '/partenaire/reservations', '/partenaire/scanner']
+  if (partnerProtectedPaths.some((p) => pathname.startsWith(p))) {
     const partnerSession = request.cookies.get('partner_session')?.value
     if (!partnerSession) {
       return NextResponse.redirect(new URL('/partenaire', request.url))
@@ -23,5 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/partenaire/dashboard/:path*'],
+  matcher: ['/admin/:path*', '/partenaire/dashboard/:path*', '/partenaire/reservations/:path*', '/partenaire/scanner/:path*'],
 }

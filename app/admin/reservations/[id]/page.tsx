@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
-import { ChevronLeft, Calendar, Users, CreditCard, Building2, Phone, Mail } from 'lucide-react'
+import { ChevronLeft, Calendar, Users, CreditCard, Building2, Phone, Mail, Handshake, QrCode } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor,
   getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel, resolveImageUrl,
@@ -37,9 +37,14 @@ export default async function AdminReservationDetailPage({ params }: { params: P
             <h1 className="font-serif text-3xl font-semibold text-dark">Réservation #{res.id.slice(-8).toUpperCase()}</h1>
             <p className="text-dark/50 text-sm mt-1">Créée le {formatDate(res.created_at, 'dd MMMM yyyy à HH:mm')}</p>
           </div>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             <span className={`badge text-sm px-4 py-2 ${getReservationStatusColor(res.reservation_status)}`}>{getReservationStatusLabel(res.reservation_status)}</span>
             <span className={`badge text-sm px-4 py-2 ${getPaymentStatusColor(res.payment_status)}`}>{getPaymentStatusLabel(res.payment_status)}</span>
+            {res.source === 'partenaire' && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-full">
+                <Handshake size={14} /> Via Partenaire
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -86,6 +91,33 @@ export default async function AdminReservationDetailPage({ params }: { params: P
               </div>
             </div>
           </Section>
+
+          {res.source === 'partenaire' && (
+            <Section title="Réservation partenaire" icon={Handshake}>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 space-y-3 text-sm">
+                  {res.partner_name && <InfoItem label="Partenaire" value={res.partner_name} />}
+                  {res.confirmation_code && (
+                    <InfoItem label="Code de confirmation" value={res.confirmation_code} icon={QrCode} />
+                  )}
+                  <InfoItem
+                    label="Arrivée confirmée"
+                    value={res.check_in_confirmed ? `Oui — ${res.check_in_date ? formatDate(res.check_in_date, 'dd/MM/yyyy HH:mm') : ''}` : 'Non'}
+                  />
+                  {res.usage_commission_amount != null && (
+                    <InfoItem label="Commission à l'usage" value={formatPrice(res.usage_commission_amount)} />
+                  )}
+                </div>
+                {res.qr_code_data && (
+                  <div className="flex flex-col items-center gap-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={res.qr_code_data} alt="QR Code" className="w-28 h-28 rounded-xl border border-beige-200" />
+                    <p className="text-xs text-dark/40">QR Code client</p>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
 
           {res.admin_notes && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">

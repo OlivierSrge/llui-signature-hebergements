@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, Trash2, Save, Copy, Check, Tag, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Trash2, Save, Copy, Check, Tag, KeyRound, Eye, EyeOff, MessageCircle, Percent } from 'lucide-react'
 import { createPartner, updatePartner, deletePartner } from '@/actions/partners'
 import type { Partner } from '@/lib/types'
 
@@ -97,6 +97,19 @@ export default function PartnerForm({ partner }: Props) {
         </div>
 
         <div>
+          <label className="label flex items-center gap-1.5">
+            <MessageCircle size={14} className="text-green-500" /> Numéro WhatsApp
+          </label>
+          <input
+            name="whatsapp_number" type="tel"
+            defaultValue={partner?.whatsapp_number || ''}
+            placeholder="237612345678 (format international, sans +)"
+            className="input-field"
+          />
+          <p className="text-xs text-dark/40 mt-1">Utilisé pour envoyer le lien d&apos;invitation au portail partenaire.</p>
+        </div>
+
+        <div>
           <label className="label">Adresse</label>
           <input
             name="address" type="text"
@@ -176,10 +189,10 @@ export default function PartnerForm({ partner }: Props) {
             <Tag size={14} className="text-green-600 flex-shrink-0" />
             <span className="text-green-800">
               Code actif : <strong className="font-mono tracking-widest">{partner.promo_code}</strong>
-              {(partner as any).promo_discount_value > 0 && (
-                <> — {(partner as any).promo_discount_type === 'percent'
-                  ? `-${(partner as any).promo_discount_value}%`
-                  : `-${new Intl.NumberFormat('fr-FR').format((partner as any).promo_discount_value)} FCFA`}
+              {(partner.promo_discount_value ?? 0) > 0 && (
+                <> — {partner.promo_discount_type === 'percent'
+                  ? `-${partner.promo_discount_value}%`
+                  : `-${new Intl.NumberFormat('fr-FR').format(partner.promo_discount_value!)} FCFA`}
                 </>
               )}
             </span>
@@ -253,6 +266,40 @@ export default function PartnerForm({ partner }: Props) {
             <p className="font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/partenaire</p>
           </div>
         )}
+      </div>
+
+      {/* Commission à l'usage */}
+      <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
+        <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 flex items-center gap-2">
+          <Percent size={16} className="text-gold-500" /> Commission à l&apos;usage
+        </h2>
+        <p className="text-xs text-dark/50">
+          Micro-commission prélevée à chaque réservation créée par ce partenaire via son portail.
+        </p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Type de commission</label>
+            <select
+              name="commission_usage_type"
+              defaultValue={partner?.commission_usage_type || 'percent'}
+              className="input-field"
+            >
+              <option value="percent">Pourcentage (%)</option>
+              <option value="fixed">Montant fixe (FCFA)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Valeur</label>
+            <input
+              name="commission_usage_value" type="number" min={0}
+              defaultValue={partner?.commission_usage_value ?? ''}
+              placeholder="ex: 2"
+              className="input-field"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-dark/40">Laisser à 0 pour ne pas appliquer de commission à l&apos;usage.</p>
       </div>
 
       {/* Informations financières */}
