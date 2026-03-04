@@ -189,6 +189,23 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
+        <h2 className="font-semibold text-dark border-b border-beige-200 pb-3">Notes & avis</h2>
+        <p className="text-xs text-dark/40">Renseignez les notes pour afficher la section avis. Laisser vide pour masquer.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Note globale (/5)" name="ratings_overall" type="number" defaultValue={accommodation?.ratings?.overall ?? ''} placeholder="4.9" />
+          <Field label="Nombre d'avis" name="ratings_count" type="number" defaultValue={accommodation?.ratings?.count ?? ''} placeholder="42" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <Field label="Propreté" name="ratings_cleanliness" type="number" defaultValue={accommodation?.ratings?.cleanliness ?? ''} placeholder="5.0" />
+          <Field label="Exactitude" name="ratings_accuracy" type="number" defaultValue={accommodation?.ratings?.accuracy ?? ''} placeholder="5.0" />
+          <Field label="Arrivée" name="ratings_checkin" type="number" defaultValue={accommodation?.ratings?.checkin ?? ''} placeholder="5.0" />
+          <Field label="Communication" name="ratings_communication" type="number" defaultValue={accommodation?.ratings?.communication ?? ''} placeholder="5.0" />
+          <Field label="Emplacement" name="ratings_location" type="number" defaultValue={accommodation?.ratings?.location ?? ''} placeholder="4.9" />
+          <Field label="Rapport qualité-prix" name="ratings_value" type="number" defaultValue={accommodation?.ratings?.value ?? ''} placeholder="5.0" />
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex gap-3">

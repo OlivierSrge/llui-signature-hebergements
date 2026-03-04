@@ -21,6 +21,18 @@ export async function createAccommodation(formData: FormData): Promise<ActionRes
       partnerData = partnerDoc.data() || {}
     }
 
+    const ratingsOverall = parseFloat(formData.get('ratings_overall') as string)
+    const ratings = isNaN(ratingsOverall) ? null : {
+      overall: ratingsOverall,
+      count: parseInt(formData.get('ratings_count') as string) || 0,
+      cleanliness: parseFloat(formData.get('ratings_cleanliness') as string) || ratingsOverall,
+      accuracy: parseFloat(formData.get('ratings_accuracy') as string) || ratingsOverall,
+      checkin: parseFloat(formData.get('ratings_checkin') as string) || ratingsOverall,
+      communication: parseFloat(formData.get('ratings_communication') as string) || ratingsOverall,
+      location: parseFloat(formData.get('ratings_location') as string) || ratingsOverall,
+      value: parseFloat(formData.get('ratings_value') as string) || ratingsOverall,
+    }
+
     const docRef = db.collection('hebergements').doc()
     await docRef.set({
       partner_id,
@@ -42,6 +54,7 @@ export async function createAccommodation(formData: FormData): Promise<ActionRes
       location: formData.get('location') || null,
       images,
       amenities,
+      ratings,
       featured: formData.get('featured') === 'true',
       status: 'active',
       created_at: new Date().toISOString(),
@@ -71,6 +84,18 @@ export async function updateAccommodation(id: string, formData: FormData): Promi
       partnerData = partnerDoc.data() || {}
     }
 
+    const ratingsOverall = parseFloat(formData.get('ratings_overall') as string)
+    const ratings = isNaN(ratingsOverall) ? null : {
+      overall: ratingsOverall,
+      count: parseInt(formData.get('ratings_count') as string) || 0,
+      cleanliness: parseFloat(formData.get('ratings_cleanliness') as string) || ratingsOverall,
+      accuracy: parseFloat(formData.get('ratings_accuracy') as string) || ratingsOverall,
+      checkin: parseFloat(formData.get('ratings_checkin') as string) || ratingsOverall,
+      communication: parseFloat(formData.get('ratings_communication') as string) || ratingsOverall,
+      location: parseFloat(formData.get('ratings_location') as string) || ratingsOverall,
+      value: parseFloat(formData.get('ratings_value') as string) || ratingsOverall,
+    }
+
     await db.collection('hebergements').doc(id).update({
       partner_id,
       partner: {
@@ -91,6 +116,7 @@ export async function updateAccommodation(id: string, formData: FormData): Promi
       location: formData.get('location') || null,
       images,
       amenities,
+      ratings,
       featured: formData.get('featured') === 'true',
       status: formData.get('status') || 'active',
       updated_at: new Date().toISOString(),

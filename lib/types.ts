@@ -34,6 +34,17 @@ export interface Partner {
 // ============================================================
 // Accommodation
 // ============================================================
+export interface AccommodationRatings {
+  overall: number
+  count: number
+  cleanliness: number
+  accuracy: number
+  checkin: number
+  communication: number
+  location: number
+  value: number
+}
+
 export interface Accommodation {
   id: string
   partner_id: string
@@ -52,6 +63,7 @@ export interface Accommodation {
   longitude: number | null
   images: string[]
   amenities: string[]
+  ratings?: AccommodationRatings | null
   status: 'active' | 'inactive'
   featured: boolean
   created_at: string

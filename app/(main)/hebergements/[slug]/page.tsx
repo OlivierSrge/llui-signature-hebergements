@@ -4,9 +4,11 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
-import { Users, BedDouble, Bath, MapPin, Check, ChevronLeft, Star, Building2 } from 'lucide-react'
+import { Users, BedDouble, Bath, MapPin, ChevronLeft, Star, Building2 } from 'lucide-react'
 import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
 import BookingWidget from '@/components/reservations/BookingWidget'
+import AmenitiesSection from '@/components/accommodations/AmenitiesSection'
+import RatingsSection from '@/components/accommodations/RatingsSection'
 
 async function getAccommodation(slug: string) {
   const snap = await db.collection('hebergements').where('slug', '==', slug).where('status', '==', 'active').limit(1).get()
@@ -62,7 +64,7 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
         <div className="grid grid-cols-4 grid-rows-2 gap-2 rounded-2xl overflow-hidden h-[400px] sm:h-[500px]">
           {(acc.images?.length ? acc.images : ['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800']).slice(0, 5).map((img: string, i: number) => (
             <div key={i} className={`relative overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'}`}>
-              <Image src={resolveImageUrl(img)} alt={`${acc.name} - photo ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-500 cursor-pointer" sizes="(max-width: 768px) 50vw, 25vw" />
+              <Image src={resolveImageUrl(img)} alt={`${acc.name} - photo ${i + 1}`} fill unoptimized className="object-cover hover:scale-105 transition-transform duration-500 cursor-pointer" sizes="(max-width: 768px) 50vw, 25vw" />
               {i === 4 && acc.images.length > 5 && (
                 <div className="absolute inset-0 bg-dark/50 flex items-center justify-center">
                   <span className="text-white font-medium text-sm">+{acc.images.length - 5} photos</span>
@@ -108,17 +110,11 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
             </div>
 
             {(acc.amenities || []).length > 0 && (
-              <div className="mb-8">
-                <h2 className="font-serif text-2xl font-semibold text-dark mb-4">Équipements & services</h2>
-                <div className="gold-divider mb-4" />
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {acc.amenities.map((amenity: string) => (
-                    <div key={amenity} className="flex items-center gap-2.5 px-3 py-2.5 bg-white rounded-xl border border-beige-200 text-sm text-dark/70">
-                      <Check size={14} className="text-gold-500 flex-shrink-0" />{amenity}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <AmenitiesSection amenities={acc.amenities} />
+            )}
+
+            {acc.ratings && (
+              <RatingsSection ratings={acc.ratings} featured={acc.featured} />
             )}
 
             <div className="p-6 bg-beige-50 rounded-2xl border border-beige-200">

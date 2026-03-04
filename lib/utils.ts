@@ -35,8 +35,10 @@ export function formatDateRange(checkIn: string, checkOut: string) {
 // ============================================================
 // Prix
 // ============================================================
-export function formatPrice(amount: number, currency = 'FCFA'): string {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' ' + currency
+export function formatPrice(amount: number | string | undefined | null, currency = 'FCFA'): string {
+  const num = Number(amount)
+  if (isNaN(num)) return '– ' + currency
+  return new Intl.NumberFormat('fr-FR').format(Math.round(num)) + ' ' + currency
 }
 
 export function calculateReservation(
@@ -134,19 +136,21 @@ export function generateSlug(name: string): string {
  * Converts a Google Drive share URL (/view) to a direct thumbnail URL.
  * Returns the original URL unchanged for non-Drive URLs.
  */
-export function resolveImageUrl(url: string | undefined | null, size = 'w1200'): string {
+export function resolveImageUrl(url: string | undefined | null, _size = 'w1200'): string {
   if (!url) return ''
+
+  if (!url.includes('drive.google.com')) return url
 
   // Match /file/d/FILE_ID/ format
   const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
   if (fileMatch) {
-    return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=${size}`
+    return `https://lh3.googleusercontent.com/d/${fileMatch[1]}`
   }
 
-  // Match ?id=FILE_ID or &id=FILE_ID format (open, uc, etc.)
+  // Match ?id=FILE_ID or &id=FILE_ID format (open, uc, export, etc.)
   const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
-  if (url.includes('drive.google.com') && idMatch) {
-    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=${size}`
+  if (idMatch) {
+    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`
   }
 
   return url

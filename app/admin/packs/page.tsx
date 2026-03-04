@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { db } from '@/lib/firebase'
 import { Plus, Building2 } from 'lucide-react'
+import { resolveImageUrl } from '@/lib/utils'
 import type { Pack } from '@/lib/types'
 
 const PACK_LABEL: Record<string, string> = {
@@ -50,9 +51,10 @@ export default async function AdminPacksPage() {
             <Link key={pack.id} href={`/admin/packs/${pack.id}`} className="group block bg-white rounded-2xl border border-beige-200 hover:shadow-card transition-shadow overflow-hidden">
               <div className="relative aspect-video overflow-hidden">
                 <Image
-                  src={pack.images?.[0] || fallback}
+                  src={resolveImageUrl(pack.images?.[0]) || fallback}
                   alt={pack.name}
                   fill
+                  unoptimized
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                   sizes="(max-width: 640px) 100vw, 50vw"
                 />
