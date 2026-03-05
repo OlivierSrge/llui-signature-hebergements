@@ -170,6 +170,20 @@ export async function deleteAccommodation(id: string): Promise<ActionResult> {
   }
 }
 
+export async function activateAccommodation(id: string): Promise<ActionResult> {
+  try {
+    await db.collection('hebergements').doc(id).update({
+      status: 'active',
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/hebergements')
+    revalidatePath('/')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || "Erreur lors de l'activation" }
+  }
+}
+
 export async function updateAvailability(
   accommodationId: string,
   dates: { date: string; is_available: boolean }[]

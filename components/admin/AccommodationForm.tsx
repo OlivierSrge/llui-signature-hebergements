@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react'
-import { createAccommodation, updateAccommodation, deleteAccommodation } from '@/actions/accommodations'
+import { Loader2, Trash2, Save, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
+import { createAccommodation, updateAccommodation, deleteAccommodation, activateAccommodation } from '@/actions/accommodations'
 import { getAmenityIcon } from '@/lib/amenity-icons'
 import PhotoUploader from '@/components/admin/PhotoUploader'
 import type { Accommodation, Partner } from '@/lib/types'
@@ -228,6 +228,7 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [deleting, setDeleting] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(accommodation?.status || 'active')
   const isEdit = !!accommodation
 
   const [imageUrls, setImageUrls] = useState<string[]>(accommodation?.images || [])
@@ -269,17 +270,25 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
     })
   }
 
-  const handleDelete = async () => {
+  const handleToggleStatus = async () => {
     if (!accommodation) return
-    if (!confirm('Êtes-vous sûr de vouloir désactiver cet hébergement ?')) return
+    const isInactive = currentStatus === 'inactive'
+    const msg = isInactive
+      ? 'Activer cet hébergement ?'
+      : 'Désactiver cet hébergement ?'
+    if (!confirm(msg)) return
 
     setDeleting(true)
-    const result = await deleteAccommodation(accommodation.id)
+    const result = isInactive
+      ? await activateAccommodation(accommodation.id)
+      : await deleteAccommodation(accommodation.id)
     if (!result.success) {
       toast.error(result.error)
     } else {
-      toast.success('Hébergement désactivé')
-      router.push('/admin/hebergements')
+      const newStatus = isInactive ? 'active' : 'inactive'
+      toast.success(isInactive ? 'Hébergement activé' : 'Hébergement désactivé')
+      setCurrentStatus(newStatus)
+      router.refresh()
     }
     setDeleting(false)
   }
@@ -471,12 +480,22 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
         {isEdit && (
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={handleToggleStatus}
             disabled={deleting}
-            className="flex items-center gap-2 px-4 py-3 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+            className={`flex items-center gap-2 px-4 py-3 text-sm rounded-lg transition-colors disabled:opacity-50 border ${
+              currentStatus === 'inactive'
+                ? 'text-green-600 border-green-200 hover:bg-green-50'
+                : 'text-red-500 border-red-200 hover:bg-red-50'
+            }`}
           >
-            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Désactiver
+            {deleting ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : currentStatus === 'inactive' ? (
+              <CheckCircle size={14} />
+            ) : (
+              <Trash2 size={14} />
+            )}
+            {currentStatus === 'inactive' ? 'Activer' : 'Désactiver'}
           </button>
         )}
       </div>
