@@ -107,32 +107,21 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
           locale={fr}
           disabled={{ before: today }}
           numberOfMonths={2}
-          modifiers={{
-            blocked: blockedDates,
-          }}
-          modifiersClassNames={{
-            blocked: 'rdp-day_blocked',
-            selected: 'rdp-day_admin_selected',
+          modifiers={{ blocked: blockedDates }}
+          modifiersStyles={{
+            blocked: {
+              backgroundColor: '#fee2e2',
+              color: '#ef4444',
+              textDecoration: 'line-through',
+              borderRadius: '6px',
+              opacity: 1,
+            },
           }}
         />
       </div>
 
       <style jsx global>{`
-        .rdp-admin {
-          --rdp-accent-color: #C9A84C;
-        }
-        .rdp-admin .rdp-day_blocked {
-          background-color: #fee2e2 !important;
-          color: #ef4444 !important;
-          text-decoration: line-through;
-          border-radius: 6px;
-        }
-        .rdp-admin .rdp-day_admin_selected {
-          background-color: #C9A84C !important;
-          color: white !important;
-          font-weight: 700;
-          border-radius: 6px;
-        }
+        .rdp-admin { --rdp-accent-color: #C9A84C; }
         .rdp-admin .rdp-caption_label {
           font-family: 'Playfair Display', serif;
           font-weight: 600;

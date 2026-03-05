@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import { fr } from 'date-fns/locale'
-import { format, isBefore, startOfDay, parseISO } from 'date-fns'
+import { startOfDay, parseISO } from 'date-fns'
 import 'react-day-picker/style.css'
 
 interface Props {
@@ -19,10 +19,8 @@ export default function AvailabilityCalendar({
 }: Props) {
   const today = startOfDay(new Date())
 
-  const disabledDays = [
-    { before: today },
-    ...unavailableDates.map((d) => parseISO(d)),
-  ]
+  // Dates bloquées séparées des dates passées pour avoir un style différent
+  const blockedDates = unavailableDates.map((d) => parseISO(d))
 
   return (
     <div className="rdp-custom">
@@ -30,21 +28,21 @@ export default function AvailabilityCalendar({
         mode="range"
         selected={selectedRange}
         onSelect={onRangeSelect}
-        disabled={disabledDays}
+        disabled={[{ before: today }, ...blockedDates]}
         locale={fr}
         numberOfMonths={2}
         pagedNavigation
-        modifiersClassNames={{
-          selected: 'rdp-day_selected',
-          range_start: 'rdp-day_range_start',
-          range_end: 'rdp-day_range_end',
-          range_middle: 'rdp-day_range_middle',
-          disabled: 'rdp-day_disabled',
-          today: 'rdp-day_today',
+        modifiers={{ unavailable: blockedDates }}
+        modifiersStyles={{
+          unavailable: {
+            backgroundColor: '#fecaca',
+            color: '#991b1b',
+            textDecoration: 'line-through',
+            borderRadius: '6px',
+            opacity: 1,
+          },
         }}
-        styles={{
-          root: { margin: 0 },
-        }}
+        styles={{ root: { margin: 0 } }}
       />
 
       <style jsx global>{`
