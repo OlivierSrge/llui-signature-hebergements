@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast'
 import { Loader2, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { createAccommodation, updateAccommodation, deleteAccommodation } from '@/actions/accommodations'
 import { getAmenityIcon } from '@/lib/amenity-icons'
+import PhotoUploader from '@/components/admin/PhotoUploader'
 import type { Accommodation, Partner } from '@/lib/types'
 
 // ─── Catalogue équipements ────────────────────────────────────────────────────
@@ -229,6 +230,8 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const [deleting, setDeleting] = useState(false)
   const isEdit = !!accommodation
 
+  const [imageUrls, setImageUrls] = useState<string[]>(accommodation?.images || [])
+
   // Séparer les équipements existants entre catalogue et personnalisés
   const existingAmenities = accommodation?.amenities ?? []
   const [selectedAmenities, setSelectedAmenities] = useState<Set<string>>(
@@ -241,6 +244,9 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+
+    // Images
+    formData.set('images', imageUrls.join('\n'))
 
     // Fusionner sélectionnés + personnalisés dans le champ amenities
     const custom = customAmenities.split('\n').map((s) => s.trim()).filter(Boolean)
@@ -384,18 +390,11 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
         <h2 className="font-semibold text-dark border-b border-beige-200 pb-3">
           Photos
         </h2>
-        <div>
-          <label className="label">URLs des images (une par ligne) <span className="text-red-500">*</span></label>
-          <textarea
-            name="images"
-            rows={5}
-            required
-            defaultValue={accommodation?.images?.join('\n') || ''}
-            placeholder="https://images.unsplash.com/photo-xxx&#10;https://images.unsplash.com/photo-yyy"
-            className="input-field resize-none font-mono text-xs"
-          />
-          <p className="text-xs text-dark/40 mt-1">La première image sera utilisée comme photo principale.</p>
-        </div>
+        <PhotoUploader
+          initialUrls={accommodation?.images || []}
+          onChange={setImageUrls}
+        />
+        <input type="hidden" name="images" value={imageUrls.join('\n')} />
       </div>
 
       <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-5">
