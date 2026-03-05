@@ -273,10 +273,6 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const handleToggleStatus = async () => {
     if (!accommodation) return
     const isInactive = currentStatus === 'inactive'
-    const msg = isInactive
-      ? 'Activer cet hébergement ?'
-      : 'Désactiver cet hébergement ?'
-    if (!confirm(msg)) return
 
     setDeleting(true)
     const result = isInactive
