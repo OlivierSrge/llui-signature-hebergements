@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import AccommodationForm from '@/components/admin/AccommodationForm'
 import Link from 'next/link'
-import { ChevronLeft, Calendar } from 'lucide-react'
+import { ChevronLeft, Calendar, Plus } from 'lucide-react'
 import type { Partner } from '@/lib/types'
 
 async function getAccommodation(id: string) {
@@ -33,9 +33,14 @@ export default async function EditHebergementPage({ params }: { params: Promise<
         <Link href="/admin/hebergements" className="inline-flex items-center gap-1.5 text-sm text-dark/50 hover:text-dark transition-colors">
           <ChevronLeft size={16} /> Retour aux hébergements
         </Link>
-        <Link href={`/admin/hebergements/${id}/disponibilites`} className="btn-secondary text-sm">
-          <Calendar size={15} /> Gérer les disponibilités
-        </Link>
+        <div className="flex gap-2">
+          <Link href={`/admin/reservations/nouvelle?acc=${id}`} className="btn-primary text-sm flex items-center gap-1.5">
+            <Plus size={15} /> Réservation
+          </Link>
+          <Link href={`/admin/hebergements/${id}/disponibilites`} className="btn-secondary text-sm flex items-center gap-1.5">
+            <Calendar size={15} /> Disponibilités
+          </Link>
+        </div>
       </div>
       <h1 className="font-serif text-3xl font-semibold text-dark mb-8">Modifier : {accommodation.name}</h1>
       <AccommodationForm accommodation={accommodation} partners={partners} />

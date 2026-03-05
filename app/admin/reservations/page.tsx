@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { ArrowRight, Filter, Handshake } from 'lucide-react'
+import { ArrowRight, Filter, Handshake, Plus } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusColor, getReservationStatusLabel,
   getPaymentStatusColor, getPaymentStatusLabel, getPaymentMethodLabel,
@@ -40,9 +40,14 @@ export default async function AdminReservationsPage({
 
   return (
     <div className="p-6 sm:p-8 mt-14 lg:mt-0">
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-semibold text-dark">Réservations</h1>
-        <p className="text-dark/50 text-sm mt-1">{reservations.length} réservation{reservations.length > 1 ? 's' : ''}</p>
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold text-dark">Réservations</h1>
+          <p className="text-dark/50 text-sm mt-1">{reservations.length} réservation{reservations.length > 1 ? 's' : ''}</p>
+        </div>
+        <Link href="/admin/reservations/nouvelle" className="btn-primary flex items-center gap-2 text-sm">
+          <Plus size={15} /> Nouvelle réservation
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -90,6 +95,11 @@ export default async function AdminReservationsPage({
                     <td className="px-4 py-4">
                       <p className="font-medium text-dark">{res.guest_first_name} {res.guest_last_name}</p>
                       <p className="text-xs text-dark/40">{res.guest_phone}</p>
+                      {res.check_in_confirmed && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
+                          ✓ Arrivé
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-4 max-w-[140px]">
                       <p className="text-dark/70 truncate">{res.accommodation?.name}</p>

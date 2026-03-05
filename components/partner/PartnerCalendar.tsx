@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { fr } from 'date-fns/locale'
-import { format, startOfDay } from 'date-fns'
+import { format, startOfDay, addDays } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { Loader2, Lock, Unlock } from 'lucide-react'
@@ -22,6 +22,17 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
   const [saving, setSaving] = useState(false)
 
   const today = startOfDay(new Date())
+
+  // Toutes les dates disponibles des 90 prochains jours (non bloquées)
+  const availableDates = useMemo(() => {
+    const dates: Date[] = []
+    for (let i = 0; i <= 90; i++) {
+      const d = addDays(today, i)
+      const str = format(d, 'yyyy-MM-dd')
+      if (!blocked.has(str)) dates.push(d)
+    }
+    return dates
+  }, [blocked, today])
 
   const handleDayClick = (day: Date) => {
     if (day < today) return
@@ -69,7 +80,6 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
   }
 
   const blockedDates = Array.from(blocked).map((d) => new Date(d + 'T12:00:00'))
-  const selectedDatesSet = new Set(selected.map((d) => format(d, 'yyyy-MM-dd')))
 
   return (
     <div>
@@ -79,8 +89,13 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
         onDayClick={handleDayClick}
         locale={fr}
         disabled={{ before: today }}
-        modifiers={{ blocked: blockedDates }}
+        modifiers={{ blocked: blockedDates, available: availableDates }}
         modifiersStyles={{
+          available: {
+            backgroundColor: '#dcfce7',
+            color: '#15803d',
+            borderRadius: '100%',
+          },
           blocked: {
             backgroundColor: '#fecaca',
             color: '#991b1b',
@@ -96,10 +111,13 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
       {/* Légende */}
       <div className="flex flex-wrap items-center gap-4 mt-2 mb-4 text-xs text-dark/50">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-gold-400 inline-block" /> Sélectionné
+          <span className="w-3 h-3 rounded-full bg-green-200 inline-block" /> Disponible
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-red-300 inline-block" /> Bloqué / Indisponible
+          <span className="w-3 h-3 rounded-full bg-red-300 inline-block" /> Bloqué
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-gold-400 inline-block" /> Sélectionné
         </span>
       </div>
 
@@ -107,33 +125,27 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-3 mt-2">
           <button
-            type="button"
-            onClick={blockSelected}
-            disabled={saving}
+            type="button" onClick={blockSelected} disabled={saving}
             className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
             Bloquer {selected.length} date{selected.length > 1 ? 's' : ''}
           </button>
           <button
-            type="button"
-            onClick={unblockSelected}
-            disabled={saving}
+            type="button" onClick={unblockSelected} disabled={saving}
             className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
             Libérer {selected.length} date{selected.length > 1 ? 's' : ''}
           </button>
           <button
-            type="button"
-            onClick={() => setSelected([])}
+            type="button" onClick={() => setSelected([])}
             className="px-4 py-2.5 text-dark/50 border border-beige-200 rounded-xl text-sm hover:bg-beige-50 transition-colors"
           >
             Annuler
           </button>
         </div>
       )}
-
     </div>
   )
 }

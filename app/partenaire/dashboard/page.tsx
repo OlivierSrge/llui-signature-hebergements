@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 
@@ -136,7 +136,11 @@ export default async function PartnerDashboardPage() {
             <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
               <div className="divide-y divide-beige-100">
                 {reservations.map((r: any) => (
-                  <div key={r.id} className="px-5 py-4 flex items-start justify-between gap-4">
+                  <Link
+                    key={r.id}
+                    href={`/partenaire/reservations/${r.id}`}
+                    className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-beige-50 transition-colors"
+                  >
                     <div className="min-w-0">
                       <p className="font-medium text-dark text-sm truncate">
                         {r.guest_first_name} {r.guest_last_name}
@@ -157,8 +161,9 @@ export default async function PartnerDashboardPage() {
                           Arrivée ✓
                         </span>
                       )}
+                      <ArrowRight size={13} className="text-dark/20 mt-1" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
