@@ -3,19 +3,26 @@
 import { useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { fr } from 'date-fns/locale'
-import { format, parseISO, startOfDay } from 'date-fns'
+import { format, parseISO, startOfDay, eachDayOfInterval } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { Loader2, Lock, Unlock } from 'lucide-react'
 import { updateAvailability } from '@/actions/accommodations'
 import 'react-day-picker/style.css'
 
-interface Props {
-  accommodationId: string
-  unavailableDates: string[]
+interface ReservationRange {
+  check_in: string
+  check_out: string
+  guest_name: string
 }
 
-export default function AvailabilityManager({ accommodationId, unavailableDates }: Props) {
+interface Props {
+  accommodationId: string
+  unavailableDates: string[]         // blocages manuels (disponibilites)
+  reservations?: ReservationRange[]  // réservations confirmées (non modifiables)
+}
+
+export default function AvailabilityManager({ accommodationId, unavailableDates, reservations = [] }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Date[]>([])
   const [blocked, setBlocked] = useState<Set<string>>(new Set(unavailableDates))
@@ -23,8 +30,17 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
 
   const today = startOfDay(new Date())
 
+  // Dates issues de réservations confirmées — affichées en doré, non sélectionnables
+  const reservedDates = reservations.flatMap((r) => {
+    try {
+      return eachDayOfInterval({ start: parseISO(r.check_in), end: new Date(new Date(r.check_out).getTime() - 86400000) })
+    } catch { return [] }
+  })
+  const reservedSet = new Set(reservedDates.map((d) => format(d, 'yyyy-MM-dd')))
+
   const handleDayClick = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd')
+    if (reservedSet.has(dateStr)) return // dates réservées non modifiables
     setSelected((prev) => {
       const exists = prev.find((d) => format(d, 'yyyy-MM-dd') === dateStr)
       return exists
@@ -82,7 +98,6 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
   }
 
   const blockedDates = Array.from(blocked).map((d) => parseISO(d))
-  const selectedDates = selected
 
   return (
     <div className="bg-white rounded-2xl border border-beige-200 p-5">
@@ -102,12 +117,15 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
       <div className="rdp-admin overflow-x-auto">
         <DayPicker
           mode="multiple"
-          selected={selectedDates}
+          selected={selected}
           onDayClick={handleDayClick}
           locale={fr}
           disabled={{ before: today }}
           numberOfMonths={2}
-          modifiers={{ blocked: blockedDates }}
+          modifiers={{
+            blocked: blockedDates,
+            reserved: reservedDates,
+          }}
           modifiersStyles={{
             blocked: {
               backgroundColor: '#fee2e2',
@@ -116,8 +134,22 @@ export default function AvailabilityManager({ accommodationId, unavailableDates 
               borderRadius: '6px',
               opacity: 1,
             },
+            reserved: {
+              backgroundColor: '#fef3c7',
+              color: '#92400e',
+              fontWeight: '600',
+              borderRadius: '6px',
+              opacity: 1,
+            },
           }}
         />
+      </div>
+
+      {/* Légende */}
+      <div className="flex flex-wrap gap-4 mt-3 mb-4 text-xs text-dark/50">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gold-300 inline-block" /> Réservation confirmée (non modifiable)</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-300 inline-block" /> Bloqué manuellement</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gold-500 inline-block" /> Sélectionné</span>
       </div>
 
       <style jsx global>{`

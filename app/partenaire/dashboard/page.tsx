@@ -35,6 +35,22 @@ async function getUnavailableDates(accommodationId: string): Promise<string[]> {
   return snap.docs.map((d) => d.data().date as string)
 }
 
+async function getAccommodationReservations(accommodationId: string) {
+  const today = new Date().toISOString().split('T')[0]
+  const snap = await db.collection('reservations')
+    .where('accommodation_id', '==', accommodationId)
+    .where('reservation_status', '==', 'confirmee')
+    .get()
+  return snap.docs
+    .map((d) => d.data())
+    .filter((r: any) => r.check_out >= today)
+    .map((r: any) => ({
+      check_in: r.check_in as string,
+      check_out: r.check_out as string,
+      guest_name: `${r.guest_first_name} ${r.guest_last_name}`,
+    }))
+}
+
 async function getPartnerReservations(partnerId: string) {
   // Pas d'orderBy pour éviter l'exigence d'index composite Firestore
   const snap = await db.collection('reservations')
@@ -78,9 +94,15 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect('/partenaire')
 
   const unavailableMap: Record<string, string[]> = {}
+  const reservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
   await Promise.all(
     accommodations.map(async (acc: any) => {
-      unavailableMap[acc.id] = await getUnavailableDates(acc.id)
+      const [unavail, accReservations] = await Promise.all([
+        getUnavailableDates(acc.id),
+        getAccommodationReservations(acc.id),
+      ])
+      unavailableMap[acc.id] = unavail
+      reservationsMap[acc.id] = accReservations
     })
   )
 
@@ -198,6 +220,7 @@ export default async function PartnerDashboardPage() {
                     <PartnerCalendar
                       accommodationId={acc.id}
                       unavailableDates={unavailableMap[acc.id] ?? []}
+                      reservations={reservationsMap[acc.id] ?? []}
                     />
                   </div>
                 </div>

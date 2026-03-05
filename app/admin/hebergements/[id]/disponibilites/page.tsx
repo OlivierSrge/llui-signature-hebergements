@@ -53,7 +53,15 @@ export default async function DisponibilitesPage({ params }: { params: Promise<{
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <AvailabilityManager accommodationId={id} unavailableDates={unavailableDates} />
+          <AvailabilityManager
+            accommodationId={id}
+            unavailableDates={unavailableDates}
+            reservations={reservations.map((r) => ({
+              check_in: r.check_in,
+              check_out: r.check_out,
+              guest_name: `${r.guest_first_name} ${r.guest_last_name}`,
+            }))}
+          />
         </div>
         <div>
           <div className="bg-white rounded-2xl border border-beige-200 p-5">

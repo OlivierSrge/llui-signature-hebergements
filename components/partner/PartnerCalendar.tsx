@@ -3,19 +3,26 @@
 import { useState, useMemo } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { fr } from 'date-fns/locale'
-import { format, startOfDay, addDays } from 'date-fns'
+import { format, startOfDay, addDays, parseISO, eachDayOfInterval } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { Loader2, Lock, Unlock } from 'lucide-react'
 import { updateAvailability } from '@/actions/accommodations'
 import 'react-day-picker/style.css'
 
+interface ReservationRange {
+  check_in: string
+  check_out: string
+  guest_name: string
+}
+
 interface Props {
   accommodationId: string
   unavailableDates: string[]
+  reservations?: ReservationRange[]
 }
 
-export default function PartnerCalendar({ accommodationId, unavailableDates }: Props) {
+export default function PartnerCalendar({ accommodationId, unavailableDates, reservations = [] }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Date[]>([])
   const [blocked, setBlocked] = useState<Set<string>>(new Set(unavailableDates))
@@ -23,20 +30,29 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
 
   const today = startOfDay(new Date())
 
-  // Toutes les dates disponibles des 90 prochains jours (non bloquées)
+  // Dates des réservations confirmées → dorées, non modifiables
+  const reservedDates = useMemo(() => reservations.flatMap((r) => {
+    try {
+      return eachDayOfInterval({ start: parseISO(r.check_in), end: new Date(new Date(r.check_out).getTime() - 86400000) })
+    } catch { return [] }
+  }), [reservations])
+  const reservedSet = useMemo(() => new Set(reservedDates.map((d) => format(d, 'yyyy-MM-dd'))), [reservedDates])
+
+  // Toutes les dates disponibles des 90 prochains jours (non bloquées, non réservées)
   const availableDates = useMemo(() => {
     const dates: Date[] = []
     for (let i = 0; i <= 90; i++) {
       const d = addDays(today, i)
       const str = format(d, 'yyyy-MM-dd')
-      if (!blocked.has(str)) dates.push(d)
+      if (!blocked.has(str) && !reservedSet.has(str)) dates.push(d)
     }
     return dates
-  }, [blocked, today])
+  }, [blocked, reservedSet, today])
 
   const handleDayClick = (day: Date) => {
     if (day < today) return
     const dateStr = format(day, 'yyyy-MM-dd')
+    if (reservedSet.has(dateStr)) return // réservation confirmée → non modifiable
     setSelected((prev) => {
       const exists = prev.find((d) => format(d, 'yyyy-MM-dd') === dateStr)
       return exists
@@ -89,7 +105,7 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
         onDayClick={handleDayClick}
         locale={fr}
         disabled={{ before: today }}
-        modifiers={{ blocked: blockedDates, available: availableDates }}
+        modifiers={{ blocked: blockedDates, available: availableDates, reserved: reservedDates }}
         modifiersStyles={{
           available: {
             backgroundColor: '#dcfce7',
@@ -102,6 +118,13 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
             fontWeight: '600',
             borderRadius: '100%',
           },
+          reserved: {
+            backgroundColor: '#fef3c7',
+            color: '#92400e',
+            fontWeight: '600',
+            borderRadius: '100%',
+            cursor: 'not-allowed',
+          },
         }}
         styles={{ root: { margin: 0 } }}
         numberOfMonths={2}
@@ -112,6 +135,9 @@ export default function PartnerCalendar({ accommodationId, unavailableDates }: P
       <div className="flex flex-wrap items-center gap-4 mt-2 mb-4 text-xs text-dark/50">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-green-200 inline-block" /> Disponible
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-amber-200 inline-block" /> Réservé
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-red-300 inline-block" /> Bloqué
