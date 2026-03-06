@@ -25,7 +25,14 @@ async function getPartnerAccommodations(partnerId: string) {
     .where('partner_id', '==', partnerId)
     .where('status', '==', 'active')
     .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  const all = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  // Déduplique par nom pour éviter les doublons Firestore
+  const seen = new Set<string>()
+  return all.filter((a) => {
+    if (seen.has(a.name)) return false
+    seen.add(a.name)
+    return true
+  })
 }
 
 async function getUnavailableDates(accommodationId: string): Promise<string[]> {
