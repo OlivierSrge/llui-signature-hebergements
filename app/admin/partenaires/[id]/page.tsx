@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import PartnerForm from '@/components/admin/PartnerForm'
 import PartnerWhatsAppCard from '@/components/admin/PartnerWhatsAppCard'
+import PartnerCardDownload from '@/components/admin/PartnerCardDownload'
 import type { Partner } from '@/lib/types'
 
 function generateAccessCode(): string {
@@ -37,9 +38,12 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
 
   return (
     <div className="p-6 sm:p-8 pt-6 lg:pt-8 mt-14 lg:mt-0">
-      <div className="mb-8">
-        <h1 className="font-serif text-3xl font-semibold text-dark">Modifier le partenaire</h1>
-        <p className="text-dark/50 text-sm mt-1">{partner.name}</p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold text-dark">Modifier le partenaire</h1>
+          <p className="text-dark/50 text-sm mt-1">{partner.name}</p>
+        </div>
+        <PartnerCardDownload partner={partner} />
       </div>
 
       {/* Lien d'invitation WhatsApp */}
