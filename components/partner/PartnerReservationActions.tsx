@@ -54,7 +54,7 @@ function buildWhatsAppMessage(res: any): string {
   msg += `💳 Mode  : ${getPaymentMethodLabel(res.payment_method)}\n`
   msg += `✅ Statut : ${paymentLabel}\n\n`
 
-  if (res.confirmation_code) {
+  if (res.confirmation_code && res.reservation_status === 'confirmee') {
     msg += `━━━━━━━━━━━━━━━━━━━\n`
     msg += `🎫 *Code d'arrivée*\n`
     msg += `━━━━━━━━━━━━━━━━━━━\n`
@@ -73,7 +73,7 @@ function buildWhatsAppMessage(res: any): string {
   msg += `📞 *L&Lui Signature*\n`
   msg += `Kribi — Cameroun\n`
   msg += `☎️ 693 407 964\n`
-  msg += `🌐 l-et-lui.com\n`
+  msg += `🌐 https://letlui-signature.netlify.app/\n`
   msg += `━━━━━━━━━━━━━━━━━━━`
 
   return msg
