@@ -100,6 +100,7 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
   const [cancelReason, setCancelReason] = useState('')
   const [sharingLogo, setSharingLogo] = useState(false)
   const [sendingFiche, setSendingFiche] = useState(false)
+  const [ficheUrl, setFicheUrl] = useState<string | null>(null)
 
   const act = async (key: string, fn: () => Promise<{ success?: boolean; error?: string }>) => {
     setLoading(key)
@@ -123,16 +124,15 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
 
   const handleSendFiche = async () => {
     setSendingFiche(true)
+    setFicheUrl(null)
     try {
       const result = await sendWhatsAppFiche(res.id)
       if (!result.success) {
         toast.error((result as any).error || 'Erreur envoi fiche')
       } else {
-        toast.success('Fiche préparée — ouverture WhatsApp')
+        toast.success('Fiche prête — appuyez sur "Ouvrir WhatsApp"')
         router.refresh()
-        if ((result as any).url) {
-          window.open((result as any).url, '_blank')
-        }
+        setFicheUrl((result as any).url || null)
       }
     } catch {
       toast.error('Erreur envoi fiche')
@@ -248,16 +248,27 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              type="button"
-              onClick={handleSendFiche}
-              disabled={sendingFiche}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-gold-500 text-white rounded-xl text-sm font-medium hover:bg-gold-600 disabled:opacity-50 transition-colors"
-            >
-              {sendingFiche ? <Loader2 size={15} className="animate-spin" /> : <QrCode size={15} />}
-              {res.reservation_status === 'confirmee' ? 'Renvoyer la fiche + QR' : 'Envoyer fiche + QR Code'}
-            </button>
+          <div className="flex flex-col gap-2">
+            {!ficheUrl ? (
+              <button
+                type="button"
+                onClick={handleSendFiche}
+                disabled={sendingFiche}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gold-500 text-white rounded-xl text-sm font-medium hover:bg-gold-600 disabled:opacity-50 transition-colors"
+              >
+                {sendingFiche ? <Loader2 size={15} className="animate-spin" /> : <QrCode size={15} />}
+                {sendingFiche ? 'Préparation...' : (res.reservation_status === 'confirmee' ? 'Renvoyer la fiche + QR' : 'Envoyer fiche + QR Code')}
+              </button>
+            ) : (
+              <a
+                href={ficheUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 px-4 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
+              >
+                <MessageCircle size={15} /> Ouvrir WhatsApp
+              </a>
+            )}
             {res.qr_code_data && (
               <button
                 type="button"
