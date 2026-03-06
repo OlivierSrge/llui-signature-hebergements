@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import { Loader2, CheckCircle, XCircle, DollarSign, MessageCircle, ImageIcon } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, DollarSign, MessageCircle, ImageIcon, QrCode } from 'lucide-react'
 import { updatePaymentStatus, updateReservationStatus } from '@/actions/reservations'
+import { sendWhatsAppFiche } from '@/actions/whatsapp-pipeline'
 import { formatDate, formatPrice, getPaymentMethodLabel } from '@/lib/utils'
 
 interface Props {
@@ -59,6 +60,9 @@ function buildWhatsAppMessage(res: any): string {
     msg += `🎫 *Code d'arrivée*\n`
     msg += `━━━━━━━━━━━━━━━━━━━\n`
     msg += `*${res.confirmation_code}*\n`
+    if (res.qr_code_data) {
+      msg += `\n📲 *Votre QR Code :*\n${res.qr_code_data}\n`
+    }
     msg += `_(À présenter à votre arrivée)_\n\n`
   }
 
@@ -95,6 +99,7 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
   const [showCancel, setShowCancel] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [sharingLogo, setSharingLogo] = useState(false)
+  const [sendingFiche, setSendingFiche] = useState(false)
 
   const act = async (key: string, fn: () => Promise<{ success?: boolean; error?: string }>) => {
     setLoading(key)
@@ -115,6 +120,45 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
     : `https://wa.me/?text=${encodeURIComponent(message)}`
 
   const logoUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature-hebergements.vercel.app'}/logo.png`
+
+  const handleSendFiche = async () => {
+    setSendingFiche(true)
+    try {
+      const result = await sendWhatsAppFiche(res.id)
+      if (!result.success) {
+        toast.error((result as any).error || 'Erreur envoi fiche')
+      } else {
+        toast.success('Fiche préparée — ouverture WhatsApp')
+        router.refresh()
+        if ((result as any).url) {
+          window.open((result as any).url, '_blank')
+        }
+      }
+    } catch {
+      toast.error('Erreur envoi fiche')
+    } finally {
+      setSendingFiche(false)
+    }
+  }
+
+  const shareQrCode = async () => {
+    const qrUrl = res.qr_code_data
+    if (!qrUrl) return
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        const response = await fetch(qrUrl)
+        const blob = await response.blob()
+        const file = new File([blob], `qr-${res.confirmation_code || res.id}.png`, { type: blob.type })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: `QR Code — ${res.confirmation_code}`, files: [file] })
+          return
+        }
+      }
+      window.open(qrUrl, '_blank')
+    } catch {
+      window.open(qrUrl, '_blank')
+    }
+  }
 
   const shareLogo = async () => {
     setSharingLogo(true)
@@ -179,6 +223,53 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
           </button>
         </div>
       </div>
+
+      {/* ── Fiche d'accueil + QR Code ── */}
+      {res.payment_status === 'paye' && (
+        <div className="bg-white rounded-2xl border border-gold-200 p-5 space-y-3">
+          <h2 className="font-semibold text-dark text-sm flex items-center gap-2">
+            <QrCode size={14} className="text-gold-600" /> Fiche d&apos;accueil + QR Code
+          </h2>
+          <p className="text-xs text-dark/50">
+            Confirme la réservation, génère le QR Code et ouvre WhatsApp avec la fiche d&apos;accueil prête à envoyer.
+          </p>
+
+          {res.qr_code_data && (
+            <div className="flex items-center gap-3 p-3 bg-beige-50 rounded-xl border border-beige-100">
+              <img
+                src={res.qr_code_data}
+                alt="QR Code arrivée"
+                className="w-16 h-16 rounded-lg border border-beige-200 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-dark">{res.confirmation_code}</p>
+                <p className="text-xs text-dark/50 mt-0.5">QR Code généré</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={handleSendFiche}
+              disabled={sendingFiche}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-gold-500 text-white rounded-xl text-sm font-medium hover:bg-gold-600 disabled:opacity-50 transition-colors"
+            >
+              {sendingFiche ? <Loader2 size={15} className="animate-spin" /> : <QrCode size={15} />}
+              {res.reservation_status === 'confirmee' ? 'Renvoyer la fiche + QR' : 'Envoyer fiche + QR Code'}
+            </button>
+            {res.qr_code_data && (
+              <button
+                type="button"
+                onClick={shareQrCode}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 border border-gold-300 text-gold-700 rounded-xl text-sm font-medium hover:bg-gold-50 transition-colors"
+              >
+                <ImageIcon size={15} /> Partager QR
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Actions réservation ── */}
       <div className="bg-white rounded-2xl border border-beige-200 p-5 space-y-4">
