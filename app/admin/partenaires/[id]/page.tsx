@@ -6,10 +6,26 @@ import PartnerForm from '@/components/admin/PartnerForm'
 import PartnerWhatsAppCard from '@/components/admin/PartnerWhatsAppCard'
 import type { Partner } from '@/lib/types'
 
+function generateAccessCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = 'PART-'
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)]
+  return code
+}
+
 async function getPartner(id: string): Promise<Partner | null> {
   const doc = await db.collection('partenaires').doc(id).get()
   if (!doc.exists) return null
-  return { id: doc.id, ...doc.data() } as Partner
+  const data = doc.data()!
+
+  // Auto-génère et sauvegarde le access_code s'il manque
+  if (!data.access_code) {
+    const newCode = generateAccessCode()
+    await doc.ref.update({ access_code: newCode })
+    data.access_code = newCode
+  }
+
+  return { id: doc.id, ...data } as Partner
 }
 
 export const metadata = { title: 'Modifier partenaire – Admin' }
