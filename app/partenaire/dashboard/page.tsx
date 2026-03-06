@@ -164,13 +164,19 @@ export default async function PartnerDashboardPage() {
             <h2 className="font-semibold text-dark text-lg mb-4">Mes réservations récentes</h2>
             <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
               <div className="divide-y divide-beige-100">
-                {reservations.map((r: any) => (
+                {reservations.map((r: any) => {
+                  const step1 = !!r.whatsapp_proposal_sent_at
+                  const step2 = !!r.whatsapp_payment_request_sent_at
+                  const step3 = r.payment_status === 'paye'
+                  const step4 = !!r.whatsapp_confirmation_sent_at
+
+                  return (
                   <Link
                     key={r.id}
                     href={`/partenaire/reservations/${r.id}`}
                     className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-beige-50 transition-colors"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-dark text-sm truncate">
                         {r.guest_first_name} {r.guest_last_name}
                       </p>
@@ -180,6 +186,19 @@ export default async function PartnerDashboardPage() {
                       {r.confirmation_code && (
                         <p className="text-xs font-mono text-dark/40 mt-0.5">{r.confirmation_code}</p>
                       )}
+                    </div>
+                    {/* Pipeline steps */}
+                    <div className="flex items-center gap-1 flex-shrink-0 self-center">
+                      {[step1, step2, step3, step4].map((done, i) => (
+                        <div
+                          key={i}
+                          title={['Proposition envoyée', 'Paiement demandé', 'Paiement confirmé', 'Fiche envoyée'][i]}
+                          className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center
+                            ${done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          {done ? '✓' : i + 1}
+                        </div>
+                      ))}
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[r.reservation_status] ?? 'bg-beige-100 text-dark/60'}`}>
@@ -193,7 +212,8 @@ export default async function PartnerDashboardPage() {
                       <ArrowRight size={13} className="text-dark/20 mt-1" />
                     </div>
                   </Link>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
