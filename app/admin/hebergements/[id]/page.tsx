@@ -3,9 +3,11 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import AccommodationForm from '@/components/admin/AccommodationForm'
+import SeasonalPricingManager from '@/components/admin/SeasonalPricingManager'
 import Link from 'next/link'
-import { ChevronLeft, Calendar, Plus } from 'lucide-react'
+import { ChevronLeft, Calendar, Plus, Sun } from 'lucide-react'
 import type { Partner } from '@/lib/types'
+import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 
 async function getAccommodation(id: string) {
   const doc = await db.collection('hebergements').doc(id).get()
@@ -24,7 +26,11 @@ export const metadata = { title: 'Modifier hébergement' }
 
 export default async function EditHebergementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [accommodation, partners] = await Promise.all([getAccommodation(id), getPartners()])
+  const [accommodation, partners, seasonalPeriods] = await Promise.all([
+    getAccommodation(id),
+    getPartners(),
+    getSeasonalPricing(id),
+  ])
   if (!accommodation) notFound()
 
   return (
@@ -44,6 +50,23 @@ export default async function EditHebergementPage({ params }: { params: Promise<
       </div>
       <h1 className="font-serif text-3xl font-semibold text-dark mb-8">Modifier : {accommodation.name}</h1>
       <AccommodationForm accommodation={accommodation} partners={partners} />
+
+      {/* Tarifs saisonniers */}
+      <div className="max-w-3xl mt-8">
+        <div className="bg-white rounded-2xl border border-beige-200 p-6">
+          <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 mb-4 flex items-center gap-2">
+            <Sun size={16} className="text-amber-500" /> Tarifs saisonniers
+          </h2>
+          <p className="text-xs text-dark/50 mb-4">
+            Définissez des tarifs spéciaux pour certaines périodes. Le tarif saisonnier remplace automatiquement le prix de base lors des calculs de réservation.
+          </p>
+          <SeasonalPricingManager
+            accommodationId={id}
+            basePrice={accommodation.price_per_night}
+            periods={seasonalPeriods}
+          />
+        </div>
+      </div>
     </div>
   )
 }

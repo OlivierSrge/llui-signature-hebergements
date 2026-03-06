@@ -153,7 +153,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
           {/* Right: contact form */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
-              <PackRequestForm packName={pack.name} />
+              <PackRequestForm packId={pack.id} packName={pack.name} />
             </div>
           </div>
         </div>

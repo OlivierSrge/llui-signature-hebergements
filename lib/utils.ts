@@ -81,6 +81,7 @@ export function getPaymentMethodLabel(method: PaymentMethod): string {
 
 export function getReservationStatusLabel(status: ReservationStatus): string {
   const labels: Record<ReservationStatus, string> = {
+    demande: 'Demande',
     en_attente: 'En attente',
     confirmee: 'Confirmée',
     annulee: 'Annulée',
@@ -99,6 +100,7 @@ export function getPaymentStatusLabel(status: PaymentStatus): string {
 
 export function getReservationStatusColor(status: ReservationStatus): string {
   const colors: Record<ReservationStatus, string> = {
+    demande: 'bg-blue-100 text-blue-800 border-blue-200',
     en_attente: 'bg-amber-100 text-amber-800 border-amber-200',
     confirmee: 'bg-green-100 text-green-800 border-green-200',
     annulee: 'bg-red-100 text-red-800 border-red-200',

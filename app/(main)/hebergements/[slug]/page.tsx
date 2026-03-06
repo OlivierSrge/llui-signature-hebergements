@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase'
 import { Users, BedDouble, Bath, MapPin, ChevronLeft, Star, Building2 } from 'lucide-react'
 import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
 import BookingWidget from '@/components/reservations/BookingWidget'
+import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 import AmenitiesSection from '@/components/accommodations/AmenitiesSection'
 import RatingsSection from '@/components/accommodations/RatingsSection'
 
@@ -52,7 +53,10 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
   const accommodation = await getAccommodation(slug)
   if (!accommodation) notFound()
 
-  const unavailableDates = await getUnavailableDates(accommodation.id)
+  const [unavailableDates, seasonalPeriods] = await Promise.all([
+    getUnavailableDates(accommodation.id),
+    getSeasonalPricing(accommodation.id),
+  ])
   const acc = accommodation
 
   return (
@@ -132,7 +136,7 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
 
           <div className="lg:col-span-1">
             <div className="sticky top-24">
-              <BookingWidget accommodation={acc} unavailableDates={unavailableDates} />
+              <BookingWidget accommodation={acc} unavailableDates={unavailableDates} seasonalPeriods={seasonalPeriods} />
             </div>
           </div>
         </div>

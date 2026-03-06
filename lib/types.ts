@@ -6,7 +6,7 @@ export type UserRole = 'client' | 'admin'
 
 export type AccommodationType = 'villa' | 'appartement' | 'chambre'
 
-export type ReservationStatus = 'en_attente' | 'confirmee' | 'annulee'
+export type ReservationStatus = 'demande' | 'en_attente' | 'confirmee' | 'annulee'
 
 export type PaymentStatus = 'en_attente' | 'paye' | 'annule'
 
@@ -157,11 +157,77 @@ export interface Reservation {
   // Commission à l'usage
   usage_commission_amount: number | null
 
+  // WhatsApp pipeline
+  product_type: 'hebergement' | 'pack' | 'autre' | null
+  handled_by: string | null
+  confirmed_by: string | null
+  whatsapp_proposal_sent_at: string | null
+  whatsapp_payment_request_sent_at: string | null
+  whatsapp_confirmation_sent_at: string | null
+
   created_at: string
   updated_at: string
 
   // Relations
   accommodation?: Accommodation
+}
+
+// ============================================================
+// Demande de disponibilité (client public)
+// ============================================================
+export interface AvailabilityRequest {
+  id: string
+  product_type: 'hebergement' | 'pack'
+  product_id: string
+  product_name: string
+  guest_first_name: string
+  guest_last_name: string
+  guest_phone: string
+  guest_email: string
+  check_in: string
+  check_out: string
+  guests: number
+  message: string | null
+  status: 'en_attente' | 'traitee' | 'annulee'
+  reservation_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================
+// Templates WhatsApp
+// ============================================================
+export interface WhatsAppTemplates {
+  template1_proposal: string
+  template2_payment: string
+  template3_confirmation: string
+  template4_fiche: string
+  updated_at: string
+}
+
+// ============================================================
+// Tarification saisonnière
+// ============================================================
+export interface SeasonalPricing {
+  id: string
+  accommodation_id: string
+  label: string
+  start_date: string
+  end_date: string
+  price_per_night: number
+}
+
+// ============================================================
+// Historique des communications WhatsApp
+// ============================================================
+export interface WhatsAppLog {
+  id: string
+  reservation_id: string
+  button: 1 | 2 | 3 | 4
+  button_label: string
+  sent_by: string
+  sent_at: string
+  phone: string
 }
 
 // ============================================================
@@ -219,6 +285,8 @@ export interface Pack {
   short_description: string
   description: string | null
   accommodation_ids: string[]
+  total_price: number | null       // prix global unique du pack
+  capacity: number | null          // capacité totale
   images: string[]
   featured: boolean
   status: 'active' | 'inactive'

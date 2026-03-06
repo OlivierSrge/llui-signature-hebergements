@@ -9,6 +9,8 @@ import {
   getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel, resolveImageUrl,
 } from '@/lib/utils'
 import ReservationActions from '@/components/admin/ReservationActions'
+import WhatsAppPipeline from '@/components/admin/WhatsAppPipeline'
+import WhatsAppHistory from '@/components/admin/WhatsAppHistory'
 
 async function getReservation(id: string) {
   const doc = await db.collection('reservations').doc(id).get()
@@ -164,7 +166,9 @@ export default async function AdminReservationDetailPage({ params }: { params: P
               {res.payment_date && <p className="text-xs text-dark/50">Payé le {formatDate(res.payment_date)}</p>}
             </div>
           </div>
+          <WhatsAppPipeline reservation={res} sentBy="admin" />
           <ReservationActions reservation={res} />
+          <WhatsAppHistory reservationId={res.id} />
         </div>
       </div>
     </div>
