@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'react-hot-toast'
-import { Loader2, QrCode, MessageCircle, User, Calendar, CreditCard, CheckCircle2, Download } from 'lucide-react'
+import { Loader2, QrCode, MessageCircle, User, Calendar, CreditCard, CheckCircle2 } from 'lucide-react'
 import { createPartnerReservation } from '@/actions/partner-reservations'
 
 interface Accommodation {
@@ -40,69 +40,35 @@ export default function PartnerReservationForm({ accommodations }: Props) {
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrData}&bgcolor=FFFFFF&color=1A1A1A&margin=10`
 
       setResult({ reservationId: res.reservationId, confirmationCode: res.confirmationCode, qrCodeUrl })
-      toast.success('Réservation créée !')
+      toast.success('Réservation soumise, en attente de confirmation.')
     })
   }
 
-  // ─── Confirmation screen ──────────────────────────────────────────────────
+  // ─── Écran post-création : en attente de confirmation ────────────────────
   if (result) {
-    const waPhone = guestPhone.replace(/\D/g, '')
-    // WhatsApp ne peut envoyer que du texte — on inclut l'URL du QR dans le message
-    const waMessage = encodeURIComponent(
-      `Bonjour,\n\nVotre réservation est confirmée chez L&Lui Signature !\n\n` +
-      `🔑 Code de confirmation : *${result.confirmationCode}*\n\n` +
-      `📲 Votre QR Code d'arrivée (à enregistrer) :\n${result.qrCodeUrl}\n\n` +
-      `Présentez ce QR code ou ce code à votre arrivée.\n\nMerci de votre confiance !`
-    )
-    const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMessage}` : null
-
     return (
       <div className="bg-white rounded-2xl border border-beige-200 p-8 text-center space-y-6">
         <div className="flex flex-col items-center gap-2">
-          <CheckCircle2 size={48} className="text-green-500" />
-          <h2 className="font-serif text-2xl font-semibold text-dark">Réservation créée</h2>
-          <p className="text-dark/50 text-sm">Code de confirmation</p>
-          <p className="font-mono text-2xl font-bold text-dark tracking-widest bg-beige-50 px-6 py-3 rounded-xl">
-            {result.confirmationCode}
+          <CheckCircle2 size={48} className="text-amber-400" />
+          <h2 className="font-serif text-2xl font-semibold text-dark">Réservation soumise</h2>
+          <p className="text-dark/50 text-sm max-w-xs">
+            La réservation est <strong>en attente de confirmation</strong> par l&apos;équipe L&amp;Lui Signature.
+            Le QR code sera disponible une fois la réservation confirmée.
           </p>
         </div>
 
-        <div>
-          <p className="text-xs text-dark/40 mb-3">QR Code à présenter à l&apos;arrivée</p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={result.qrCodeUrl}
-            alt="QR Code réservation"
-            className="w-48 h-48 mx-auto rounded-xl border border-beige-200"
-          />
-          <a
-            href={result.qrCodeUrl}
-            download={`qr-${result.confirmationCode}.png`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 mt-2 text-xs text-dark/50 hover:text-dark transition-colors"
-          >
-            <Download size={12} /> Télécharger le QR code
-          </a>
+        <div className="bg-beige-50 rounded-xl px-6 py-4">
+          <p className="text-xs text-dark/40 mb-1">Numéro de réservation</p>
+          <p className="font-mono text-lg font-bold text-dark tracking-widest">{result.confirmationCode}</p>
         </div>
-
-        {!waPhone && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
-            Aucun numéro WhatsApp renseigné. Partagez le QR code et le code manuellement.
-          </p>
-        )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {waUrl && (
-            <a
-              href={waUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
-            >
-              <MessageCircle size={15} /> Envoyer le code au client (WhatsApp)
-            </a>
-          )}
+          <a
+            href={`/partenaire/reservations/${result.reservationId}`}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors"
+          >
+            Voir la réservation
+          </a>
           <button
             type="button"
             onClick={() => setResult(null)}

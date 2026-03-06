@@ -146,8 +146,8 @@ export default async function PartnerReservationDetailPage({
           </div>
         </div>
 
-        {/* QR Code */}
-        {res.confirmation_code && (
+        {/* QR Code — uniquement si la réservation est confirmée */}
+        {res.confirmation_code && res.reservation_status === 'confirmee' && (
           <div className="bg-white rounded-2xl border border-beige-200 p-5 text-center">
             <h2 className="font-semibold text-dark mb-3 flex items-center justify-center gap-2 text-sm">
               <QrCode size={14} className="text-gold-500" /> Code & QR d&apos;arrivée
