@@ -225,10 +225,12 @@ export default async function AdminDashboard() {
           </div>
           <div className="divide-y divide-beige-100">
             {recent.slice(0, 5).map((res: any) => {
-              const step1 = !!res.whatsapp_proposal_sent_at
-              const step2 = !!res.whatsapp_payment_request_sent_at
-              const step3 = res.payment_status === 'paye'
-              const step4 = !!res.whatsapp_confirmation_sent_at
+              const isPaid = res.payment_status === 'paye'
+              const isConfirmed = res.reservation_status === 'confirmee'
+              const step1 = !!res.whatsapp_proposal_sent_at || isPaid || isConfirmed
+              const step2 = !!res.whatsapp_payment_request_sent_at || isPaid || isConfirmed
+              const step3 = isPaid
+              const step4 = !!res.whatsapp_confirmation_sent_at || isConfirmed
               return (
                 <Link key={res.id} href={`/admin/reservations/${res.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-beige-50 transition-colors">
                   <div className="flex-1 min-w-0">

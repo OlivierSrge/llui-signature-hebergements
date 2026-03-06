@@ -112,11 +112,13 @@ export default async function AdminReservationsPage({
               </thead>
               <tbody>
                 {reservations.map((res) => {
-                  const step1 = !!res.whatsapp_proposal_sent_at
-                  const step2 = !!res.whatsapp_payment_request_sent_at
-                  const step3 = res.payment_status === 'paye'
-                  const step4 = !!res.whatsapp_confirmation_sent_at
-                  const isAlert = step2 && !step3 && res.whatsapp_payment_request_sent_at < cutoff24h && res.reservation_status !== 'annulee'
+                  const isPaid = res.payment_status === 'paye'
+                  const isConfirmed = res.reservation_status === 'confirmee'
+                  const step1 = !!res.whatsapp_proposal_sent_at || isPaid || isConfirmed
+                  const step2 = !!res.whatsapp_payment_request_sent_at || isPaid || isConfirmed
+                  const step3 = isPaid
+                  const step4 = !!res.whatsapp_confirmation_sent_at || isConfirmed
+                  const isAlert = !!res.whatsapp_payment_request_sent_at && !isPaid && res.whatsapp_payment_request_sent_at < cutoff24h && res.reservation_status !== 'annulee'
 
                   return (
                     <tr key={res.id} className={`border-b border-beige-100 hover:bg-beige-50 transition-colors ${isAlert ? 'bg-orange-50/50' : ''}`}>
