@@ -145,6 +145,7 @@ export async function duplicateAccommodation(id: string): Promise<ActionResult> 
       slug: generateSlug(newName),
       status: 'inactive',
       featured: false,
+      partner_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
