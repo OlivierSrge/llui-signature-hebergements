@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Save, Eye, Loader2, MessageCircle, CreditCard, CheckCircle2, FileText } from 'lucide-react'
-import { saveWhatsAppTemplates, previewTemplate } from '@/actions/whatsapp-templates'
+import { saveWhatsAppTemplates } from '@/actions/whatsapp-templates'
+import { previewTemplate } from '@/lib/whatsapp-utils'
 import { toast } from 'react-hot-toast'
 
 interface Templates {
