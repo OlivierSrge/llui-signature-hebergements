@@ -20,9 +20,10 @@ interface Props {
   accommodationId: string
   unavailableDates: string[]
   reservations?: ReservationRange[]
+  pendingReservations?: ReservationRange[]
 }
 
-export default function PartnerCalendar({ accommodationId, unavailableDates, reservations = [] }: Props) {
+export default function PartnerCalendar({ accommodationId, unavailableDates, reservations = [], pendingReservations = [] }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Date[]>([])
   const [blocked, setBlocked] = useState<Set<string>>(new Set(unavailableDates))
@@ -30,13 +31,24 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
 
   const today = startOfDay(new Date())
 
-  // Dates des réservations confirmées/en attente → dorées, non modifiables
-  const reservedDates = useMemo(() => reservations.flatMap((r) => {
+  // Dates des réservations confirmées → rouge, non modifiables
+  const confirmedReservationDates = useMemo(() => reservations.flatMap((r) => {
     try {
       return eachDayOfInterval({ start: parseISO(r.check_in), end: addDays(parseISO(r.check_out), -1) })
     } catch { return [] }
   }), [reservations])
-  const reservedSet = useMemo(() => new Set(reservedDates.map((d) => format(d, 'yyyy-MM-dd'))), [reservedDates])
+
+  // Dates des réservations en attente → jaune, non modifiables
+  const pendingReservationDates = useMemo(() => pendingReservations.flatMap((r) => {
+    try {
+      return eachDayOfInterval({ start: parseISO(r.check_in), end: addDays(parseISO(r.check_out), -1) })
+    } catch { return [] }
+  }), [pendingReservations])
+
+  const reservedSet = useMemo(() => {
+    const all = [...confirmedReservationDates, ...pendingReservationDates]
+    return new Set(all.map((d) => format(d, 'yyyy-MM-dd')))
+  }, [confirmedReservationDates, pendingReservationDates])
 
   // Toutes les dates disponibles des 90 prochains jours (non bloquées, non réservées)
   const availableDates = useMemo(() => {
@@ -105,7 +117,7 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
         onDayClick={handleDayClick}
         locale={fr}
         disabled={{ before: today }}
-        modifiers={{ blocked: blockedDates, available: availableDates, reserved: reservedDates }}
+        modifiers={{ blocked: blockedDates, available: availableDates, confirmedReservations: confirmedReservationDates, pendingReservations: pendingReservationDates }}
         modifiersStyles={{
           available: {
             backgroundColor: '#dcfce7',
@@ -118,9 +130,16 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
             fontWeight: '600',
             borderRadius: '100%',
           },
-          reserved: {
-            backgroundColor: '#fef3c7',
-            color: '#92400e',
+          confirmedReservations: {
+            backgroundColor: '#fee2e2',
+            color: '#991b1b',
+            fontWeight: '600',
+            borderRadius: '100%',
+            cursor: 'not-allowed',
+          },
+          pendingReservations: {
+            backgroundColor: '#fef9c3',
+            color: '#854d0e',
             fontWeight: '600',
             borderRadius: '100%',
             cursor: 'not-allowed',
@@ -134,16 +153,16 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
       {/* Légende */}
       <div className="flex flex-wrap items-center gap-4 mt-2 mb-4 text-xs text-dark/50">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-green-200 inline-block" /> Disponible
+          🟢 Disponible
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-amber-200 inline-block" /> Réservé
+          🟡 En attente paiement
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-red-300 inline-block" /> Bloqué
+          🔴 Occupé (confirmé)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-gold-400 inline-block" /> Sélectionné
+          ⬛ Bloqué manuellement
         </span>
       </div>
 

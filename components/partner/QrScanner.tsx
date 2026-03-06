@@ -23,6 +23,7 @@ export default function QrScanner({ partnerAccessCode }: Props) {
   const [scanResult, setScanResult] = useState<ScanResult>({ status: 'idle' })
   const [manualCode, setManualCode] = useState('')
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [confirmingArrival, setConfirmingArrival] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
   const processingRef = useRef(false)
@@ -130,47 +131,139 @@ export default function QrScanner({ partnerAccessCode }: Props) {
   // ─── Confirmed screen ─────────────────────────────────────────────────────
   if (scanResult.status === 'confirmed') {
     const r = scanResult.reservation as any
+    const isPaid = r.payment_status === 'paye'
+    const nights = r.check_in && r.check_out
+      ? Math.ceil((new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 86400000)
+      : '?'
+
+    const handleConfirmArrival = async () => {
+      setConfirmingArrival(true)
+      const res = await confirmCheckIn(r.confirmation_code, partnerAccessCode)
+      setConfirmingArrival(false)
+      if (res.success) {
+        setScanResult({ status: 'confirmed', reservation: res.reservation!, alreadyConfirmed: true })
+        toast.success('Arrivée confirmée !')
+      } else {
+        toast.error(res.error ?? 'Erreur lors de la confirmation')
+      }
+    }
+
     return (
-      <div className="bg-white rounded-2xl border border-beige-200 p-8 text-center space-y-4">
-        <CheckCircle2
-          size={56}
-          className={`mx-auto ${scanResult.alreadyConfirmed ? 'text-blue-400' : 'text-green-500'}`}
-        />
-        <div>
-          <h2 className="font-serif text-xl font-semibold text-dark">
-            {scanResult.alreadyConfirmed ? 'Arrivée déjà confirmée' : 'Arrivée confirmée !'}
-          </h2>
-          <p className="text-dark/50 text-sm mt-1">
+      <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
+        {/* Alerte paiement non reçu */}
+        {!isPaid && (
+          <div className="bg-red-50 border-b border-red-200 p-4 flex flex-col gap-2">
+            <p className="font-semibold text-red-700 text-sm">⚠️ Paiement non reçu</p>
+            <p className="text-red-600 text-xs">Contacter L&amp;Lui avant d&apos;accueillir le client</p>
+            <a
+              href={`https://wa.me/237693407964?text=Bonjour%2C%20le%20client%20se%20pr%C3%A9sente%20mais%20le%20paiement%20n%27a%20pas%20%C3%A9t%C3%A9%20re%C3%A7u%20pour%20la%20r%C3%A9servation%20${encodeURIComponent(r.confirmation_code ?? '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors self-start"
+            >
+              WhatsApp L&amp;Lui
+            </a>
+          </div>
+        )}
+
+        <div className="p-6 space-y-5">
+          {/* En-tête avec check */}
+          <div className="flex items-center gap-3">
+            <CheckCircle2
+              size={36}
+              className={`flex-shrink-0 ${scanResult.alreadyConfirmed ? 'text-blue-400' : 'text-green-500'}`}
+            />
+            <h2 className="font-serif text-lg font-semibold text-dark">
+              {scanResult.alreadyConfirmed ? 'Arrivée déjà confirmée' : 'Réservation valide'}
+            </h2>
+          </div>
+
+          {/* Nom client très grand */}
+          <p className="text-3xl font-bold text-dark">
             {r.guest_first_name} {r.guest_last_name}
           </p>
-        </div>
 
-        <div className="bg-beige-50 rounded-xl p-4 text-sm text-left space-y-2">
-          <div className="flex justify-between">
-            <span className="text-dark/50">Code</span>
-            <span className="font-mono font-bold text-dark">{r.confirmation_code}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark/50">Hébergement</span>
-            <span className="text-dark">{r.accommodation?.name ?? r.accommodation_id}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark/50">Arrivée</span>
-            <span className="text-dark">{r.check_in}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark/50">Départ</span>
-            <span className="text-dark">{r.check_out}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-dark/50">Voyageurs</span>
-            <span className="text-dark">{r.guests}</span>
-          </div>
-        </div>
+          {/* Cards d'infos */}
+          <div className="grid grid-cols-1 gap-3">
+            {/* Logement */}
+            <div className="bg-beige-50 rounded-xl p-3 text-sm">
+              <p className="text-dark/50 text-xs mb-0.5">Logement</p>
+              <p className="font-semibold text-dark">{r.accommodation?.name ?? r.accommodation_id}</p>
+              {r.confirmation_code && (
+                <p className="text-xs font-mono text-dark/40 mt-0.5">{r.confirmation_code}</p>
+              )}
+            </div>
 
-        <button onClick={reset} className="btn-secondary w-full">
-          Scanner un autre client
-        </button>
+            {/* Dates */}
+            <div className="bg-beige-50 rounded-xl p-3 text-sm">
+              <p className="text-dark/50 text-xs mb-0.5">Séjour</p>
+              <p className="font-semibold text-dark">{r.check_in} → {r.check_out}</p>
+              <p className="text-xs text-dark/50 mt-0.5">{nights} nuit{nights !== 1 ? 's' : ''}</p>
+            </div>
+
+            {/* Personnes + paiement */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-beige-50 rounded-xl p-3 text-sm">
+                <p className="text-dark/50 text-xs mb-0.5">Voyageurs</p>
+                <p className="font-semibold text-dark">{r.guests}</p>
+              </div>
+              <div className="bg-beige-50 rounded-xl p-3 text-sm flex flex-col">
+                <p className="text-dark/50 text-xs mb-0.5">Paiement</p>
+                {isPaid ? (
+                  <span className="inline-block px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-bold self-start">
+                    PAYÉ
+                  </span>
+                ) : (
+                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-bold self-start">
+                    EN ATTENTE
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Téléphone */}
+            {r.guest_phone && (
+              <div className="bg-beige-50 rounded-xl p-3 text-sm">
+                <p className="text-dark/50 text-xs mb-0.5">Téléphone client</p>
+                <a
+                  href={`tel:${r.guest_phone}`}
+                  className="font-semibold text-dark underline"
+                >
+                  {r.guest_phone}
+                </a>
+              </div>
+            )}
+
+            {/* Notes */}
+            {r.notes && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm">
+                <p className="text-orange-700 text-xs font-semibold mb-0.5">Notes</p>
+                <p className="text-orange-800">{r.notes}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton confirmer arrivée */}
+          {!r.check_in_confirmed ? (
+            <button
+              onClick={handleConfirmArrival}
+              disabled={confirmingArrival}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {confirmingArrival ? <Loader2 size={16} className="animate-spin" /> : null}
+              ✅ Confirmer l&apos;arrivée
+            </button>
+          ) : (
+            <div className="text-center text-sm text-green-700 bg-green-50 rounded-xl p-3">
+              Arrivée confirmée le {r.check_in_confirmed_at ? new Date(r.check_in_confirmed_at).toLocaleDateString('fr-FR') : '—'}
+            </div>
+          )}
+
+          {/* Scanner autre client */}
+          <button onClick={reset} className="btn-secondary w-full">
+            Scanner un autre client
+          </button>
+        </div>
       </div>
     )
   }
