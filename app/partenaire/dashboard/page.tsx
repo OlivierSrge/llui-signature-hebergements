@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2 } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 
@@ -48,14 +48,18 @@ async function getAccommodationReservations(accommodationId: string) {
     .where('accommodation_id', '==', accommodationId)
     .where('reservation_status', 'in', ['confirmee', 'en_attente'])
     .get()
-  return snap.docs
+  const all = snap.docs
     .map((d) => d.data())
     .filter((r: any) => r.check_out >= today)
-    .map((r: any) => ({
-      check_in: r.check_in as string,
-      check_out: r.check_out as string,
-      guest_name: `${r.guest_first_name} ${r.guest_last_name}`,
-    }))
+  const toRange = (r: any) => ({
+    check_in: r.check_in as string,
+    check_out: r.check_out as string,
+    guest_name: `${r.guest_first_name} ${r.guest_last_name}`,
+  })
+  return {
+    confirmed: all.filter((r: any) => r.reservation_status === 'confirmee').map(toRange),
+    pending: all.filter((r: any) => r.reservation_status === 'en_attente').map(toRange),
+  }
 }
 
 async function getPartnerReservations(partnerId: string) {
@@ -68,6 +72,72 @@ async function getPartnerReservations(partnerId: string) {
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
     .slice(0, 10) as any[]
+}
+
+async function getPartnerStats(partnerId: string) {
+  const snap = await db.collection('reservations')
+    .where('partner_id', '==', partnerId)
+    .get()
+
+  const allReservations = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+
+  const currentMonth = new Date().toISOString().substring(0, 7) // "YYYY-MM"
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+  const weekLater = new Date(today)
+  weekLater.setDate(weekLater.getDate() + 7)
+  const weekLaterStr = weekLater.toISOString().split('T')[0]
+
+  // revenue_month: sum total_price where payment_status='paye' AND payment_date starts with currentMonth
+  const revenue_month = allReservations
+    .filter((r: any) =>
+      r.payment_status === 'paye' &&
+      typeof r.payment_date === 'string' &&
+      r.payment_date.startsWith(currentMonth)
+    )
+    .reduce((sum: number, r: any) => sum + (Number(r.total_price) || 0), 0)
+
+  // arrivals_week: count check_in between today and today+7 (inclusive) AND status in ['confirmee', 'en_attente']
+  const arrivals_week = allReservations.filter((r: any) =>
+    r.check_in >= todayStr &&
+    r.check_in <= weekLaterStr &&
+    ['confirmee', 'en_attente'].includes(r.reservation_status)
+  ).length
+
+  // pending_count: count status in ['en_attente', 'demande']
+  const pending_count = allReservations.filter((r: any) =>
+    ['en_attente', 'demande'].includes(r.reservation_status)
+  ).length
+
+  // monthly_confirmed: count status='confirmee' AND confirmed_at starts with currentMonth
+  const monthly_confirmed = allReservations.filter((r: any) =>
+    r.reservation_status === 'confirmee' &&
+    typeof r.confirmed_at === 'string' &&
+    r.confirmed_at.startsWith(currentMonth)
+  ).length
+
+  // Niveau partenaire
+  let level: string
+  let stars: number
+  let nextTarget: number | null
+
+  if (monthly_confirmed >= 31) {
+    level = 'Excellence'
+    stars = 3
+    nextTarget = null
+  } else if (monthly_confirmed >= 11) {
+    level = 'Premium'
+    stars = 2
+    nextTarget = 31
+  } else {
+    level = 'Actif'
+    stars = 1
+    nextTarget = 11
+  }
+
+  return { revenue_month, arrivals_week, pending_count, monthly_confirmed, level, stars, nextTarget }
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -92,16 +162,22 @@ export default async function PartnerDashboardPage() {
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 
-  const [partner, accommodations, reservations] = await Promise.all([
+  const [partner, accommodations, reservations, stats] = await Promise.all([
     getPartner(partnerId),
     getPartnerAccommodations(partnerId),
     getPartnerReservations(partnerId),
+    getPartnerStats(partnerId),
   ])
 
   if (!partner) redirect('/partenaire')
 
+  const progressPercent = stats.nextTarget
+    ? Math.min(100, Math.round((stats.monthly_confirmed / stats.nextTarget) * 100))
+    : 100
+
   const unavailableMap: Record<string, string[]> = {}
-  const reservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
+  const confirmedReservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
+  const pendingReservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
   await Promise.all(
     accommodations.map(async (acc: any) => {
       const [unavail, accReservations] = await Promise.all([
@@ -109,7 +185,8 @@ export default async function PartnerDashboardPage() {
         getAccommodationReservations(acc.id),
       ])
       unavailableMap[acc.id] = unavail
-      reservationsMap[acc.id] = accReservations
+      confirmedReservationsMap[acc.id] = accReservations.confirmed
+      pendingReservationsMap[acc.id] = accReservations.pending
     })
   )
 
@@ -130,14 +207,38 @@ export default async function PartnerDashboardPage() {
               )}
             </h1>
           </div>
-          <form action={handleLogout}>
-            <button
-              type="submit"
-              className="flex items-center gap-2 px-4 py-2 text-sm text-dark/60 border border-beige-200 rounded-xl hover:bg-beige-50 transition-colors"
-            >
-              <LogOut size={14} /> Déconnexion
-            </button>
-          </form>
+          {/* BLOC 9 — Badge partenaire dans le header */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5 bg-gold-50 border border-gold-200 text-gold-700 px-3 py-1 rounded-full text-xs font-medium">
+                {'⭐'.repeat(stats.stars)}
+                <span className="ml-1">{stats.level}</span>
+              </div>
+              {stats.nextTarget !== null ? (
+                <div className="w-40">
+                  <p className="text-[10px] text-dark/40 mb-0.5 text-right">
+                    {stats.monthly_confirmed}/{stats.nextTarget} pour niveau suivant
+                  </p>
+                  <div className="h-1.5 rounded-full bg-beige-200 overflow-hidden">
+                    <div
+                      className="h-full bg-gold-500 rounded-full transition-all"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[10px] text-green-600 font-medium">🏆 Niveau Excellence atteint !</p>
+              )}
+            </div>
+            <form action={handleLogout}>
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-dark/60 border border-beige-200 rounded-xl hover:bg-beige-50 transition-colors"
+              >
+                <LogOut size={14} /> Déconnexion
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
@@ -156,6 +257,44 @@ export default async function PartnerDashboardPage() {
           >
             <QrCode size={15} /> Scanner à l&apos;arrivée
           </Link>
+        </div>
+
+        {/* BLOC 1 — 3 KPI cards */}
+        <div className="grid grid-cols-3 gap-4">
+          {/* Revenus ce mois */}
+          <div className="bg-white border border-gold-200 rounded-2xl p-5 min-h-[100px] flex flex-col justify-between">
+            <p className="text-xs text-dark/50">💰 Revenus ce mois</p>
+            <p className="text-4xl font-bold text-gold-600 mt-2">
+              {stats.revenue_month.toLocaleString('fr-FR')}
+              <span className="text-sm font-normal text-gold-500 ml-1">FCFA</span>
+            </p>
+          </div>
+
+          {/* Arrivées cette semaine */}
+          <div className="bg-white border border-beige-200 rounded-2xl p-5 min-h-[100px] flex flex-col justify-between">
+            <p className="text-xs text-dark/50">📅 Arrivées cette semaine</p>
+            <p className="text-4xl font-bold text-dark mt-2">
+              {stats.arrivals_week}
+            </p>
+          </div>
+
+          {/* En attente */}
+          <div
+            className={`rounded-2xl p-5 min-h-[100px] flex flex-col justify-between border ${
+              stats.pending_count > 0
+                ? 'bg-orange-50 border-orange-300'
+                : 'bg-white border-beige-200'
+            }`}
+          >
+            <p className="text-xs text-dark/50">⏳ En attente</p>
+            <p
+              className={`text-4xl font-bold mt-2 ${
+                stats.pending_count > 0 ? 'text-orange-600' : 'text-dark'
+              }`}
+            >
+              {stats.pending_count}
+            </p>
+          </div>
         </div>
 
         {/* Recent reservations */}
@@ -239,18 +378,27 @@ export default async function PartnerDashboardPage() {
             <div className="space-y-6">
               {accommodations.map((acc: any) => (
                 <div key={acc.id} className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-beige-100 flex items-center gap-3">
-                    <Calendar size={16} className="text-gold-500" />
-                    <div>
-                      <h3 className="font-semibold text-dark">{acc.name}</h3>
-                      {acc.location && <p className="text-xs text-dark/40">{acc.location}</p>}
+                  <div className="px-6 py-4 border-b border-beige-100 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar size={16} className="text-gold-500" />
+                      <div>
+                        <h3 className="font-semibold text-dark">{acc.name}</h3>
+                        {acc.location && <p className="text-xs text-dark/40">{acc.location}</p>}
+                      </div>
                     </div>
+                    <Link
+                      href={`/partenaire/logements/${acc.id}`}
+                      className="flex items-center gap-1.5 text-xs text-gold-700 bg-gold-50 border border-gold-200 px-3 py-1.5 rounded-xl hover:bg-gold-100 transition-colors flex-shrink-0"
+                    >
+                      <BarChart2 size={12} /> Historique & QR
+                    </Link>
                   </div>
                   <div className="p-6">
                     <PartnerCalendar
                       accommodationId={acc.id}
                       unavailableDates={unavailableMap[acc.id] ?? []}
-                      reservations={reservationsMap[acc.id] ?? []}
+                      reservations={confirmedReservationsMap[acc.id] ?? []}
+                      pendingReservations={pendingReservationsMap[acc.id] ?? []}
                     />
                   </div>
                 </div>

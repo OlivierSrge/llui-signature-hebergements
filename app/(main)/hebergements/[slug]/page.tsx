@@ -10,6 +10,7 @@ import BookingWidget from '@/components/reservations/BookingWidget'
 import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 import AmenitiesSection from '@/components/accommodations/AmenitiesSection'
 import RatingsSection from '@/components/accommodations/RatingsSection'
+import { trackPageView } from '@/actions/stats'
 
 async function getAccommodation(slug: string) {
   const snap = await db.collection('hebergements').where('slug', '==', slug).where('status', '==', 'active').limit(1).get()
@@ -56,6 +57,7 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
   const [unavailableDates, seasonalPeriods] = await Promise.all([
     getUnavailableDates(accommodation.id),
     getSeasonalPricing(accommodation.id),
+    trackPageView(accommodation.id),
   ])
   const acc = accommodation
 
