@@ -53,7 +53,6 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
 
   // ——— Bouton 2
   const handlePaymentRequest = async (force = false) => {
-    if (!step1Done) { toast.error('Envoyez d\'abord la proposition'); return }
     if (step2Done && !force) { setConfirmResend(2); return }
     setConfirmResend(null)
     setLoading('payment_request')
@@ -67,7 +66,6 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
 
   // ——— Bouton 3
   const handleConfirmPayment = async () => {
-    if (!step2Done) { toast.error('Envoyez d\'abord la demande de paiement'); return }
     if (!paymentRef.trim()) { toast.error('Saisissez la référence de paiement'); return }
     setLoading('confirm_payment')
     const result = await confirmPayment(res.id, paymentRef, paymentDate, sentBy)
@@ -80,7 +78,6 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
 
   // ——— Bouton 4
   const handleFiche = async (force = false) => {
-    if (!step3Done) { toast.error('Confirmez d\'abord le paiement'); return }
     if (step4Done && !force) { setConfirmResend(4); return }
     setConfirmResend(null)
     setLoading('fiche')
@@ -108,7 +105,7 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
       icon: CreditCard,
       color: 'blue',
       done: step2Done,
-      active: step1Done,
+      active: true,
       sentAt: res.whatsapp_payment_request_sent_at,
     },
     {
@@ -117,7 +114,7 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
       icon: CheckCircle2,
       color: 'amber',
       done: step3Done,
-      active: step2Done,
+      active: true,
       sentAt: res.payment_date,
     },
     {
@@ -126,7 +123,7 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
       icon: FileText,
       color: 'purple',
       done: step4Done,
-      active: step3Done,
+      active: true,
       sentAt: res.whatsapp_confirmation_sent_at,
     },
   ]
@@ -200,9 +197,9 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
         ) : (
           <button
             onClick={() => handlePaymentRequest()}
-            disabled={!!loading || !step1Done}
+            disabled={!!loading}
             className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors disabled:opacity-50
-              ${step2Done ? 'bg-blue-50 border border-blue-200 text-blue-700' : step1Done ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+              ${step2Done ? 'bg-blue-50 border border-blue-200 text-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
           >
             {isLoading('payment_request') ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
             {step2Done ? (
@@ -253,10 +250,9 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
               </div>
             ) : (
               <button
-                onClick={() => step2Done ? setShowPaymentForm(true) : toast.error('Envoyez d\'abord la demande de paiement')}
-                disabled={!!loading || !step2Done}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors disabled:opacity-50
-                  ${step2Done ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                onClick={() => setShowPaymentForm(true)}
+                disabled={!!loading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 bg-amber-600 text-white hover:bg-amber-700"
               >
                 <CheckCircle2 size={14} />
                 3. Confirmer le paiement
@@ -276,9 +272,9 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
         ) : (
           <button
             onClick={() => handleFiche()}
-            disabled={!!loading || !step3Done}
+            disabled={!!loading}
             className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors disabled:opacity-50
-              ${step4Done ? 'bg-purple-50 border border-purple-200 text-purple-700' : step3Done ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+              ${step4Done ? 'bg-purple-50 border border-purple-200 text-purple-700' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
           >
             {isLoading('fiche') ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
             {step4Done ? (

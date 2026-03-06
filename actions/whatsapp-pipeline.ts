@@ -131,10 +131,6 @@ export async function sendWhatsAppPaymentRequest(
     if (!doc.exists) return { success: false, error: 'Réservation introuvable' }
     const res = doc.data()!
 
-    if (!res.whatsapp_proposal_sent_at) {
-      return { success: false, error: 'Envoyez d\'abord la proposition (étape 1)' }
-    }
-
     // Numéro Orange Money du partenaire ou admin
     let omNumber = ADMIN_WHATSAPP
     if (res.partner_id) {
@@ -192,10 +188,6 @@ export async function confirmPayment(
     if (!doc.exists) return { success: false, error: 'Réservation introuvable' }
     const res = doc.data()!
 
-    if (!res.whatsapp_payment_request_sent_at) {
-      return { success: false, error: 'Envoyez d\'abord la demande de paiement (étape 2)' }
-    }
-
     await doc.ref.update({
       payment_status: 'paye',
       payment_reference: paymentReference,
@@ -228,9 +220,6 @@ export async function sendWhatsAppFiche(
     if (!doc.exists) return { success: false, error: 'Réservation introuvable' }
     const res = doc.data()!
 
-    if (res.payment_status !== 'paye') {
-      return { success: false, error: 'Le paiement doit être confirmé avant d\'envoyer la fiche (étape 3)' }
-    }
 
     const templates = await getTemplates()
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature.cm'
