@@ -46,7 +46,7 @@ async function getAccommodationReservations(accommodationId: string) {
   const today = new Date().toISOString().split('T')[0]
   const snap = await db.collection('reservations')
     .where('accommodation_id', '==', accommodationId)
-    .where('reservation_status', '==', 'confirmee')
+    .where('reservation_status', 'in', ['confirmee', 'en_attente'])
     .get()
   return snap.docs
     .map((d) => d.data())

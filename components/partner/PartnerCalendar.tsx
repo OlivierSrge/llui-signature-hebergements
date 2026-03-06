@@ -30,10 +30,10 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
 
   const today = startOfDay(new Date())
 
-  // Dates des réservations confirmées → dorées, non modifiables
+  // Dates des réservations confirmées/en attente → dorées, non modifiables
   const reservedDates = useMemo(() => reservations.flatMap((r) => {
     try {
-      return eachDayOfInterval({ start: parseISO(r.check_in), end: new Date(new Date(r.check_out).getTime() - 86400000) })
+      return eachDayOfInterval({ start: parseISO(r.check_in), end: addDays(parseISO(r.check_out), -1) })
     } catch { return [] }
   }), [reservations])
   const reservedSet = useMemo(() => new Set(reservedDates.map((d) => format(d, 'yyyy-MM-dd'))), [reservedDates])
