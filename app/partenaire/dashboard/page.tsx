@@ -165,10 +165,13 @@ export default async function PartnerDashboardPage() {
             <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
               <div className="divide-y divide-beige-100">
                 {reservations.map((r: any) => {
-                  const step1 = !!r.whatsapp_proposal_sent_at
-                  const step2 = !!r.whatsapp_payment_request_sent_at
-                  const step3 = r.payment_status === 'paye'
-                  const step4 = !!r.whatsapp_confirmation_sent_at
+                  const isPaid = r.payment_status === 'paye'
+                  const isConfirmed = r.reservation_status === 'confirmee'
+                  // Pour les réservations partenaires, les étapes WhatsApp peuvent être implicites
+                  const step1 = !!r.whatsapp_proposal_sent_at || r.source === 'partenaire' || isPaid || isConfirmed
+                  const step2 = !!r.whatsapp_payment_request_sent_at || isPaid || isConfirmed
+                  const step3 = isPaid
+                  const step4 = !!r.whatsapp_confirmation_sent_at || isConfirmed
 
                   return (
                   <Link

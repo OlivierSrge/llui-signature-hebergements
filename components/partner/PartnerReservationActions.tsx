@@ -225,7 +225,7 @@ export default function PartnerReservationActions({ reservation: res }: Props) {
       </div>
 
       {/* ── Fiche d'accueil + QR Code ── */}
-      {res.payment_status === 'paye' && (
+      {(res.payment_status === 'paye' || res.reservation_status === 'confirmee') && (
         <div className="bg-white rounded-2xl border border-gold-200 p-5 space-y-3">
           <h2 className="font-semibold text-dark text-sm flex items-center gap-2">
             <QrCode size={14} className="text-gold-600" /> Fiche d&apos;accueil + QR Code
