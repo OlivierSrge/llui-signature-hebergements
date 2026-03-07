@@ -67,12 +67,14 @@ export default function AccommodationQrPrint({ accommodation }: AccommodationQrP
       ctx.lineWidth = 20
       ctx.strokeRect(10, 10, WIDTH - 20, HEIGHT - 20)
 
+      // ---- Nom du logement en grand en haut ----
       ctx.fillStyle = GOLD
-      ctx.font = 'bold 120px Georgia, serif'
+      ctx.font = 'bold 110px Georgia, serif'
       ctx.textAlign = 'center'
-      ctx.fillText('L&Lui Signature', WIDTH / 2, 240)
+      const nameY = wrapText(ctx, accommodation.name, WIDTH / 2, 200, WIDTH - 200, 130)
 
-      const sepY = 280
+      // Séparateur or
+      const sepY = nameY + 30
       ctx.strokeStyle = GOLD
       ctx.lineWidth = 4
       ctx.beginPath()
@@ -80,31 +82,30 @@ export default function AccommodationQrPrint({ accommodation }: AccommodationQrP
       ctx.lineTo(WIDTH - 120, sepY)
       ctx.stroke()
 
+      // Sous-titre
       ctx.fillStyle = DARK + '99'
       ctx.font = '52px Georgia, serif'
-      ctx.fillText('Réservez ce logement', WIDTH / 2, 380)
+      ctx.fillText('Réservez ce logement', WIDTH / 2, sepY + 90)
 
-      ctx.fillStyle = DARK
-      ctx.font = 'bold 80px Georgia, serif'
-      ctx.textAlign = 'center'
-      const nameY = wrapText(ctx, accommodation.name, WIDTH / 2, 500, WIDTH - 240, 100)
-
+      // QR Code
       const qrCanvas = document.createElement('canvas')
-      qrCanvas.width = 400
-      qrCanvas.height = 400
+      qrCanvas.width = 500
+      qrCanvas.height = 500
       const url = `https://llui-signature-hebergements.vercel.app/hebergements/${accommodation.slug}`
-      await QRCode.toCanvas(qrCanvas, url, { width: 400, margin: 0 })
+      await QRCode.toCanvas(qrCanvas, url, { width: 500, margin: 0 })
 
-      const qrX = (WIDTH - 400) / 2
-      const qrY = Math.max(nameY + 40, 700)
+      const qrX = (WIDTH - 500) / 2
+      const qrY = sepY + 150
       ctx.drawImage(qrCanvas, qrX, qrY)
 
+      // Texte sous QR
       ctx.fillStyle = DARK + '80'
       ctx.font = '44px Georgia, serif'
       ctx.textAlign = 'center'
-      ctx.fillText('Scannez pour voir les disponibilités et réserver', WIDTH / 2, qrY + 400 + 70)
+      ctx.fillText('Scannez pour voir les disponibilités et réserver', WIDTH / 2, qrY + 500 + 70)
 
-      const sep2Y = qrY + 400 + 120
+      // Séparateur léger
+      const sep2Y = qrY + 500 + 120
       ctx.strokeStyle = GOLD + '60'
       ctx.lineWidth = 2
       ctx.beginPath()
@@ -112,6 +113,7 @@ export default function AccommodationQrPrint({ accommodation }: AccommodationQrP
       ctx.lineTo(WIDTH - 200, sep2Y)
       ctx.stroke()
 
+      // Prix
       ctx.fillStyle = GOLD
       ctx.font = 'bold 72px Georgia, serif'
       ctx.textAlign = 'center'
@@ -121,13 +123,18 @@ export default function AccommodationQrPrint({ accommodation }: AccommodationQrP
         sep2Y + 100
       )
 
-      let bottomY = sep2Y + 200
+      // L&Lui Signature en petit (même style que partner_name avant)
+      ctx.fillStyle = DARK + 'CC'
+      ctx.font = '52px Georgia, serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('L\u0026Lui Signature', WIDTH / 2, sep2Y + 200)
+
+      // Nom partenaire si présent
       if (accommodation.partner_name) {
-        ctx.fillStyle = DARK + 'CC'
-        ctx.font = '52px Georgia, serif'
+        ctx.fillStyle = DARK + '80'
+        ctx.font = '44px Georgia, serif'
         ctx.textAlign = 'center'
-        ctx.fillText(accommodation.partner_name, WIDTH / 2, bottomY)
-        bottomY += 80
+        ctx.fillText(accommodation.partner_name, WIDTH / 2, sep2Y + 280)
       }
 
       ctx.fillStyle = DARK + '60'
