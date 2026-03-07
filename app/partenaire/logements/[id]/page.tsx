@@ -121,6 +121,7 @@ export default async function AccommodationHistoryPage({
               slug: accommodation.slug,
               price_per_night: accommodation.price_per_night ?? 0,
               partner_name: accommodation.partner?.name,
+              partner_id: partnerId,
             }}
           />
         </div>
