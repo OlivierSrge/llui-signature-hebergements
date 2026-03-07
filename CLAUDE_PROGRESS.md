@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-07 08:00
+Dernière mise à jour : 2026-03-07 09:30
 
 ---
 
@@ -31,6 +31,9 @@ Dernière mise à jour : 2026-03-07 08:00
 - **Messagerie partenaire** — `/partenaire/messages` ↔ `/admin/messages` (MessageChat)
 - **Nav mobile partenaire** — `PartnerMobileNav` (5 onglets : Accueil, Calendrier, Réservations, Scanner, Messages)
 - **Confirmation d'arrivée** — `/partenaire/confirm/[reservationId]` (scan QR → check-in)
+- **Mini-site partenaire** — `/p/[partnerId]` : page isolée sans menu, logo + liste logements + CTA
+- **Page logement isolée** — `/chambre/[slug]` : galerie, équipements, calendrier, formulaire demande, footer minimal
+- **QR Code chambre** (→ `/chambre/[slug]`) + **QR Code réception** (→ `/p/[partnerId]`) : 2 boutons distincts avec labels "À placer dans chaque logement" / "À placer à l'accueil"
 
 ### Fixes importants
 - WhatsApp iOS Safari : `window.location.href` au lieu de `window.open`
@@ -102,7 +105,9 @@ Ces blocs n'ont pas encore été définis/demandés par l'utilisateur.
 | `/partenaire/dashboard` | `app/partenaire/dashboard/page.tsx` | Dashboard partenaire |
 | `/partenaire/reservations/liste` | `app/partenaire/reservations/liste/page.tsx` | Liste réservations partenaire |
 | `/partenaire/reservations/[id]` | `app/partenaire/reservations/[id]/page.tsx` | Détail réservation partenaire |
-| `/partenaire/logements/[id]` | `app/partenaire/logements/[id]/page.tsx` | Historique + QR + vues logement |
+| `/partenaire/logements/[id]` | `app/partenaire/logements/[id]/page.tsx` | Historique + 2 QR codes + vues logement |
+| `/chambre/[slug]` | `app/chambre/[slug]/page.tsx` | Page logement isolée (sans menu, sans suggestions) |
+| `/p/[partnerSlug]` | `app/p/[partnerSlug]/page.tsx` | Mini-site partenaire isolé (slug = id Firestore) |
 | `/partenaire/messages` | `app/partenaire/messages/page.tsx` | Messagerie partenaire |
 | `/partenaire/scanner` | `app/partenaire/scanner/page.tsx` | Scanner QR arrivée client |
 | `/partenaire/confirm/[id]` | `app/partenaire/confirm/[reservationId]/page.tsx` | Confirmation arrivée |
@@ -138,7 +143,9 @@ Ces blocs n'ont pas encore été définis/demandés par l'utilisateur.
 - **Auth partenaire** : cookie `partner_session` = `partnerId` Firestore
 - **Auth admin** : cookie `admin_session` = `"authenticated"`
 - **URL app prod** : `https://llui-signature-hebergements.vercel.app`
-- **QR Code URL pattern** : `https://llui-signature-hebergements.vercel.app/hebergements/[slug]`
+- **QR Code chambre URL** : `https://llui-signature-hebergements.vercel.app/chambre/[slug]`
+- **QR Code réception URL** : `https://llui-signature-hebergements.vercel.app/p/[partnerId]`
+- **Mini-site partenaire slug** : = `id` du document Firestore `partenaires`
 
 ### Collections Firestore
 | Collection | Contenu |
@@ -169,7 +176,7 @@ Ces blocs n'ont pas encore été définis/demandés par l'utilisateur.
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-07** : Tous les blocs connus sont terminés et pushés sur `main`.
+**État au 2026-03-07 09:30** : Tous les blocs sont terminés et pushés sur `main`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
