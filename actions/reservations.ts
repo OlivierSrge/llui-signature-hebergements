@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
 import { sendReservationEmails } from '@/lib/email'
 import { validatePromoCode } from '@/actions/promo-codes'
+import { sendAdminWhatsAppNotification } from '@/lib/whatsapp-utils'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 
@@ -113,6 +114,28 @@ export async function createReservation(
     }
 
     revalidatePath('/admin/reservations')
+
+    // Notification WhatsApp admin (non-bloquant)
+    const paymentLabels: Record<string, string> = {
+      orange_money: 'Orange Money',
+      virement: 'Virement bancaire',
+      especes: 'Espèces',
+    }
+    const waMessage =
+      `🏡 Nouvelle demande de réservation !\n\n` +
+      `👤 Client : ${formData.guest_first_name} ${formData.guest_last_name}\n` +
+      `📞 Tél : ${formData.guest_phone}\n` +
+      `🏠 Hébergement : ${accommodation.name}\n` +
+      `📅 Dates : ${formData.check_in} → ${formData.check_out} (${nights} nuit${nights > 1 ? 's' : ''})\n` +
+      `👥 Voyageurs : ${formData.guests}\n` +
+      `💰 Total : ${new Intl.NumberFormat('fr-FR').format(totalPrice)} FCFA\n` +
+      `💳 Paiement : ${paymentLabels[formData.payment_method] || formData.payment_method}\n` +
+      (formData.notes ? `📝 Message : ${formData.notes}\n` : '') +
+      `\n👉 Traiter sur : https://llui-signature-hebergements.vercel.app/admin/reservations/${docRef.id}`
+
+    sendAdminWhatsAppNotification(waMessage).catch((err) =>
+      console.error('[whatsapp] Admin notification failed:', err)
+    )
 
     // Send email notifications (non-blocking)
     sendReservationEmails({

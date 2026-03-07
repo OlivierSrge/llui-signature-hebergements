@@ -200,7 +200,7 @@ export default function ReservationForm({
       {/* Phone */}
       <div>
         <label htmlFor="guest_phone" className="label">
-          Téléphone <span className="text-red-500">*</span>
+          Téléphone WhatsApp <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
@@ -211,10 +211,14 @@ export default function ReservationForm({
             required
             value={form.guest_phone}
             onChange={handleChange}
-            placeholder="+237 6XX XXX XXX"
+            placeholder="237 6XX XXX XXX"
             className="input-field pl-10"
           />
         </div>
+        <p className="mt-1.5 text-xs text-dark/50">
+          Saisir l&apos;indicatif pays sans le <span className="font-semibold">+</span>, puis votre numéro sans le <span className="font-semibold">0</span> initial.
+          Exemple : <span className="font-mono font-medium">237 693 407 964</span>
+        </p>
       </div>
 
       {/* Payment method */}

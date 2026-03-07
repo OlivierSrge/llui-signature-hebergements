@@ -22,3 +22,20 @@ export function previewTemplate(template: string, vars: Record<string, string> =
     .replace(/\{partenaire\}/g, merged.partenaire)
     .replace(/\{lien_suivi\}/g, merged.lien_suivi)
 }
+
+// ── Notification WhatsApp admin via CallMeBot ──────────────────
+// Activation unique : envoyer "I allow callmebot to send me messages"
+// au +34 644 35 87 48 depuis WhatsApp, puis ajouter la clé reçue
+// dans la variable d'env CALLMEBOT_API_KEY.
+// Si la clé n'est pas définie, la notification est ignorée silencieusement.
+
+const ADMIN_WA_PHONE = '237693407964'
+
+export async function sendAdminWhatsAppNotification(message: string): Promise<void> {
+  const apiKey = process.env.CALLMEBOT_API_KEY
+  if (!apiKey) return // pas configuré → skip
+
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WA_PHONE}&text=${encodeURIComponent(message)}&apikey=${apiKey}`
+  await fetch(url).catch((err) => console.error('[callmebot] WhatsApp notification failed:', err))
+}
+
