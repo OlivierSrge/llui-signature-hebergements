@@ -9,6 +9,13 @@ import { validatePromoCode } from '@/actions/promo-codes'
 import type { PaymentMethod } from '@/lib/types'
 import type { PromoValidationResult } from '@/actions/promo-codes'
 
+interface ClientPrefill {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
 interface Props {
   accommodationId: string
   accommodationSlug: string
@@ -17,6 +24,7 @@ interface Props {
   guests: number
   nights: number
   totalPrice: number
+  prefill?: ClientPrefill | null
 }
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; desc: string; icon: string }[] = [
@@ -48,16 +56,17 @@ export default function ReservationForm({
   guests,
   nights,
   totalPrice,
+  prefill,
 }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('orange_money')
 
   const [form, setForm] = useState({
-    guest_first_name: '',
-    guest_last_name: '',
-    guest_email: '',
-    guest_phone: '',
+    guest_first_name: prefill?.firstName || '',
+    guest_last_name: prefill?.lastName || '',
+    guest_email: prefill?.email || '',
+    guest_phone: prefill?.phone || '',
     notes: '',
   })
 

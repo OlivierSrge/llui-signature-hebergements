@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import ReservationForm from '@/components/reservations/ReservationForm'
 import { formatPrice, formatDate, countNights, getTypeLabel, resolveImageUrl } from '@/lib/utils'
@@ -15,6 +16,21 @@ async function getAccommodation(slug: string) {
   return { id: doc.id, ...doc.data() } as any
 }
 
+async function getClientPrefill(): Promise<{ firstName: string; lastName: string; email: string; phone: string } | null> {
+  const jar = await cookies()
+  const clientId = jar.get('client_session')?.value
+  if (!clientId) return null
+  const doc = await db.collection('clients').doc(clientId).get()
+  if (!doc.exists) return null
+  const c = doc.data() as any
+  return {
+    firstName: c.firstName || '',
+    lastName: c.lastName || '',
+    email: c.email || '',
+    phone: c.phone || '',
+  }
+}
+
 export const metadata = { title: 'Réservation' }
 
 export default async function ReservationPage({
@@ -25,7 +41,7 @@ export default async function ReservationPage({
   searchParams: Promise<{ check_in?: string; check_out?: string; guests?: string }>
 }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams])
-  const accommodation = await getAccommodation(slug)
+  const [accommodation, prefill] = await Promise.all([getAccommodation(slug), getClientPrefill()])
   if (!accommodation) notFound()
 
   const checkIn = sp.check_in || ''
@@ -84,7 +100,14 @@ export default async function ReservationPage({
           </div>
 
           <div className="order-1 lg:order-2">
-            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} />
+            {prefill && (
+              <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-gold-50 border border-gold-200 rounded-xl text-xs text-dark/70">
+                <span>✓</span>
+                <span>Vos coordonnées ont été pré-remplies depuis votre compte L&Lui Stars.</span>
+                <a href="/mon-compte" className="ml-auto text-gold-600 hover:underline font-medium whitespace-nowrap">Mon compte</a>
+              </div>
+            )}
+            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} prefill={prefill} />
           </div>
         </div>
       </div>

@@ -1,128 +1,69 @@
 export const dynamic = 'force-dynamic'
 
+import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { Search, ExternalLink, Star, ShoppingBag, Home, Calendar, Gift } from 'lucide-react'
+import { ExternalLink, Star, ShoppingBag, Home, Calendar, Gift } from 'lucide-react'
 import type { LoyaltyClient } from '@/lib/types'
-import { NIVEAUX, NIVEAUX_ORDER, getProgressToNextLevel, getNiveauFromSejours } from '@/lib/loyalty'
-import { formatDate, formatPrice } from '@/lib/utils'
+import { NIVEAUX, NIVEAUX_ORDER, getProgressToNextLevel } from '@/lib/loyalty'
+import { formatDate } from '@/lib/utils'
 import MonCompteCopyButton from '@/components/MonCompteCopyButton'
 import MonCompteMemberCard from '@/components/MonCompteMemberCard'
+import MonCompteAuth from '@/components/MonCompteAuth'
+import { LogoutButton, ChangePinForm } from '@/components/MonCompteActions'
 
-async function getClientByEmail(email: string): Promise<LoyaltyClient | null> {
-  const snap = await db.collection('clients')
-    .where('email', '==', email.toLowerCase().trim())
-    .limit(1)
-    .get()
-  if (snap.empty) return null
-  const doc = snap.docs[0]
-  return { id: doc.id, ...doc.data() } as LoyaltyClient
-}
-
-async function getClientByCode(code: string): Promise<LoyaltyClient | null> {
-  const snap = await db.collection('clients')
-    .where('memberCode', '==', code.trim().toUpperCase())
-    .limit(1)
-    .get()
-  if (snap.empty) return null
-  const doc = snap.docs[0]
+async function getClientFromSession(): Promise<LoyaltyClient | null> {
+  const jar = await cookies()
+  const clientId = jar.get('client_session')?.value
+  if (!clientId) return null
+  const doc = await db.collection('clients').doc(clientId).get()
+  if (!doc.exists) return null
   return { id: doc.id, ...doc.data() } as LoyaltyClient
 }
 
 export const metadata = { title: 'Mon compte — L&Lui Stars' }
 
-export default async function MonComptePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ email?: string; code?: string }>
-}) {
-  const sp = await searchParams
-  const emailQuery = sp.email?.trim().toLowerCase()
-  const codeQuery = sp.code?.trim().toUpperCase()
-
-  let client: LoyaltyClient | null = null
-  if (emailQuery) client = await getClientByEmail(emailQuery)
-  else if (codeQuery) client = await getClientByCode(codeQuery)
-
+export default async function MonComptePage() {
+  const client = await getClientFromSession()
   return (
     <div className="pt-20 pb-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Header */}
         <div className="mb-8 text-center">
           <p className="text-gold-600 text-sm font-medium tracking-widest uppercase mb-1">Programme fidélité</p>
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-dark">L&Lui Stars ✨</h1>
-          <p className="text-dark/50 mt-2 text-sm max-w-md mx-auto">Consultez votre niveau, vos avantages boutique et hébergements, et téléchargez votre carte membre.</p>
+          {!client && (
+            <p className="text-dark/50 mt-2 text-sm max-w-md mx-auto">
+              Connectez-vous avec votre email et votre code PIN pour accéder à vos avantages fidélité.
+            </p>
+          )}
           <div className="gold-divider mt-3" />
         </div>
-
-        {/* Formulaire de recherche */}
         {!client && (
-          <div className="bg-white rounded-2xl border border-beige-200 p-6 mb-8">
-            <p className="text-sm text-dark/60 mb-4">Entrez votre email de réservation ou votre code membre pour accéder à votre espace fidélité.</p>
-            <form method="GET" className="space-y-3">
-              <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
-                <input
-                  type="email"
-                  name="email"
-                  defaultValue={emailQuery}
-                  placeholder="Votre adresse email (votre@email.com)"
-                  className="input-field pl-10 w-full"
-                />
-              </div>
-              <p className="text-xs text-center text-dark/40">ou</p>
-              <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark/30" />
-                <input
-                  type="text"
-                  name="code"
-                  defaultValue={codeQuery}
-                  placeholder="Votre code membre (LLS-XXXXXX)"
-                  className="input-field pl-10 w-full uppercase"
-                />
-              </div>
-              <button type="submit" className="btn-primary w-full">Accéder à mon compte</button>
-            </form>
-          </div>
+          <>
+            <MonCompteAuth />
+            <NiveauxPresentation />
+          </>
         )}
-
-        {/* Résultats */}
-        {(emailQuery || codeQuery) && !client && (
-          <div className="text-center py-12 bg-white rounded-2xl border border-beige-200">
-            <div className="text-4xl mb-3">🔍</div>
-            <h3 className="font-serif text-xl text-dark mb-2">Compte introuvable</h3>
-            <p className="text-dark/50 text-sm mb-4">Aucun profil fidélité trouvé. Effectuez une réservation pour rejoindre L&Lui Stars.</p>
-            <Link href="/" className="btn-primary">Découvrir les hébergements</Link>
-          </div>
-        )}
-
         {client && <ClientProfile client={client} />}
-
-        {/* Présentation des niveaux (si pas connecté) */}
-        {!client && !emailQuery && !codeQuery && <NiveauxPresentation />}
       </div>
     </div>
   )
 }
 
-// ── Profil client connecté ──────────────────────────────────────
-
 function ClientProfile({ client }: { client: LoyaltyClient }) {
   const niveau = NIVEAUX[client.niveau || 'novice']
   const { next, progressPercent, sejoursToNext } = getProgressToNextLevel(client.totalSejours)
+  const hasPermanentPin = !!client.accessPinPermanent
 
   return (
     <div className="space-y-6">
-      {/* Carte niveau */}
-      <div
-        className="rounded-2xl p-6 border"
-        style={{ background: niveau.bgColor, borderColor: niveau.borderColor }}
-      >
+      <div className="rounded-2xl p-6 border" style={{ background: niveau.bgColor, borderColor: niveau.borderColor }}>
+        <div className="flex justify-end gap-2 mb-4">
+          <ChangePinForm hasPermanentPin={hasPermanentPin} />
+          <LogoutButton />
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-5">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0"
-            style={{ background: `${niveau.color}20`, color: niveau.color }}
-          >
+          <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0" style={{ background: `${niveau.color}20`, color: niveau.color }}>
             {client.firstName?.[0]}{client.lastName?.[0]}
           </div>
           <div className="flex-1">
@@ -132,8 +73,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
           </div>
           <MonCompteMemberCard client={client} />
         </div>
-
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="bg-white/70 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-dark">{client.totalSejours}</p>
@@ -148,8 +87,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
             <p className="text-xs text-dark/50">Boutique</p>
           </div>
         </div>
-
-        {/* Progression */}
         {next && (
           <div>
             <div className="flex items-center justify-between text-xs text-dark/60 mb-1.5">
@@ -157,14 +94,9 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
               <span>{sejoursToNext} séjour{(sejoursToNext ?? 0) > 1 ? 's' : ''} pour atteindre {next.label}</span>
             </div>
             <div className="w-full h-3 bg-white/60 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${progressPercent}%`, background: niveau.color }}
-              />
+              <div className="h-full rounded-full transition-all" style={{ width: `${progressPercent}%`, background: niveau.color }} />
             </div>
             <p className="text-xs text-dark/40 mt-1">Progression : {progressPercent}%</p>
-
-            {/* Avantages à débloquer au prochain niveau */}
             <div className="mt-3 bg-white/50 rounded-xl p-3">
               <p className="text-xs font-semibold text-dark/70 mb-2">Niveau {next.label} {next.emoji} — À débloquer :</p>
               <ul className="space-y-1">
@@ -177,7 +109,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
             </div>
           </div>
         )}
-
         {!next && (
           <div className="mt-3 bg-white/50 rounded-xl p-3 text-center">
             <p className="text-sm font-semibold" style={{ color: niveau.color }}>Vous avez atteint le niveau maximum 👑</p>
@@ -186,7 +117,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
         )}
       </div>
 
-      {/* Code promo boutique */}
       <div className="bg-white rounded-2xl border border-beige-200 p-6">
         <div className="flex items-center gap-2 mb-3">
           <ShoppingBag size={16} className="text-green-600" />
@@ -205,7 +135,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
           </div>
           <MonCompteCopyButton text={client.boutiquePromoCode} />
         </div>
-
         {(client.boutiqueAchats || []).length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-semibold text-dark/50 mb-2">Historique achats boutique</p>
@@ -221,7 +150,6 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
         )}
       </div>
 
-      {/* Avantages complets */}
       <div className="bg-white rounded-2xl border border-beige-200 p-6">
         <h3 className="font-semibold text-dark mb-5 flex items-center gap-2">
           <Star size={16} className="text-gold-500" /> Tous vos avantages actifs
@@ -250,38 +178,34 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
         </div>
       </div>
 
-      {/* Lien retour */}
-      <div className="text-center">
-        <Link href="/" className="btn-outline-gold">Réserver un hébergement</Link>
+      <div className="bg-white rounded-2xl border border-beige-200 p-5 text-center">
+        <p className="text-sm text-dark/60 mb-3">
+          Vos coordonnées seront automatiquement pré-remplies lors de votre prochaine réservation.
+        </p>
+        <Link href="/" className="btn-outline-gold">Choisir un hébergement</Link>
       </div>
     </div>
   )
 }
 
-// ── Présentation niveaux (visiteur) ───────────────────────────
-
 function NiveauxPresentation() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mt-8">
       <h2 className="font-serif text-2xl font-semibold text-dark text-center mb-2">Les niveaux L&Lui Stars</h2>
-      <p className="text-dark/50 text-sm text-center mb-6">Chaque séjour vous rapproche d&apos;avantages exclusifs en hébergements ET en boutique.</p>
+      <p className="text-dark/50 text-sm text-center mb-6">
+        Chaque séjour vous rapproche d&apos;avantages exclusifs en hébergements ET en boutique.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {NIVEAUX_ORDER.map((niveauId) => {
           const n = NIVEAUX[niveauId]
           return (
-            <div
-              key={niveauId}
-              className="rounded-2xl border p-5"
-              style={{ background: n.bgColor, borderColor: n.borderColor }}
-            >
+            <div key={niveauId} className="rounded-2xl border p-5" style={{ background: n.bgColor, borderColor: n.borderColor }}>
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-2xl">{n.emoji}</span>
                 <div>
                   <p className="font-bold text-dark">{n.label}</p>
                   <p className="text-xs" style={{ color: n.color }}>
-                    {n.maxSejours
-                      ? `${n.minSejours} à ${n.maxSejours} séjours`
-                      : `${n.minSejours}+ séjours`}
+                    {n.maxSejours ? `${n.minSejours} à ${n.maxSejours} séjours` : `${n.minSejours}+ séjours`}
                   </p>
                 </div>
                 <div className="ml-auto text-right">

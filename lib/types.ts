@@ -358,6 +358,10 @@ export interface LoyaltyClient {
   boutiquePromoCode: string      // BOUTIQUE-XXXXX
   boutiquePointsEarned: number   // points gagnés via boutique
   boutiqueAchats: BoutiqueAchat[]
+  // Authentification PIN
+  accessPin?: string           // Hash du PIN (temporaire ou permanent)
+  accessPinExpiry?: string     // ISO date — uniquement pour les PINs temporaires
+  accessPinPermanent?: boolean // true si le client a défini un PIN mémorisable
   created_at: string
   updated_at: string
 }
