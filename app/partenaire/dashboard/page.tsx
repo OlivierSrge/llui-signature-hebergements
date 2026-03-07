@@ -262,12 +262,14 @@ export default async function PartnerDashboardPage() {
         {/* BLOC 1 — 3 KPI cards */}
         <div className="grid grid-cols-3 gap-4">
           {/* Revenus ce mois */}
-          <div className="bg-white border border-gold-200 rounded-2xl p-5 min-h-[100px] flex flex-col justify-between">
+          <div className="bg-white border border-gold-200 rounded-2xl p-3 min-h-[100px] flex flex-col justify-between overflow-hidden">
             <p className="text-xs text-dark/50">💰 Revenus ce mois</p>
-            <p className="text-4xl font-bold text-gold-600 mt-2">
-              {stats.revenue_month.toLocaleString('fr-FR')}
-              <span className="text-sm font-normal text-gold-500 ml-1">FCFA</span>
-            </p>
+            <div className="mt-2">
+              <p className="text-xl font-bold text-gold-600 leading-tight break-all">
+                {stats.revenue_month.toLocaleString('fr-FR')}
+              </p>
+              <p className="text-xs font-normal text-gold-500">FCFA</p>
+            </div>
           </div>
 
           {/* Arrivées cette semaine */}
