@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import PartnerReservationForm from '@/components/partner/PartnerReservationForm'
+import { getEffectivePermissions } from '@/actions/subscriptions'
 
 async function getPartnerAccommodations(partnerId: string) {
   const snap = await db.collection('hebergements')
@@ -24,6 +25,9 @@ export default async function PartnerNewReservationPage() {
   const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
+
+  const permissions = await getEffectivePermissions(partnerId)
+  if (!permissions.canCreateReservations) redirect('/partenaire/upgrade')
 
   const accommodations = await getPartnerAccommodations(partnerId)
 

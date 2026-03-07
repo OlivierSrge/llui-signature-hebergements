@@ -7,11 +7,15 @@ import Link from 'next/link'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
 import MessageChat from '@/components/partner/MessageChat'
 import { getConversation } from '@/actions/messages'
+import { getEffectivePermissions } from '@/actions/subscriptions'
 
 export default async function PartnerMessagesPage() {
   const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
+
+  const permissions = await getEffectivePermissions(partnerId)
+  if (!permissions.canAccessMessaging) redirect('/partenaire/upgrade')
 
   const partnerDoc = await db.collection('partenaires').doc(partnerId).get()
   if (!partnerDoc.exists) redirect('/partenaire')

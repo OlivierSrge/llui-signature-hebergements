@@ -10,6 +10,7 @@ import {
 import { formatPrice, formatDate, getReservationStatusColor, getReservationStatusLabel } from '@/lib/utils'
 import type { AdminStats } from '@/lib/types'
 import DailyReportButton from '@/components/admin/DailyReportButton'
+import { getExpiringSubscriptions } from '@/actions/subscriptions'
 import { RevenueChart, SourcePieChart } from '@/components/admin/DashboardCharts'
 import type { RevenueDayData, SourceData } from '@/components/admin/DashboardCharts'
 import PaymentRelanceWidget from '@/components/admin/PaymentRelanceWidget'
@@ -253,7 +254,7 @@ export const metadata = { title: 'Dashboard' }
 export default async function AdminDashboard() {
   const [
     stats, recent, pendingDemands, packRequests, daily,
-    pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts,
+    pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -267,6 +268,7 @@ export default async function AdminDashboard() {
     getPartnerPerformance(),
     getSourceDistribution(),
     getPaymentAlerts(),
+    getExpiringSubscriptions(),
   ])
 
   const totalRevenue30 = revenueDays.reduce((s, d) => s + d.revenue, 0)
@@ -505,6 +507,59 @@ export default async function AdminDashboard() {
         </div>
         <PaymentRelanceWidget alerts={alerts} />
       </div>
+
+      {/* ── Renouvellements abonnements à venir ── */}
+      {expiringSubscriptions.length > 0 && (
+        <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-amber-200 flex items-center justify-between bg-amber-50/50">
+            <h2 className="font-semibold text-dark flex items-center gap-2 text-sm">
+              <AlertTriangle size={16} className="text-amber-500" /> Abonnements expirant dans 7 jours
+              <span className="bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {expiringSubscriptions.length}
+              </span>
+            </h2>
+            <Link href="/admin/partenaires" className="text-xs text-gold-600 hover:text-gold-700 flex items-center gap-1">
+              Gérer <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {expiringSubscriptions.map((p) => {
+              const endDate = new Date(p.subscriptionEndDate).toLocaleDateString('fr-FR')
+              const planLabel = p.subscriptionPlan.charAt(0).toUpperCase() + p.subscriptionPlan.slice(1)
+              const waPhone = p.whatsapp_number
+                ? (p.whatsapp_number.replace(/\D/g, '').startsWith('237') ? p.whatsapp_number.replace(/\D/g, '') : `237${p.whatsapp_number.replace(/\D/g, '')}`)
+                : null
+              const waMsg = waPhone
+                ? encodeURIComponent(`Bonjour ${p.name}, votre abonnement L&Lui Signature ${planLabel} expire le ${endDate}. Renouvelez maintenant pour continuer à gérer vos logements sans interruption. Contactez-nous pour procéder au renouvellement.`)
+                : null
+              return (
+                <div key={p.id} className="px-5 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-dark text-sm">{p.name}</p>
+                    <p className="text-xs text-dark/50">Plan {planLabel} · Expire le {endDate}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {waMsg && waPhone && (
+                      <a
+                        href={`https://wa.me/${waPhone}?text=${waMsg}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium whitespace-nowrap"
+                        style={{ background: '#25D366' }}
+                      >
+                        <MessageCircle size={11} /> Envoyer rappel
+                      </a>
+                    )}
+                    <Link href={`/admin/partenaires/${p.id}`} className="p-1.5 text-dark/30 hover:text-dark/60">
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Demandes en attente + Pipeline récent ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

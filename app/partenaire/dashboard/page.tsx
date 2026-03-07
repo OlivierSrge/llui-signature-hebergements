@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2 } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
+import { getPartnerSubscription } from '@/actions/subscriptions'
+import { PLANS } from '@/lib/plans'
 
 async function getPartner(partnerId: string) {
   const doc = await db.collection('partenaires').doc(partnerId).get()
@@ -162,14 +164,22 @@ export default async function PartnerDashboardPage() {
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 
-  const [partner, accommodations, reservations, stats] = await Promise.all([
+  const [partner, accommodations, reservations, stats, subscription] = await Promise.all([
     getPartner(partnerId),
     getPartnerAccommodations(partnerId),
     getPartnerReservations(partnerId),
     getPartnerStats(partnerId),
+    getPartnerSubscription(partnerId),
   ])
 
   if (!partner) redirect('/partenaire')
+
+  const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
+  const trialEndsAt = subscription?.trialEndsAt
+  const isOnTrial = subscription?.subscriptionStatus === 'trial' && trialEndsAt
+  const trialEndLabel = isOnTrial
+    ? new Date(trialEndsAt!).toLocaleDateString('fr-FR')
+    : null
 
   const progressPercent = stats.nextTarget
     ? Math.min(100, Math.round((stats.monthly_confirmed / stats.nextTarget) * 100))
@@ -243,6 +253,35 @@ export default async function PartnerDashboardPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* Bandeau plan actuel */}
+        {currentPlan && (
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm"
+            style={{ background: `${currentPlan.color}10`, borderColor: `${currentPlan.color}30` }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold" style={{ color: currentPlan.color }}>
+                Plan {currentPlan.name}
+              </span>
+              {isOnTrial && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  Essai gratuit — expire le {trialEndLabel}
+                </span>
+              )}
+              {currentPlan.price === 0 && !isOnTrial && (
+                <span className="text-xs text-dark/40">Commission {currentPlan.commissionRate}% · {currentPlan.permissions.maxAccommodations} logements max</span>
+              )}
+            </div>
+            <Link
+              href="/partenaire/upgrade"
+              className="text-xs font-semibold px-3 py-1.5 rounded-full text-white flex-shrink-0"
+              style={{ background: currentPlan.color }}
+            >
+              Mettre à niveau →
+            </Link>
+          </div>
+        )}
+
         {/* Quick actions */}
         <div className="flex flex-wrap gap-3">
           <Link

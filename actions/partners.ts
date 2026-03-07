@@ -75,6 +75,15 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
       commission_usage_value: Number(formData.get('commission_usage_value')) || 0,
       reliability_score: null,
       is_active: true,
+      // Abonnement SaaS
+      subscriptionPlan: (formData.get('subscriptionPlan') as string) || 'essentiel',
+      subscriptionStatus: (formData.get('subscriptionStatus') as string) || 'active',
+      subscriptionStartDate: (formData.get('subscriptionStartDate') as string) || new Date().toISOString().split('T')[0],
+      subscriptionEndDate: (formData.get('subscriptionEndDate') as string) || null,
+      trialEndsAt: (formData.get('trialEndsAt') as string) || null,
+      billingCycle: (formData.get('billingCycle') as string) || 'monthly',
+      commissionRate: Number(formData.get('commissionRate')) || null,
+      maxAccommodations: formData.get('maxAccommodations') ? Number(formData.get('maxAccommodations')) : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -115,6 +124,15 @@ export async function updatePartner(id: string, formData: FormData): Promise<Act
       commission_usage_type: (formData.get('commission_usage_type') as string) || 'percent',
       commission_usage_value: Number(formData.get('commission_usage_value')) || 0,
       is_active: formData.get('is_active') !== 'false',
+      // Abonnement SaaS
+      subscriptionPlan: (formData.get('subscriptionPlan') as string) || 'essentiel',
+      subscriptionStatus: (formData.get('subscriptionStatus') as string) || 'active',
+      subscriptionStartDate: (formData.get('subscriptionStartDate') as string) || null,
+      subscriptionEndDate: (formData.get('subscriptionEndDate') as string) || null,
+      trialEndsAt: (formData.get('trialEndsAt') as string) || null,
+      billingCycle: (formData.get('billingCycle') as string) || 'monthly',
+      commissionRate: formData.get('commissionRate') ? Number(formData.get('commissionRate')) : null,
+      maxAccommodations: formData.get('maxAccommodations') ? Number(formData.get('maxAccommodations')) : null,
       updated_at: new Date().toISOString(),
     }
     if (pin) updateData.access_pin = pin

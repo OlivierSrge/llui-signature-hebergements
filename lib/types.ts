@@ -15,6 +15,11 @@ export type PaymentMethod = 'orange_money' | 'virement' | 'especes'
 export type DiscountType = 'percent' | 'fixed'
 
 // ============================================================
+// Subscription
+// ============================================================
+export type { PlanId, SubscriptionStatus, BillingCycle } from '@/lib/plans'
+
+// ============================================================
 // Partner
 // ============================================================
 export interface Partner {
@@ -38,6 +43,16 @@ export interface Partner {
   is_active: boolean
   created_at: string
   updated_at: string
+  // Abonnement SaaS
+  subscriptionPlan?: import('@/lib/plans').PlanId
+  subscriptionStatus?: import('@/lib/plans').SubscriptionStatus
+  subscriptionStartDate?: string
+  subscriptionEndDate?: string
+  trialEndsAt?: string
+  billingCycle?: import('@/lib/plans').BillingCycle
+  maxAccommodations?: number       // override du plan
+  commissionRate?: number          // override du plan
+  customFeatures?: Record<string, boolean>
 }
 
 // ============================================================
