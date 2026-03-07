@@ -5,12 +5,14 @@ import Link from 'next/link'
 import {
   TrendingUp, Clock, CalendarDays, Home, ArrowRight, Package,
   Percent, MessageCircle, AlertTriangle, Bell, Plus, Wallet,
-  Users, Building2,
+  Users, Building2, Cake, Heart,
 } from 'lucide-react'
 import { formatPrice, formatDate, getReservationStatusColor, getReservationStatusLabel } from '@/lib/utils'
 import type { AdminStats } from '@/lib/types'
 import DailyReportButton from '@/components/admin/DailyReportButton'
 import { getExpiringSubscriptions } from '@/actions/subscriptions'
+import { getBirthdayClients, getStayAnniversaryClients } from '@/actions/clients'
+import { buildBirthdayWhatsAppUrl, buildStayAnniversaryWhatsAppUrl } from '@/lib/client-utils'
 import { RevenueChart, SourcePieChart } from '@/components/admin/DashboardCharts'
 import type { RevenueDayData, SourceData } from '@/components/admin/DashboardCharts'
 import PaymentRelanceWidget from '@/components/admin/PaymentRelanceWidget'
@@ -255,6 +257,7 @@ export default async function AdminDashboard() {
   const [
     stats, recent, pendingDemands, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
+    birthdayClients, stayAnniversaryClients,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -269,6 +272,8 @@ export default async function AdminDashboard() {
     getSourceDistribution(),
     getPaymentAlerts(),
     getExpiringSubscriptions(),
+    getBirthdayClients(),
+    getStayAnniversaryClients(),
   ])
 
   const totalRevenue30 = revenueDays.reduce((s, d) => s + d.revenue, 0)
@@ -665,6 +670,109 @@ export default async function AdminDashboard() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Widget anniversaires clients ── */}
+      {(birthdayClients.length > 0 || stayAnniversaryClients.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Anniversaires de naissance */}
+          {birthdayClients.length > 0 && (
+            <div className="bg-white rounded-2xl border border-pink-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-pink-200 flex items-center justify-between bg-pink-50/50">
+                <h2 className="font-semibold text-dark flex items-center gap-2 text-sm">
+                  <Cake size={16} className="text-pink-500" /> Anniversaires aujourd&apos;hui 🎂
+                  <span className="bg-pink-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {birthdayClients.length}
+                  </span>
+                </h2>
+                <Link href="/admin/clients" className="text-xs text-gold-600 hover:text-gold-700 flex items-center gap-1">
+                  Clients <ArrowRight size={12} />
+                </Link>
+              </div>
+              <div className="divide-y divide-pink-100">
+                {birthdayClients.map((c) => {
+                  const waUrl = buildBirthdayWhatsAppUrl(c)
+                  const age = c.birthDate
+                    ? new Date().getFullYear() - new Date(c.birthDate).getFullYear()
+                    : null
+                  return (
+                    <div key={c.id} className="px-5 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-xs font-bold text-pink-600 flex-shrink-0">
+                        {c.firstName?.[0]}{c.lastName?.[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-dark text-sm">{c.firstName} {c.lastName}</p>
+                        <p className="text-xs text-dark/40">
+                          {age ? `${age} ans aujourd'hui · ` : ''}{c.niveau} · {c.memberCode}
+                        </p>
+                      </div>
+                      {waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex-shrink-0 whitespace-nowrap"
+                          style={{ background: '#25D366' }}
+                        >
+                          <MessageCircle size={11} /> Souhaiter
+                        </a>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Anniversaires de premier séjour */}
+          {stayAnniversaryClients.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-amber-200 flex items-center justify-between bg-amber-50/50">
+                <h2 className="font-semibold text-dark flex items-center gap-2 text-sm">
+                  <Heart size={16} className="text-amber-500" /> Anniversaire de séjour 🏡
+                  <span className="bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {stayAnniversaryClients.length}
+                  </span>
+                </h2>
+                <Link href="/admin/clients" className="text-xs text-gold-600 hover:text-gold-700 flex items-center gap-1">
+                  Clients <ArrowRight size={12} />
+                </Link>
+              </div>
+              <div className="divide-y divide-amber-100">
+                {stayAnniversaryClients.map((c) => {
+                  const waUrl = buildStayAnniversaryWhatsAppUrl(c)
+                  const years = c.joinedAt
+                    ? new Date().getFullYear() - new Date(c.joinedAt).getFullYear()
+                    : 1
+                  return (
+                    <div key={c.id} className="px-5 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-600 flex-shrink-0">
+                        {c.firstName?.[0]}{c.lastName?.[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-dark text-sm">{c.firstName} {c.lastName}</p>
+                        <p className="text-xs text-dark/40">
+                          {years} an{years > 1 ? 's' : ''} de fidélité · {c.totalSejours} séjours · {c.niveau}
+                        </p>
+                      </div>
+                      {waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex-shrink-0 whitespace-nowrap"
+                          style={{ background: '#25D366' }}
+                        >
+                          <MessageCircle size={11} /> Envoyer
+                        </a>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

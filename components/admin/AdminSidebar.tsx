@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/admin/packs', label: 'Packs', icon: Package },
   { href: '/admin/pack-requests', label: 'Demandes pack', icon: Inbox },
   { href: '/admin/promo-codes', label: 'Codes promo', icon: Tag },
+  { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/templates', label: 'Templates WhatsApp', icon: MessageCircle },
 ]
 

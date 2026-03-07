@@ -329,6 +329,40 @@ export interface CommissionUsage {
 }
 
 // ============================================================
+// Fidélité client (L&Lui Stars)
+// ============================================================
+export type { NiveauId } from '@/lib/loyalty'
+
+export interface BoutiqueAchat {
+  id: string
+  montant: number       // FCFA
+  articles: string
+  date: string          // YYYY-MM-DD
+  points: number
+  created_at: string
+}
+
+export interface LoyaltyClient {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string | null
+  birthDate: string | null       // YYYY-MM-DD
+  memberCode: string             // LLS-XXXXXX
+  joinedAt: string               // ISO date premier séjour
+  niveau: import('@/lib/loyalty').NiveauId
+  totalSejours: number
+  totalPoints: number
+  boutiqueDiscount: number       // 5/10/15/20 %
+  boutiquePromoCode: string      // BOUTIQUE-XXXXX
+  boutiquePointsEarned: number   // points gagnés via boutique
+  boutiqueAchats: BoutiqueAchat[]
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================
 // Admin Stats
 // ============================================================
 export interface AdminStats {
