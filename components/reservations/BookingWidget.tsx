@@ -21,7 +21,7 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
   const [guests, setGuests] = useState(2)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [waText, setWaText] = useState('')
   const [loading, setLoading] = useState(false)
 
   const [firstName, setFirstName] = useState('')
@@ -34,7 +34,6 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
   const checkOut = range?.to ? format(range.to, 'yyyy-MM-dd') : ''
   const nights = checkIn && checkOut ? countNights(checkIn, checkOut) : 0
 
-  // Calcul du tarif saisonnier applicable
   const applicablePeriod = checkIn
     ? seasonalPeriods.find((p) => checkIn >= p.start_date && checkIn < p.end_date)
     : null
@@ -48,7 +47,25 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
       return
     }
     setLoading(true)
-    const result = await createAvailabilityRequest({
+
+    // Build WhatsApp message immediately (shown regardless of Firebase result)
+    const text =
+      `Bonjour L&Lui Signature 👋\n\n` +
+      `Je souhaite vérifier la disponibilité pour :\n` +
+      `🏡 ${accommodation.name}\n` +
+      `👤 ${firstName} ${lastName}\n` +
+      `📞 ${phone}\n` +
+      (checkIn && checkOut ? `📅 ${format(parseISO(checkIn), 'dd/MM/yyyy')} → ${format(parseISO(checkOut), 'dd/MM/yyyy')} (${nights} nuit${nights > 1 ? 's' : ''})\n` : '') +
+      `👥 ${guests} voyageur${guests > 1 ? 's' : ''}\n` +
+      (subtotal > 0 ? `💰 Estimation : ${new Intl.NumberFormat('fr-FR').format(subtotal)} FCFA\n` : '') +
+      (message ? `\n💬 ${message}` : '')
+
+    // Show success screen right away
+    setWaText(text)
+    setLoading(false)
+
+    // Save to Firebase in the background (non-blocking)
+    createAvailabilityRequest({
       product_type: 'hebergement',
       product_id: accommodation.id,
       product_name: accommodation.name,
@@ -60,23 +77,31 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
       check_out: checkOut,
       guests,
       message,
+    }).catch(() => {
+      // Firebase failure is non-critical — the WhatsApp message carries all info
     })
-    setLoading(false)
-    if (!result.success) { toast.error(result.error); return }
-    setSubmitted(true)
   }
 
-  if (submitted) {
+  if (waText) {
     return (
-      <div className="bg-white rounded-2xl shadow-card-hover border border-beige-200 p-8 text-center">
-        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="bg-white rounded-2xl shadow-card-hover border border-beige-200 p-8 text-center space-y-5">
+        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle size={28} className="text-green-600" />
         </div>
-        <h3 className="font-serif text-xl font-semibold text-dark mb-2">Demande envoyée !</h3>
-        <p className="text-dark/60 text-sm leading-relaxed">
-          Notre équipe va étudier votre demande et vous recontactera par WhatsApp dans les plus brefs délais.
-        </p>
-        <p className="text-xs text-dark/40 mt-4">Aucun paiement demandé à ce stade.</p>
+        <div>
+          <h3 className="font-serif text-xl font-semibold text-dark mb-2">Demande enregistrée !</h3>
+          <p className="text-dark/60 text-sm leading-relaxed">
+            Pour que notre équipe soit notifiée immédiatement, envoyez votre demande via WhatsApp.
+          </p>
+        </div>
+        <a
+          href={`whatsapp://send?phone=237693407964&text=${encodeURIComponent(waText)}`}
+          className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-2xl transition-colors"
+        >
+          <MessageCircle size={20} />
+          Envoyer sur WhatsApp
+        </a>
+        <p className="text-xs text-dark/40">Aucun paiement demandé à ce stade.</p>
       </div>
     )
   }
@@ -173,11 +198,22 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
             </div>
 
             <div>
-              <label className="label text-xs">Téléphone / WhatsApp <span className="text-red-500">*</span></label>
+              <label className="label text-xs">Téléphone WhatsApp <span className="text-red-500">*</span></label>
               <div className="relative">
                 <Phone size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gold-500" />
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required className="input-field pl-7 text-sm" placeholder="+237 6XX XXX XXX" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="input-field pl-7 text-sm"
+                  placeholder="237 6XX XXX XXX"
+                />
               </div>
+              <p className="mt-1 text-xs text-dark/50">
+                Indicatif pays sans le <span className="font-semibold">+</span>, puis numéro sans le <span className="font-semibold">0</span> initial.
+                Ex : <span className="font-mono font-medium">237 693 407 964</span>
+              </p>
             </div>
 
             <div>

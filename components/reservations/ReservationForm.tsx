@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { User, Mail, Phone, CreditCard, MessageSquare, Loader2, Tag, CheckCircle, XCircle } from 'lucide-react'
+import { User, Mail, Phone, CreditCard, MessageSquare, Loader2, Tag, CheckCircle, XCircle, MessageCircle } from 'lucide-react'
 import { createReservation } from '@/actions/reservations'
 import { validatePromoCode } from '@/actions/promo-codes'
 import type { PaymentMethod } from '@/lib/types'
@@ -19,6 +19,7 @@ interface ClientPrefill {
 interface Props {
   accommodationId: string
   accommodationSlug: string
+  accommodationName: string
   checkIn: string
   checkOut: string
   guests: number
@@ -51,6 +52,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; desc: string; icon
 export default function ReservationForm({
   accommodationId,
   accommodationSlug,
+  accommodationName,
   checkIn,
   checkOut,
   guests,
@@ -69,6 +71,8 @@ export default function ReservationForm({
     guest_phone: prefill?.phone || '',
     notes: '',
   })
+
+  const [successData, setSuccessData] = useState<{ reservationId: string; waText: string } | null>(null)
 
   const [promoInput, setPromoInput] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
@@ -121,12 +125,52 @@ export default function ReservationForm({
         return
       }
 
-      router.push(`/confirmation?id=${result.reservationId}`)
+      const paymentLabel = PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label || paymentMethod
+      const waText =
+        `🏡 Nouvelle réservation — ${accommodationName}\n\n` +
+        `👤 ${form.guest_first_name} ${form.guest_last_name}\n` +
+        `📞 ${form.guest_phone}\n` +
+        `📅 ${checkIn} → ${checkOut} (${nights} nuit${nights > 1 ? 's' : ''})\n` +
+        `👥 ${guests} voyageur${guests > 1 ? 's' : ''}\n` +
+        `💰 ${new Intl.NumberFormat('fr-FR').format(finalPrice)} FCFA\n` +
+        `💳 ${paymentLabel}\n` +
+        `🔖 Réf : #${result.reservationId?.slice(-8).toUpperCase()}`
+      setSuccessData({ reservationId: result.reservationId!, waText })
     } catch (err) {
       toast.error('Une erreur inattendue est survenue')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (successData) {
+    return (
+      <div className="text-center py-8 space-y-6 animate-fade-in">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+          <CheckCircle size={32} className="text-green-600" />
+        </div>
+        <div>
+          <h2 className="font-serif text-2xl font-semibold text-dark mb-2">Demande envoyée !</h2>
+          <p className="text-dark/60 text-sm leading-relaxed">
+            Pour que notre équipe soit notifiée immédiatement, envoyez le récapitulatif via WhatsApp.
+          </p>
+        </div>
+        <a
+          href={`whatsapp://send?phone=237693407964&text=${encodeURIComponent(successData.waText)}`}
+          className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-2xl transition-colors"
+        >
+          <MessageCircle size={20} />
+          Envoyer sur WhatsApp
+        </a>
+        <button
+          type="button"
+          onClick={() => router.push(`/confirmation?id=${successData.reservationId}`)}
+          className="w-full btn-secondary py-3"
+        >
+          Voir ma confirmation →
+        </button>
+      </div>
+    )
   }
 
   return (

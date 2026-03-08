@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { CheckCircle2, Calendar, Users, CreditCard, Mail, ArrowRight } from 'lucide-react'
+import { CheckCircle2, Calendar, Users, CreditCard, Mail, MessageCircle } from 'lucide-react'
 import { formatDate, formatPrice, getPaymentMethodLabel, getReservationStatusLabel } from '@/lib/utils'
 
 async function getReservation(id: string) {
@@ -101,9 +101,27 @@ export default async function ConfirmationPage({ searchParams }: { searchParams:
           </ol>
         </div>
 
+        {(() => {
+          const waText =
+            `🏡 Réservation ${acc?.name || ''}\n` +
+            `📅 ${reservation.check_in} → ${reservation.check_out}\n` +
+            `💰 ${new Intl.NumberFormat('fr-FR').format(reservation.total_price)} FCFA\n` +
+            `🔖 Réf : #${reservation.id.slice(-8).toUpperCase()}`
+          return (
+            <a
+              href={`https://wa.me/237693407964?text=${encodeURIComponent(waText)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-2xl transition-colors mb-3"
+            >
+              <MessageCircle size={20} />
+              Contacter l&apos;équipe sur WhatsApp
+            </a>
+          )
+        })()}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link href="/espace-client" className="btn-primary flex-1 text-center justify-center">Suivre ma réservation<ArrowRight size={16} /></Link>
-          <Link href="/" className="btn-secondary flex-1 text-center justify-center">Retour à l&apos;accueil</Link>
+          <Link href="/" className="btn-primary flex-1 text-center justify-center">Retour à l&apos;accueil</Link>
+          <Link href="/mon-compte" className="btn-secondary flex-1 text-center justify-center">Mon compte L&amp;Lui Stars</Link>
         </div>
       </div>
     </div>

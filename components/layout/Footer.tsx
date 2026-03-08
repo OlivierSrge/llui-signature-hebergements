@@ -74,14 +74,14 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-3 text-white/60">
                 <Phone size={15} className="text-gold-400 flex-shrink-0" />
-                <a href="tel:+237699000000" className="hover:text-gold-400 transition-colors">
-                  +237 699 000 000
+                <a href="tel:+237693407964" className="hover:text-gold-400 transition-colors">
+                  +237 693 407 964
                 </a>
               </li>
               <li className="flex items-center gap-3 text-white/60">
                 <Mail size={15} className="text-gold-400 flex-shrink-0" />
-                <a href="mailto:contact@llui-signature.cm" className="hover:text-gold-400 transition-colors">
-                  contact@llui-signature.cm
+                <a href="mailto:contact@l-et-lui.com" className="hover:text-gold-400 transition-colors">
+                  contact@l-et-lui.com
                 </a>
               </li>
             </ul>

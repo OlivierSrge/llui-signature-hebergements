@@ -107,7 +107,7 @@ export default async function ReservationPage({
                 <a href="/mon-compte" className="ml-auto text-gold-600 hover:underline font-medium whitespace-nowrap">Mon compte</a>
               </div>
             )}
-            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} prefill={prefill} />
+            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} accommodationName={accommodation.name} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} prefill={prefill} />
           </div>
         </div>
       </div>
