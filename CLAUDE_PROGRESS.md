@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-08 11:45
+Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ---
 
@@ -51,17 +51,73 @@ Dernière mise à jour : 2026-03-08 11:45
 
 ---
 
+## SYSTÈME CONTRAT PARTENARIAT — SESSION 2026-03-11
+
+### Blocs implémentés
+- **BLOC 1** — Éditeur admin `/admin/contrat` avec 3 onglets :
+  - Onglet 1 : Clauses générales (textarea + boutons variables + aperçu + reset)
+  - Onglet 2 : Clauses commissions (4 plans : essentiel/starter/pro/premium)
+  - Onglet 3 : Paramètres & versions (version, date, forceResign)
+- **BLOC 2** — Structure Firestore :
+  - `/settings/contract/current` : texte du contrat
+  - `/settings/contract/commissions/{plan}` : clauses par plan
+  - `/settings/contract/meta` : version active, forceResign
+  - `/partenaires/{id}.contract` : statut, OTP hashé, signature
+- **BLOC 3** — Page signature partenaire `/partenaire/contrat` (4 étapes) :
+  - Étape 1 : Lecture avec scroll tracker (bouton grisé jusqu'à 100%)
+  - Étape 2 : Identification (nom, rôle, checkboxes)
+  - Étape 3 : OTP 6 cases, compteur 30min, renvoi après 2min, blocage 5 échecs
+  - Étape 4 : Succès + génération PDF jsPDF + upload Firebase Storage
+- **BLOC 4** — PDF jsPDF : page garde + contrat + page certification
+- **BLOC 5** — Dashboard admin :
+  - Colonne contrat dans tableau partenaires (badges couleur)
+  - Alerte X partenaires sans contrat signé
+  - Section contrat dans fiche partenaire (bouton envoyer + lien WhatsApp)
+  - Bannière orange persistante dans espace partenaire
+  - Item "Contrat" dans nav mobile partenaire (badge rouge si non signé)
+  - Initialisation silencieuse des partenaires sans champ contract
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `lib/contractDefaults.ts` | Source de vérité : texte contrat + clauses commission |
+| `actions/contract.ts` | Server actions : CRUD contrat, OTP, signature |
+| `app/api/upload-contract/route.ts` | Upload PDF contrat vers Firebase Storage |
+| `app/admin/contrat/page.tsx` | Page admin éditeur contrat |
+| `components/admin/ContractAdminTabs.tsx` | Tabs admin (clauses, commissions, settings) |
+| `components/admin/PartnerContractSection.tsx` | Section contrat dans fiche partenaire admin |
+| `app/partenaire/contrat/page.tsx` | Page signature partenaire |
+| `components/partner/ContractSigningFlow.tsx` | Flow 4 étapes + OTP + PDF |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `components/admin/AdminSidebar.tsx` | + "Contrat partenariat" dans le menu |
+| `components/partner/PartnerMobileNav.tsx` | + onglet "Contrat" avec badge rouge |
+| `app/partenaire/layout.tsx` | Passe contractStatus à PartnerMobileNav |
+| `app/partenaire/dashboard/page.tsx` | + Bannière orange contrat non signé |
+| `app/admin/partenaires/page.tsx` | + Badge contrat + alerte X partenaires |
+| `app/admin/partenaires/[id]/page.tsx` | + Section contrat dans fiche |
+
+### Dépendances installées
+- `jspdf` — Génération PDF côté client
+
+### Règles de priorité respectées
+- Firestore > DEFAULT_CONTRACT_TEXT (jamais vide)
+- Partenaires sans `contract` → initialisés automatiquement à `not_sent`
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — session terminée, tout est pushé
-- **Fichiers modifiés** : aucun non-commité
-- **Dernière action** : WhatsApp flow client complet (BookingWidget + ReservationForm + confirmation) + fix coordonnées footer
-- **Prochaine action prévue** : voir section PROCHAINE SESSION
+- **Bloc actuel** : Aucun — session terminée
+- **Fichiers modifiés** : non committés (à committer)
+- **Dernière action** : Système contrat partenariat complet (5 blocs)
 
 ---
 
 ## BLOCS EN ATTENTE (non commencés)
-Ces blocs n'ont pas encore été définis/demandés par l'utilisateur.
-À compléter lors de la prochaine session selon les nouvelles instructions.
+- Notifications push / email automatiques aux partenaires
+- Export CSV des réservations
+- Tableau de bord revenus partenaire avec graphiques
+- Système d'avis clients
 
 ---
 
@@ -183,17 +239,18 @@ Ces blocs n'ont pas encore été définis/demandés par l'utilisateur.
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-08 11:45** : Tous les fichiers sont commités et pushés sur `main`.
+**État au 2026-03-11** : Système contrat partenariat complet — non commité.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
 2. Vérifier `git status` et `git log --oneline -5`
-3. Demander à l'utilisateur quels nouveaux blocs ou corrections sont prévus
+3. Committer les changements de la session contrat si non encore fait
+4. Tester le flow de signature complet en staging
 
 **Corrections connues à surveiller** :
-- Tester le bouton WhatsApp du BookingWidget sur mobile iOS (schéma `whatsapp://send`) — peut nécessiter `https://wa.me/` selon le device
-- Vérifier que la messagerie partenaire ↔ admin fonctionne bien en production (Firestore realtime polling)
-- Vérifier que le tracking des vues (`stats_views`) s'incrémente correctement sur Vercel
+- Si le bucket Firebase Storage utilise UAC, configurer l'accès public IAM (`gsutil iam ch allUsers:objectViewer gs://[BUCKET]`)
+- Tester la génération PDF jsPDF avec les caractères accentués français
+- Vérifier que `makePublic()` ne bloque pas l'upload (fix déjà appliqué en session précédente)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
 - Notifications push / email automatiques aux partenaires

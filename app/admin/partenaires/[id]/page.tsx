@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase'
 import PartnerForm from '@/components/admin/PartnerForm'
 import PartnerWhatsAppCard from '@/components/admin/PartnerWhatsAppCard'
 import PartnerCardDownload from '@/components/admin/PartnerCardDownload'
+import PartnerContractSection from '@/components/admin/PartnerContractSection'
 import type { Partner } from '@/lib/types'
 
 function generateAccessCode(): string {
@@ -14,7 +15,7 @@ function generateAccessCode(): string {
   return code
 }
 
-async function getPartner(id: string): Promise<Partner | null> {
+async function getPartner(id: string) {
   const doc = await db.collection('partenaires').doc(id).get()
   if (!doc.exists) return null
   const data = doc.data()!
@@ -26,7 +27,24 @@ async function getPartner(id: string): Promise<Partner | null> {
     data.access_code = newCode
   }
 
-  return { id: doc.id, ...data } as Partner
+  // Initialiser le contrat s'il n'existe pas
+  if (!data.contract) {
+    await doc.ref.update({
+      'contract.status': 'not_sent',
+      'contract.version': '',
+      'contract.contractId': '',
+    })
+    data.contract = { status: 'not_sent', version: '', contractId: '' }
+  }
+
+  return {
+    id: doc.id,
+    ...data,
+    contractStatus: data.contract?.status || 'not_sent',
+    contractId: data.contract?.contractId || '',
+    signedAt: data.contract?.signedAt || undefined,
+    pdfUrl: data.contract?.pdfUrl || undefined,
+  } as Partner & { contractStatus: string; contractId: string; signedAt?: string; pdfUrl?: string }
 }
 
 export const metadata = { title: 'Modifier partenaire – Admin' }
@@ -44,6 +62,18 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
           <p className="text-dark/50 text-sm mt-1">{partner.name}</p>
         </div>
         <PartnerCardDownload partner={partner} />
+      </div>
+
+      {/* Section contrat */}
+      <div className="max-w-3xl mb-6">
+        <PartnerContractSection
+          partnerId={partner.id}
+          partnerName={partner.name}
+          contractStatus={(partner as any).contractStatus || 'not_sent'}
+          contractId={(partner as any).contractId || ''}
+          signedAt={(partner as any).signedAt}
+          pdfUrl={(partner as any).pdfUrl}
+        />
       </div>
 
       {/* Lien d'invitation WhatsApp */}

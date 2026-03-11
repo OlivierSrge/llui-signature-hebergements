@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2 } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import { getPartnerSubscription } from '@/actions/subscriptions'
@@ -19,6 +19,7 @@ async function getPartner(partnerId: string) {
     name: d.name as string,
     access_code: d.access_code as string,
     reliability_score: (d.reliability_score as number | null) ?? null,
+    contractStatus: (d.contract?.status as string) || 'not_sent',
   }
 }
 
@@ -253,6 +254,32 @@ export default async function PartnerDashboardPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+        {/* ── Bannière contrat non signé ── */}
+        {partner.contractStatus !== 'signed' && (
+          <Link
+            href="/partenaire/contrat"
+            className="flex items-center justify-between gap-4 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">
+                  {partner.contractStatus === 'sent'
+                    ? 'Votre contrat de partenariat est prêt à être signé'
+                    : 'Contrat de partenariat en attente de signature'}
+                </p>
+                <p className="text-xs text-amber-600">
+                  Signez votre contrat pour valider pleinement votre partenariat L&Lui Signature.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 bg-amber-500 text-white text-xs font-medium px-3 py-1.5 rounded-full flex-shrink-0">
+              <FileSignature size={12} /> Signer maintenant
+            </div>
+          </Link>
+        )}
+
         {/* Bandeau plan actuel */}
         {currentPlan && (
           <div

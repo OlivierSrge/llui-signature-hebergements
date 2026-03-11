@@ -12,15 +12,19 @@ async function getPartnerSubscriptionStatus(partnerId: string) {
     subscriptionStatus: (d.subscriptionStatus as string) || 'active',
     subscriptionEndDate: (d.subscriptionEndDate as string) || null,
     trialEndsAt: (d.trialEndsAt as string) || null,
+    contractStatus: (d.contract?.status as string) || 'not_sent',
   }
 }
 
 export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
+  let contractStatus = 'not_sent'
+
   if (partnerId) {
     const sub = await getPartnerSubscriptionStatus(partnerId)
     if (sub) {
+      contractStatus = sub.contractStatus
       const now = new Date().toISOString()
       const isExpired =
         sub.subscriptionStatus === 'expired' ||
@@ -30,10 +34,11 @@ export default async function PartnerLayout({ children }: { children: React.Reac
       if (isExpired) return <SuspendedPage partnerName={sub.name} />
     }
   }
+
   return (
     <div className="min-h-screen bg-beige-50">
       <div className="pb-16 lg:pb-0">{children}</div>
-      <PartnerMobileNav />
+      <PartnerMobileNav contractStatus={contractStatus} />
     </div>
   )
 }

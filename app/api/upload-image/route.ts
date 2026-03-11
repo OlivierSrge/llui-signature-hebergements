@@ -15,25 +15,25 @@ async function isAuthenticated(): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await isAuthenticated())) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
-
-  const formData = await request.formData()
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 })
-
-  const maxSize = 10 * 1024 * 1024 // 10 MB
-  if (file.size > maxSize) {
-    return NextResponse.json({ error: 'Fichier trop volumineux (max 10 Mo)' }, { status: 400 })
-  }
-
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
-  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
-    return NextResponse.json({ error: 'Format non supporté (JPEG, PNG, WebP)' }, { status: 400 })
-  }
-
   try {
+    if (!(await isAuthenticated())) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 })
+
+    const maxSize = 10 * 1024 * 1024 // 10 MB
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: 'Fichier trop volumineux (max 10 Mo)' }, { status: 400 })
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif)$/i)) {
+      return NextResponse.json({ error: 'Format non supporté (JPEG, PNG, WebP)' }, { status: 400 })
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer())
 
     // Compresser et redimensionner avec sharp (max 1600px, qualité 82%)
@@ -57,10 +57,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Rendre le fichier public et obtenir l'URL
-    await fileRef.makePublic()
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`
+    // Rendre le fichier public via ACL.
+    // Si le bucket utilise le contrôle d'accès uniforme (UAC), cette opération
+    // échoue mais l'URL reste accessible si le bucket est public via IAM.
+    try {
+      await fileRef.makePublic()
+    } catch (aclErr: any) {
+      console.warn('[upload-image] makePublic skipped (UAC bucket?):', aclErr.message)
+    }
 
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`
     return NextResponse.json({ url: publicUrl })
   } catch (err: any) {
     console.error('[upload-image]', err)

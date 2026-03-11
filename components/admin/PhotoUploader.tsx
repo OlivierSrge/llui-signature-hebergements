@@ -38,8 +38,13 @@ export default function PhotoUploader({ initialUrls = [], onChange, maxPhotos = 
 
       try {
         const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Échec upload')
+        let data: any = {}
+        try {
+          data = await res.json()
+        } catch {
+          // La réponse n'est pas du JSON (ex : page d'erreur HTML de Next.js)
+        }
+        if (!res.ok) throw new Error(data.error || `Erreur serveur (${res.status})`)
         newUrls.push(data.url)
       } catch (err: any) {
         toast.error(`${file.name}: ${err.message}`)
