@@ -99,8 +99,14 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
       guests,
       message,
       ...(promoResult?.valid ? { promo_code: promoResult.code, promo_discount: promoResult.discount_amount } : {}),
-    }).catch(() => {
-      // Firebase failure is non-critical — the WhatsApp message carries all info
+    }).then((result) => {
+      if (!result.success) {
+        console.error('[BookingWidget] createAvailabilityRequest error:', result.error)
+        toast.error('Votre demande a été envoyée par WhatsApp mais n\'a pas pu être enregistrée dans le système.')
+      }
+    }).catch((err) => {
+      console.error('[BookingWidget] createAvailabilityRequest exception:', err)
+      toast.error('Votre demande a été envoyée par WhatsApp mais n\'a pas pu être enregistrée dans le système.')
     })
   }
 

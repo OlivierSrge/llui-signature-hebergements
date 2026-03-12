@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import { getPartnerSubscription } from '@/actions/subscriptions'
@@ -80,6 +80,21 @@ async function getPartnerReservations(accommodationIds: string[]) {
   return results
     .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
     .slice(0, 10)
+}
+
+async function getAllPartnerDemands(accommodationIds: string[]) {
+  if (accommodationIds.length === 0) return []
+  const chunks: string[][] = []
+  for (let i = 0; i < accommodationIds.length; i += 10) chunks.push(accommodationIds.slice(i, i + 10))
+  const results: any[] = []
+  for (const chunk of chunks) {
+    const snap = await db.collection('demandes_disponibilite')
+      .where('product_id', 'in', chunk)
+      .where('status', '==', 'en_attente')
+      .get()
+    snap.docs.forEach((d) => results.push({ id: d.id, ...d.data() }))
+  }
+  return results.sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
 }
 
 async function getAccommodationDemands(accommodationId: string) {
@@ -196,7 +211,10 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect('/partenaire')
 
   const accommodationIds = accommodations.map((a: any) => a.id)
-  const reservations = await getPartnerReservations(accommodationIds)
+  const [reservations, partnerDemands] = await Promise.all([
+    getPartnerReservations(accommodationIds),
+    getAllPartnerDemands(accommodationIds),
+  ])
 
   const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
   const trialEndsAt = subscription?.trialEndsAt
@@ -390,6 +408,60 @@ export default async function PartnerDashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* ── Demandes en cours (depuis la page publique / QR code) ── */}
+        {partnerDemands.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-dark text-lg flex items-center gap-2">
+                <Bell size={18} className="text-blue-500" />
+                Demandes en cours
+                <span className="bg-blue-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {partnerDemands.length}
+                </span>
+              </h2>
+            </div>
+            <div className="bg-white rounded-2xl border border-blue-200 overflow-hidden">
+              <div className="divide-y divide-blue-50">
+                {partnerDemands.map((req: any) => (
+                  <div key={req.id} className="px-5 py-4 flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-dark text-sm">{req.guest_first_name} {req.guest_last_name}</p>
+                      <p className="text-xs text-dark/50 mt-0.5 truncate">{req.product_name}</p>
+                      {req.check_in && (
+                        <p className="text-xs text-dark/40 mt-0.5">
+                          📅 {req.check_in} → {req.check_out} · {req.guests} pers.
+                        </p>
+                      )}
+                      {req.guest_phone && (
+                        <p className="text-xs text-dark/40 mt-0.5">📞 {req.guest_phone}</p>
+                      )}
+                      {req.promo_code && (
+                        <p className="text-xs text-blue-600 mt-0.5">🏷️ Promo : {req.promo_code}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
+                        En attente
+                      </span>
+                      {req.guest_phone && (
+                        <a
+                          href={`https://wa.me/${req.guest_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${req.guest_first_name}, nous avons bien reçu votre demande de disponibilité pour ${req.product_name}. Nous vous revenons très rapidement.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-2.5 py-1 rounded-lg text-white font-medium flex items-center gap-1"
+                          style={{ background: '#25D366' }}
+                        >
+                          <ArrowRight size={10} /> Répondre
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Recent reservations */}
         {reservations.length > 0 && (
