@@ -177,19 +177,69 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ---
 
+## SESSION 2026-03-12 (suite) — PHASE 4 : REVENUS, CLIENTS, CSV, FILTRES DEMANDES
+
+### Blocs implémentés (4 blocs)
+
+**BLOC 1 — /admin/demandes amélioré**
+- Filtres `handled_by` : Toutes / Non traitées / Traitées admin / Traitées partenaire
+- Stats rapides (3 tuiles : non traitées / admin / partenaire)
+- Badges couleur par source (admin=bleu, partenaire=violet)
+- Affichage nom du partenaire ayant traité
+- Coloration conditionnelle des lignes
+
+**BLOC 2 — Export CSV réservations**
+- `/api/export/reservations` : GET authentifié admin, paramètres `status` + `source`
+- BOM UTF-8 pour Excel/LibreOffice
+- Bouton "Exporter CSV" dans `/admin/reservations` (respects filtres actifs)
+
+**BLOC 3 — Page /partenaire/revenus (nouveau)**
+- 4 KPI : revenus encaissés, confirmées, en attente, durée moy. séjour
+- Évolution vs mois précédent (+/- %)
+- Graphique barres revenus mensuels 12 mois (recharts)
+- Graphique ligne réservations confirmées / mois
+- Liste réservations confirmées récentes
+- Bouton export CSV partenaire
+- Lien "Mes revenus" dans actions rapides dashboard
+
+**BLOC 4 — Page /partenaire/clients (nouveau)**
+- Groupement clients uniques par téléphone/email
+- Badges fidélité (Client fidèle 5+, Client régulier 3+)
+- Stats : total clients uniques + clients réguliers
+- Recherche nom/téléphone/email
+- Affichage : total séjours, nuits, dépense, dernier séjour
+- Lien WhatsApp direct pour contact
+- Liens vers réservations associées
+- Lien "Mes clients" dans actions rapides dashboard
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `app/api/export/reservations/route.ts` | API export CSV réservations |
+| `app/partenaire/revenus/page.tsx` | Page revenus partenaire avec graphiques |
+| `app/partenaire/clients/page.tsx` | Page clients partenaire |
+| `components/partner/PartnerRevenueCharts.tsx` | Graphiques recharts revenus/confirmées |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/admin/demandes/page.tsx` | + filtres handled_by, stats, badges couleur |
+| `app/admin/reservations/page.tsx` | + bouton Export CSV |
+| `app/partenaire/dashboard/page.tsx` | + liens "Mes revenus" et "Mes clients" |
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — session 2026-03-12 terminée
-- **Fichiers modifiés** : non committés (à committer)
-- **Dernière action** : Flux demandes disponibilité + pipeline partenaire complet (4 blocs)
+- **Bloc actuel** : Aucun — session 2026-03-12 Phase 4 terminée
+- **Fichiers modifiés** : tout commité et pushé
+- **Dernière action** : Phase 4 complète (4 blocs)
 
 ---
 
 ## BLOCS EN ATTENTE (non commencés)
 - Notifications push / email automatiques aux partenaires
-- Export CSV des réservations
-- Tableau de bord revenus partenaire avec graphiques
-- Système d'avis clients
-- Page `/admin/demandes` : filtre handled_by pour séparer "À traiter" / "Traités par partenaire"
+- Système d'avis clients (formulaire client + affichage partenaire)
+- Page `/admin/clients` enrichie : historique réservations cross-partenaires
 
 ---
 
@@ -311,21 +361,21 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-12** : Flux demandes + pipeline partenaire complets — non commités.
+**État au 2026-03-12 (Phase 4)** : 4 blocs committas et pushés sur `claude/review-and-continue-phase-4-pibnO`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
-2. Vérifier `git status` et `git log --oneline -5`
-3. Committer les changements de la session si non encore fait
-4. Tester le flux complet : demande publique → partenaire voit dans dashboard → crée réservation → WhatsApp pipeline 4 étapes
+2. `git log --oneline -5` pour vérifier les commits
+3. Les 4 blocs de Phase 4 sont done. Choisir la prochaine priorité avec l'utilisateur.
 
-**Corrections connues à surveiller** :
-- Si le bucket Firebase Storage utilise UAC, configurer l'accès public IAM (`gsutil iam ch allUsers:objectViewer gs://[BUCKET]`)
-- Tester la génération PDF jsPDF avec les caractères accentués français
-- Vérifier que `makePublic()` ne bloque pas l'upload (fix déjà appliqué en session précédente)
+**Nouvelles routes disponibles** :
+- `/partenaire/revenus` — tableau de bord revenus avec graphiques
+- `/partenaire/clients` — liste clients groupés avec badges fidélité
+- `/api/export/reservations` — export CSV (admin only)
+- `/admin/demandes?handled_by=...` — filtre demandes par source traitement
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
 - Notifications push / email automatiques aux partenaires
-- Export CSV des réservations
-- Tableau de bord revenus partenaire avec graphiques
-- Système d'avis clients
+- Système d'avis clients (formulaire après séjour + affichage partenaire)
+- Page `/admin/clients` enrichie avec historique réservations
+- Statistiques avancées partenaire (taux occupation, saisonnalité)
