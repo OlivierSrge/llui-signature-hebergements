@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { Smartphone, Building2, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react'
-import { adminSavePaymentSettings, type PaymentSettings, EMPTY_PAYMENT_SETTINGS } from '@/actions/payment-settings'
+import { adminSavePaymentSettings } from '@/actions/payment-settings'
+import { type PaymentSettings, EMPTY_PAYMENT_SETTINGS } from '@/lib/payment-settings'
 
 interface Props {
   partnerId: string
