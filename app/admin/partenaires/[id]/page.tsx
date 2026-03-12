@@ -6,6 +6,8 @@ import PartnerForm from '@/components/admin/PartnerForm'
 import PartnerWhatsAppCard from '@/components/admin/PartnerWhatsAppCard'
 import PartnerCardDownload from '@/components/admin/PartnerCardDownload'
 import PartnerContractSection from '@/components/admin/PartnerContractSection'
+import AdminPaymentSettingsForm from '@/components/admin/AdminPaymentSettingsForm'
+import { loadPaymentSettings } from '@/actions/payment-settings'
 import type { Partner } from '@/lib/types'
 
 function generateAccessCode(): string {
@@ -51,7 +53,10 @@ export const metadata = { title: 'Modifier partenaire – Admin' }
 
 export default async function EditPartnerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const partner = await getPartner(id)
+  const [partner, paymentSettings] = await Promise.all([
+    getPartner(id),
+    loadPaymentSettings(id),
+  ])
   if (!partner) notFound()
 
   return (
@@ -82,6 +87,11 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
           <PartnerWhatsAppCard partner={partner} />
         </div>
       )}
+
+      {/* Paramètres de paiement */}
+      <div className="max-w-3xl mb-6">
+        <AdminPaymentSettingsForm partnerId={partner.id} initialSettings={paymentSettings} />
+      </div>
 
       <PartnerForm partner={partner} />
     </div>

@@ -22,17 +22,39 @@ export async function createAvailabilityRequest(formData: {
 }): Promise<ActionResult> {
   try {
     const now = new Date().toISOString()
+
+    // Résoudre le partenaire propriétaire du logement
+    let routedToPartnerId: string | null = null
+    if (formData.product_type === 'hebergement' && formData.product_id) {
+      const accDoc = await db.collection('hebergements').doc(formData.product_id).get()
+      if (accDoc.exists && accDoc.data()?.partner_id) {
+        routedToPartnerId = accDoc.data()!.partner_id
+      }
+    }
+
     const docRef = db.collection('demandes_disponibilite').doc()
     await docRef.set({
       ...formData,
       status: 'en_attente',
       reservation_id: null,
+      // Routage partenaire
+      routed_to_partner_id: routedToPartnerId,
+      routed_to_partner_at: routedToPartnerId ? now : null,
+      // Prise en charge
+      handled_by: null,       // 'admin' | 'partner' | null
+      handled_at: null,
+      handled_by_id: null,
       created_at: now,
       updated_at: now,
     })
 
     revalidatePath('/admin/reservations')
     revalidatePath('/admin')
+    revalidatePath('/admin/demandes')
+    if (routedToPartnerId) {
+      revalidatePath('/partenaire/dashboard')
+      revalidatePath('/partenaire/demandes')
+    }
 
     return { success: true, requestId: docRef.id }
   } catch (e: any) {
@@ -52,6 +74,25 @@ export async function getAvailabilityRequests(status?: string) {
   return requests
 }
 
+/** Demandes non encore prises en charge pour un partenaire donné */
+export async function getPartnerPendingDemands(accommodationIds: string[]) {
+  if (accommodationIds.length === 0) return []
+  const chunks: string[][] = []
+  for (let i = 0; i < accommodationIds.length; i += 10) chunks.push(accommodationIds.slice(i, i + 10))
+  const results: any[] = []
+  for (const chunk of chunks) {
+    const snap = await db.collection('demandes_disponibilite')
+      .where('product_id', 'in', chunk)
+      .where('status', '==', 'en_attente')
+      .get()
+    snap.docs.forEach((d) => results.push({ id: d.id, ...d.data() }))
+  }
+  // Seulement celles pas encore prises en charge
+  return results
+    .filter((r: any) => r.handled_by === null || r.handled_by === undefined)
+    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+}
+
 export async function markRequestHandled(
   requestId: string,
   reservationId?: string
@@ -60,9 +101,35 @@ export async function markRequestHandled(
     await db.collection('demandes_disponibilite').doc(requestId).update({
       status: 'traitee',
       reservation_id: reservationId || null,
+      handled_by: 'admin',
+      handled_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     revalidatePath('/admin/reservations')
+    revalidatePath('/admin/demandes')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+}
+
+export async function markRequestHandledByPartner(
+  requestId: string,
+  partnerId: string,
+  reservationId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('demandes_disponibilite').doc(requestId).update({
+      status: 'traitee',
+      reservation_id: reservationId || null,
+      handled_by: 'partner',
+      handled_at: new Date().toISOString(),
+      handled_by_id: partnerId,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/demandes')
+    revalidatePath('/admin')
+    revalidatePath('/partenaire/dashboard')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -76,6 +143,7 @@ export async function markRequestCancelled(requestId: string): Promise<{ success
       updated_at: new Date().toISOString(),
     })
     revalidatePath('/admin/reservations')
+    revalidatePath('/admin/demandes')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }

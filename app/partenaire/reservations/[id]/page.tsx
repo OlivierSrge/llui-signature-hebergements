@@ -6,16 +6,22 @@ import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import { ArrowLeft, QrCode, CheckCircle2, User, Calendar, CreditCard, Handshake } from 'lucide-react'
 import { formatDate, formatPrice, getPaymentMethodLabel } from '@/lib/utils'
-import PartnerReservationActions from '@/components/partner/PartnerReservationActions'
+import WhatsAppPipeline from '@/components/admin/WhatsAppPipeline'
+import PartnerNotesForm from '@/components/partner/PartnerNotesForm'
 
 async function getReservation(id: string, partnerId: string) {
   const doc = await db.collection('reservations').doc(id).get()
   if (!doc.exists) return null
   const data = doc.data()!
-  // Le partenaire ne peut voir que ses propres réservations
-  if (data.partner_id !== partnerId && data.source !== 'partenaire') return null
-  // Ou des réservations liées à ses hébergements
-  return { id: doc.id, ...data } as any
+
+  // Autoriser : réservations du partenaire OU réservations de ses hébergements
+  if (data.partner_id === partnerId) return { id: doc.id, ...data } as any
+
+  const accDoc = await db.collection('hebergements').doc(data.accommodation_id).get()
+  if (accDoc.exists && accDoc.data()?.partner_id === partnerId) {
+    return { id: doc.id, ...data } as any
+  }
+  return null
 }
 
 export default async function PartnerReservationDetailPage({
@@ -63,6 +69,11 @@ export default async function PartnerReservationDetailPage({
           {res.check_in_confirmed && (
             <span className="flex items-center gap-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
               <CheckCircle2 size={14} /> Client arrivé
+            </span>
+          )}
+          {res.source === 'direct' && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
+              Via page publique
             </span>
           )}
         </div>
@@ -128,6 +139,12 @@ export default async function PartnerReservationDetailPage({
               <span className="text-dark/50">{res.nights} nuit{res.nights > 1 ? 's' : ''} × {formatPrice(res.price_per_night)}</span>
               <span className="text-dark">{formatPrice(res.subtotal)}</span>
             </div>
+            {res.promo_code && res.discount_amount && (
+              <div className="flex justify-between text-green-700">
+                <span>Code promo ({res.promo_code})</span>
+                <span>-{formatPrice(res.discount_amount)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold border-t border-beige-100 pt-2">
               <span className="text-dark">Total</span>
               <span className="text-dark">{formatPrice(res.total_price)}</span>
@@ -146,7 +163,7 @@ export default async function PartnerReservationDetailPage({
           </div>
         </div>
 
-        {/* QR Code — uniquement si la réservation est confirmée */}
+        {/* QR Code — uniquement si confirmée */}
         {res.confirmation_code && res.reservation_status === 'confirmee' && (
           <div className="bg-white rounded-2xl border border-beige-200 p-5 text-center">
             <h2 className="font-semibold text-dark mb-3 flex items-center justify-center gap-2 text-sm">
@@ -157,14 +174,6 @@ export default async function PartnerReservationDetailPage({
               <div className="flex flex-col items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={res.qr_code_data} alt="QR Code" className="w-36 h-36 rounded-xl border border-beige-200" />
-                <a
-                  href={res.qr_code_data}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-dark/40 hover:text-dark transition-colors"
-                >
-                  Ouvrir le QR code
-                </a>
               </div>
             )}
             {res.check_in_confirmed && (
@@ -176,8 +185,11 @@ export default async function PartnerReservationDetailPage({
           </div>
         )}
 
-        {/* Actions */}
-        <PartnerReservationActions reservation={res} />
+        {/* ── Pipeline WhatsApp 4 boutons (identique à l'admin) ── */}
+        <WhatsAppPipeline reservation={res} sentBy={partnerId} />
+
+        {/* Notes internes partenaire */}
+        <PartnerNotesForm reservationId={res.id} initialNotes={res.partner_notes || ''} />
       </main>
     </div>
   )

@@ -106,10 +106,81 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 - Firestore > DEFAULT_CONTRACT_TEXT (jamais vide)
 - Partenaires sans `contract` → initialisés automatiquement à `not_sent`
 
+## SESSION 2026-03-12 — FLUX DEMANDES DISPONIBILITÉ + PIPELINE PARTENAIRE
+
+### Blocs implémentés (4 blocs)
+
+**BLOC 1 — Paramètres de paiement partenaire**
+- `actions/payment-settings.ts` : interface `PaymentSettings`, CRUD (loadPaymentSettings, savePaymentSettings, adminSavePaymentSettings, resolveOmNumber)
+- `components/partner/PaymentSettingsForm.tsx` : formulaire client OM + banque + MTN avec indicateur ✅/⚠️
+- `app/partenaire/parametres/page.tsx` : page partenaire /partenaire/parametres
+- Fallback OM → `693407964` si non configuré
+- Bannière d'avertissement si OM manquant
+
+**BLOC 2 — Routage demandes client vers admin ET partenaire**
+- `actions/availability-requests.ts` réécriture :
+  - `createAvailabilityRequest` : détermine `routed_to_partner_id` depuis l'hébergement, enregistre `handled_by: null`
+  - `getPartnerPendingDemands(accommodationIds)` : filtre `handled_by === null` pour la vue partenaire
+  - `markRequestHandled` : `handled_by: 'admin'`
+  - `markRequestHandledByPartner(requestId, partnerId)` : `handled_by: 'partner'`, `handled_by_id`
+- Dashboard partenaire : section "Demandes reçues" avec badge rouge + boutons "Créer réservation" / "Répondre WA"
+- Lien rapide "Paramètres de paiement" dans les actions rapides du dashboard partenaire
+
+**BLOC 3 — Pipeline WhatsApp complet pour le partenaire**
+- `app/partenaire/reservations/[id]/page.tsx` réécriture :
+  - `getReservation` accepte aussi les réservations dont `accommodation.partner_id === partnerId`
+  - `WhatsAppPipeline` (composant admin) réutilisé avec `sentBy={partnerId}`
+  - Badge "Via page publique" si `source === 'direct'`
+- `actions/partner-reservations.ts` : ajout `savePartnerNotes(reservationId, notes)`
+- `components/partner/PartnerNotesForm.tsx` : textarea notes internes partenaire (invisible client)
+- `actions/whatsapp-pipeline.ts` : résolution numéro OM depuis `payment_settings.orange_money_number` (avec fallback whatsapp_number → ADMIN_WHATSAPP)
+
+**BLOC 4 — Synchronisation admin/partenaire**
+- `app/admin/reservations/[id]/page.tsx` :
+  - Badge "Géré par [partenaire]" si `handled_by === 'partner'`
+  - Affichage bloc notes partenaire (indigo) avant notes admin
+- `app/admin/page.tsx` :
+  - `getPendingDemands` retourne `{ all, unhandledOver3h }` (cutoff 3h)
+  - Widget orange "Demandes sans prise en charge depuis +3h" avec bouton "Prendre en charge"
+- `components/admin/AdminPaymentSettingsForm.tsx` (créé) : lecture et édition des paramètres de paiement d'un partenaire depuis l'admin
+- `app/admin/partenaires/[id]/page.tsx` : section "Paramètres de paiement" intégrée (AdminPaymentSettingsForm)
+- `components/partner/PartnerMobileNav.tsx` : 6ème onglet "Paiement" → `/partenaire/parametres`, grille `grid-cols-6`
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `actions/payment-settings.ts` | CRUD paramètres paiement partenaire |
+| `components/partner/PaymentSettingsForm.tsx` | Formulaire paiement côté partenaire |
+| `components/partner/PartnerNotesForm.tsx` | Notes internes partenaire |
+| `components/admin/AdminPaymentSettingsForm.tsx` | Lecture/édition paramètres paiement côté admin |
+| `app/partenaire/parametres/page.tsx` | Page paramètres partenaire |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `actions/availability-requests.ts` | Routage partenaire, handled_by, getPartnerPendingDemands |
+| `actions/partner-reservations.ts` | + savePartnerNotes |
+| `actions/whatsapp-pipeline.ts` | Résolution numéro OM depuis payment_settings |
+| `app/admin/page.tsx` | Widget unhandledOver3h, getPendingDemands retourne { all, unhandledOver3h } |
+| `app/admin/reservations/[id]/page.tsx` | Badge "Géré par partenaire", bloc partner_notes |
+| `app/admin/partenaires/[id]/page.tsx` | + AdminPaymentSettingsForm |
+| `app/partenaire/reservations/[id]/page.tsx` | WhatsAppPipeline, accès élargi, PartnerNotesForm |
+| `app/partenaire/dashboard/page.tsx` | Section demandes reçues, lien paramètres |
+| `components/partner/PartnerMobileNav.tsx` | 6ème onglet Paiement, grid-cols-6 |
+
+### Collections Firestore ajoutées/modifiées
+| Collection/champ | Modification |
+|-----------------|-------------|
+| `partenaires/{id}.payment_settings` | Nouveau champ : { orange_money_number, orange_money_holder, bank_*, mtn_* } |
+| `demandes_disponibilite` | Nouveaux champs : routed_to_partner_id, routed_to_partner_at, handled_by, handled_at, handled_by_id |
+| `reservations` | Nouveau champ : partner_notes |
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — session terminée
+- **Bloc actuel** : Aucun — session 2026-03-12 terminée
 - **Fichiers modifiés** : non committés (à committer)
-- **Dernière action** : Système contrat partenariat complet (5 blocs)
+- **Dernière action** : Flux demandes disponibilité + pipeline partenaire complet (4 blocs)
 
 ---
 
@@ -118,6 +189,7 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 - Export CSV des réservations
 - Tableau de bord revenus partenaire avec graphiques
 - Système d'avis clients
+- Page `/admin/demandes` : filtre handled_by pour séparer "À traiter" / "Traités par partenaire"
 
 ---
 
@@ -239,13 +311,13 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-11** : Système contrat partenariat complet — non commité.
+**État au 2026-03-12** : Flux demandes + pipeline partenaire complets — non commités.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
 2. Vérifier `git status` et `git log --oneline -5`
-3. Committer les changements de la session contrat si non encore fait
-4. Tester le flow de signature complet en staging
+3. Committer les changements de la session si non encore fait
+4. Tester le flux complet : demande publique → partenaire voit dans dashboard → crée réservation → WhatsApp pipeline 4 étapes
 
 **Corrections connues à surveiller** :
 - Si le bucket Firebase Storage utilise UAC, configurer l'accès public IAM (`gsutil iam ch allUsers:objectViewer gs://[BUCKET]`)

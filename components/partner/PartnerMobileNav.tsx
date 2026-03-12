@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ClipboardList, QrCode, MessageCircle, FileSignature } from 'lucide-react'
+import { Home, ClipboardList, QrCode, MessageCircle, FileSignature, Settings } from 'lucide-react'
 
 interface Props {
   contractStatus?: string
@@ -21,10 +21,11 @@ export default function PartnerMobileNav({ contractStatus }: Props) {
       label: 'Contrat',
       badge: contractStatus !== 'signed',
     },
+    { href: '/partenaire/parametres', icon: Settings, label: 'Paiement', badge: false },
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-beige-200 grid grid-cols-5 lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-beige-200 grid grid-cols-6 lg:hidden">
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive =

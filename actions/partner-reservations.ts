@@ -235,3 +235,21 @@ export async function confirmCheckIn(
     return { success: false, error: e.message || 'Erreur lors de la confirmation' }
   }
 }
+
+/** Sauvegarde les notes internes partenaire sur une réservation */
+export async function savePartnerNotes(
+  reservationId: string,
+  notes: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('reservations').doc(reservationId).update({
+      partner_notes: notes,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath(`/partenaire/reservations/${reservationId}`)
+    revalidatePath(`/admin/reservations/${reservationId}`)
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+}

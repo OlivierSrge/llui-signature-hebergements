@@ -132,11 +132,15 @@ export async function sendWhatsAppPaymentRequest(
     const res = doc.data()!
 
     // Numéro Orange Money du partenaire ou admin
+    // Priorité : payment_settings.orange_money_number > whatsapp_number > L&Lui admin
     let omNumber = ADMIN_WHATSAPP
     if (res.partner_id) {
       const partnerDoc = await db.collection('partenaires').doc(res.partner_id).get()
-      if (partnerDoc.exists && partnerDoc.data()?.whatsapp_number) {
-        omNumber = partnerDoc.data()!.whatsapp_number
+      if (partnerDoc.exists) {
+        const pdata = partnerDoc.data()!
+        const omFromSettings = pdata.payment_settings?.orange_money_number?.trim()
+        const omFromWhatsapp = pdata.whatsapp_number?.trim()
+        omNumber = omFromSettings || omFromWhatsapp || ADMIN_WHATSAPP
       }
     }
 

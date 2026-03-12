@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
-import { ChevronLeft, Calendar, Users, CreditCard, Building2, Phone, Mail, Handshake, QrCode } from 'lucide-react'
+import { ChevronLeft, Calendar, Users, CreditCard, Building2, Phone, Mail, Handshake, QrCode, StickyNote, Smartphone } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor,
   getPaymentStatusLabel, getPaymentStatusColor, getPaymentMethodLabel, resolveImageUrl,
@@ -45,6 +45,11 @@ export default async function AdminReservationDetailPage({ params }: { params: P
             {res.source === 'partenaire' && (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-full">
                 <Handshake size={14} /> Via Partenaire
+              </span>
+            )}
+            {res.handled_by === 'partner' && res.partner_name && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-full">
+                <Handshake size={14} /> Géré par {res.partner_name}
               </span>
             )}
           </div>
@@ -119,6 +124,15 @@ export default async function AdminReservationDetailPage({ params }: { params: P
                 )}
               </div>
             </Section>
+          )}
+
+          {res.partner_notes && (
+            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+              <p className="text-xs font-semibold text-indigo-800 mb-1 flex items-center gap-1">
+                <StickyNote size={11} /> Notes partenaire ({res.partner_name || 'Partenaire'})
+              </p>
+              <p className="text-sm text-indigo-700">{res.partner_notes}</p>
+            </div>
           )}
 
           {res.admin_notes && (

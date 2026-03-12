@@ -64,9 +64,15 @@ async function getPendingDemands() {
   const snap = await db.collection('demandes_disponibilite')
     .where('status', '==', 'en_attente')
     .get()
-  return snap.docs
+  const all = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0) as any[]
+
+  const cutoff3h = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  const unhandledOver3h = all.filter(
+    (d) => (!d.handled_by) && d.created_at && d.created_at < cutoff3h
+  )
+  return { all, unhandledOver3h }
 }
 
 async function getPackRequestsData() {
@@ -255,7 +261,7 @@ export const metadata = { title: 'Dashboard' }
 
 export default async function AdminDashboard() {
   const [
-    stats, recent, pendingDemands, packRequests, daily,
+    stats, recent, demandsData, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
     birthdayClients, stayAnniversaryClients,
   ] = await Promise.all([
@@ -275,6 +281,9 @@ export default async function AdminDashboard() {
     getBirthdayClients(),
     getStayAnniversaryClients(),
   ])
+
+  const pendingDemands = demandsData.all
+  const unhandledOver3h = demandsData.unhandledOver3h
 
   const totalRevenue30 = revenueDays.reduce((s, d) => s + d.revenue, 0)
   const totalComm30 = revenueDays.reduce((s, d) => s + d.commission, 0)
@@ -557,6 +566,48 @@ export default async function AdminDashboard() {
                     )}
                     <Link href={`/admin/partenaires/${p.id}`} className="p-1.5 text-dark/30 hover:text-dark/60">
                       <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Alerte demandes non prises en charge depuis +3h ── */}
+      {unhandledOver3h.length > 0 && (
+        <div className="bg-white rounded-2xl border border-orange-300 overflow-hidden">
+          <div className="px-5 py-4 border-b border-orange-200 flex items-center justify-between bg-orange-50/50">
+            <h2 className="font-semibold text-dark flex items-center gap-2 text-sm">
+              <AlertTriangle size={16} className="text-orange-500" /> Demandes sans prise en charge depuis +3h
+              <span className="bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {unhandledOver3h.length}
+              </span>
+            </h2>
+            <Link href="/admin/demandes?status=en_attente" className="text-xs text-gold-600 hover:text-gold-700 flex items-center gap-1">
+              Traiter <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="divide-y divide-orange-50">
+            {unhandledOver3h.slice(0, 4).map((req: any) => {
+              const ageHours = req.created_at
+                ? Math.round((Date.now() - new Date(req.created_at).getTime()) / 3600000)
+                : 0
+              return (
+                <div key={req.id} className="px-5 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-dark text-sm">{req.guest_first_name} {req.guest_last_name}</p>
+                    <p className="text-xs text-dark/50 truncate">{req.product_name}</p>
+                    {req.check_in && <p className="text-xs text-dark/40">{formatDate(req.check_in, 'dd/MM')} → {req.check_out && formatDate(req.check_out, 'dd/MM/yyyy')}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-orange-600 font-medium">{ageHours}h sans réponse</span>
+                    <Link
+                      href={`/admin/reservations/nouvelle?from_demand=${req.id}&product_id=${req.product_id}&check_in=${req.check_in || ''}&check_out=${req.check_out || ''}&guests=${req.guests || 2}&first_name=${encodeURIComponent(req.guest_first_name)}&last_name=${encodeURIComponent(req.guest_last_name)}&phone=${encodeURIComponent(req.guest_phone || '')}`}
+                      className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-lg hover:bg-orange-600 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <Plus size={10} /> Prendre en charge
                     </Link>
                   </div>
                 </div>
