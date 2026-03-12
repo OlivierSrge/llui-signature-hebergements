@@ -30,7 +30,7 @@ export function RevenueBarChart({ data }: { data: MonthlyData[] }) {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#1A1A1A80' }} />
           <YAxis tickFormatter={formatFCFA} tick={{ fontSize: 11, fill: '#1A1A1A80' }} />
           <Tooltip
-            formatter={(v: number) => [`${v.toLocaleString('fr-FR')} FCFA`, 'Revenus']}
+            formatter={(v: string | number | undefined) => [typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : (v ?? ''), 'Revenus']}
             contentStyle={{ borderRadius: 12, border: '1px solid #F0E9D8', fontSize: 12 }}
           />
           <Bar dataKey="revenue" fill={GOLD} radius={[4, 4, 0, 0]} />
@@ -50,7 +50,7 @@ export function ReservationsLineChart({ data }: { data: MonthlyData[] }) {
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#1A1A1A80' }} />
           <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#1A1A1A80' }} />
           <Tooltip
-            formatter={(v: number) => [v, 'Confirmées']}
+            formatter={(v: string | number | undefined) => [v ?? '', 'Confirmées']}
             contentStyle={{ borderRadius: 12, border: '1px solid #F0E9D8', fontSize: 12 }}
           />
           <Line dataKey="confirmed" stroke={DARK} strokeWidth={2} dot={{ r: 3, fill: DARK }} />
