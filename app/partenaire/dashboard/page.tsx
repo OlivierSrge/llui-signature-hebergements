@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import { getPartnerSubscription } from '@/actions/subscriptions'
@@ -352,6 +352,18 @@ export default async function PartnerDashboardPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-gold-500 text-white rounded-xl text-sm font-medium hover:bg-gold-600 transition-colors"
           >
             <QrCode size={15} /> Scanner à l&apos;arrivée
+          </Link>
+          <Link
+            href="/partenaire/revenus"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+          >
+            <TrendingUp size={15} /> Mes revenus
+          </Link>
+          <Link
+            href="/partenaire/clients"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+          >
+            <Users size={15} /> Mes clients
           </Link>
           <Link
             href="/partenaire/parametres"

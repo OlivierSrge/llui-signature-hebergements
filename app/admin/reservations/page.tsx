@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { ArrowRight, Filter, Handshake, Plus, MessageCircle, AlertTriangle } from 'lucide-react'
+import { ArrowRight, Filter, Handshake, Plus, MessageCircle, AlertTriangle, Download } from 'lucide-react'
 import {
   formatDate, formatPrice, getReservationStatusColor, getReservationStatusLabel,
   getPaymentStatusColor, getPaymentStatusLabel, getPaymentMethodLabel,
@@ -57,9 +57,18 @@ export default async function AdminReservationsPage({
           <h1 className="font-serif text-3xl font-semibold text-dark">Réservations</h1>
           <p className="text-dark/50 text-sm mt-1">{reservations.length} réservation{reservations.length > 1 ? 's' : ''}</p>
         </div>
-        <Link href="/admin/reservations/nouvelle" className="btn-primary flex items-center gap-2 text-sm">
-          <Plus size={15} /> Nouvelle réservation
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/export/reservations${sp.status || sp.source ? `?${sp.status ? `status=${sp.status}` : ''}${sp.status && sp.source ? '&' : ''}${sp.source ? `source=${sp.source}` : ''}` : ''}`}
+            download
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+          >
+            <Download size={15} /> Exporter CSV
+          </a>
+          <Link href="/admin/reservations/nouvelle" className="btn-primary flex items-center gap-2 text-sm">
+            <Plus size={15} /> Nouvelle réservation
+          </Link>
+        </div>
       </div>
 
       {/* Filtres statut */}
