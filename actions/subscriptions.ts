@@ -99,12 +99,36 @@ export async function getExpiringSubscriptions() {
     }))
 }
 
-/** Permissions effectives d'un partenaire (avec overrides custom) */
+/** Permissions effectives d'un partenaire.
+ *  Priorité : Firestore /settings/subscriptionPlans/plans/{plan}.features
+ *             → customFeatures du partenaire
+ *             → PLANS[plan].permissions (lib/plans.ts)
+ */
 export async function getEffectivePermissions(partnerId: string) {
   const sub = await getPartnerSubscription(partnerId)
   if (!sub) return getPermissions('essentiel', 'active')
+
+  // Base depuis lib/plans.ts selon statut
   const base = getPermissions(sub.subscriptionPlan, sub.subscriptionStatus)
-  // Appliquer les overrides custom
+
+  // Tentative de chargement des features depuis Firestore
+  try {
+    const snap = await db.collection('settings').doc('subscriptionPlans')
+      .collection('plans').doc(sub.subscriptionPlan).get()
+    if (snap.exists) {
+      const data = snap.data()!
+      if (data.features && typeof data.features === 'object') {
+        const firestoreFeatures = data.features as Record<string, boolean>
+        const merged = { ...base, ...firestoreFeatures }
+        // Appliquer les overrides custom du partenaire par-dessus
+        return sub.customFeatures ? { ...merged, ...sub.customFeatures } : merged
+      }
+    }
+  } catch {
+    // Firestore indisponible → fallback silencieux
+  }
+
+  // Fallback lib/plans.ts + overrides custom
   if (sub.customFeatures) {
     return { ...base, ...sub.customFeatures }
   }

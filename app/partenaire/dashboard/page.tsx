@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users, BookOpen } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import { getPartnerSubscription } from '@/actions/subscriptions'
@@ -326,7 +326,7 @@ export default async function PartnerDashboardPage() {
                 </span>
               )}
               {currentPlan.price === 0 && !isOnTrial && (
-                <span className="text-xs text-dark/40">Commission {currentPlan.commissionRate}% · {currentPlan.permissions.maxAccommodations} logements max</span>
+                <span className="text-xs text-dark/40">Conditions financières définies dans votre contrat · {currentPlan.permissions.maxAccommodations} logements max</span>
               )}
             </div>
             <Link
@@ -364,6 +364,12 @@ export default async function PartnerDashboardPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
           >
             <Users size={15} /> Mes clients
+          </Link>
+          <Link
+            href="/partenaire/guide"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+          >
+            <BookOpen size={15} /> Guide d&apos;utilisation
           </Link>
           <Link
             href="/partenaire/parametres"
