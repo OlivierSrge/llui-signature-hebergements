@@ -21,9 +21,10 @@ interface Props {
   unavailableDates: string[]
   reservations?: ReservationRange[]
   pendingReservations?: ReservationRange[]
+  demandRanges?: ReservationRange[]
 }
 
-export default function PartnerCalendar({ accommodationId, unavailableDates, reservations = [], pendingReservations = [] }: Props) {
+export default function PartnerCalendar({ accommodationId, unavailableDates, reservations = [], pendingReservations = [], demandRanges = [] }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Date[]>([])
   const [blocked, setBlocked] = useState<Set<string>>(new Set(unavailableDates))
@@ -45,10 +46,17 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
     } catch { return [] }
   }), [pendingReservations])
 
+  // Dates des demandes en cours → bleu, non modifiables
+  const demandDates = useMemo(() => demandRanges.flatMap((r) => {
+    try {
+      return eachDayOfInterval({ start: parseISO(r.check_in), end: addDays(parseISO(r.check_out), -1) })
+    } catch { return [] }
+  }), [demandRanges])
+
   const reservedSet = useMemo(() => {
-    const all = [...confirmedReservationDates, ...pendingReservationDates]
+    const all = [...confirmedReservationDates, ...pendingReservationDates, ...demandDates]
     return new Set(all.map((d) => format(d, 'yyyy-MM-dd')))
-  }, [confirmedReservationDates, pendingReservationDates])
+  }, [confirmedReservationDates, pendingReservationDates, demandDates])
 
   // Toutes les dates disponibles des 90 prochains jours (non bloquées, non réservées)
   const availableDates = useMemo(() => {
@@ -117,7 +125,7 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
         onDayClick={handleDayClick}
         locale={fr}
         disabled={{ before: today }}
-        modifiers={{ blocked: blockedDates, available: availableDates, confirmedReservations: confirmedReservationDates, pendingReservations: pendingReservationDates }}
+        modifiers={{ blocked: blockedDates, available: availableDates, confirmedReservations: confirmedReservationDates, pendingReservations: pendingReservationDates, demandDates }}
         modifiersStyles={{
           available: {
             backgroundColor: '#dcfce7',
@@ -144,6 +152,13 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
             borderRadius: '100%',
             cursor: 'not-allowed',
           },
+          demandDates: {
+            backgroundColor: '#dbeafe',
+            color: '#1e40af',
+            fontWeight: '600',
+            borderRadius: '100%',
+            cursor: 'not-allowed',
+          },
         }}
         styles={{ root: { margin: 0 } }}
         numberOfMonths={2}
@@ -152,18 +167,11 @@ export default function PartnerCalendar({ accommodationId, unavailableDates, res
 
       {/* Légende */}
       <div className="flex flex-wrap items-center gap-4 mt-2 mb-4 text-xs text-dark/50">
-        <span className="flex items-center gap-1.5">
-          🟢 Disponible
-        </span>
-        <span className="flex items-center gap-1.5">
-          🟡 En attente paiement
-        </span>
-        <span className="flex items-center gap-1.5">
-          🔴 Occupé (confirmé)
-        </span>
-        <span className="flex items-center gap-1.5">
-          ⬛ Bloqué manuellement
-        </span>
+        <span className="flex items-center gap-1.5">🟢 Disponible</span>
+        <span className="flex items-center gap-1.5">🟡 En attente paiement</span>
+        <span className="flex items-center gap-1.5">🔴 Occupé (confirmé)</span>
+        <span className="flex items-center gap-1.5">🔵 Demande en cours</span>
+        <span className="flex items-center gap-1.5">⬛ Bloqué manuellement</span>
       </div>
 
       {/* Actions */}

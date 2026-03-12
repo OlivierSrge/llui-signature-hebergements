@@ -65,16 +65,37 @@ async function getAccommodationReservations(accommodationId: string) {
   }
 }
 
-async function getPartnerReservations(partnerId: string) {
-  // Pas d'orderBy pour éviter l'exigence d'index composite Firestore
-  const snap = await db.collection('reservations')
-    .where('partner_id', '==', partnerId)
-    .where('source', '==', 'partenaire')
+async function getPartnerReservations(accommodationIds: string[]) {
+  if (accommodationIds.length === 0) return []
+  // Fetch reservations by accommodation_id to capture all sources (direct QR, partenaire, admin)
+  const chunks: string[][] = []
+  for (let i = 0; i < accommodationIds.length; i += 10) chunks.push(accommodationIds.slice(i, i + 10))
+  const results: any[] = []
+  for (const chunk of chunks) {
+    const snap = await db.collection('reservations')
+      .where('accommodation_id', 'in', chunk)
+      .get()
+    snap.docs.forEach((d) => results.push({ id: d.id, ...d.data() }))
+  }
+  return results
+    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    .slice(0, 10)
+}
+
+async function getAccommodationDemands(accommodationId: string) {
+  const today = new Date().toISOString().split('T')[0]
+  const snap = await db.collection('demandes_disponibilite')
+    .where('product_id', '==', accommodationId)
+    .where('status', '==', 'en_attente')
     .get()
   return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
-    .slice(0, 10) as any[]
+    .map((d) => d.data())
+    .filter((r: any) => r.check_in && r.check_out && r.check_out >= today)
+    .map((r: any) => ({
+      check_in: r.check_in as string,
+      check_out: r.check_out as string,
+      guest_name: `${r.guest_first_name} ${r.guest_last_name}`,
+    }))
 }
 
 async function getPartnerStats(partnerId: string) {
@@ -165,15 +186,17 @@ export default async function PartnerDashboardPage() {
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
 
-  const [partner, accommodations, reservations, stats, subscription] = await Promise.all([
+  const [partner, accommodations, stats, subscription] = await Promise.all([
     getPartner(partnerId),
     getPartnerAccommodations(partnerId),
-    getPartnerReservations(partnerId),
     getPartnerStats(partnerId),
     getPartnerSubscription(partnerId),
   ])
 
   if (!partner) redirect('/partenaire')
+
+  const accommodationIds = accommodations.map((a: any) => a.id)
+  const reservations = await getPartnerReservations(accommodationIds)
 
   const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
   const trialEndsAt = subscription?.trialEndsAt
@@ -189,15 +212,18 @@ export default async function PartnerDashboardPage() {
   const unavailableMap: Record<string, string[]> = {}
   const confirmedReservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
   const pendingReservationsMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
+  const demandRangesMap: Record<string, { check_in: string; check_out: string; guest_name: string }[]> = {}
   await Promise.all(
     accommodations.map(async (acc: any) => {
-      const [unavail, accReservations] = await Promise.all([
+      const [unavail, accReservations, demands] = await Promise.all([
         getUnavailableDates(acc.id),
         getAccommodationReservations(acc.id),
+        getAccommodationDemands(acc.id),
       ])
       unavailableMap[acc.id] = unavail
       confirmedReservationsMap[acc.id] = accReservations.confirmed
       pendingReservationsMap[acc.id] = accReservations.pending
+      demandRangesMap[acc.id] = demands
     })
   )
 
@@ -467,6 +493,7 @@ export default async function PartnerDashboardPage() {
                       unavailableDates={unavailableMap[acc.id] ?? []}
                       reservations={confirmedReservationsMap[acc.id] ?? []}
                       pendingReservations={pendingReservationsMap[acc.id] ?? []}
+                      demandRanges={demandRangesMap[acc.id] ?? []}
                     />
                   </div>
                 </div>

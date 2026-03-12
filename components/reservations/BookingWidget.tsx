@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { type DateRange } from 'react-day-picker'
-import { CalendarDays, Users, ChevronDown, MessageCircle, Send, CheckCircle, Phone, Mail, User } from 'lucide-react'
+import { CalendarDays, Users, ChevronDown, MessageCircle, Send, CheckCircle, Phone, Mail, User, Tag, X } from 'lucide-react'
 import { formatPrice, countNights } from '@/lib/utils'
 import AvailabilityCalendar from '@/components/accommodations/AvailabilityCalendar'
 import type { Accommodation, SeasonalPricing } from '@/lib/types'
 import { createAvailabilityRequest } from '@/actions/availability-requests'
+import { validatePromoCode, type PromoValidationResult } from '@/actions/promo-codes'
 import { toast } from 'react-hot-toast'
 
 interface Props {
@@ -29,6 +30,9 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
+  const [promoInput, setPromoInput] = useState('')
+  const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
 
   const checkIn = range?.from ? format(range.from, 'yyyy-MM-dd') : ''
   const checkOut = range?.to ? format(range.to, 'yyyy-MM-dd') : ''
@@ -39,6 +43,22 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
     : null
   const pricePerNight = applicablePeriod ? applicablePeriod.price_per_night : accommodation.price_per_night
   const subtotal = nights * pricePerNight
+  const promoDiscount = promoResult?.valid ? promoResult.discount_amount : 0
+  const totalAfterPromo = Math.max(0, subtotal - promoDiscount)
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return
+    setPromoLoading(true)
+    const result = await validatePromoCode(promoInput, subtotal)
+    setPromoResult(result)
+    setPromoLoading(false)
+    if (!result.valid) toast.error(result.error)
+  }
+
+  const clearPromo = () => {
+    setPromoInput('')
+    setPromoResult(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +78,7 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
       (checkIn && checkOut ? `📅 ${format(parseISO(checkIn), 'dd/MM/yyyy')} → ${format(parseISO(checkOut), 'dd/MM/yyyy')} (${nights} nuit${nights > 1 ? 's' : ''})\n` : '') +
       `👥 ${guests} voyageur${guests > 1 ? 's' : ''}\n` +
       (subtotal > 0 ? `💰 Estimation : ${new Intl.NumberFormat('fr-FR').format(subtotal)} FCFA\n` : '') +
+      (promoResult?.valid ? `🏷️ Code promo : ${promoResult.code} (-${new Intl.NumberFormat('fr-FR').format(promoResult.discount_amount)} FCFA) → ${new Intl.NumberFormat('fr-FR').format(totalAfterPromo)} FCFA\n` : '') +
       (message ? `\n💬 ${message}` : '')
 
     // Show success screen right away
@@ -77,6 +98,7 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
       check_out: checkOut,
       guests,
       message,
+      ...(promoResult?.valid ? { promo_code: promoResult.code, promo_discount: promoResult.discount_amount } : {}),
     }).catch(() => {
       // Firebase failure is non-critical — the WhatsApp message carries all info
     })
@@ -164,9 +186,15 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
                   <span>{formatPrice(pricePerNight)} × {nights} nuit{nights > 1 ? 's' : ''}</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {promoResult?.valid && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Code promo ({promoResult.code})</span>
+                    <span>-{formatPrice(promoResult.discount_amount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold text-dark border-t border-beige-200 pt-2 mt-2">
                   <span>Estimation totale</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span>{formatPrice(promoResult?.valid ? totalAfterPromo : subtotal)}</span>
                 </div>
               </div>
             )}
@@ -234,6 +262,43 @@ export default function BookingWidget({ accommodation, unavailableDates, seasona
             <div>
               <label className="label text-xs">Message (optionnel)</label>
               <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} className="input-field text-sm resize-none" placeholder="Précisez vos besoins, questions..." />
+            </div>
+
+            <div>
+              <label className="label text-xs">Code promo (optionnel)</label>
+              {promoResult?.valid ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-300 rounded-xl text-sm">
+                  <Tag size={13} className="text-green-600 flex-shrink-0" />
+                  <span className="flex-1 text-green-700 font-medium">{promoResult.code} — -{formatPrice(promoResult.discount_amount)}</span>
+                  <button type="button" onClick={clearPromo} className="text-green-600 hover:text-green-800">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gold-500" />
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      className="input-field pl-7 text-sm uppercase"
+                      placeholder="PROMO2024"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    disabled={promoLoading || !promoInput.trim()}
+                    className="px-3 py-2 text-xs font-semibold bg-dark text-white rounded-xl hover:bg-dark/80 transition-colors disabled:opacity-40 flex-shrink-0"
+                  >
+                    {promoLoading ? '...' : 'Appliquer'}
+                  </button>
+                </div>
+              )}
+              {promoResult && !promoResult.valid && (
+                <p className="mt-1 text-xs text-red-500">{promoResult.error}</p>
+              )}
             </div>
 
             <button type="submit" disabled={loading} className="w-full btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">

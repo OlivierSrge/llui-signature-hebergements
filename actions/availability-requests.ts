@@ -17,6 +17,8 @@ export async function createAvailabilityRequest(formData: {
   check_out: string
   guests: number
   message: string
+  promo_code?: string
+  promo_discount?: number
 }): Promise<ActionResult> {
   try {
     const now = new Date().toISOString()
