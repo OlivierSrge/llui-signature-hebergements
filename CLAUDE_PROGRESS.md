@@ -229,10 +229,57 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ---
 
+## SESSION 2026-03-12 (suite 2) — 5 BLOCS COMPLÉMENTAIRES
+
+### Blocs implémentés (5 blocs)
+
+**BLOC 1 — Guide partenaire + Gestionnaire documents admin**
+- `/partenaire/guide` : téléchargement notice Firebase Storage (fallback si absent), lien messagerie
+- `/admin/documents` onglet Documents : upload/remplace PDF, taille, date
+- `POST /api/upload-document` : upload Firebase Storage `/documents/notices/{key}.pdf`
+- `actions/documents.ts` : CRUD meta Firestore `settings/documents`
+- Lien "Guide d'utilisation" dans actions rapides dashboard partenaire
+- Items Abonnements + Documents & Aide dans sidebar admin
+
+**BLOC 2 — Centre d'aide interactif (7 catégories, 26 Q&A)**
+- `lib/helpCenterDefaults.ts` : réservations / calendrier / scanner / logements / abonnement / paiements / contrat
+- `HelpCenterAccordion` (partenaire) : double accordéon + bouton Contact bas de catégorie
+- `HelpCenterAdmin` (admin) : édition par catégorie, sauvegarde Firestore
+- Onglet "Centre d'aide" dans `/admin/documents`
+
+**BLOC 3 — Masquage commission côté partenaire**
+- Dashboard : "Commission X%" → "Conditions financières définies dans votre contrat"
+- Upgrade : suppression affichage taux commission
+- ContractSigningFlow : `{{TAUX_COMMISSION}}` → "selon les conditions convenues entre les parties"
+- Côté admin et Firestore : inchangés
+
+**BLOC 4 — /admin/abonnements (4 onglets)**
+- Onglet Formules : prix mensuel/trim/annuel, commission, reversement, capacité, couleur, statut
+- Onglet Composition accès : tableau 24 features × plans avec cases à cocher
+- Onglet Nouvelle formule : formulaire complet
+- Onglet Historique : log 50 dernières modifs
+- Sauvegarde : `/settings/subscriptionPlans/plans/{plan}` + `/history`
+
+**BLOC 5 — Permissions Firestore dynamiques**
+- `getEffectivePermissions` → charge Firestore d'abord, fallback lib/plans.ts silencieux
+- `lib/subscriptionDefaults.ts` : helper fallback
+
+### Nouveaux fichiers créés
+`actions/documents.ts` · `actions/help-center.ts` · `actions/admin-subscriptions.ts`
+`app/admin/abonnements/page.tsx` · `app/admin/documents/page.tsx`
+`app/api/upload-document/route.ts` · `app/partenaire/guide/page.tsx`
+`components/admin/DocumentsManager.tsx` · `components/admin/HelpCenterAdmin.tsx`
+`components/admin/SubscriptionPlansAdmin.tsx` · `components/partner/HelpCenterAccordion.tsx`
+`lib/helpCenterDefaults.ts` · `lib/subscriptionDefaults.ts`
+
+### Collections Firestore ajoutées
+`settings/documents` · `settings/helpCenter` · `settings/subscriptionPlans/plans/{plan}` · `settings/subscriptionPlans/history`
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — session 2026-03-12 Phase 4 terminée
-- **Fichiers modifiés** : tout commité et pushé
-- **Dernière action** : Phase 4 complète (4 blocs)
+- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés
+- **Dernière action** : Guide + Centre aide + Commission masquée + Abonnements admin + Permissions Firestore
 
 ---
 
@@ -361,18 +408,22 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-12 (Phase 4)** : 4 blocs committas et pushés sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-12 (Phase 4 + 5 blocs complémentaires)** : tout commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
 2. `git log --oneline -5` pour vérifier les commits
-3. Les 4 blocs de Phase 4 sont done. Choisir la prochaine priorité avec l'utilisateur.
+3. Important : uploader la notice partenaire PDF dans `/admin/documents` pour qu'elle soit disponible dans `/partenaire/guide`
+4. Choisir les prochains blocs avec l'utilisateur
 
 **Nouvelles routes disponibles** :
+- `/partenaire/guide` — notice téléchargeable + centre d'aide accordéon
 - `/partenaire/revenus` — tableau de bord revenus avec graphiques
 - `/partenaire/clients` — liste clients groupés avec badges fidélité
+- `/admin/abonnements` — gestion formules d'abonnement (4 onglets)
+- `/admin/documents` — gestionnaire PDF + éditeur FAQ partenaires
 - `/api/export/reservations` — export CSV (admin only)
-- `/admin/demandes?handled_by=...` — filtre demandes par source traitement
+- `/api/upload-document` — upload notice PDF (admin only)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
 - Notifications push / email automatiques aux partenaires
