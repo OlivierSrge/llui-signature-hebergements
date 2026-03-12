@@ -441,7 +441,7 @@ export default async function PartnerDashboardPage() {
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
                       {/* Créer réservation depuis la demande */}
                       <Link
-                        href={`/partenaire/reservations/nouveau?from_demand=${req.id}&product_id=${req.product_id}&check_in=${req.check_in || ''}&check_out=${req.check_out || ''}&guests=${req.guests || 2}&first_name=${encodeURIComponent(req.guest_first_name)}&last_name=${encodeURIComponent(req.guest_last_name)}&phone=${encodeURIComponent(req.guest_phone || '')}&email=${encodeURIComponent(req.guest_email || '')}`}
+                        href={`/partenaire/reservations/nouveau?from_demand=${req.id}&product_id=${req.product_id}&check_in=${req.check_in || ''}&check_out=${req.check_out || ''}&guests=${req.guests || 2}&first_name=${encodeURIComponent(req.guest_first_name || '')}&last_name=${encodeURIComponent(req.guest_last_name || '')}&phone=${encodeURIComponent(req.guest_phone || '')}&email=${encodeURIComponent(req.guest_email || '')}&message=${encodeURIComponent(req.message || '')}`}
                         className="text-xs px-2.5 py-1.5 rounded-xl bg-gold-500 text-white font-medium hover:bg-gold-600 transition-colors whitespace-nowrap flex items-center gap-1"
                       >
                         <Plus size={10} /> Créer réservation

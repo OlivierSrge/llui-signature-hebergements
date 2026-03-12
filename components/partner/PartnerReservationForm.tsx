@@ -12,16 +12,30 @@ interface Accommodation {
   location: string | null
 }
 
-interface Props {
-  accommodations: Accommodation[]
+interface InitialValues {
+  accommodation_id?: string
+  check_in?: string
+  check_out?: string
+  guests?: string
+  guest_first_name?: string
+  guest_last_name?: string
+  guest_phone?: string
+  guest_email?: string
+  notes?: string
 }
 
-export default function PartnerReservationForm({ accommodations }: Props) {
+interface Props {
+  accommodations: Accommodation[]
+  initialValues?: InitialValues
+  fromDemandId?: string | null
+}
+
+export default function PartnerReservationForm({ accommodations, initialValues, fromDemandId }: Props) {
   const [isPending, startTransition] = useTransition()
   const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string } | null>(null)
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [guestPhone, setGuestPhone] = useState('')
+  const [checkIn, setCheckIn] = useState(initialValues?.check_in || '')
+  const [checkOut, setCheckOut] = useState(initialValues?.check_out || '')
+  const [guestPhone, setGuestPhone] = useState(initialValues?.guest_phone || '')
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -89,7 +103,7 @@ export default function PartnerReservationForm({ accommodations }: Props) {
         <h2 className="font-semibold text-dark border-b border-beige-100 pb-3">Hébergement</h2>
         <div>
           <label className="label">Hébergement <span className="text-red-500">*</span></label>
-          <select name="accommodation_id" required className="input-field">
+          <select name="accommodation_id" required className="input-field" defaultValue={initialValues?.accommodation_id || ''}>
             {accommodations.map((acc) => (
               <option key={acc.id} value={acc.id}>
                 {acc.name}{acc.location ? ` — ${acc.location}` : ''} ({acc.price_per_night.toLocaleString('fr-FR')} FCFA/nuit)
@@ -123,7 +137,7 @@ export default function PartnerReservationForm({ accommodations }: Props) {
 
         <div>
           <label className="label">Nombre de voyageurs <span className="text-red-500">*</span></label>
-          <input name="guests" type="number" min={1} max={20} defaultValue={2} required className="input-field" />
+          <input name="guests" type="number" min={1} max={20} defaultValue={initialValues?.guests || 2} required className="input-field" />
         </div>
       </div>
 
@@ -136,11 +150,11 @@ export default function PartnerReservationForm({ accommodations }: Props) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Prénom <span className="text-red-500">*</span></label>
-            <input name="guest_first_name" type="text" required placeholder="Prénom" className="input-field" />
+            <input name="guest_first_name" type="text" required placeholder="Prénom" defaultValue={initialValues?.guest_first_name || ''} className="input-field" />
           </div>
           <div>
             <label className="label">Nom <span className="text-red-500">*</span></label>
-            <input name="guest_last_name" type="text" required placeholder="Nom" className="input-field" />
+            <input name="guest_last_name" type="text" required placeholder="Nom" defaultValue={initialValues?.guest_last_name || ''} className="input-field" />
           </div>
         </div>
 
@@ -158,7 +172,7 @@ export default function PartnerReservationForm({ accommodations }: Props) {
 
         <div>
           <label className="label">Email</label>
-          <input name="guest_email" type="email" placeholder="client@exemple.com" className="input-field" />
+          <input name="guest_email" type="email" placeholder="client@exemple.com" defaultValue={initialValues?.guest_email || ''} className="input-field" />
         </div>
       </div>
 
@@ -182,6 +196,7 @@ export default function PartnerReservationForm({ accommodations }: Props) {
           <textarea
             name="notes" rows={3}
             placeholder="Instructions particulières, demandes spéciales..."
+            defaultValue={initialValues?.notes || ''}
             className="input-field resize-none"
           />
         </div>

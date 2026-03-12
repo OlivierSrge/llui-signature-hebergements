@@ -21,7 +21,11 @@ async function getPartnerAccommodations(partnerId: string) {
   }))
 }
 
-export default async function PartnerNewReservationPage() {
+export default async function PartnerNewReservationPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>
+}) {
   const cookieStore = cookies()
   const partnerId = cookieStore.get('partner_session')?.value
   if (!partnerId) redirect('/partenaire')
@@ -30,6 +34,21 @@ export default async function PartnerNewReservationPage() {
   if (!permissions.canCreateReservations) redirect('/partenaire/upgrade')
 
   const accommodations = await getPartnerAccommodations(partnerId)
+  const sp = await searchParams
+
+  const initialValues = {
+    accommodation_id: sp.product_id || '',
+    check_in: sp.check_in || '',
+    check_out: sp.check_out || '',
+    guests: sp.guests || '',
+    guest_first_name: sp.first_name ? decodeURIComponent(sp.first_name) : '',
+    guest_last_name: sp.last_name ? decodeURIComponent(sp.last_name) : '',
+    guest_phone: sp.phone ? decodeURIComponent(sp.phone) : '',
+    guest_email: sp.email ? decodeURIComponent(sp.email) : '',
+    notes: sp.message ? decodeURIComponent(sp.message) : '',
+  }
+
+  const fromDemand = sp.from_demand || null
 
   return (
     <div className="min-h-screen bg-beige-50">
@@ -40,18 +59,30 @@ export default async function PartnerNewReservationPage() {
           </Link>
           <div>
             <p className="text-xs text-dark/40">Espace partenaire</p>
-            <h1 className="font-serif text-xl font-semibold text-dark">Nouvelle réservation</h1>
+            <h1 className="font-serif text-xl font-semibold text-dark">
+              Nouvelle réservation{fromDemand ? ' — depuis une demande' : ''}
+            </h1>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        {fromDemand && (
+          <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-center gap-2">
+            <span className="text-base">📋</span>
+            Formulaire pré-rempli depuis la demande client. Vérifiez les informations avant de valider.
+          </div>
+        )}
         {accommodations.length === 0 ? (
           <div className="bg-white rounded-2xl border border-beige-200 p-12 text-center">
             <p className="text-dark/50">Aucun hébergement actif disponible.</p>
           </div>
         ) : (
-          <PartnerReservationForm accommodations={accommodations} />
+          <PartnerReservationForm
+            accommodations={accommodations}
+            initialValues={initialValues}
+            fromDemandId={fromDemand}
+          />
         )}
       </main>
     </div>
