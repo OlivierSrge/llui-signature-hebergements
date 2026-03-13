@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
+import { sendPartnerNewDemandEmail } from '@/lib/email'
 
 type ActionResult = { success: true; requestId: string } | { success: false; error: string }
 
@@ -54,6 +55,20 @@ export async function createAvailabilityRequest(formData: {
     if (routedToPartnerId) {
       revalidatePath('/partenaire/dashboard')
       revalidatePath('/partenaire/demandes')
+
+      // Notifier le partenaire par email (non-bloquant)
+      ;(async () => {
+        try {
+          const partnerDoc = await db.collection('partenaires').doc(routedToPartnerId!).get()
+          const partner = partnerDoc.data()
+          if (partner?.email) {
+            await sendPartnerNewDemandEmail(
+              { name: partner.name || 'Partenaire', email: partner.email },
+              formData
+            )
+          }
+        } catch { /* silently fail */ }
+      })()
     }
 
     return { success: true, requestId: docRef.id }

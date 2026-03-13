@@ -3,6 +3,7 @@
 import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { sendPartnerNewMessageEmail } from '@/lib/email'
 
 export type MessageRole = 'partner' | 'admin'
 
@@ -38,6 +39,23 @@ export async function sendMessage(
     revalidatePath('/partenaire/messages')
     revalidatePath('/admin/messages')
     revalidatePath(`/admin/messages/${partnerId}`)
+
+    // Notifier le partenaire par email si l'admin envoie un message (non-bloquant)
+    if (senderRole === 'admin') {
+      ;(async () => {
+        try {
+          const partnerDoc = await db.collection('partenaires').doc(partnerId).get()
+          const partner = partnerDoc.data()
+          if (partner?.email) {
+            await sendPartnerNewMessageEmail(
+              { name: partner.name || 'Partenaire', email: partner.email },
+              { text: text.trim(), adminName: senderName }
+            )
+          }
+        } catch { /* silently fail */ }
+      })()
+    }
+
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
