@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase'
 import { formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor } from '@/lib/utils'
 import { CheckCircle2, Clock, Calendar, Users, Building2, QrCode, MapPin, CreditCard, FileText, MessageCircle } from 'lucide-react'
 import Image from 'next/image'
+import { QrCodeImage } from '@/components/QrCodeImage'
 
 async function getReservation(id: string) {
   const doc = await db.collection('reservations').doc(id).get()
@@ -190,12 +191,7 @@ export default async function SuiviPage({ params }: { params: Promise<{ reservat
               <QrCode size={16} className="text-green-500" /> Votre QR Code d&apos;arrivée
             </h2>
             <p className="text-xs text-dark/50 mb-4">Présentez ce QR Code à l&apos;accueil lors de votre arrivée</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrCodeUrl}
-              alt="QR Code d'arrivée"
-              className="w-48 h-48 mx-auto rounded-xl border border-beige-200"
-            />
+            <QrCodeImage src={qrCodeUrl} alt="QR Code d'arrivée" confirmCode={confirmCode} />
             <p className="font-mono text-sm font-bold text-gold-600 mt-3">{confirmCode}</p>
           </div>
         )}
