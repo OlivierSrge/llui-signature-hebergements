@@ -20,6 +20,8 @@ interface Props {
   sentBy?: string
 }
 
+type FicheVariant = 'complete' | 'simple'
+
 type ModalData = {
   message: string
   url: string
@@ -29,6 +31,13 @@ type ModalData = {
   buttonNum: 1 | 2 | 4
   showRevolutToggle?: boolean
   revolutIncluded?: boolean
+  // Fiche V2
+  showFicheVariantToggle?: boolean
+  ficheVariant?: FicheVariant
+  messageComplete?: string
+  messageSimple?: string
+  urlComplete?: string
+  urlSimple?: string
 }
 
 export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }: Props) {
@@ -41,6 +50,7 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
   const [confirmResend, setConfirmResend] = useState<number | null>(null)
   const [modal, setModal] = useState<ModalData | null>(null)
   const [revolutIncluded, setRevolutIncluded] = useState(true)
+  const [ficheVariant, setFicheVariant] = useState<FicheVariant>('complete')
 
   const isLoading = (key: string) => loading === key
 
@@ -107,14 +117,33 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
     const result = await prepareWhatsAppFiche(res.id)
     setLoading(null)
     if (!result.success) { toast.error(result.error); return }
+    // Choisir la variante active (mémorisée pour la session)
+    const activeVariant = ficheVariant
+    const activeMessage = activeVariant === 'complete' ? result.messageComplete : result.messageSimple
+    const activeUrl = activeVariant === 'complete' ? result.urlComplete : result.urlSimple
     setModal({
-      message: result.message,
-      url: result.url,
+      message: activeMessage,
+      url: activeUrl,
       phone: result.phone,
       recipientName: result.recipientName,
       buttonLabel: '4. Fiche d\'accueil + QR Code',
       buttonNum: 4,
+      showFicheVariantToggle: true,
+      ficheVariant: activeVariant,
+      messageComplete: result.messageComplete,
+      messageSimple: result.messageSimple,
+      urlComplete: result.urlComplete,
+      urlSimple: result.urlSimple,
     })
+  }
+
+  // Toggle variante fiche (pas de nouveau appel serveur — les 2 variantes sont déjà chargées)
+  const handleFicheVariantToggle = (variant: FicheVariant) => {
+    setFicheVariant(variant)
+    if (!modal || modal.buttonNum !== 4) return
+    const msg = variant === 'complete' ? modal.messageComplete! : modal.messageSimple!
+    const url = variant === 'complete' ? modal.urlComplete! : modal.urlSimple!
+    setModal((prev) => prev ? { ...prev, message: msg, url, ficheVariant: variant } : null)
   }
 
   // Envoi effectif (appelé par la modale après clic "Ouvrir WhatsApp")
@@ -344,6 +373,9 @@ export default function WhatsAppPipeline({ reservation: res, sentBy = 'admin' }:
           showRevolutToggle={modal.showRevolutToggle}
           revolutIncluded={modal.revolutIncluded ?? revolutIncluded}
           onRevolutToggle={handleRevolutToggle}
+          showFicheVariantToggle={modal.showFicheVariantToggle}
+          ficheVariant={modal.ficheVariant ?? ficheVariant}
+          onFicheVariantToggle={handleFicheVariantToggle}
           onSend={handleModalSend}
           onClose={() => setModal(null)}
         />

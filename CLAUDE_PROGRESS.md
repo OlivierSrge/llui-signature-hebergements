@@ -408,9 +408,83 @@ Objectif : créer automatiquement un profil "L&Lui Stars" pour chaque client aya
 
 ---
 
+## SESSION 2026-03-13 (suite 2) — FICHE D'ACCUEIL WHATSAPP V2
+
+### Contexte
+Remplacement du template V1 "Fiche d'accueil" par une V2 enrichie avec avantage boutique fidélité,
+et toggle admin entre version complète / simplifiée.
+
+### Blocs implémentés
+
+**BLOC 1 — Template V2 centralisé**
+- `lib/messageTemplates.ts` (NOUVEAU) : source de vérité des templates
+  - `buildFicheV2(params, variant)` : construit le message V2 (complete/simple)
+  - `getLoyaltyLabel(niveau)` : label textuel du niveau de fidélité
+  - `getBoutiqueDiscount(niveau)` : réduction boutique par niveau (-5% à -20%)
+  - Boutique URL : http://l-et-lui-signature.com
+- `actions/whatsapp-pipeline.ts` :
+  - `sendWhatsAppFiche` : utilise V2 avec auto-détection loyauté (complete si trouvé, simple sinon)
+  - `prepareWhatsAppFiche` : retourne les 2 variantes (messageComplete + messageSimple + urlComplete + urlSimple)
+  - Lookup `clients` collection par email pour récupérer le niveau de fidélité
+- `actions/whatsapp-templates.ts` : `DEFAULT_TEMPLATES.template4_fiche` mis à jour avec V2
+
+**BLOC 2 — Modale de prévisualisation V2**
+- `components/admin/WhatsAppPreviewModal.tsx` :
+  - Toggle "Version complète (avec avantage boutique)" / "Version simplifiée (sans boutique)"
+  - Version complète sélectionnée par défaut
+  - Encadré gris informatif : "Le QR Code sera envoyé séparément via WhatsApp"
+  - Choix mémorisé dans le state session (WhatsAppPipeline)
+  - Changement de variante = zéro appel serveur (les 2 messages déjà chargés)
+- `components/admin/WhatsAppPipeline.tsx` :
+  - State `ficheVariant` (mémorisé session)
+  - `handleFicheVariantToggle` : bascule message/url sans re-fetch
+  - Passage des props `showFicheVariantToggle`, `ficheVariant`, `onFicheVariantToggle`
+
+**BLOC 3 — Template partenaire V2**
+- `components/partner/PartnerReservationActions.tsx` :
+  - Prévisualisation du message utilise `buildFicheV2` depuis `lib/messageTemplates.ts`
+  - Version simplifiée automatique (niveauFidelite non chargé côté partenaire)
+  - `sendWhatsAppFiche` (serveur) auto-détecte la loyauté depuis `clients` collection
+  - Même fichier `lib/messageTemplates.ts` utilisé admin et partenaire — cohérence garantie
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `lib/messageTemplates.ts` | Source de vérité templates WhatsApp : buildFicheV2, helpers loyauté |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `actions/whatsapp-pipeline.ts` | sendWhatsAppFiche V2 + prepareWhatsAppFiche retourne 2 variantes |
+| `actions/whatsapp-templates.ts` | DEFAULT_TEMPLATES.template4_fiche → V2 |
+| `components/admin/WhatsAppPreviewModal.tsx` | Toggle variante + encadré QR |
+| `components/admin/WhatsAppPipeline.tsx` | State ficheVariant + handleFicheVariantToggle |
+| `components/partner/PartnerReservationActions.tsx` | Prévisualisation V2 (buildFicheV2 simple) |
+
+### Variables du template V2
+| Variable | Source |
+|---------|-------|
+| clientName | guest_first_name + guest_last_name |
+| dateArrivee | check_in formatté DD/MM/YYYY |
+| dateDepart | check_out formatté DD/MM/YYYY |
+| nomLogement | accommodation.name ou pack_name |
+| nombrePersonnes | guests |
+| codeReservation | confirmation_code |
+| lienSuivi | https://llui-signature-hebergements.vercel.app/suivi/[id] |
+| niveauFidelite | clients/{email}.niveau (Firestore) — null si absent |
+| réduction boutique | Novice -5% / Explorateur -10% / Ambassadeur -15% / Excellence -20% |
+
+### Règles respectées
+- ✅ Taux de commission : jamais affiché
+- ✅ Boutique URL : http://l-et-lui-signature.com
+- ✅ Lien suivi : https://llui-signature-hebergements.vercel.app/suivi/[id]
+- ✅ Un seul fichier de template (lib/messageTemplates.ts) pour admin ET partenaire
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — système Stars opérationnel (2026-03-13)
-- **Dernière action** : Bootstrap 16 profils clients Stars créés avec succès
+- **Bloc actuel** : Aucun — fiche d'accueil V2 implémentée (2026-03-13)
+- **Dernière action** : Template V2 WhatsApp + toggle variante + centralisation dans lib/messageTemplates.ts
 
 ---
 
@@ -562,6 +636,7 @@ Objectif : créer automatiquement un profil "L&Lui Stars" pour chaque client aya
 - `/api/admin/sync-clients` — sync POST profils Stars (admin only)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
+- Tester la fiche d'accueil V2 sur une vraie réservation (toggle variante, lookup loyauté)
 - Notifications push / email automatiques aux partenaires
 - Système d'avis clients (formulaire après séjour + affichage partenaire)
 - Page `/admin/clients` : historique réservations cross-partenaires
