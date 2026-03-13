@@ -30,7 +30,7 @@ export async function POST() {
     let created = 0
     let updated = 0
 
-    for (const [email, { res, count }] of byEmail) {
+    for (const [email, { res, count }] of Array.from(byEmail)) {
       // Vérifier si le profil existe déjà
       const clientSnap = await db.collection('clients')
         .where('email', '==', email)
