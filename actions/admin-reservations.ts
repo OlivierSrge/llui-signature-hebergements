@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
 import { validatePromoCode } from '@/actions/promo-codes'
 import { revalidatePath } from 'next/cache'
+import { syncClientFromReservation } from '@/actions/clients'
 
 type ActionResult =
   | { success: true; reservationId: string }
@@ -72,7 +73,7 @@ export async function createAdminReservation(formData: FormData): Promise<Action
       user_id: null,
       guest_first_name: formData.get('guest_first_name') as string,
       guest_last_name: formData.get('guest_last_name') as string,
-      guest_email: (formData.get('guest_email') as string) || '',
+      guest_email: ((formData.get('guest_email') as string) || '').toLowerCase().trim(),
       guest_phone: (formData.get('guest_phone') as string) || '',
       check_in: checkIn,
       check_out: checkOut,
@@ -113,6 +114,18 @@ export async function createAdminReservation(formData: FormData): Promise<Action
       if (!promoSnap.empty) {
         await promoSnap.docs[0].ref.update({ used_count: (promoSnap.docs[0].data().used_count || 0) + 1 })
       }
+    }
+
+    // Créer le profil L&Lui Stars si la réservation est directement confirmée
+    const guestEmail = (formData.get('guest_email') as string || '').trim()
+    if (reservationStatus === 'confirmee' && guestEmail) {
+      await syncClientFromReservation({
+        email: guestEmail,
+        firstName: formData.get('guest_first_name') as string || '',
+        lastName: formData.get('guest_last_name') as string || '',
+        phone: formData.get('guest_phone') as string || '',
+        reservationDate: now,
+      }).catch(() => {})
     }
 
     revalidatePath('/admin/reservations')

@@ -242,6 +242,26 @@ export async function recordBoutiqueAchat(
   }
 }
 
+// Sync à partir d'un reservationId (utile quand les données ne sont pas en mémoire)
+export async function syncClientFromReservationId(reservationId: string): Promise<void> {
+  try {
+    const doc = await db.collection('reservations').doc(reservationId).get()
+    if (!doc.exists) return
+    const res = doc.data()!
+    const email = (res.guest_email || '').trim()
+    if (!email) return
+    await syncClientFromReservation({
+      email,
+      firstName: res.guest_first_name || '',
+      lastName: res.guest_last_name || '',
+      phone: res.guest_phone || '',
+      reservationDate: res.confirmed_at || res.created_at || new Date().toISOString(),
+    })
+  } catch {
+    // Non-bloquant — ne doit jamais faire échouer la confirmation
+  }
+}
+
 // ── Notifications anniversaire ─────────────────────────────────
 
 // Clients dont c'est l'anniversaire aujourd'hui (birthDate = MM-DD du jour)

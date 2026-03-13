@@ -1,21 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { generatePin, hashPin } from '@/lib/pin-utils'
+import { generateMemberCode, generateBoutiquePromoCode } from '@/lib/loyalty'
 
 const PIN_EXPIRY_MS = 15 * 60 * 1000 // 15 minutes
+
+async function createClientFromReservation(resData: any, email: string): Promise<string> {
+  const id = db.collection('clients').doc().id
+  const memberCode = generateMemberCode()
+  const boutiquePromoCode = generateBoutiquePromoCode()
+  const now = new Date().toISOString()
+
+  await db.collection('clients').doc(id).set({
+    firstName: resData.guest_first_name || '',
+    lastName: resData.guest_last_name || '',
+    email: email,
+    phone: resData.guest_phone || '',
+    birthDate: null,
+    memberCode,
+    joinedAt: resData.confirmed_at || resData.created_at || now,
+    niveau: 'novice',
+    totalSejours: 1,
+    totalPoints: 0,
+    boutiqueDiscount: 5,
+    boutiquePromoCode,
+    boutiquePointsEarned: 0,
+    boutiqueAchats: [],
+    created_at: now,
+    updated_at: now,
+  })
+  return id
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
     if (!email) return NextResponse.json({ error: 'Email requis' }, { status: 400 })
 
-    const snap = await db.collection('clients')
-      .where('email', '==', email.toLowerCase().trim())
+    const normalizedEmail = email.toLowerCase().trim()
+
+    let snap = await db.collection('clients')
+      .where('email', '==', normalizedEmail)
       .limit(1)
       .get()
 
+    // ── Auto-création si des réservations confirmées existent ──
     if (snap.empty) {
-      return NextResponse.json({ error: 'Aucun compte trouvé avec cet email. Effectuez une réservation pour rejoindre L&Lui Stars.' }, { status: 404 })
+      const resSnap = await db.collection('reservations')
+        .where('guest_email', '==', normalizedEmail)
+        .where('reservation_status', '==', 'confirmee')
+        .get()
+
+      if (resSnap.empty) {
+        return NextResponse.json({
+          error: 'Aucun compte trouvé avec cet email. Effectuez une réservation pour rejoindre L&Lui Stars.',
+        }, { status: 404 })
+      }
+
+      const firstRes = resSnap.docs[0].data()
+      await createClientFromReservation(firstRes, normalizedEmail)
+
+      // Relire le profil fraîchement créé
+      snap = await db.collection('clients')
+        .where('email', '==', normalizedEmail)
+        .limit(1)
+        .get()
+
+      if (snap.empty) {
+        return NextResponse.json({ error: 'Erreur lors de la création du compte.' }, { status: 500 })
+      }
     }
 
     const doc = snap.docs[0]
@@ -46,7 +99,7 @@ export async function POST(request: NextRequest) {
       success: true,
       hasPin: false,
       phone: client.phone,
-      pin, // PIN en clair transmis via HTTPS — affiché à l'écran + lien WA
+      pin,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Erreur serveur' }, { status: 500 })

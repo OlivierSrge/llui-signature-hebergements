@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Users, ArrowRight, Crown, Star, Search } from 'lucide-react'
 import type { LoyaltyClient } from '@/lib/types'
 import { NIVEAUX } from '@/lib/loyalty'
+import AdminCreateClientForm from '@/components/admin/AdminCreateClientForm'
+import AdminSyncClientsButton from '@/components/admin/AdminSyncClientsButton'
 
 async function getAllClients(search?: string): Promise<LoyaltyClient[]> {
   const snap = await db.collection('clients').get()
@@ -49,6 +51,10 @@ export default async function AdminClientsPage({
         <div>
           <h1 className="font-serif text-3xl font-semibold text-dark">Clients fidèles</h1>
           <p className="text-dark/50 text-sm mt-1">Programme L&Lui Stars</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <AdminSyncClientsButton />
+          <AdminCreateClientForm />
         </div>
       </div>
 

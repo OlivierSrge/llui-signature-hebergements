@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-13 — 5 blocs : Commissions, WhatsApp modale, Revolut, Traçabilité demandes, Paramètres paiement admin
+Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (credential store)
 
 ---
 
@@ -274,6 +274,19 @@ Dernière mise à jour : 2026-03-13 — 5 blocs : Commissions, WhatsApp modale, 
 
 ### Collections Firestore ajoutées
 `settings/documents` · `settings/helpCenter` · `settings/subscriptionPlans/plans/{plan}` · `settings/subscriptionPlans/history`
+
+---
+
+## SESSION 2026-03-13 07:50 — SÉCURISATION TOKEN GITHUB
+
+### Blocs implémentés
+- **SÉCURITÉ** — Token GitHub retiré de l'URL remote git (`git remote set-url origin`)
+- **CREDENTIAL STORE** — Token stocké dans `~/.git-credentials` (permissions `600`, lecture user uniquement)
+- `git config --global credential.helper store` configuré pour éviter toute réexposition
+
+### Statut
+- ✅ Token hors de l'URL visible (`git remote get-url origin` → URL propre)
+- ✅ Push fonctionnel via credential store
 
 ---
 
