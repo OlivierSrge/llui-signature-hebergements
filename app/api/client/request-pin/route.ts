@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { generatePin, hashPin } from '@/lib/pin-utils'
-import { syncClientFromReservation } from '@/actions/clients'
+import { generateMemberCode, generateBoutiquePromoCode } from '@/lib/loyalty'
 
 const PIN_EXPIRY_MS = 15 * 60 * 1000 // 15 minutes
+
+async function createClientFromReservation(resData: any, email: string): Promise<string> {
+  const id = db.collection('clients').doc().id
+  const memberCode = generateMemberCode()
+  const boutiquePromoCode = generateBoutiquePromoCode()
+  const now = new Date().toISOString()
+
+  await db.collection('clients').doc(id).set({
+    firstName: resData.guest_first_name || '',
+    lastName: resData.guest_last_name || '',
+    email: email,
+    phone: resData.guest_phone || '',
+    birthDate: null,
+    memberCode,
+    joinedAt: resData.confirmed_at || resData.created_at || now,
+    niveau: 'novice',
+    totalSejours: 1,
+    totalPoints: 0,
+    boutiqueDiscount: 5,
+    boutiquePromoCode,
+    boutiquePointsEarned: 0,
+    boutiqueAchats: [],
+    created_at: now,
+    updated_at: now,
+  })
+  return id
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,15 +57,8 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
 
-      // Prendre la première réservation pour les infos du client
       const firstRes = resSnap.docs[0].data()
-      await syncClientFromReservation({
-        email: normalizedEmail,
-        firstName: firstRes.guest_first_name || '',
-        lastName: firstRes.guest_last_name || '',
-        phone: firstRes.guest_phone || '',
-        reservationDate: firstRes.confirmed_at || firstRes.created_at || new Date().toISOString(),
-      })
+      await createClientFromReservation(firstRes, normalizedEmail)
 
       // Relire le profil fraîchement créé
       snap = await db.collection('clients')
@@ -79,7 +99,7 @@ export async function POST(request: NextRequest) {
       success: true,
       hasPin: false,
       phone: client.phone,
-      pin, // PIN en clair transmis via HTTPS — affiché à l'écran + lien WA
+      pin,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Erreur serveur' }, { status: 500 })
