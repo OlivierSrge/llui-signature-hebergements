@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import { formatDate, formatPrice, getReservationStatusLabel, getReservationStatusColor } from '@/lib/utils'
-import { CheckCircle2, Clock, Calendar, Users, Building2, QrCode, MapPin, MessageCircle, CreditCard, FileText } from 'lucide-react'
+import { CheckCircle2, Clock, Calendar, Users, Building2, QrCode, MapPin, CreditCard, FileText, MessageCircle } from 'lucide-react'
 import Image from 'next/image'
 
 async function getReservation(id: string) {
@@ -45,6 +45,12 @@ export default async function SuiviPage({ params }: { params: Promise<{ reservat
   const currentStep = steps.lastIndexOf(true)
   const isConfirmed = res.reservation_status === 'confirmee'
   const isCancelled = res.reservation_status === 'annulee'
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature.cm'
+  const confirmCode = res.confirmation_code || reservationId.slice(-8).toUpperCase()
+  const qrCodeUrl = res.qr_code_data || (isConfirmed
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${baseUrl}/partenaire/scanner?code=${confirmCode}`)}&bgcolor=FFFFFF&color=1A1A1A&margin=10`
+    : null)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-beige-50 to-white">
@@ -178,7 +184,7 @@ export default async function SuiviPage({ params }: { params: Promise<{ reservat
         </div>
 
         {/* QR Code — visible uniquement si confirmé */}
-        {isConfirmed && res.qr_code_data && (
+        {isConfirmed && qrCodeUrl && (
           <div className="bg-white rounded-2xl border border-green-200 p-6 text-center">
             <h2 className="font-semibold text-dark mb-2 flex items-center justify-center gap-2">
               <QrCode size={16} className="text-green-500" /> Votre QR Code d&apos;arrivée
@@ -186,24 +192,24 @@ export default async function SuiviPage({ params }: { params: Promise<{ reservat
             <p className="text-xs text-dark/50 mb-4">Présentez ce QR Code à l&apos;accueil lors de votre arrivée</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={res.qr_code_data}
+              src={qrCodeUrl}
               alt="QR Code d'arrivée"
               className="w-48 h-48 mx-auto rounded-xl border border-beige-200"
             />
-            <p className="font-mono text-sm font-bold text-gold-600 mt-3">{res.confirmation_code}</p>
+            <p className="font-mono text-sm font-bold text-gold-600 mt-3">{confirmCode}</p>
           </div>
         )}
 
-        {/* Contact */}
+        {/* Boutique */}
         <div className="bg-beige-50 rounded-2xl border border-beige-200 p-5 text-center">
-          <p className="text-sm text-dark/60">Une question ? Contactez-nous par WhatsApp</p>
+          <p className="text-sm font-medium text-dark/70 mb-3">👇 Préparez votre séjour :</p>
           <a
-            href={`https://wa.me/237693407964?text=Bonjour, j'ai une question concernant ma réservation ${res.confirmation_code || reservationId.slice(-8).toUpperCase()}`}
+            href="http://l-et-lui-signature.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-3 px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-600 text-white rounded-xl text-sm font-medium hover:bg-gold-700 transition-colors"
           >
-            <MessageCircle size={16} /> Contacter L&Lui Signature
+            🛍️ Commander sur la boutique
           </a>
         </div>
       </div>
