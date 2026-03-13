@@ -6,6 +6,7 @@ import { sendReservationEmails } from '@/lib/email'
 import { validatePromoCode } from '@/actions/promo-codes'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { syncClientFromReservationId } from '@/actions/clients'
 
 type ActionResult = { success: true; reservationId?: string } | { success: false; error: string }
 
@@ -160,6 +161,12 @@ export async function updateReservationStatus(
     }
 
     await db.collection('reservations').doc(reservationId).update(updateData)
+
+    // Créer/mettre à jour le profil client L&Lui Stars à la confirmation
+    if (status === 'confirmee') {
+      await syncClientFromReservationId(reservationId).catch(() => {})
+    }
+
     revalidatePath('/admin/reservations')
     revalidatePath(`/admin/reservations/${reservationId}`)
     return { success: true }

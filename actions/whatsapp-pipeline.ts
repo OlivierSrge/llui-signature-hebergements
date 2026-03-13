@@ -3,6 +3,7 @@
 import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
 import { resolvePaymentSettingsForReservation } from '@/actions/payment-settings'
+import { syncClientFromReservation, syncClientFromReservationId } from '@/actions/clients'
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -269,6 +270,17 @@ export async function sendWhatsAppFiche(
 
     await logWhatsAppSend(reservationId, 4, 'Fiche + QR Code', sentBy, clientPhone)
 
+    // Créer/mettre à jour le profil client L&Lui Stars
+    if (res.guest_email) {
+      await syncClientFromReservation({
+        email: res.guest_email,
+        firstName: res.guest_first_name || '',
+        lastName: res.guest_last_name || '',
+        phone: res.guest_phone || '',
+        reservationDate: new Date().toISOString(),
+      }).catch(() => {})
+    }
+
     revalidatePath(`/admin/reservations/${reservationId}`)
     revalidatePath(`/partenaire/reservations/${reservationId}`)
 
@@ -467,6 +479,11 @@ export async function recordWhatsAppSent(
     }
 
     await db.collection('reservations').doc(reservationId).update(updates)
+
+    // Si bouton 4 vient de confirmer la réservation → sync profil Stars
+    if (button === 4) {
+      await syncClientFromReservationId(reservationId).catch(() => {})
+    }
 
     const labels: Record<number, string> = { 1: 'Proposition', 2: 'Demande paiement', 4: 'Fiche + QR Code' }
     await logWhatsAppSend(reservationId, button, labels[button] || String(button), sentBy, phone)
