@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
+Dernière mise à jour : 2026-03-13 — 5 blocs : Commissions, WhatsApp modale, Revolut, Traçabilité demandes, Paramètres paiement admin
 
 ---
 
@@ -177,19 +177,161 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ---
 
+## SESSION 2026-03-12 (suite) — PHASE 4 : REVENUS, CLIENTS, CSV, FILTRES DEMANDES
+
+### Blocs implémentés (4 blocs)
+
+**BLOC 1 — /admin/demandes amélioré**
+- Filtres `handled_by` : Toutes / Non traitées / Traitées admin / Traitées partenaire
+- Stats rapides (3 tuiles : non traitées / admin / partenaire)
+- Badges couleur par source (admin=bleu, partenaire=violet)
+- Affichage nom du partenaire ayant traité
+- Coloration conditionnelle des lignes
+
+**BLOC 2 — Export CSV réservations**
+- `/api/export/reservations` : GET authentifié admin, paramètres `status` + `source`
+- BOM UTF-8 pour Excel/LibreOffice
+- Bouton "Exporter CSV" dans `/admin/reservations` (respects filtres actifs)
+
+**BLOC 3 — Page /partenaire/revenus (nouveau)**
+- 4 KPI : revenus encaissés, confirmées, en attente, durée moy. séjour
+- Évolution vs mois précédent (+/- %)
+- Graphique barres revenus mensuels 12 mois (recharts)
+- Graphique ligne réservations confirmées / mois
+- Liste réservations confirmées récentes
+- Bouton export CSV partenaire
+- Lien "Mes revenus" dans actions rapides dashboard
+
+**BLOC 4 — Page /partenaire/clients (nouveau)**
+- Groupement clients uniques par téléphone/email
+- Badges fidélité (Client fidèle 5+, Client régulier 3+)
+- Stats : total clients uniques + clients réguliers
+- Recherche nom/téléphone/email
+- Affichage : total séjours, nuits, dépense, dernier séjour
+- Lien WhatsApp direct pour contact
+- Liens vers réservations associées
+- Lien "Mes clients" dans actions rapides dashboard
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `app/api/export/reservations/route.ts` | API export CSV réservations |
+| `app/partenaire/revenus/page.tsx` | Page revenus partenaire avec graphiques |
+| `app/partenaire/clients/page.tsx` | Page clients partenaire |
+| `components/partner/PartnerRevenueCharts.tsx` | Graphiques recharts revenus/confirmées |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/admin/demandes/page.tsx` | + filtres handled_by, stats, badges couleur |
+| `app/admin/reservations/page.tsx` | + bouton Export CSV |
+| `app/partenaire/dashboard/page.tsx` | + liens "Mes revenus" et "Mes clients" |
+
+---
+
+## SESSION 2026-03-12 (suite 2) — 5 BLOCS COMPLÉMENTAIRES
+
+### Blocs implémentés (5 blocs)
+
+**BLOC 1 — Guide partenaire + Gestionnaire documents admin**
+- `/partenaire/guide` : téléchargement notice Firebase Storage (fallback si absent), lien messagerie
+- `/admin/documents` onglet Documents : upload/remplace PDF, taille, date
+- `POST /api/upload-document` : upload Firebase Storage `/documents/notices/{key}.pdf`
+- `actions/documents.ts` : CRUD meta Firestore `settings/documents`
+- Lien "Guide d'utilisation" dans actions rapides dashboard partenaire
+- Items Abonnements + Documents & Aide dans sidebar admin
+
+**BLOC 2 — Centre d'aide interactif (7 catégories, 26 Q&A)**
+- `lib/helpCenterDefaults.ts` : réservations / calendrier / scanner / logements / abonnement / paiements / contrat
+- `HelpCenterAccordion` (partenaire) : double accordéon + bouton Contact bas de catégorie
+- `HelpCenterAdmin` (admin) : édition par catégorie, sauvegarde Firestore
+- Onglet "Centre d'aide" dans `/admin/documents`
+
+**BLOC 3 — Masquage commission côté partenaire**
+- Dashboard : "Commission X%" → "Conditions financières définies dans votre contrat"
+- Upgrade : suppression affichage taux commission
+- ContractSigningFlow : `{{TAUX_COMMISSION}}` → "selon les conditions convenues entre les parties"
+- Côté admin et Firestore : inchangés
+
+**BLOC 4 — /admin/abonnements (4 onglets)**
+- Onglet Formules : prix mensuel/trim/annuel, commission, reversement, capacité, couleur, statut
+- Onglet Composition accès : tableau 24 features × plans avec cases à cocher
+- Onglet Nouvelle formule : formulaire complet
+- Onglet Historique : log 50 dernières modifs
+- Sauvegarde : `/settings/subscriptionPlans/plans/{plan}` + `/history`
+
+**BLOC 5 — Permissions Firestore dynamiques**
+- `getEffectivePermissions` → charge Firestore d'abord, fallback lib/plans.ts silencieux
+- `lib/subscriptionDefaults.ts` : helper fallback
+
+### Nouveaux fichiers créés
+`actions/documents.ts` · `actions/help-center.ts` · `actions/admin-subscriptions.ts`
+`app/admin/abonnements/page.tsx` · `app/admin/documents/page.tsx`
+`app/api/upload-document/route.ts` · `app/partenaire/guide/page.tsx`
+`components/admin/DocumentsManager.tsx` · `components/admin/HelpCenterAdmin.tsx`
+`components/admin/SubscriptionPlansAdmin.tsx` · `components/partner/HelpCenterAccordion.tsx`
+`lib/helpCenterDefaults.ts` · `lib/subscriptionDefaults.ts`
+
+### Collections Firestore ajoutées
+`settings/documents` · `settings/helpCenter` · `settings/subscriptionPlans/plans/{plan}` · `settings/subscriptionPlans/history`
+
+---
+
+## SESSION 2026-03-13 — 5 BLOCS COMMISSION / WHATSAPP / REVOLUT / TRAÇABILITÉ / PAIEMENT
+
+### Blocs implémentés
+
+**BLOC 1 — Widget Commissions Mensuelles par Partenaire**
+- `components/admin/CommissionsWidget.tsx` : tableau mensuel 6 mois, modale détail réservations, filtres (année/partenaire/plan), export CSV BOM UTF-8, bouton rafraîchir
+- `components/admin/PartnerCommissionsChart.tsx` : graphique barres recharts 12 derniers mois
+- `actions/commissions.ts` : `getPartnerCommissionsData(year)` + `getPartnerCommissions12Months(partnerId)`
+- `app/admin/page.tsx` : widget intégré avant "Actions rapides"
+- `app/admin/partenaires/[id]/page.tsx` : graphique barres commissions 12 mois
+
+**BLOC 2 — Bouton WhatsApp 2 temps**
+- `components/admin/WhatsAppPreviewModal.tsx` : modale prévisualisation + édition message + bouton explicite "Ouvrir WhatsApp et envoyer"
+- `components/admin/WhatsAppPipeline.tsx` : réécriture complète — modale avant toute ouverture WhatsApp
+- `actions/whatsapp-pipeline.ts` : `prepareWhatsApp*` (sans maj Firestore) + `recordWhatsAppSent` (maj après clic)
+
+**BLOC 3 — Traçabilité demandes clients**
+- `actions/availability-requests.ts` : `markRequestHandled/ByPartner` → +treatedAt/treatedBy/treatedById/delaiTraitement
+- `app/admin/page.tsx` : délai coloré (orange 2h+, rouge 6h+) + sous-onglet "Traitées récemment"
+- `app/admin/demandes/page.tsx` : badge traitée + filtre délai (lt1h/1h6h/gt6h) + stat délai moyen mois
+
+**BLOC 4 — Intégration Revolut**
+- `actions/whatsapp-pipeline.ts` : `prepareWhatsAppPaymentRequest` → option Revolut intégrée dans le message bouton 2
+- `components/admin/WhatsAppPreviewModal.tsx` : toggle "Inclure Revolut" (activé par défaut)
+- `actions/whatsapp-pipeline.ts` : `confirmPayment` → nouveau champ `payment_method` (OM/Revolut/virement/autre)
+- `components/admin/WhatsAppPipeline.tsx` : sélecteur moyen de paiement dans le formulaire bouton 3
+
+**BLOC 5 — Paramétrage moyens de paiement admin**
+- `lib/payment-settings.ts` : interface `AdminPaymentSettings` + `DEFAULT_ADMIN_PAYMENT_SETTINGS`
+- `actions/payment-settings.ts` : `loadAdminPaymentSettings`, `saveAdminPaymentSettings`, `resolvePaymentSettingsForReservation`
+- `components/admin/AdminGlobalPaymentSettingsForm.tsx` : formulaire OM + Revolut + banque + MTN avec toggle Revolut par défaut
+- `app/admin/parametres-paiement/page.tsx` : page complète avec règles de priorité
+- `components/admin/AdminSidebar.tsx` : + ⚙️ Paramètres paiement
+
+### Nouvelles routes disponibles
+- `/admin/parametres-paiement` — Paramètres paiement globaux L&Lui (OM, Revolut, banque, MTN)
+
+### Collections Firestore ajoutées
+- `settings/adminPaymentSettings` — Paramètres paiement globaux admin
+
+### Règle de priorité paiement
+1. `partenaires/{id}.payment_settings.orange_money_number` (priorité max)
+2. `settings/adminPaymentSettings.orange_money_number` (fallback admin)
+3. Valeur codée `693407964` (fallback ultime)
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — session 2026-03-12 terminée
-- **Fichiers modifiés** : non committés (à committer)
-- **Dernière action** : Flux demandes disponibilité + pipeline partenaire complet (4 blocs)
+- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés (2026-03-13)
+- **Dernière action** : CommissionsWidget + WhatsApp modale + Revolut + Traçabilité demandes + Paramètres paiement admin
 
 ---
 
 ## BLOCS EN ATTENTE (non commencés)
 - Notifications push / email automatiques aux partenaires
-- Export CSV des réservations
-- Tableau de bord revenus partenaire avec graphiques
-- Système d'avis clients
-- Page `/admin/demandes` : filtre handled_by pour séparer "À traiter" / "Traités par partenaire"
+- Système d'avis clients (formulaire client + affichage partenaire)
+- Page `/admin/clients` enrichie : historique réservations cross-partenaires
 
 ---
 
@@ -311,21 +453,25 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-12** : Flux demandes + pipeline partenaire complets — non commités.
+**État au 2026-03-12 (Phase 4 + 5 blocs complémentaires)** : tout commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
-2. Vérifier `git status` et `git log --oneline -5`
-3. Committer les changements de la session si non encore fait
-4. Tester le flux complet : demande publique → partenaire voit dans dashboard → crée réservation → WhatsApp pipeline 4 étapes
+2. `git log --oneline -5` pour vérifier les commits
+3. Important : uploader la notice partenaire PDF dans `/admin/documents` pour qu'elle soit disponible dans `/partenaire/guide`
+4. Choisir les prochains blocs avec l'utilisateur
 
-**Corrections connues à surveiller** :
-- Si le bucket Firebase Storage utilise UAC, configurer l'accès public IAM (`gsutil iam ch allUsers:objectViewer gs://[BUCKET]`)
-- Tester la génération PDF jsPDF avec les caractères accentués français
-- Vérifier que `makePublic()` ne bloque pas l'upload (fix déjà appliqué en session précédente)
+**Nouvelles routes disponibles** :
+- `/partenaire/guide` — notice téléchargeable + centre d'aide accordéon
+- `/partenaire/revenus` — tableau de bord revenus avec graphiques
+- `/partenaire/clients` — liste clients groupés avec badges fidélité
+- `/admin/abonnements` — gestion formules d'abonnement (4 onglets)
+- `/admin/documents` — gestionnaire PDF + éditeur FAQ partenaires
+- `/api/export/reservations` — export CSV (admin only)
+- `/api/upload-document` — upload notice PDF (admin only)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
 - Notifications push / email automatiques aux partenaires
-- Export CSV des réservations
-- Tableau de bord revenus partenaire avec graphiques
-- Système d'avis clients
+- Système d'avis clients (formulaire après séjour + affichage partenaire)
+- Page `/admin/clients` enrichie avec historique réservations
+- Statistiques avancées partenaire (taux occupation, saisonnalité)

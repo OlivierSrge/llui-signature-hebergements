@@ -578,7 +578,7 @@ export default function ContractSigningFlow({
     '{{NOM_PARTENAIRE}}': signatoryName || partnerName,
     '{{PLAN_ABONNEMENT}}': partnerPlan || 'Essentiel',
     '{{PRIX_ABONNEMENT}}': '',
-    '{{TAUX_COMMISSION}}': '',
+    '{{TAUX_COMMISSION}}': 'selon les conditions convenues entre les parties',
     '{{NOMBRE_LOGEMENTS}}': '',
     '{{DATE_SIGNATURE}}': new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
     '{{DATE_DEBUT}}': new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),

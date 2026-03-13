@@ -95,18 +95,35 @@ export async function getPartnerPendingDemands(accommodationIds: string[]) {
 
 export async function markRequestHandled(
   requestId: string,
-  reservationId?: string
+  reservationId?: string,
+  adminId: string = 'admin'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.collection('demandes_disponibilite').doc(requestId).update({
+    const now = new Date().toISOString()
+    const docRef = db.collection('demandes_disponibilite').doc(requestId)
+    const doc = await docRef.get()
+    const data = doc.exists ? doc.data() : null
+
+    let delaiTraitement: number | null = null
+    if (data?.created_at) {
+      delaiTraitement = Math.round((new Date(now).getTime() - new Date(data.created_at).getTime()) / 60000)
+    }
+
+    await docRef.update({
       status: 'traitee',
       reservation_id: reservationId || null,
       handled_by: 'admin',
-      handled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      handled_at: now,
+      treatedAt: now,
+      treatedBy: 'admin',
+      treatedById: adminId,
+      reservationId: reservationId || null,
+      delaiTraitement,
+      updated_at: now,
     })
     revalidatePath('/admin/reservations')
     revalidatePath('/admin/demandes')
+    revalidatePath('/admin')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -119,13 +136,28 @@ export async function markRequestHandledByPartner(
   reservationId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.collection('demandes_disponibilite').doc(requestId).update({
+    const now = new Date().toISOString()
+    const docRef = db.collection('demandes_disponibilite').doc(requestId)
+    const doc = await docRef.get()
+    const data = doc.exists ? doc.data() : null
+
+    let delaiTraitement: number | null = null
+    if (data?.created_at) {
+      delaiTraitement = Math.round((new Date(now).getTime() - new Date(data.created_at).getTime()) / 60000)
+    }
+
+    await docRef.update({
       status: 'traitee',
       reservation_id: reservationId || null,
       handled_by: 'partner',
-      handled_at: new Date().toISOString(),
+      handled_at: now,
       handled_by_id: partnerId,
-      updated_at: new Date().toISOString(),
+      treatedAt: now,
+      treatedBy: 'partner',
+      treatedById: partnerId,
+      reservationId: reservationId || null,
+      delaiTraitement,
+      updated_at: now,
     })
     revalidatePath('/admin/demandes')
     revalidatePath('/admin')

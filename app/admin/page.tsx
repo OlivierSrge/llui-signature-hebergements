@@ -17,6 +17,8 @@ import { RevenueChart, SourcePieChart } from '@/components/admin/DashboardCharts
 import type { RevenueDayData, SourceData } from '@/components/admin/DashboardCharts'
 import PaymentRelanceWidget from '@/components/admin/PaymentRelanceWidget'
 import type { AlertReservation } from '@/components/admin/PaymentRelanceWidget'
+import CommissionsWidget from '@/components/admin/CommissionsWidget'
+import { getPartnerCommissionsData } from '@/actions/commissions'
 
 // ── Helpers ────────────────────────────────────────────────────
 function formatPhone(phone: string): string {
@@ -61,18 +63,25 @@ async function getRecentReservations() {
 }
 
 async function getPendingDemands() {
-  const snap = await db.collection('demandes_disponibilite')
-    .where('status', '==', 'en_attente')
-    .get()
-  const all = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0) as any[]
+  const snap = await db.collection('demandes_disponibilite').get()
+  const allDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+
+  const pending = allDocs
+    .filter((d) => d.status === 'en_attente')
+    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0)
 
   const cutoff3h = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-  const unhandledOver3h = all.filter(
+  const unhandledOver3h = pending.filter(
     (d) => (!d.handled_by) && d.created_at && d.created_at < cutoff3h
   )
-  return { all, unhandledOver3h }
+
+  // 5 dernières demandes traitées
+  const recentlyTreated = allDocs
+    .filter((d) => d.status === 'traitee' && d.treatedAt)
+    .sort((a: any, b: any) => (b.treatedAt || '').localeCompare(a.treatedAt || ''))
+    .slice(0, 5)
+
+  return { all: pending, unhandledOver3h, recentlyTreated }
 }
 
 async function getPackRequestsData() {
@@ -263,7 +272,7 @@ export default async function AdminDashboard() {
   const [
     stats, recent, demandsData, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
-    birthdayClients, stayAnniversaryClients,
+    birthdayClients, stayAnniversaryClients, commissionsData,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -280,10 +289,12 @@ export default async function AdminDashboard() {
     getExpiringSubscriptions(),
     getBirthdayClients(),
     getStayAnniversaryClients(),
+    getPartnerCommissionsData(),
   ])
 
   const pendingDemands = demandsData.all
   const unhandledOver3h = demandsData.unhandledOver3h
+  const recentlyTreated = demandsData.recentlyTreated
 
   const totalRevenue30 = revenueDays.reduce((s, d) => s + d.revenue, 0)
   const totalComm30 = revenueDays.reduce((s, d) => s + d.commission, 0)
@@ -634,24 +645,64 @@ export default async function AdminDashboard() {
             </Link>
           </div>
           {pendingDemands.length === 0 ? (
-            <div className="py-10 text-center text-dark/40 text-sm">Aucune demande en attente</div>
+            <div className="py-6 text-center text-dark/40 text-sm">Aucune demande en attente</div>
           ) : (
             <div className="divide-y divide-beige-100">
-              {pendingDemands.slice(0, 5).map((req: any) => (
-                <div key={req.id} className="px-5 py-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-dark text-sm">{req.guest_first_name} {req.guest_last_name}</p>
-                    <p className="text-xs text-dark/50 truncate">{req.product_name}</p>
-                    {req.check_in && <p className="text-xs text-dark/40">{formatDate(req.check_in, 'dd/MM')} → {req.check_out && formatDate(req.check_out, 'dd/MM/yyyy')} · {req.guests} pers.</p>}
+              {pendingDemands.slice(0, 5).map((req: any) => {
+                const now = Date.now()
+                const createdMs = req.created_at ? new Date(req.created_at).getTime() : now
+                const ageMinutes = Math.round((now - createdMs) / 60000)
+                const ageHours = ageMinutes / 60
+                const ageLabel = ageMinutes < 60
+                  ? `${ageMinutes}mn`
+                  : `${Math.floor(ageHours)}h${ageMinutes % 60 > 0 ? `${ageMinutes % 60}mn` : ''}`
+                const ageColor = ageHours >= 6 ? 'text-red-600' : ageHours >= 2 ? 'text-orange-500' : 'text-dark/40'
+                return (
+                  <div key={req.id} className="px-5 py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-dark text-sm">{req.guest_first_name} {req.guest_last_name}</p>
+                      <p className="text-xs text-dark/50 truncate">{req.product_name}</p>
+                      {req.check_in && <p className="text-xs text-dark/40">{formatDate(req.check_in, 'dd/MM')} → {req.check_out && formatDate(req.check_out, 'dd/MM/yyyy')} · {req.guests} pers.</p>}
+                      <p className={`text-xs font-medium mt-0.5 ${ageColor}`}>Reçue il y a {ageLabel}</p>
+                    </div>
+                    <Link
+                      href={`/admin/reservations/nouvelle?from_demand=${req.id}&product_id=${req.product_id}&check_in=${req.check_in}&check_out=${req.check_out}&guests=${req.guests}&first_name=${req.guest_first_name}&last_name=${req.guest_last_name}&phone=${req.guest_phone}`}
+                      className="text-xs bg-gold-500 text-white px-2.5 py-1 rounded-lg hover:bg-gold-600 flex items-center gap-1 whitespace-nowrap flex-shrink-0 mt-0.5"
+                    >
+                      <Plus size={10} /> Créer réservation
+                    </Link>
                   </div>
-                  <Link
-                    href={`/admin/reservations/nouvelle?from_demand=${req.id}&product_id=${req.product_id}&check_in=${req.check_in}&check_out=${req.check_out}&guests=${req.guests}&first_name=${req.guest_first_name}&last_name=${req.guest_last_name}&phone=${req.guest_phone}`}
-                    className="text-xs bg-gold-500 text-white px-2.5 py-1 rounded-lg hover:bg-gold-600 flex items-center gap-1 whitespace-nowrap flex-shrink-0"
-                  >
-                    <Plus size={10} /> Créer réservation
-                  </Link>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+          )}
+          {/* Sous-onglet : Traitées récemment */}
+          {recentlyTreated.length > 0 && (
+            <div className="border-t border-beige-100">
+              <p className="px-5 py-2.5 text-xs font-semibold text-dark/40 uppercase tracking-wide">Traitées récemment</p>
+              <div className="divide-y divide-beige-50">
+                {recentlyTreated.map((req: any) => {
+                  const delay = req.delaiTraitement != null
+                    ? req.delaiTraitement < 60
+                      ? `${req.delaiTraitement}mn`
+                      : `${Math.floor(req.delaiTraitement / 60)}h${req.delaiTraitement % 60 > 0 ? `${req.delaiTraitement % 60}mn` : ''}`
+                    : '—'
+                  return (
+                    <div key={req.id} className="px-5 py-2.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark">{req.guest_first_name} {req.guest_last_name}</p>
+                        <p className="text-xs text-dark/50 truncate">{req.product_name}</p>
+                        <p className="text-xs text-dark/40">
+                          Traitée le {req.treatedAt ? formatDate(req.treatedAt, 'dd/MM à HH:mm') : '—'}
+                          {' · '}délai : <span className="font-medium">{delay}</span>
+                          {' · '}par {req.treatedBy === 'admin' ? 'Admin' : 'Partenaire'}
+                        </p>
+                      </div>
+                      <span className="flex-shrink-0 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">✅ Traitée</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -826,6 +877,12 @@ export default async function AdminDashboard() {
           )}
         </div>
       )}
+
+      {/* ── Widget Commissions par partenaire ── */}
+      <CommissionsWidget
+        initialData={commissionsData}
+        partners={commissionsData.rows.map((r) => ({ id: r.partnerId, name: r.partnerName, plan: r.partnerPlan }))}
+      />
 
       {/* Actions rapides */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

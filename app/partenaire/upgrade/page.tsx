@@ -100,8 +100,8 @@ export default function UpgradePage() {
                       <p className="text-xs text-[#1A1A1A]/40">FCFA / mois</p>
                     </>
                   )}
-                  <p className="text-xs mt-0.5" style={{ color: plan.color }}>
-                    Commission {plan.commissionRate}%
+                  <p className="text-xs mt-0.5 text-[#1A1A1A]/40">
+                    Conditions définies dans votre contrat
                   </p>
                 </div>
               </div>
