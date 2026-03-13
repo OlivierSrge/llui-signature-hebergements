@@ -145,7 +145,7 @@ export default function CommissionsWidget({ initialData, partners }: Props) {
   )
   const grandTotal = filteredRows.reduce((s, r) => s + r.total, 0)
 
-  const uniquePlans = [...new Set(partners.map((p) => p.plan).filter(Boolean))] as string[]
+  const uniquePlans = Array.from(new Set(partners.map((p) => p.plan).filter(Boolean))) as string[]
 
   // ── Export CSV ─────────────────────────────────────────────────────────
   const handleExportCSV = () => {

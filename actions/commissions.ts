@@ -55,7 +55,7 @@ export async function getPartnerCommissionsData(year: number = new Date().getFul
       if (monthResv.length === 0) return null
 
       const commAmount = monthResv.reduce((s: number, r: any) => {
-        const comm = r.commission_amount ?? (r.total_price * (r.commission_rate || 0)) / 100 ?? 0
+        const comm = r.commission_amount != null ? r.commission_amount : (r.total_price * (r.commission_rate || 0)) / 100 || 0
         return s + comm
       }, 0)
 
@@ -67,7 +67,7 @@ export async function getPartnerCommissionsData(year: number = new Date().getFul
           guestName: `${r.guest_first_name || ''} ${r.guest_last_name || ''}`.trim(),
           totalPrice: r.total_price || 0,
           commissionRate: r.commission_rate || 0,
-          commissionAmount: r.commission_amount ?? (r.total_price * (r.commission_rate || 0)) / 100 ?? 0,
+          commissionAmount: r.commission_amount != null ? r.commission_amount : (r.total_price * (r.commission_rate || 0)) / 100 || 0,
           paymentDate: r.payment_date || '',
         })),
       }
@@ -108,7 +108,7 @@ export async function getPartnerCommissions12Months(partnerId: string): Promise<
   return months.map(({ month, label }) => {
     const monthResv = reservations.filter((r) => r.payment_date?.slice(0, 7) === month)
     const amount = monthResv.reduce((s, r) => {
-      return s + (r.commission_amount ?? (r.total_price * (r.commission_rate || 0)) / 100 ?? 0)
+      return s + (r.commission_amount != null ? r.commission_amount : (r.total_price * (r.commission_rate || 0)) / 100 || 0)
     }, 0)
     return { month, label, amount }
   })
