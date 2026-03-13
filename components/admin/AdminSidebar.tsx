@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/admin/contrat', label: 'Contrat partenariat', icon: FileSignature },
   { href: '/admin/abonnements', label: 'Abonnements', icon: CreditCard },
   { href: '/admin/documents', label: 'Documents & Aide', icon: FolderOpen },
+  { href: '/admin/parametres-paiement', label: '⚙️ Paramètres paiement', icon: Wallet },
 ]
 
 export default function AdminSidebar() {
