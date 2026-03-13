@@ -335,9 +335,82 @@ Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (creden
 2. `settings/adminPaymentSettings.orange_money_number` (fallback admin)
 3. Valeur codée `693407964` (fallback ultime)
 
+## SESSION 2026-03-13 (suite) — SYSTÈME CLIENTS FIDÈLES STARS
+
+### Contexte
+Objectif : créer automatiquement un profil "L&Lui Stars" pour chaque client ayant une réservation confirmée, et permettre à ces clients de se connecter sur `/mon-compte`.
+
+### Blocs implémentés
+
+**BLOC 1 — Page /admin/clients enrichie**
+- `app/admin/clients/page.tsx` : bouton "Créer un client" (formulaire modal inline) + liste complète des profils Stars
+- Formulaire création manuelle : nom, email, téléphone, numéro de réservation associé
+
+**BLOC 2 — Auto-création profil Stars à la confirmation**
+- `actions/reservations.ts` : `createStarsProfileIfNeeded(email, firstName, lastName, phone)` — crée le profil si absent, normalise l'email
+- `actions/admin-reservations.ts` : appel auto à la confirmation admin
+- `actions/partner-confirm.ts` : appel auto à la confirmation partenaire (scan QR)
+- Normalisation email : `.trim().toLowerCase()` pour éviter doublons
+- ✅ Statut : **fonctionnel**
+
+**BLOC 3 — Bouton sync en masse (backfill)**
+- `app/api/admin/sync-clients/route.ts` (POST) : parcourt toutes les réservations confirmées, crée les profils manquants
+- `components/admin/AdminSyncClientsButton.tsx` : bouton UI dans `/admin/clients` avec retour JSON des créés/mis à jour
+- ✅ Statut : **fonctionnel**
+
+**BLOC 4 — Endpoint bootstrap GET**
+- `app/api/admin/bootstrap-clients/route.ts` (GET) : même logique, accessible sans session (pour bootstrap initial)
+- Résultat testé : 16 profils créés dont `olivier.serge2001@gmail.com`
+- ✅ Statut : **fonctionnel, utilisé avec succès**
+
+**BLOC 5 — Fix TypeScript Map iteration**
+- `tsconfig.json` : ajout `"downlevelIteration": true` dans `compilerOptions` pour résoudre l'erreur de spread sur Map
+- Redéploiement Vercel déclenché via commit vide
+- ✅ Statut : **résolu**
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `app/api/admin/bootstrap-clients/route.ts` | Bootstrap GET : crée tous les profils Stars manquants |
+| `app/api/admin/sync-clients/route.ts` | Sync POST : backfill profils manquants |
+| `components/admin/AdminSyncClientsButton.tsx` | Bouton UI sync en masse |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/admin/clients/page.tsx` | + bouton "Créer un client" + bouton sync |
+| `actions/reservations.ts` | + `createStarsProfileIfNeeded` |
+| `actions/admin-reservations.ts` | + appel auto création Stars à la confirmation |
+| `actions/partner-confirm.ts` | + appel auto création Stars à la confirmation partenaire |
+| `tsconfig.json` | + `downlevelIteration: true` |
+
+### Collections Firestore ajoutées
+| Collection | Contenu |
+|-----------|---------|
+| `clients_stars` | Profils clients : email, firstName, lastName, phone, createdAt, reservationIds |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| TypeScript erreur `Map` iteration (`--downlevelIteration`) | `tsconfig.json` : `"downlevelIteration": true` |
+| Import `'use server'` dans API route causait une erreur | Extraction des fonctions dans `actions/reservations.ts` sans directive dans route.ts |
+| Email avec espaces ou majuscules créait des doublons | `.trim().toLowerCase()` avant lookup Firestore |
+
+### Ce qui fonctionne
+- ✅ `/api/admin/bootstrap-clients` (GET) — 16 profils créés lors du test
+- ✅ Auto-création Stars à chaque confirmation admin
+- ✅ Auto-création Stars à chaque scan QR partenaire
+- ✅ `/admin/clients` affiche les profils + formulaire création manuelle
+
+### Ce qui reste à tester
+- ⚠️ Connexion client sur `/mon-compte` avec le PIN reçu par email
+- ⚠️ Vérifier que les 16 clients créés peuvent bien se connecter
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés (2026-03-13)
-- **Dernière action** : CommissionsWidget + WhatsApp modale + Revolut + Traçabilité demandes + Paramètres paiement admin
+- **Bloc actuel** : Aucun — système Stars opérationnel (2026-03-13)
+- **Dernière action** : Bootstrap 16 profils clients Stars créés avec succès
 
 ---
 
@@ -466,25 +539,31 @@ Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (creden
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-12 (Phase 4 + 5 blocs complémentaires)** : tout commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-13** : système Stars opérationnel, 16 profils créés, commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
 2. `git log --oneline -5` pour vérifier les commits
-3. Important : uploader la notice partenaire PDF dans `/admin/documents` pour qu'elle soit disponible dans `/partenaire/guide`
+3. Tester la connexion d'un client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
 4. Choisir les prochains blocs avec l'utilisateur
 
-**Nouvelles routes disponibles** :
+**Routes disponibles (complètes)** :
+- `/mon-compte` — espace client Stars (connexion + historique réservations)
 - `/partenaire/guide` — notice téléchargeable + centre d'aide accordéon
 - `/partenaire/revenus` — tableau de bord revenus avec graphiques
 - `/partenaire/clients` — liste clients groupés avec badges fidélité
 - `/admin/abonnements` — gestion formules d'abonnement (4 onglets)
 - `/admin/documents` — gestionnaire PDF + éditeur FAQ partenaires
+- `/admin/clients` — gestion profils Stars (création manuelle + sync en masse)
+- `/admin/parametres-paiement` — paramètres paiement globaux L&Lui
 - `/api/export/reservations` — export CSV (admin only)
 - `/api/upload-document` — upload notice PDF (admin only)
+- `/api/admin/bootstrap-clients` — bootstrap GET profils Stars (admin only)
+- `/api/admin/sync-clients` — sync POST profils Stars (admin only)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
 - Notifications push / email automatiques aux partenaires
 - Système d'avis clients (formulaire après séjour + affichage partenaire)
-- Page `/admin/clients` enrichie avec historique réservations
+- Page `/admin/clients` : historique réservations cross-partenaires
 - Statistiques avancées partenaire (taux occupation, saisonnalité)
+- Supprimer les 15 profils Stars de test (emails invalides) depuis `/admin/clients`
