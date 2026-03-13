@@ -73,7 +73,7 @@ export async function createAdminReservation(formData: FormData): Promise<Action
       user_id: null,
       guest_first_name: formData.get('guest_first_name') as string,
       guest_last_name: formData.get('guest_last_name') as string,
-      guest_email: (formData.get('guest_email') as string) || '',
+      guest_email: ((formData.get('guest_email') as string) || '').toLowerCase().trim(),
       guest_phone: (formData.get('guest_phone') as string) || '',
       check_in: checkIn,
       check_out: checkOut,

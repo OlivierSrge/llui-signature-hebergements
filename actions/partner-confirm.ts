@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
+import { syncClientFromReservationId } from '@/actions/clients'
 
 type ActionResult =
   | { success: true }
@@ -28,6 +29,9 @@ export async function confirmPartnerReservation(reservationId: string): Promise<
     revalidatePath('/admin/reservations')
     revalidatePath(`/admin/reservations/${reservationId}`)
     revalidatePath('/partenaire/dashboard')
+
+    // Créer/mettre à jour le profil client L&Lui Stars
+    await syncClientFromReservationId(reservationId).catch(() => {})
 
     return { success: true }
   } catch (e: any) {

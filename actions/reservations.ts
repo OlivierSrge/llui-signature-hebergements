@@ -75,7 +75,7 @@ export async function createReservation(
       },
       guest_first_name: formData.guest_first_name,
       guest_last_name: formData.guest_last_name,
-      guest_email: formData.guest_email,
+      guest_email: formData.guest_email.toLowerCase().trim(),
       guest_phone: formData.guest_phone,
       check_in: formData.check_in,
       check_out: formData.check_out,
