@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
 import { resolvePaymentSettingsForReservation } from '@/actions/payment-settings'
 import { syncClientFromReservation, syncClientFromReservationId } from '@/actions/clients'
+import { buildFicheV2, type FicheVariant, type NiveauFidelite } from '@/lib/messageTemplates'
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -18,7 +19,7 @@ async function getTemplates() {
     template1_proposal: `Bonjour {nom_client} 👋\n\nVoici notre proposition pour votre séjour :\n🏡 *{produit}*\n📅 Dates : {dates}\n👥 Personnes : {personnes}\n💰 Total : *{montant} FCFA*\n\n⚠️ Cette réservation est soumise à confirmation après paiement.\n\n📍 Suivi en temps réel : {lien_suivi}\n\nCordialement,\nL&Lui Signature`,
     template2_payment: `Bonjour {nom_client},\n\nMerci pour votre intérêt ! Pour finaliser votre réservation *{code_reservation}*, veuillez effectuer le paiement via Orange Money :\n\n💰 Montant exact : *{montant} FCFA*\n📝 Objet : {code_reservation}\n\nUne fois le paiement effectué, envoyez-nous la capture d'écran de confirmation.\n\nL&Lui Signature`,
     template3_confirmation: `✅ *Paiement confirmé !*\n\nBonjour {nom_client},\n\nNous avons bien reçu votre paiement pour la réservation *{code_reservation}*.\n\nVotre séjour est désormais *officiellement confirmé* ! Vous recevrez sous peu votre fiche d'accueil et QR Code.\n\nL&Lui Signature`,
-    template4_fiche: `🏡 *Fiche d'accueil — L&Lui Signature*\n\nBonjour {nom_client},\n\n*{produit}*\n📅 Arrivée : {dates}\n👥 {personnes} personne(s)\n🎫 Code : *{code_reservation}*\n\nVotre QR Code ci-joint vous permettra de valider votre arrivée sur place.\n\n📍 Suivi : {lien_suivi}\n\nNous vous souhaitons un excellent séjour !\nL&Lui Signature`,
+    template4_fiche: `🌊 *Fiche d'accueil — L&Lui Signature – Kribi*\n\nBonjour {nom_client},\n\nVotre séjour du {date_arrivee} → {date_depart} à Kribi approche ! Nous sommes ravis de vous accueillir.\n\n📍 Votre hébergement : *{produit}*\n👥 {personnes} personne(s)\n🔑 Code réservation : *{code_reservation}*\n\nRetrouvez tous les détails de votre réservation et votre QR Code d'accès ici :\n👉 {lien_suivi}\n\n🎁 *Avantage Membre L&Lui Stars :*\nEn tant que membre {niveau_fidelite}, vous bénéficiez de {reduction_boutique} sur toute notre boutique en ligne.\n🛍️ Commander sur la boutique : http://l-et-lui-signature.com\n\nÀ très vite sous le soleil de Kribi !\nL'équipe L&Lui Signature 🌺`,
   }
   if (!doc.exists) return defaults
   return { ...defaults, ...doc.data() }
@@ -217,7 +218,8 @@ export async function confirmPayment(
 }
 
 // ============================================================
-// BOUTON 4 — Envoi fiche avec QR Code
+// BOUTON 4 — Envoi fiche avec QR Code (template V2)
+// Utilisé par l'espace partenaire (auto-détection loyauté)
 // ============================================================
 export async function sendWhatsAppFiche(
   reservationId: string,
@@ -228,14 +230,38 @@ export async function sendWhatsAppFiche(
     if (!doc.exists) return { success: false, error: 'Réservation introuvable' }
     const res = doc.data()!
 
-
-    const templates = await getTemplates()
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature.cm'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature-hebergements.vercel.app'
     const lienSuivi = `${baseUrl}/suivi/${reservationId}`
 
     const checkIn = new Date(res.check_in).toLocaleDateString('fr-FR')
     const checkOut = new Date(res.check_out).toLocaleDateString('fr-FR')
     const confirmCode = res.confirmation_code || reservationId.slice(-8).toUpperCase()
+
+    // Lookup loyalty level depuis la collection clients
+    let niveauFidelite: NiveauFidelite = null
+    if (res.guest_email) {
+      const clientSnap = await db.collection('clients')
+        .where('email', '==', res.guest_email.toLowerCase().trim())
+        .limit(1)
+        .get()
+      if (!clientSnap.empty) {
+        niveauFidelite = clientSnap.docs[0].data().niveau || 'novice'
+      }
+    }
+
+    // Auto-détection : version complète si client trouvé, simplifiée sinon
+    const variant: FicheVariant = niveauFidelite ? 'complete' : 'simple'
+
+    const message = buildFicheV2({
+      clientName: `${res.guest_first_name} ${res.guest_last_name}`,
+      dateArrivee: checkIn,
+      dateDepart: checkOut,
+      nomLogement: res.accommodation?.name || res.pack_name || '',
+      nombrePersonnes: res.guests,
+      codeReservation: confirmCode,
+      lienSuivi,
+      niveauFidelite,
+    }, variant)
 
     // Générer QR si pas encore fait
     let qrCodeData = res.qr_code_data
@@ -243,18 +269,6 @@ export async function sendWhatsAppFiche(
       const qrData = encodeURIComponent(`${baseUrl}/partenaire/scanner?code=${confirmCode}`)
       qrCodeData = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrData}&bgcolor=FFFFFF&color=1A1A1A&margin=10`
     }
-
-    const message = interpolate(templates.template4_fiche, {
-      nom_client: `${res.guest_first_name} ${res.guest_last_name}`,
-      produit: res.accommodation?.name || res.pack_name || '',
-      dates: `${checkIn} → ${checkOut}`,
-      personnes: String(res.guests),
-      montant: new Intl.NumberFormat('fr-FR').format(res.total_price),
-      code_reservation: confirmCode,
-      numero_paiement: ADMIN_WHATSAPP,
-      partenaire: res.partner_name || 'L&Lui Signature',
-      lien_suivi: lienSuivi,
-    })
 
     const clientPhone = res.guest_phone?.replace(/\D/g, '') || ''
     const url = `https://wa.me/${clientPhone}?text=${encodeURIComponent(message)}`
@@ -403,41 +417,67 @@ export async function prepareWhatsAppPaymentRequest(
 
 export async function prepareWhatsAppFiche(
   reservationId: string
-): Promise<{ success: true; message: string; url: string; phone: string; recipientName: string } | { success: false; error: string }> {
+): Promise<{
+  success: true
+  messageComplete: string
+  messageSimple: string
+  urlComplete: string
+  urlSimple: string
+  phone: string
+  recipientName: string
+  clientNiveau: NiveauFidelite
+} | { success: false; error: string }> {
   try {
     const doc = await db.collection('reservations').doc(reservationId).get()
     if (!doc.exists) return { success: false, error: 'Réservation introuvable' }
     const res = doc.data()!
 
-    const templates = await getTemplates()
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature.cm'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://llui-signature-hebergements.vercel.app'
     const lienSuivi = `${baseUrl}/suivi/${reservationId}`
 
     const checkIn = new Date(res.check_in).toLocaleDateString('fr-FR')
     const checkOut = new Date(res.check_out).toLocaleDateString('fr-FR')
     const confirmCode = res.confirmation_code || reservationId.slice(-8).toUpperCase()
 
-    const message = interpolate(templates.template4_fiche, {
-      nom_client: `${res.guest_first_name} ${res.guest_last_name}`,
-      produit: res.accommodation?.name || res.pack_name || '',
-      dates: `${checkIn} → ${checkOut}`,
-      personnes: String(res.guests),
-      montant: new Intl.NumberFormat('fr-FR').format(res.total_price),
-      code_reservation: confirmCode,
-      numero_paiement: ADMIN_WHATSAPP,
-      partenaire: res.partner_name || 'L&Lui Signature',
-      lien_suivi: lienSuivi,
-    })
+    // Lookup loyalty level depuis la collection clients
+    let niveauFidelite: NiveauFidelite = null
+    if (res.guest_email) {
+      const clientSnap = await db.collection('clients')
+        .where('email', '==', res.guest_email.toLowerCase().trim())
+        .limit(1)
+        .get()
+      if (!clientSnap.empty) {
+        niveauFidelite = clientSnap.docs[0].data().niveau || 'novice'
+      }
+    }
+
+    const ficheParams = {
+      clientName: `${res.guest_first_name} ${res.guest_last_name}`,
+      dateArrivee: checkIn,
+      dateDepart: checkOut,
+      nomLogement: res.accommodation?.name || res.pack_name || '',
+      nombrePersonnes: res.guests,
+      codeReservation: confirmCode,
+      lienSuivi,
+      niveauFidelite,
+    }
+
+    const messageComplete = buildFicheV2(ficheParams, 'complete')
+    const messageSimple = buildFicheV2(ficheParams, 'simple')
 
     const clientPhone = res.guest_phone?.replace(/\D/g, '') || ''
-    const url = `https://wa.me/${clientPhone}?text=${encodeURIComponent(message)}`
+    const urlComplete = `https://wa.me/${clientPhone}?text=${encodeURIComponent(messageComplete)}`
+    const urlSimple = `https://wa.me/${clientPhone}?text=${encodeURIComponent(messageSimple)}`
 
     return {
       success: true,
-      message,
-      url,
+      messageComplete,
+      messageSimple,
+      urlComplete,
+      urlSimple,
       phone: clientPhone,
       recipientName: `${res.guest_first_name} ${res.guest_last_name}`,
+      clientNiveau: niveauFidelite,
     }
   } catch (e: any) {
     return { success: false, error: e.message || 'Erreur préparation fiche' }

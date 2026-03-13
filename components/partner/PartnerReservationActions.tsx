@@ -7,80 +7,34 @@ import { Loader2, CheckCircle, XCircle, DollarSign, MessageCircle, ImageIcon, Qr
 import { updatePaymentStatus, updateReservationStatus } from '@/actions/reservations'
 import { sendWhatsAppFiche } from '@/actions/whatsapp-pipeline'
 import { formatDate, formatPrice, getPaymentMethodLabel } from '@/lib/utils'
+import { buildFicheV2 } from '@/lib/messageTemplates'
+
+const SITE_URL = 'https://llui-signature-hebergements.vercel.app'
 
 interface Props {
   reservation: any
 }
 
+// Construit le message V2 côté client pour la prévisualisation dans l'espace partenaire
+// Utilise la version simplifiée (sans bloc fidélité) car le niveau n'est pas chargé ici
 function buildWhatsAppMessage(res: any): string {
-  const statusLabel =
-    res.reservation_status === 'confirmee' ? 'Confirmée ✅'
-    : res.reservation_status === 'en_attente' ? 'En attente ⏳'
-    : 'Annulée ❌'
+  const checkIn = res.check_in ? new Date(res.check_in).toLocaleDateString('fr-FR') : ''
+  const checkOut = res.check_out ? new Date(res.check_out).toLocaleDateString('fr-FR') : ''
+  const confirmCode = res.confirmation_code || ''
+  const lienSuivi = confirmCode
+    ? `${SITE_URL}/suivi/${res.id}`
+    : SITE_URL
 
-  const paymentLabel =
-    res.payment_status === 'paye' ? 'Payé ✅'
-    : res.payment_status === 'annule' ? 'Annulé ❌'
-    : 'En attente ⏳'
-
-  let msg = `🕊️ *L&Lui Signature* — Fiche de Réservation\n\n`
-  msg += `Bonjour ${res.guest_first_name} ${res.guest_last_name} 👋\n\n`
-  msg += `Voici le récapitulatif complet de votre réservation :\n\n`
-
-  if (res.confirmation_code) {
-    msg += `📋 *Référence :* ${res.confirmation_code}\n`
-  }
-  msg += `📊 *Statut :* ${statusLabel}\n\n`
-
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `🏠 *Hébergement*\n`
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `${res.accommodation?.name ?? res.accommodation_id}\n`
-  if (res.accommodation?.location) msg += `📍 ${res.accommodation.location}\n`
-  msg += `\n`
-
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `📅 *Dates du séjour*\n`
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `✈️ Arrivée : ${formatDate(res.check_in, 'dd/MM/yyyy')}\n`
-  msg += `🏁 Départ  : ${formatDate(res.check_out, 'dd/MM/yyyy')}\n`
-  msg += `🌙 Durée   : ${res.nights} nuit${res.nights > 1 ? 's' : ''}\n`
-  msg += `👥 Voyageurs : ${res.guests} personne${res.guests > 1 ? 's' : ''}\n\n`
-
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `💰 *Paiement*\n`
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `💵 Tarif : ${formatPrice(res.price_per_night)}/nuit\n`
-  msg += `💰 Total : ${formatPrice(res.total_price)}\n`
-  msg += `💳 Mode  : ${getPaymentMethodLabel(res.payment_method)}\n`
-  msg += `✅ Statut : ${paymentLabel}\n\n`
-
-  if (res.confirmation_code && res.reservation_status === 'confirmee') {
-    msg += `━━━━━━━━━━━━━━━━━━━\n`
-    msg += `🎫 *Code d'arrivée*\n`
-    msg += `━━━━━━━━━━━━━━━━━━━\n`
-    msg += `*${res.confirmation_code}*\n`
-    if (res.qr_code_data) {
-      msg += `\n📲 *Votre QR Code :*\n${res.qr_code_data}\n`
-    }
-    msg += `_(À présenter à votre arrivée)_\n\n`
-  }
-
-  if (res.notes) {
-    msg += `━━━━━━━━━━━━━━━━━━━\n`
-    msg += `📝 *Notes*\n`
-    msg += `━━━━━━━━━━━━━━━━━━━\n`
-    msg += `${res.notes}\n\n`
-  }
-
-  msg += `━━━━━━━━━━━━━━━━━━━\n`
-  msg += `📞 *L&Lui Signature*\n`
-  msg += `Kribi — Cameroun\n`
-  msg += `☎️ 693 407 964\n`
-  msg += `🌐 https://letlui-signature.netlify.app/\n`
-  msg += `━━━━━━━━━━━━━━━━━━━`
-
-  return msg
+  return buildFicheV2({
+    clientName: `${res.guest_first_name} ${res.guest_last_name}`,
+    dateArrivee: checkIn,
+    dateDepart: checkOut,
+    nomLogement: res.accommodation?.name || res.accommodation_id || '',
+    nombrePersonnes: res.guests,
+    codeReservation: confirmCode,
+    lienSuivi,
+    niveauFidelite: null, // non chargé côté partenaire → version simplifiée
+  }, 'simple')
 }
 
 function formatPhoneForWhatsApp(phone: string | undefined): string {

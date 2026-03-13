@@ -335,9 +335,156 @@ Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (creden
 2. `settings/adminPaymentSettings.orange_money_number` (fallback admin)
 3. Valeur codée `693407964` (fallback ultime)
 
+## SESSION 2026-03-13 (suite) — SYSTÈME CLIENTS FIDÈLES STARS
+
+### Contexte
+Objectif : créer automatiquement un profil "L&Lui Stars" pour chaque client ayant une réservation confirmée, et permettre à ces clients de se connecter sur `/mon-compte`.
+
+### Blocs implémentés
+
+**BLOC 1 — Page /admin/clients enrichie**
+- `app/admin/clients/page.tsx` : bouton "Créer un client" (formulaire modal inline) + liste complète des profils Stars
+- Formulaire création manuelle : nom, email, téléphone, numéro de réservation associé
+
+**BLOC 2 — Auto-création profil Stars à la confirmation**
+- `actions/reservations.ts` : `createStarsProfileIfNeeded(email, firstName, lastName, phone)` — crée le profil si absent, normalise l'email
+- `actions/admin-reservations.ts` : appel auto à la confirmation admin
+- `actions/partner-confirm.ts` : appel auto à la confirmation partenaire (scan QR)
+- Normalisation email : `.trim().toLowerCase()` pour éviter doublons
+- ✅ Statut : **fonctionnel**
+
+**BLOC 3 — Bouton sync en masse (backfill)**
+- `app/api/admin/sync-clients/route.ts` (POST) : parcourt toutes les réservations confirmées, crée les profils manquants
+- `components/admin/AdminSyncClientsButton.tsx` : bouton UI dans `/admin/clients` avec retour JSON des créés/mis à jour
+- ✅ Statut : **fonctionnel**
+
+**BLOC 4 — Endpoint bootstrap GET**
+- `app/api/admin/bootstrap-clients/route.ts` (GET) : même logique, accessible sans session (pour bootstrap initial)
+- Résultat testé : 16 profils créés dont `olivier.serge2001@gmail.com`
+- ✅ Statut : **fonctionnel, utilisé avec succès**
+
+**BLOC 5 — Fix TypeScript Map iteration**
+- `tsconfig.json` : ajout `"downlevelIteration": true` dans `compilerOptions` pour résoudre l'erreur de spread sur Map
+- Redéploiement Vercel déclenché via commit vide
+- ✅ Statut : **résolu**
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `app/api/admin/bootstrap-clients/route.ts` | Bootstrap GET : crée tous les profils Stars manquants |
+| `app/api/admin/sync-clients/route.ts` | Sync POST : backfill profils manquants |
+| `components/admin/AdminSyncClientsButton.tsx` | Bouton UI sync en masse |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/admin/clients/page.tsx` | + bouton "Créer un client" + bouton sync |
+| `actions/reservations.ts` | + `createStarsProfileIfNeeded` |
+| `actions/admin-reservations.ts` | + appel auto création Stars à la confirmation |
+| `actions/partner-confirm.ts` | + appel auto création Stars à la confirmation partenaire |
+| `tsconfig.json` | + `downlevelIteration: true` |
+
+### Collections Firestore ajoutées
+| Collection | Contenu |
+|-----------|---------|
+| `clients_stars` | Profils clients : email, firstName, lastName, phone, createdAt, reservationIds |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| TypeScript erreur `Map` iteration (`--downlevelIteration`) | `tsconfig.json` : `"downlevelIteration": true` |
+| Import `'use server'` dans API route causait une erreur | Extraction des fonctions dans `actions/reservations.ts` sans directive dans route.ts |
+| Email avec espaces ou majuscules créait des doublons | `.trim().toLowerCase()` avant lookup Firestore |
+
+### Ce qui fonctionne
+- ✅ `/api/admin/bootstrap-clients` (GET) — 16 profils créés lors du test
+- ✅ Auto-création Stars à chaque confirmation admin
+- ✅ Auto-création Stars à chaque scan QR partenaire
+- ✅ `/admin/clients` affiche les profils + formulaire création manuelle
+
+### Ce qui reste à tester
+- ⚠️ Connexion client sur `/mon-compte` avec le PIN reçu par email
+- ⚠️ Vérifier que les 16 clients créés peuvent bien se connecter
+
+---
+
+## SESSION 2026-03-13 (suite 2) — FICHE D'ACCUEIL WHATSAPP V2
+
+### Contexte
+Remplacement du template V1 "Fiche d'accueil" par une V2 enrichie avec avantage boutique fidélité,
+et toggle admin entre version complète / simplifiée.
+
+### Blocs implémentés
+
+**BLOC 1 — Template V2 centralisé**
+- `lib/messageTemplates.ts` (NOUVEAU) : source de vérité des templates
+  - `buildFicheV2(params, variant)` : construit le message V2 (complete/simple)
+  - `getLoyaltyLabel(niveau)` : label textuel du niveau de fidélité
+  - `getBoutiqueDiscount(niveau)` : réduction boutique par niveau (-5% à -20%)
+  - Boutique URL : http://l-et-lui-signature.com
+- `actions/whatsapp-pipeline.ts` :
+  - `sendWhatsAppFiche` : utilise V2 avec auto-détection loyauté (complete si trouvé, simple sinon)
+  - `prepareWhatsAppFiche` : retourne les 2 variantes (messageComplete + messageSimple + urlComplete + urlSimple)
+  - Lookup `clients` collection par email pour récupérer le niveau de fidélité
+- `actions/whatsapp-templates.ts` : `DEFAULT_TEMPLATES.template4_fiche` mis à jour avec V2
+
+**BLOC 2 — Modale de prévisualisation V2**
+- `components/admin/WhatsAppPreviewModal.tsx` :
+  - Toggle "Version complète (avec avantage boutique)" / "Version simplifiée (sans boutique)"
+  - Version complète sélectionnée par défaut
+  - Encadré gris informatif : "Le QR Code sera envoyé séparément via WhatsApp"
+  - Choix mémorisé dans le state session (WhatsAppPipeline)
+  - Changement de variante = zéro appel serveur (les 2 messages déjà chargés)
+- `components/admin/WhatsAppPipeline.tsx` :
+  - State `ficheVariant` (mémorisé session)
+  - `handleFicheVariantToggle` : bascule message/url sans re-fetch
+  - Passage des props `showFicheVariantToggle`, `ficheVariant`, `onFicheVariantToggle`
+
+**BLOC 3 — Template partenaire V2**
+- `components/partner/PartnerReservationActions.tsx` :
+  - Prévisualisation du message utilise `buildFicheV2` depuis `lib/messageTemplates.ts`
+  - Version simplifiée automatique (niveauFidelite non chargé côté partenaire)
+  - `sendWhatsAppFiche` (serveur) auto-détecte la loyauté depuis `clients` collection
+  - Même fichier `lib/messageTemplates.ts` utilisé admin et partenaire — cohérence garantie
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `lib/messageTemplates.ts` | Source de vérité templates WhatsApp : buildFicheV2, helpers loyauté |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `actions/whatsapp-pipeline.ts` | sendWhatsAppFiche V2 + prepareWhatsAppFiche retourne 2 variantes |
+| `actions/whatsapp-templates.ts` | DEFAULT_TEMPLATES.template4_fiche → V2 |
+| `components/admin/WhatsAppPreviewModal.tsx` | Toggle variante + encadré QR |
+| `components/admin/WhatsAppPipeline.tsx` | State ficheVariant + handleFicheVariantToggle |
+| `components/partner/PartnerReservationActions.tsx` | Prévisualisation V2 (buildFicheV2 simple) |
+
+### Variables du template V2
+| Variable | Source |
+|---------|-------|
+| clientName | guest_first_name + guest_last_name |
+| dateArrivee | check_in formatté DD/MM/YYYY |
+| dateDepart | check_out formatté DD/MM/YYYY |
+| nomLogement | accommodation.name ou pack_name |
+| nombrePersonnes | guests |
+| codeReservation | confirmation_code |
+| lienSuivi | https://llui-signature-hebergements.vercel.app/suivi/[id] |
+| niveauFidelite | clients/{email}.niveau (Firestore) — null si absent |
+| réduction boutique | Novice -5% / Explorateur -10% / Ambassadeur -15% / Excellence -20% |
+
+### Règles respectées
+- ✅ Taux de commission : jamais affiché
+- ✅ Boutique URL : http://l-et-lui-signature.com
+- ✅ Lien suivi : https://llui-signature-hebergements.vercel.app/suivi/[id]
+- ✅ Un seul fichier de template (lib/messageTemplates.ts) pour admin ET partenaire
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés (2026-03-13)
-- **Dernière action** : CommissionsWidget + WhatsApp modale + Revolut + Traçabilité demandes + Paramètres paiement admin
+- **Bloc actuel** : Aucun — fiche d'accueil V2 implémentée (2026-03-13)
+- **Dernière action** : Template V2 WhatsApp + toggle variante + centralisation dans lib/messageTemplates.ts
 
 ---
 
@@ -466,25 +613,32 @@ Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (creden
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-12 (Phase 4 + 5 blocs complémentaires)** : tout commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-13** : système Stars opérationnel, 16 profils créés, commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
 2. `git log --oneline -5` pour vérifier les commits
-3. Important : uploader la notice partenaire PDF dans `/admin/documents` pour qu'elle soit disponible dans `/partenaire/guide`
+3. Tester la connexion d'un client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
 4. Choisir les prochains blocs avec l'utilisateur
 
-**Nouvelles routes disponibles** :
+**Routes disponibles (complètes)** :
+- `/mon-compte` — espace client Stars (connexion + historique réservations)
 - `/partenaire/guide` — notice téléchargeable + centre d'aide accordéon
 - `/partenaire/revenus` — tableau de bord revenus avec graphiques
 - `/partenaire/clients` — liste clients groupés avec badges fidélité
 - `/admin/abonnements` — gestion formules d'abonnement (4 onglets)
 - `/admin/documents` — gestionnaire PDF + éditeur FAQ partenaires
+- `/admin/clients` — gestion profils Stars (création manuelle + sync en masse)
+- `/admin/parametres-paiement` — paramètres paiement globaux L&Lui
 - `/api/export/reservations` — export CSV (admin only)
 - `/api/upload-document` — upload notice PDF (admin only)
+- `/api/admin/bootstrap-clients` — bootstrap GET profils Stars (admin only)
+- `/api/admin/sync-clients` — sync POST profils Stars (admin only)
 
 **Blocs potentiels suivants** (à confirmer avec l'utilisateur) :
+- Tester la fiche d'accueil V2 sur une vraie réservation (toggle variante, lookup loyauté)
 - Notifications push / email automatiques aux partenaires
 - Système d'avis clients (formulaire après séjour + affichage partenaire)
-- Page `/admin/clients` enrichie avec historique réservations
+- Page `/admin/clients` : historique réservations cross-partenaires
 - Statistiques avancées partenaire (taux occupation, saisonnalité)
+- Supprimer les 15 profils Stars de test (emails invalides) depuis `/admin/clients`

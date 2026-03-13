@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { X, MessageCircle, Pencil, Send, Phone, ToggleLeft, ToggleRight } from 'lucide-react'
+import { X, MessageCircle, Pencil, Send, Phone, ToggleLeft, ToggleRight, Info } from 'lucide-react'
+
+type FicheVariant = 'complete' | 'simple'
 
 interface Props {
   isOpen: boolean
@@ -14,6 +16,10 @@ interface Props {
   showRevolutToggle?: boolean
   revolutIncluded?: boolean
   onRevolutToggle?: (included: boolean) => void
+  /** Pour le bouton 4 (fiche V2) : toggle variante complète/simplifiée */
+  showFicheVariantToggle?: boolean
+  ficheVariant?: FicheVariant
+  onFicheVariantToggle?: (variant: FicheVariant) => void
   onSend: (finalMessage: string) => void
   onClose: () => void
 }
@@ -28,6 +34,9 @@ export default function WhatsAppPreviewModal({
   showRevolutToggle = false,
   revolutIncluded = false,
   onRevolutToggle,
+  showFicheVariantToggle = false,
+  ficheVariant = 'complete',
+  onFicheVariantToggle,
   onSend,
   onClose,
 }: Props) {
@@ -80,6 +89,47 @@ export default function WhatsAppPreviewModal({
 
         {/* Message preview / edit */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Toggle variante fiche V2 si applicable */}
+          {showFicheVariantToggle && onFicheVariantToggle && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-dark/60">Version du message</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onFicheVariantToggle('complete')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                    ficheVariant === 'complete'
+                      ? 'bg-gold-50 border-gold-400 text-gold-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Version complète (avec avantage boutique)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFicheVariantToggle('simple')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                    ficheVariant === 'simple'
+                      ? 'bg-blue-50 border-blue-300 text-blue-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Version simplifiée (sans boutique)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Info encadré QR Code (fiche seulement) */}
+          {showFicheVariantToggle && (
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl">
+              <Info size={13} className="text-gray-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-gray-600">
+                Le QR Code de la réservation sera envoyé séparément en image via WhatsApp après l'envoi de ce message.
+              </p>
+            </div>
+          )}
+
           {/* Toggle Revolut si applicable */}
           {showRevolutToggle && onRevolutToggle && (
             <div className="flex items-center justify-between px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl">
