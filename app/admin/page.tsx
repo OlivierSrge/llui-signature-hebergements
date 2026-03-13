@@ -17,6 +17,8 @@ import { RevenueChart, SourcePieChart } from '@/components/admin/DashboardCharts
 import type { RevenueDayData, SourceData } from '@/components/admin/DashboardCharts'
 import PaymentRelanceWidget from '@/components/admin/PaymentRelanceWidget'
 import type { AlertReservation } from '@/components/admin/PaymentRelanceWidget'
+import CommissionsWidget from '@/components/admin/CommissionsWidget'
+import { getPartnerCommissionsData } from '@/actions/commissions'
 
 // ── Helpers ────────────────────────────────────────────────────
 function formatPhone(phone: string): string {
@@ -270,7 +272,7 @@ export default async function AdminDashboard() {
   const [
     stats, recent, demandsData, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
-    birthdayClients, stayAnniversaryClients,
+    birthdayClients, stayAnniversaryClients, commissionsData,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -287,6 +289,7 @@ export default async function AdminDashboard() {
     getExpiringSubscriptions(),
     getBirthdayClients(),
     getStayAnniversaryClients(),
+    getPartnerCommissionsData(),
   ])
 
   const pendingDemands = demandsData.all
@@ -874,6 +877,12 @@ export default async function AdminDashboard() {
           )}
         </div>
       )}
+
+      {/* ── Widget Commissions par partenaire ── */}
+      <CommissionsWidget
+        initialData={commissionsData}
+        partners={commissionsData.rows.map((r) => ({ id: r.partnerId, name: r.partnerName, plan: r.partnerPlan }))}
+      />
 
       {/* Actions rapides */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

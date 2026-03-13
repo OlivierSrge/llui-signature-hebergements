@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
+Dernière mise à jour : 2026-03-13 — 5 blocs : Commissions, WhatsApp modale, Revolut, Traçabilité demandes, Paramètres paiement admin
 
 ---
 
@@ -277,9 +277,54 @@ Dernière mise à jour : 2026-03-11 — Système contrat partenariat complet
 
 ---
 
+## SESSION 2026-03-13 — 5 BLOCS COMMISSION / WHATSAPP / REVOLUT / TRAÇABILITÉ / PAIEMENT
+
+### Blocs implémentés
+
+**BLOC 1 — Widget Commissions Mensuelles par Partenaire**
+- `components/admin/CommissionsWidget.tsx` : tableau mensuel 6 mois, modale détail réservations, filtres (année/partenaire/plan), export CSV BOM UTF-8, bouton rafraîchir
+- `components/admin/PartnerCommissionsChart.tsx` : graphique barres recharts 12 derniers mois
+- `actions/commissions.ts` : `getPartnerCommissionsData(year)` + `getPartnerCommissions12Months(partnerId)`
+- `app/admin/page.tsx` : widget intégré avant "Actions rapides"
+- `app/admin/partenaires/[id]/page.tsx` : graphique barres commissions 12 mois
+
+**BLOC 2 — Bouton WhatsApp 2 temps**
+- `components/admin/WhatsAppPreviewModal.tsx` : modale prévisualisation + édition message + bouton explicite "Ouvrir WhatsApp et envoyer"
+- `components/admin/WhatsAppPipeline.tsx` : réécriture complète — modale avant toute ouverture WhatsApp
+- `actions/whatsapp-pipeline.ts` : `prepareWhatsApp*` (sans maj Firestore) + `recordWhatsAppSent` (maj après clic)
+
+**BLOC 3 — Traçabilité demandes clients**
+- `actions/availability-requests.ts` : `markRequestHandled/ByPartner` → +treatedAt/treatedBy/treatedById/delaiTraitement
+- `app/admin/page.tsx` : délai coloré (orange 2h+, rouge 6h+) + sous-onglet "Traitées récemment"
+- `app/admin/demandes/page.tsx` : badge traitée + filtre délai (lt1h/1h6h/gt6h) + stat délai moyen mois
+
+**BLOC 4 — Intégration Revolut**
+- `actions/whatsapp-pipeline.ts` : `prepareWhatsAppPaymentRequest` → option Revolut intégrée dans le message bouton 2
+- `components/admin/WhatsAppPreviewModal.tsx` : toggle "Inclure Revolut" (activé par défaut)
+- `actions/whatsapp-pipeline.ts` : `confirmPayment` → nouveau champ `payment_method` (OM/Revolut/virement/autre)
+- `components/admin/WhatsAppPipeline.tsx` : sélecteur moyen de paiement dans le formulaire bouton 3
+
+**BLOC 5 — Paramétrage moyens de paiement admin**
+- `lib/payment-settings.ts` : interface `AdminPaymentSettings` + `DEFAULT_ADMIN_PAYMENT_SETTINGS`
+- `actions/payment-settings.ts` : `loadAdminPaymentSettings`, `saveAdminPaymentSettings`, `resolvePaymentSettingsForReservation`
+- `components/admin/AdminGlobalPaymentSettingsForm.tsx` : formulaire OM + Revolut + banque + MTN avec toggle Revolut par défaut
+- `app/admin/parametres-paiement/page.tsx` : page complète avec règles de priorité
+- `components/admin/AdminSidebar.tsx` : + ⚙️ Paramètres paiement
+
+### Nouvelles routes disponibles
+- `/admin/parametres-paiement` — Paramètres paiement globaux L&Lui (OM, Revolut, banque, MTN)
+
+### Collections Firestore ajoutées
+- `settings/adminPaymentSettings` — Paramètres paiement globaux admin
+
+### Règle de priorité paiement
+1. `partenaires/{id}.payment_settings.orange_money_number` (priorité max)
+2. `settings/adminPaymentSettings.orange_money_number` (fallback admin)
+3. Valeur codée `693407964` (fallback ultime)
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés
-- **Dernière action** : Guide + Centre aide + Commission masquée + Abonnements admin + Permissions Firestore
+- **Bloc actuel** : Aucun — 5 blocs implémentés et pushés (2026-03-13)
+- **Dernière action** : CommissionsWidget + WhatsApp modale + Revolut + Traçabilité demandes + Paramètres paiement admin
 
 ---
 
