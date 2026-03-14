@@ -107,7 +107,7 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
 
   const handlePreview = () => {
     const pdf = generateCommissionRequestPDF(getPDFData())
-    window.open(pdf.output('bloburl') as string, '_blank')
+    window.open(pdf.output('bloburl') as unknown as string, '_blank')
   }
 
   const handleDownload = async () => {
