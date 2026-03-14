@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
-import { sendReservationEmails, sendPartnerReservationConfirmedEmail } from '@/lib/email'
+import { sendReservationEmails, sendPartnerNewDemandEmail, sendPartnerReservationConfirmedEmail } from '@/lib/email'
 import { validatePromoCode } from '@/actions/promo-codes'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
@@ -114,6 +114,34 @@ export async function createReservation(
     }
 
     revalidatePath('/admin/reservations')
+
+    // Notifier le partenaire propriétaire du logement (non-bloquant)
+    if (accommodation.partner_id) {
+      ;(async () => {
+        try {
+          const partnerDoc = await db.collection('partenaires').doc(accommodation.partner_id).get()
+          const partner = partnerDoc.data()
+          if (partner?.email) {
+            await sendPartnerNewDemandEmail(
+              { name: partner.name || 'Partenaire', email: partner.email },
+              {
+                product_type: 'hebergement',
+                product_id: accommodationId,
+                product_name: accommodation.name,
+                guest_first_name: formData.guest_first_name,
+                guest_last_name: formData.guest_last_name,
+                guest_phone: formData.guest_phone,
+                guest_email: formData.guest_email,
+                check_in: formData.check_in,
+                check_out: formData.check_out,
+                guests: formData.guests,
+                message: formData.notes || '',
+              }
+            )
+          }
+        } catch { /* silently fail */ }
+      })()
+    }
 
     // Send email notifications (non-blocking)
     sendReservationEmails({
