@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/firebase'
 import { calculateReservation } from '@/lib/utils'
-import { sendReservationEmails } from '@/lib/email'
+import { sendReservationEmails, sendPartnerNewDemandEmail, sendPartnerReservationConfirmedEmail } from '@/lib/email'
 import { validatePromoCode } from '@/actions/promo-codes'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
@@ -98,6 +98,7 @@ export async function createReservation(
       cancellation_reason: null,
       notes: formData.notes || null,
       admin_notes: null,
+      partner_id: accommodation.partner_id || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -114,6 +115,34 @@ export async function createReservation(
     }
 
     revalidatePath('/admin/reservations')
+
+    // Notifier le partenaire propriétaire du logement (non-bloquant)
+    if (accommodation.partner_id) {
+      ;(async () => {
+        try {
+          const partnerDoc = await db.collection('partenaires').doc(accommodation.partner_id).get()
+          const partner = partnerDoc.data()
+          if (partner?.email) {
+            await sendPartnerNewDemandEmail(
+              { name: partner.name || 'Partenaire', email: partner.email },
+              {
+                product_type: 'hebergement',
+                product_id: accommodationId,
+                product_name: accommodation.name,
+                guest_first_name: formData.guest_first_name,
+                guest_last_name: formData.guest_last_name,
+                guest_phone: formData.guest_phone,
+                guest_email: formData.guest_email,
+                check_in: formData.check_in,
+                check_out: formData.check_out,
+                guests: formData.guests,
+                message: formData.notes || '',
+              }
+            )
+          }
+        } catch { /* silently fail */ }
+      })()
+    }
 
     // Send email notifications (non-blocking)
     sendReservationEmails({
@@ -165,6 +194,36 @@ export async function updateReservationStatus(
     // Créer/mettre à jour le profil client L&Lui Stars à la confirmation
     if (status === 'confirmee') {
       await syncClientFromReservationId(reservationId).catch(() => {})
+
+      // Notifier le partenaire du logement par email (non-bloquant)
+      ;(async () => {
+        try {
+          const resDoc = await db.collection('reservations').doc(reservationId).get()
+          const res = resDoc.data()
+          if (!res?.accommodation_id) return
+
+          const accDoc = await db.collection('hebergements').doc(res.accommodation_id).get()
+          const partnerId = accDoc.data()?.partner_id
+          if (!partnerId) return
+
+          const partnerDoc = await db.collection('partenaires').doc(partnerId).get()
+          const partner = partnerDoc.data()
+          if (!partner?.email) return
+
+          await sendPartnerReservationConfirmedEmail(
+            { name: partner.name || 'Partenaire', email: partner.email },
+            {
+              reservationId,
+              guestName: `${res.guest_first_name} ${res.guest_last_name}`,
+              accommodationName: res.accommodation?.name || accDoc.data()?.name || '',
+              checkIn: res.check_in,
+              checkOut: res.check_out,
+              nights: res.nights,
+              totalPrice: res.total_price,
+            }
+          )
+        } catch { /* silently fail */ }
+      })()
     }
 
     revalidatePath('/admin/reservations')

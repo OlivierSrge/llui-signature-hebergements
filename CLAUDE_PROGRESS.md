@@ -482,9 +482,63 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-13 (fin de journée) — FIXES PAGE SUIVI CLIENT
+
+### Blocs implémentés
+
+**FIX 1 — QR code toujours visible sur /suivi/[id]**
+- `app/suivi/[reservationId]/page.tsx` : génération QR à la volée si `qr_code_data` absent en base
+  - URL générée : `api.qrserver.com` avec `confirmCode` (confirmation_code ou derniers 8 chars de l'ID)
+  - QR code visible dès que `isConfirmed === true` même sans `qr_code_data` en Firestore
+- ✅ Statut : **fonctionnel**
+
+**FIX 2 — Bouton boutique sur /suivi/[id]**
+- `app/suivi/[reservationId]/page.tsx` : remplacement du bouton "Contacter via WhatsApp" par "🛍️ Commander sur la boutique"
+  - Lien : `http://l-et-lui-signature.com`
+  - Label au-dessus : "👇 Préparez votre séjour :"
+  - Style bouton gold (bg-gold-600)
+- ✅ Statut : **fonctionnel**
+
+**FIX 3 — Composant QrCodeImage avec skeleton de chargement**
+- `components/QrCodeImage.tsx` (NOUVEAU) : composant Client React
+  - Skeleton animé (`animate-pulse`) pendant le chargement de l'image externe
+  - Transition `opacity-0 → opacity-100` au chargement
+  - Fallback texte si l'API externe échoue : "QR code indisponible — utilisez le code ci-dessous"
+  - Évite l'affichage d'un QR code vide au premier chargement (délai API externe `api.qrserver.com`)
+- ✅ Statut : **fonctionnel**
+
+### Fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `components/QrCodeImage.tsx` | Composant Client QR avec skeleton chargement |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `app/suivi/[reservationId]/page.tsx` | QR généré à la volée + bouton boutique + import QrCodeImage |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| QR code vide au 1er chargement | `QrCodeImage` Client avec `onLoad`/`onError` + skeleton `animate-pulse` |
+| Bouton boutique absent (commit non mergé dans main) | Push branche + PR #4 créée et mergée |
+| PR GitHub affichait "0 commits to compare" | PR déjà mergée automatiquement (workflow normal) |
+
+### Ce qui fonctionne
+- ✅ QR code toujours visible si réservation confirmée (fallback génération URL)
+- ✅ Skeleton animé pendant chargement du QR
+- ✅ Bouton boutique visible sur la page de suivi client
+- ✅ Pipeline complet : PR #3 + PR #4 mergées, 2 déploiements Vercel actifs
+
+### Ce qui reste à tester
+- ⚠️ Vérifier bouton boutique visible sur une vraie page `/suivi/[id]` confirmée
+- ⚠️ Tester connexion client `/mon-compte` avec email réel
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — fiche d'accueil V2 implémentée (2026-03-13)
-- **Dernière action** : Template V2 WhatsApp + toggle variante + centralisation dans lib/messageTemplates.ts
+- **Bloc actuel** : Aucun — fixes suivi client terminés (2026-03-13 fin journée)
+- **Dernière action** : QrCodeImage skeleton + bouton boutique + PR #4 mergée
 
 ---
 
@@ -611,15 +665,98 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-14 — NOTIFICATIONS EMAIL PARTENAIRES + DEMANDES PAIEMENT COMMISSIONS
+**Mise à jour : 2026-03-14**
+
+### Notifications email automatiques aux partenaires ✅ Terminé
+**4 déclencheurs (tous non-bloquants fire-and-forget) :**
+| Événement | Fichier | Statut |
+|-----------|---------|--------|
+| Réservation publique soumise → partenaire | `actions/reservations.ts:118` | ✅ |
+| Demande disponibilité soumise → partenaire | `actions/availability-requests.ts:58` | ✅ |
+| Admin confirme réservation → partenaire | `actions/reservations.ts:169` | ✅ |
+| Admin envoie message → partenaire | `actions/messages.ts:43` | ✅ |
+
+**3 fonctions ajoutées dans `lib/email.ts`** :
+- `sendPartnerNewDemandEmail` (l.199)
+- `sendPartnerNewMessageEmail` (l.250)
+- `sendPartnerReservationConfirmedEmail` (l.271)
+
+**Configuration Resend** :
+- `.env.local` créé : `RESEND_API_KEY=re_34jFAmFR_5TNfSi8Ktqnf2phwN1PU1WKJ`
+- FROM : `onboarding@resend.dev` (plan gratuit)
+- ⚠️ **Action manuelle** : ajouter `RESEND_API_KEY` dans Vercel → Settings → Environment Variables
+
+### Système Demandes de Paiement Commissions (4 blocs) ✅ Terminé
+**BLOC 1 — Tableau commissions enrichi** ✅
+- Colonne "Actions" + bouton "📄 Demande de paiement" si total > 0
+- Bouton global "Générer toutes les demandes du mois"
+- Onglets "Tableau" / "Historique des demandes"
+- Types `CommissionReservation` : + `accommodationName`, `checkIn`, `checkOut`
+
+**BLOC 2 — PDF A4 jsPDF** ✅ `lib/generateCommissionPDF.ts`
+- Palette beige/or/noir, en-tête répété si multi-pages
+- Tableau réservations, ligne TOTAL or, 3 options paiement
+- Taux commission jamais affiché, référence `LLUI-COM-YYYY-MM-XXXXX`
+
+**BLOC 3 — Modale d'envoi** ✅ `components/admin/CommissionRequestModal.tsx`
+- Sélecteur mois, résumé, prévisualisation/téléchargement PDF
+- WhatsApp pré-rempli + email Resend avec PDF en pièce jointe Base64
+- Sauvegarde : `partenaires/{id}/commissionRequests/{ref}`
+
+**BLOC 4 — Historique** ✅ (onglet dans CommissionsWidget)
+- Badges : généré/envoyé WA/envoyé email/payé
+- "Marquer comme payé" + "Renvoyer" + chargement lazy
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `lib/generateCommissionPDF.ts` | Génération PDF jsPDF côté client |
+| `actions/commission-requests.ts` | CRUD Firestore + envoi email PDF joint |
+| `components/admin/CommissionRequestModal.tsx` | Modale prévisualisation/envoi |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `lib/email.ts` | + 3 fonctions email partenaire + champs optionnels `product_type?`, `product_id?` |
+| `actions/availability-requests.ts` | + déclencheur email nouvelle demande |
+| `actions/messages.ts` | + déclencheur email nouveau message admin |
+| `actions/reservations.ts` | + 2 déclencheurs (soumission publique + confirmation) |
+| `actions/commissions.ts` | + `accommodationName`, `checkIn`, `checkOut` dans la query |
+| `components/admin/CommissionsWidget.tsx` | + types enrichis + onglets + bouton + historique |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| Email manquant à la soumission publique | Ajout déclencheur dans `createReservation()` |
+| `sendPartnerNewDemandEmail` refusait `product_type` | Ajout champs `product_type?`, `product_id?` optionnels |
+| Imports inutilisés dans CommissionsWidget | Retrait `Clock`, `MailIcon`, `MessageCircle` |
+
+### Ce qui fonctionne
+- ✅ 4 déclencheurs email partenaire codés et pushés
+- ✅ PDF généré côté client sans appel serveur
+- ✅ Email avec PDF pièce jointe via Resend
+- ✅ Historique Firestore des demandes générées
+
+### Ce qui reste à tester
+- ⚠️ Ajouter `RESEND_API_KEY` dans Vercel (sinon emails silencieusement ignorés en prod)
+- ⚠️ Tester génération PDF sur mobile Safari
+- ⚠️ Tester `/mon-compte` client Stars (sujet en attente depuis session 2026-03-13)
+
+---
+
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-13** : système Stars opérationnel, 16 profils créés, commité et pushé sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-14** : notifications email partenaires + système complet demandes paiement commissions implémentés et pushés sur `claude/review-and-continue-phase-4-pibnO`.
 
-**À faire au démarrage de la prochaine session** :
-1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
-2. `git log --oneline -5` pour vérifier les commits
-3. Tester la connexion d'un client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
-4. Choisir les prochains blocs avec l'utilisateur
+**Prochaine action prioritaire** :
+1. Lire ce fichier (`CLAUDE_PROGRESS.md`)
+2. Aller dans **Vercel → Settings → Environment Variables** et ajouter :
+   - `RESEND_API_KEY = re_34jFAmFR_5TNfSi8Ktqnf2phwN1PU1WKJ`
+   - `FROM_EMAIL = onboarding@resend.dev`
+3. Tester un email partenaire en soumettant une réservation de test
+4. Tester la génération PDF commission dans `/admin` → widget Commissions → bouton "📄 Demande de paiement"
+5. Choisir les prochains blocs avec l'utilisateur
 
 **Routes disponibles (complètes)** :
 - `/mon-compte` — espace client Stars (connexion + historique réservations)

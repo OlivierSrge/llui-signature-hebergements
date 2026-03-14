@@ -38,6 +38,13 @@ export async function getPartnerCommissionsData(year: number = new Date().getFul
     plan: d.data().plan || d.data().subscription_plan || undefined,
   }))
 
+  // Charger les hébergements pour le fallback (anciennes réservations sans partner_id)
+  const accSnap = await db.collection('hebergements').get()
+  const accPartnerMap: Record<string, string> = {}
+  accSnap.docs.forEach((d) => {
+    if (d.data().partner_id) accPartnerMap[d.id] = d.data().partner_id
+  })
+
   // Charger les réservations payées
   const resSnap = await db.collection('reservations')
     .where('payment_status', '==', 'paye')
@@ -45,7 +52,13 @@ export async function getPartnerCommissionsData(year: number = new Date().getFul
   const reservations = resSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
 
   const rows: PartnerRow[] = partners.map((partner) => {
-    const partnerResv = reservations.filter((r) => r.partner_id === partner.id && r.payment_date)
+    const partnerResv = reservations.filter((r) => {
+      if (!r.payment_date) return false
+      // Correspondance directe (nouvelles réservations)
+      if (r.partner_id) return r.partner_id === partner.id
+      // Fallback via accommodation_id (anciennes réservations sans partner_id)
+      return r.accommodation_id && accPartnerMap[r.accommodation_id] === partner.id
+    })
 
     const monthCells = months.map((month) => {
       const monthResv = partnerResv.filter((r) => {
@@ -65,6 +78,9 @@ export async function getPartnerCommissionsData(year: number = new Date().getFul
           id: r.id,
           code: r.confirmation_code || r.id.slice(-8).toUpperCase(),
           guestName: `${r.guest_first_name || ''} ${r.guest_last_name || ''}`.trim(),
+          accommodationName: r.accommodation?.name || '',
+          checkIn: r.check_in || '',
+          checkOut: r.check_out || '',
           totalPrice: r.total_price || 0,
           commissionRate: r.commission_rate || 0,
           commissionAmount: r.commission_amount != null ? r.commission_amount : (r.total_price * (r.commission_rate || 0)) / 100 || 0,

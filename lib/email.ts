@@ -6,7 +6,8 @@ function getResend(): Resend {
   return _resend
 }
 
-const FROM = process.env.FROM_EMAIL ?? 'L&Lui Signature <onboarding@resend.dev>'
+// Resend plan gratuit : FROM doit être onboarding@resend.dev (domaine non vérifié)
+const FROM = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contact@llui-signature.cm'
 
 function paymentLabel(method: string) {
@@ -169,6 +170,190 @@ export async function sendReservationEmails(reservation: {
       html: clientHtml,
     }),
   ])
+}
+
+// ─── Partner notification emails ───────────────────────────────────────────
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llui-signature-hebergements.vercel.app'
+
+function emailBase(content: string) {
+  return `<!DOCTYPE html>
+  <html lang="fr">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#f5f0eb;font-family:'Helvetica Neue',Arial,sans-serif">
+    <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+      <div style="background:#1a1a1a;padding:28px 32px;text-align:center">
+        <span style="font-family:Georgia,serif;font-size:24px;font-weight:600;color:#fff">
+          L<span style="color:#c9a227">&</span>Lui Signature
+        </span>
+      </div>
+      <div style="padding:32px">${content}</div>
+      <div style="background:#f5f0eb;padding:20px 32px;text-align:center;font-size:12px;color:#999">
+        © L&Lui Signature — Kribi, Cameroun
+      </div>
+    </div>
+  </body>
+  </html>`
+}
+
+export async function sendPartnerNewDemandEmail(
+  partner: { name: string; email: string },
+  demand: {
+    product_type?: string
+    product_id?: string
+    product_name: string
+    guest_first_name: string
+    guest_last_name: string
+    guest_phone: string
+    guest_email: string
+    check_in: string
+    check_out: string
+    guests: number
+    message?: string
+  }
+) {
+  const html = emailBase(`
+    <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Nouvelle demande de disponibilité
+    </h2>
+    <p style="margin:0 0 20px;color:#888;font-size:14px">
+      Bonjour <strong>${partner.name}</strong>, un client souhaite réserver votre logement.
+    </p>
+    <div style="background:#f5f0eb;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+      <p style="margin:0 0 4px;font-size:13px;color:#888">Client</p>
+      <p style="margin:0;font-size:16px;font-weight:600;color:#1a1a1a">${demand.guest_first_name} ${demand.guest_last_name}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#555">${demand.guest_email} · ${demand.guest_phone}</p>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 24px">
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666;width:40%">Logement</td>
+        <td style="padding:10px 0;font-weight:600;color:#1a1a1a">${demand.product_name}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Arrivée</td>
+        <td style="padding:10px 0;color:#1a1a1a">${formatDate(demand.check_in)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Départ</td>
+        <td style="padding:10px 0;color:#1a1a1a">${formatDate(demand.check_out)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Voyageurs</td>
+        <td style="padding:10px 0;color:#1a1a1a">${demand.guests} personne${demand.guests > 1 ? 's' : ''}</td>
+      </tr>
+      ${demand.message ? `<tr>
+        <td style="padding:10px 0;color:#666;vertical-align:top">Message</td>
+        <td style="padding:10px 0;color:#1a1a1a">${demand.message}</td>
+      </tr>` : ''}
+    </table>
+    <div style="text-align:center">
+      <a href="${SITE_URL}/partenaire/dashboard" style="display:inline-block;background:#c9a227;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:14px">
+        Voir la demande →
+      </a>
+    </div>
+    <p style="margin:20px 0 0;font-size:12px;color:#aaa;text-align:center">
+      Connectez-vous à votre espace partenaire pour prendre en charge cette demande.
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: partner.email,
+    subject: `[L&Lui] Nouvelle demande – ${demand.product_name}`,
+    html,
+  })
+}
+
+export async function sendPartnerNewMessageEmail(
+  partner: { name: string; email: string },
+  message: { text: string; adminName: string }
+) {
+  const html = emailBase(`
+    <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Nouveau message de L&Lui
+    </h2>
+    <p style="margin:0 0 24px;color:#555;line-height:1.6">
+      Bonjour <strong>${partner.name}</strong>, vous avez reçu un nouveau message de la part de <strong>${message.adminName}</strong>.
+    </p>
+    <div style="background:#f5f0eb;border-left:4px solid #c9a227;border-radius:6px;padding:16px 20px;margin-bottom:24px">
+      <p style="margin:0;font-size:15px;color:#1a1a1a;line-height:1.6;font-style:italic">"${message.text}"</p>
+    </div>
+    <div style="text-align:center">
+      <a href="${SITE_URL}/partenaire/messages" style="display:inline-block;background:#c9a227;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:14px">
+        Répondre →
+      </a>
+    </div>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: partner.email,
+    subject: `[L&Lui] Message de ${message.adminName}`,
+    html,
+  })
+}
+
+export async function sendPartnerReservationConfirmedEmail(
+  partner: { name: string; email: string },
+  reservation: {
+    reservationId: string
+    guestName: string
+    accommodationName: string
+    checkIn: string
+    checkOut: string
+    nights: number
+    totalPrice: number
+  }
+) {
+  const html = emailBase(`
+    <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Réservation confirmée
+    </h2>
+    <p style="margin:0 0 20px;color:#888;font-size:14px">
+      Bonjour <strong>${partner.name}</strong>, une réservation sur votre logement vient d'être confirmée.
+    </p>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 18px;margin-bottom:20px">
+      <p style="margin:0;font-size:14px;font-weight:600;color:#166534">✅ Réservation confirmée</p>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 24px">
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666;width:40%">Client</td>
+        <td style="padding:10px 0;font-weight:600;color:#1a1a1a">${reservation.guestName}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Logement</td>
+        <td style="padding:10px 0;color:#1a1a1a">${reservation.accommodationName}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Arrivée</td>
+        <td style="padding:10px 0;color:#1a1a1a">${formatDate(reservation.checkIn)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Départ</td>
+        <td style="padding:10px 0;color:#1a1a1a">${formatDate(reservation.checkOut)}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Durée</td>
+        <td style="padding:10px 0;color:#1a1a1a">${reservation.nights} nuit${reservation.nights > 1 ? 's' : ''}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#666">Montant</td>
+        <td style="padding:10px 0;font-weight:700;color:#c9a227;font-size:16px">${formatPrice(reservation.totalPrice)}</td>
+      </tr>
+    </table>
+    <div style="text-align:center">
+      <a href="${SITE_URL}/partenaire/reservations/liste" style="display:inline-block;background:#c9a227;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:14px">
+        Voir mes réservations →
+      </a>
+    </div>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: partner.email,
+    subject: `[L&Lui] Réservation confirmée – ${reservation.accommodationName}`,
+    html,
+  })
 }
 
 // ─── Pack request email ────────────────────────────────────────────────────
