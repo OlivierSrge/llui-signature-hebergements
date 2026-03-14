@@ -665,15 +665,97 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-14 — NOTIFICATIONS EMAIL PARTENAIRES + DEMANDES PAIEMENT COMMISSIONS
+**Mise à jour : 2026-03-14**
+
+### Notifications email automatiques aux partenaires ✅ Terminé
+**4 déclencheurs (tous non-bloquants fire-and-forget) :**
+| Événement | Fichier | Statut |
+|-----------|---------|--------|
+| Réservation publique soumise → partenaire | `actions/reservations.ts:118` | ✅ |
+| Demande disponibilité soumise → partenaire | `actions/availability-requests.ts:58` | ✅ |
+| Admin confirme réservation → partenaire | `actions/reservations.ts:169` | ✅ |
+| Admin envoie message → partenaire | `actions/messages.ts:43` | ✅ |
+
+**3 fonctions ajoutées dans `lib/email.ts`** :
+- `sendPartnerNewDemandEmail` (l.199)
+- `sendPartnerNewMessageEmail` (l.250)
+- `sendPartnerReservationConfirmedEmail` (l.271)
+
+**Configuration Resend** :
+- `.env.local` créé : `RESEND_API_KEY=re_34jFAmFR_5TNfSi8Ktqnf2phwN1PU1WKJ`
+- FROM : `onboarding@resend.dev` (plan gratuit)
+- ⚠️ **Action manuelle** : ajouter `RESEND_API_KEY` dans Vercel → Settings → Environment Variables
+
+### Système Demandes de Paiement Commissions (4 blocs) ✅ Terminé
+**BLOC 1 — Tableau commissions enrichi** ✅
+- Colonne "Actions" + bouton "📄 Demande de paiement" si total > 0
+- Bouton global "Générer toutes les demandes du mois"
+- Onglets "Tableau" / "Historique des demandes"
+- Types `CommissionReservation` : + `accommodationName`, `checkIn`, `checkOut`
+
+**BLOC 2 — PDF A4 jsPDF** ✅ `lib/generateCommissionPDF.ts`
+- Palette beige/or/noir, en-tête répété si multi-pages
+- Tableau réservations, ligne TOTAL or, 3 options paiement
+- Taux commission jamais affiché, référence `LLUI-COM-YYYY-MM-XXXXX`
+
+**BLOC 3 — Modale d'envoi** ✅ `components/admin/CommissionRequestModal.tsx`
+- Sélecteur mois, résumé, prévisualisation/téléchargement PDF
+- WhatsApp pré-rempli + email Resend avec PDF en pièce jointe Base64
+- Sauvegarde : `partenaires/{id}/commissionRequests/{ref}`
+
+**BLOC 4 — Historique** ✅ (onglet dans CommissionsWidget)
+- Badges : généré/envoyé WA/envoyé email/payé
+- "Marquer comme payé" + "Renvoyer" + chargement lazy
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `lib/generateCommissionPDF.ts` | Génération PDF jsPDF côté client |
+| `actions/commission-requests.ts` | CRUD Firestore + envoi email PDF joint |
+| `components/admin/CommissionRequestModal.tsx` | Modale prévisualisation/envoi |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `lib/email.ts` | + 3 fonctions email partenaire + champs optionnels `product_type?`, `product_id?` |
+| `actions/availability-requests.ts` | + déclencheur email nouvelle demande |
+| `actions/messages.ts` | + déclencheur email nouveau message admin |
+| `actions/reservations.ts` | + 2 déclencheurs (soumission publique + confirmation) |
+| `actions/commissions.ts` | + `accommodationName`, `checkIn`, `checkOut` dans la query |
+| `components/admin/CommissionsWidget.tsx` | + types enrichis + onglets + bouton + historique |
+
+### Bugs rencontrés et solutions
+| Problème | Solution |
+|---------|---------|
+| Email manquant à la soumission publique | Ajout déclencheur dans `createReservation()` |
+| `sendPartnerNewDemandEmail` refusait `product_type` | Ajout champs `product_type?`, `product_id?` optionnels |
+| Imports inutilisés dans CommissionsWidget | Retrait `Clock`, `MailIcon`, `MessageCircle` |
+
+### Ce qui fonctionne
+- ✅ 4 déclencheurs email partenaire codés et pushés
+- ✅ PDF généré côté client sans appel serveur
+- ✅ Email avec PDF pièce jointe via Resend
+- ✅ Historique Firestore des demandes générées
+
+### Ce qui reste à tester
+- ⚠️ Ajouter `RESEND_API_KEY` dans Vercel (sinon emails silencieusement ignorés en prod)
+- ⚠️ Tester génération PDF sur mobile Safari
+- ⚠️ Tester `/mon-compte` client Stars (sujet en attente depuis session 2026-03-13)
+
+---
+
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-13 fin de journée** : système Stars opérationnel, QR code skeleton ajouté, bouton boutique sur /suivi, PR #3 + #4 mergées dans main, 2 déploiements Vercel actifs.
+**État au 2026-03-14** : notifications email partenaires + système complet demandes paiement commissions implémentés et pushés sur `claude/review-and-continue-phase-4-pibnO`.
 
-**À faire au démarrage de la prochaine session** :
-1. Lire ce fichier en premier (`CLAUDE_PROGRESS.md`)
-2. `git log --oneline -5 origin/main` pour vérifier les commits en prod
-3. Tester sur la page `/suivi/[id]` : bouton boutique visible + skeleton QR au 1er chargement
-4. Tester la connexion client sur `/mon-compte` avec `olivier.serge2001@gmail.com`
+**Prochaine action prioritaire** :
+1. Lire ce fichier (`CLAUDE_PROGRESS.md`)
+2. Aller dans **Vercel → Settings → Environment Variables** et ajouter :
+   - `RESEND_API_KEY = re_34jFAmFR_5TNfSi8Ktqnf2phwN1PU1WKJ`
+   - `FROM_EMAIL = onboarding@resend.dev`
+3. Tester un email partenaire en soumettant une réservation de test
+4. Tester la génération PDF commission dans `/admin` → widget Commissions → bouton "📄 Demande de paiement"
 5. Choisir les prochains blocs avec l'utilisateur
 
 **Routes disponibles (complètes)** :

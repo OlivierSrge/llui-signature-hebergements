@@ -199,6 +199,8 @@ function emailBase(content: string) {
 export async function sendPartnerNewDemandEmail(
   partner: { name: string; email: string },
   demand: {
+    product_type?: string
+    product_id?: string
     product_name: string
     guest_first_name: string
     guest_last_name: string
