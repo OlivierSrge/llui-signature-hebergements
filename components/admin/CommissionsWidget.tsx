@@ -562,6 +562,7 @@ export default function CommissionsWidget({ initialData, partners }: Props) {
             row={requestModalRow}
             months={data.months}
             onClose={() => setRequestModalRow(null)}
+            onRequestSaved={loadHistory}
           />
         </Suspense>
       )}

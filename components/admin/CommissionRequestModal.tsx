@@ -32,11 +32,12 @@ interface Props {
   row: PartnerRow
   months: CommissionsData['months']
   onClose: () => void
+  onRequestSaved?: () => void
 }
 
 // ── Composant ────────────────────────────────────────────────────────────────
 
-export default function CommissionRequestModal({ row, months, onClose }: Props) {
+export default function CommissionRequestModal({ row, months, onClose, onRequestSaved }: Props) {
   // Mois disponibles (avec commissions > 0)
   const availableMonthIndices = row.months
     .map((cell, i) => ({ cell, i }))
@@ -122,12 +123,16 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
       totalAmount: total,
       reservationsCount: reservations.length,
     })
+    onRequestSaved?.()
   }
 
   const handleWhatsApp = async () => {
+    const phone = (partnerDetails?.whatsapp_number || '').replace(/\D/g, '')
+    // P3 — guard : ne pas ouvrir WhatsApp si numéro absent
+    if (!phone) return
+
     const omNumber = paymentSettings.orange_money_number || '693407964'
     const revolut = paymentSettings.revolut_link || 'https://revolut.me/olivieqf4i'
-    const phone = (partnerDetails?.whatsapp_number || '').replace(/\D/g, '')
     const formattedPhone = phone.startsWith('237') ? phone : `237${phone}`
 
     const msg = [
@@ -147,6 +152,11 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
       "L'équipe L&Lui Signature",
     ].join('\n')
 
+    // P1 — iOS Safari : ouvrir WhatsApp AVANT les await pour conserver la chaîne du geste utilisateur
+    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
+    window.location.href = url
+
+    setWhatsappSent(true)
     await saveCommissionRequest({
       partnerId: row.partnerId,
       partnerName: row.partnerName,
@@ -157,10 +167,7 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
       reservationsCount: reservations.length,
     })
     await updateCommissionRequestStatus(row.partnerId, ref, 'sent_whatsapp')
-    setWhatsappSent(true)
-
-    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
-    window.open(url, '_blank')
+    onRequestSaved?.()
   }
 
   const handleSendEmail = () => {
@@ -195,6 +202,7 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
         await updateCommissionRequestStatus(row.partnerId, ref, 'sent_email')
         setEmailSent(true)
         setFeedback({ type: 'success', msg: `Email envoyé à ${partnerDetails.email}` })
+        onRequestSaved?.()
       } else {
         setFeedback({ type: 'error', msg: result.error || 'Erreur lors de l\'envoi' })
       }
@@ -281,22 +289,28 @@ export default function CommissionRequestModal({ row, months, onClose }: Props) 
               {/* WhatsApp */}
               <div>
                 <p className="text-xs font-semibold text-dark/60 mb-2">Envoyer au partenaire</p>
-                <button
-                  onClick={handleWhatsApp}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
-                >
-                  <MessageCircle size={15} />
-                  {whatsappSent ? '✓ WhatsApp ouvert' : '📱 Envoyer via WhatsApp'}
-                </button>
-                {partnerDetails?.whatsapp_number && (
-                  <p className="text-[10px] text-dark/40 text-center mt-1">{partnerDetails.whatsapp_number}</p>
+                {partnerDetails?.whatsapp_number ? (
+                  <>
+                    <button
+                      onClick={handleWhatsApp}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+                    >
+                      <MessageCircle size={15} />
+                      {whatsappSent ? '✓ WhatsApp ouvert' : '📱 Envoyer via WhatsApp'}
+                    </button>
+                    <p className="text-[10px] text-dark/40 text-center mt-1">{partnerDetails.whatsapp_number}</p>
+                    <div className="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 text-xs text-amber-700 space-y-0.5">
+                      <p className="font-semibold">Instructions :</p>
+                      <p>① Téléchargez le PDF ci-dessus</p>
+                      <p>② Cliquez sur "Envoyer via WhatsApp" (message pré-rempli)</p>
+                      <p>③ Dans WhatsApp, joignez le PDF au message avant d'envoyer</p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-dark/30 italic bg-beige-50 rounded-xl px-4 py-3 text-center">
+                    ⚠️ Numéro WhatsApp non renseigné pour ce partenaire
+                  </p>
                 )}
-                <div className="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 text-xs text-amber-700 space-y-0.5">
-                  <p className="font-semibold">Instructions :</p>
-                  <p>① Téléchargez le PDF ci-dessus</p>
-                  <p>② Cliquez sur "Envoyer via WhatsApp" (message pré-rempli)</p>
-                  <p>③ Dans WhatsApp, joignez le PDF au message avant d'envoyer</p>
-                </div>
               </div>
 
               {/* Email */}
