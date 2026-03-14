@@ -98,6 +98,7 @@ export async function createReservation(
       cancellation_reason: null,
       notes: formData.notes || null,
       admin_notes: null,
+      partner_id: accommodation.partner_id || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
