@@ -8,7 +8,7 @@ function getResend(): Resend {
 
 // Resend plan gratuit : FROM doit être onboarding@resend.dev (domaine non vérifié)
 const FROM = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contact@llui-signature.cm'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'contact@l-et-lui.com'
 
 function paymentLabel(method: string) {
   const labels: Record<string, string> = {
