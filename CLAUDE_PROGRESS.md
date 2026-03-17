@@ -536,9 +536,63 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-15 — PWA (Progressive Web App)
+
+### Blocs implémentés (3 blocs)
+
+**BLOC 1 — Icônes et Manifest**
+- `public/manifest.json` : manifest PWA complet (name, short_name, start_url, display standalone, colors, 8 tailles d'icônes)
+- `scripts/generate-icons.js` : génération programmatique des icônes PNG via `sharp` (fond or #C9A84C, initiales "LL" en blanc, 8 tailles : 72→512px)
+- `public/icons/icon-{72,96,128,144,152,192,384,512}x*.png` : icônes générées et committées
+- `next-pwa@5.6.0` installé via npm
+
+**BLOC 2 — Configuration Next.js**
+- `next.config.mjs` → `next.config.js` (renommé pour compatibilité CJS avec next-pwa v5)
+- `next.config.js` : enveloppé avec `withPWA` (dest: 'public', register: true, skipWaiting: true, désactivé en dev)
+- `app/layout.tsx` : ajout `<head>` avec manifest, theme-color, apple-mobile-web-app-*, apple-touch-icon
+- `app/layout.tsx` : import + intégration `<PWAInstallBanner />` en fin de `<body>`
+
+**BLOC 3 — Bannières d'installation ciblées**
+- `components/PWAInstallBanner.tsx` : composant Client avec 3 audiences :
+  - **Partenaire** (`/partenaire/*`) : bannière dès la 1ère visite, refus mémorisé 30 jours
+  - **Client fidélité** (`/mon-compte/*`) : bannière à partir de la 2ème visite, refus mémorisé 7 jours
+  - **Visiteur anonyme** : jamais de bannière
+- Détection Android/Chrome → `beforeinstallprompt` → installation native
+- Détection iOS/Safari → instructions 3 étapes avec emojis (Partager → Sur l'écran d'accueil → Ajouter)
+- Jamais affiché sur desktop (`window.innerWidth > 768`)
+- Jamais affiché si déjà installé (`display-mode: standalone`)
+- Style : fond beige #F5F0E8, bordure top or #C9A84C, bouton or, coins arrondis haut
+- Spacer automatique pour éviter que la bannière masque le contenu
+
+### Nouveaux fichiers créés
+| Fichier | Rôle |
+|---------|------|
+| `public/manifest.json` | Manifest PWA |
+| `public/icons/icon-*.png` | 8 icônes PNG générées |
+| `scripts/generate-icons.js` | Générateur d'icônes sharp |
+| `components/PWAInstallBanner.tsx` | Bannières installation ciblées par audience |
+
+### Fichiers modifiés
+| Fichier | Modification |
+|---------|-------------|
+| `next.config.js` (ex .mjs) | + withPWA wrapper |
+| `app/layout.tsx` | + balises PWA head + PWAInstallBanner |
+
+### Dépendances installées
+- `next-pwa@5.6.0` — Service worker + configuration PWA
+
+### LocalStorage keys
+| Clé | Valeur | Usage |
+|-----|--------|-------|
+| `pwa_dismissed_partner` | timestamp expiry | Refus bannière partenaire (30 jours) |
+| `pwa_dismissed_client` | timestamp expiry | Refus bannière client (7 jours) |
+| `pwa_visits_client` | nombre | Compteur visites /mon-compte |
+
+---
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — fixes suivi client terminés (2026-03-13 fin journée)
-- **Dernière action** : QrCodeImage skeleton + bouton boutique + PR #4 mergée
+- **Bloc actuel** : Aucun — PWA implémentée (2026-03-15)
+- **Dernière action** : PWAInstallBanner + manifest + icônes + next-pwa configuré
 
 ---
 

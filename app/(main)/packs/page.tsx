@@ -120,7 +120,7 @@ export default async function PacksPage() {
             créerons une offre personnalisée pour votre événement.
           </p>
           <a
-            href="mailto:contact@llui-signature.cm?subject=Demande%20pack%20sur%20mesure"
+            href="mailto:contact@l-et-lui.com?subject=Demande%20pack%20sur%20mesure"
             className="btn-primary px-10 py-4 text-base inline-flex"
           >
             Contacter notre équipe

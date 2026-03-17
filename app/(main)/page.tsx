@@ -140,7 +140,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <p className="text-white/60 text-lg mb-8 leading-relaxed">
             L&amp;Lui Signature, c&apos;est bien plus que la réservation d&apos;hébergements. Notre agence vous accompagne dans l&apos;organisation complète de votre jour J.
           </p>
-          <a href="mailto:contact@llui-signature.cm?subject=Organisation%20mariage%20Kribi" className="btn-primary px-10 py-4 text-base">Nous contacter</a>
+          <a href="mailto:contact@l-et-lui.com?subject=Organisation%20mariage%20Kribi" className="btn-primary px-10 py-4 text-base">Nous contacter</a>
         </div>
       </section>
     </div>
