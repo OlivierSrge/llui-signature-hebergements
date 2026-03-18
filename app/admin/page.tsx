@@ -19,6 +19,8 @@ import PaymentRelanceWidget from '@/components/admin/PaymentRelanceWidget'
 import type { AlertReservation } from '@/components/admin/PaymentRelanceWidget'
 import CommissionsWidget from '@/components/admin/CommissionsWidget'
 import { getPartnerCommissionsData } from '@/actions/commissions'
+import AdminWindowAlert from '@/components/admin/AdminWindowAlert'
+import TreasuryWidget from '@/components/admin/TreasuryWidget'
 
 // ── Helpers ────────────────────────────────────────────────────
 function formatPhone(phone: string): string {
@@ -243,6 +245,87 @@ async function getSourceDistribution(): Promise<SourceData[]> {
   ].filter((d) => d.count > 0)
 }
 
+// Widget Trésorerie — encaissements L&Lui vs partenaires
+async function getTreasuryStats() {
+  const now = new Date()
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const snap = await db.collection('reservations').get()
+  const all = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+
+  const thisMon = all.filter((r) => (r.created_at || '') >= monthStart)
+
+  // Encaissé directement ce mois = llui_site payé + acomptes confirmés QR Code
+  const encaisseDir = thisMon.filter((r) => {
+    const src = r.source
+    if (src === 'llui_site' && r.payment_status === 'paye') return true
+    if (src === 'partner_qr' && r.acompteStatus === 'confirmed') return true
+    if ((src === 'direct' || src === 'admin' || !src) && r.payment_status === 'paye') return true
+    return false
+  }).reduce((s: number, r: any) => {
+    if (r.source === 'partner_qr') return s + (r.acompteAmount || 0)
+    return s + (r.commission_amount || r.total_price || 0)
+  }, 0)
+
+  // Acomptes en attente
+  const pendingAcomptes = all.filter((r) => r.source === 'partner_qr' && r.acompteStatus === 'pending')
+  const accomptesEnAttente = pendingAcomptes.reduce((s: number, r: any) => s + (r.acompteAmount || 0), 0)
+
+  // Ratio L&Lui
+  const totalPaye = all.filter((r) => r.payment_status === 'paye').reduce((s: number, r: any) => s + (r.total_price || 0), 0)
+  const totalLlui = all.filter((r) => (r.source === 'llui_site' || r.source === 'direct' || !r.source) && r.payment_status === 'paye').reduce((s: number, r: any) => s + (r.total_price || 0), 0)
+  const ratioLlui = totalPaye > 0 ? Math.round((totalLlui / totalPaye) * 100) : 0
+
+  // Par source
+  const srcMap: Record<string, { label: string; icon: string; count: number; total: number; llui: number }> = {}
+  for (const r of all) {
+    let key = r.source || 'llui_site'
+    if (r.autoEscalated && r.source === 'llui_site' && r.sourcePartnerId) key = 'escalade'
+    if (!srcMap[key]) {
+      const labels: Record<string, [string, string]> = {
+        llui_site: ['Site L&Lui', '🏠'],
+        partner_qr: ['QR Partenaire', '📱'],
+        escalade: ['Escalade auto', '⚡'],
+        direct: ['Site L&Lui', '🏠'],
+        partenaire: ['QR Partenaire', '📱'],
+        admin: ['Admin', '⚙️'],
+      }
+      const [label, icon] = labels[key] || [key, '📌']
+      srcMap[key] = { label, icon, count: 0, total: 0, llui: 0 }
+    }
+    srcMap[key].count++
+    srcMap[key].total += r.total_price || 0
+    if (key !== 'partner_qr' && key !== 'partenaire') {
+      srcMap[key].llui += r.total_price || 0
+    } else if (r.acompteAmount) {
+      srcMap[key].llui += r.acompteAmount || 0
+    }
+  }
+
+  const bySource = Object.entries(srcMap).map(([, v]) => ({
+    label: v.label, icon: v.icon, count: v.count,
+    totalMontant: v.total, encaisseLlui: v.llui,
+    pctLlui: v.total > 0 ? Math.round((v.llui / v.total) * 100) : 0,
+  })).sort((a, b) => b.count - a.count)
+
+  return { encaisseDirectCeMois: encaisseDir, accomptesEnAttente, accomptesEnAttenteCount: pendingAcomptes.length, ratioLlui, bySource }
+}
+
+// Fenêtre admin prioritaire — réservations QR Code en attente de décision
+async function getAdminWindowReservations() {
+  const now = new Date().toISOString()
+  const snap = await db.collection('reservations').get()
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((r: any) =>
+      r.source === 'partner_qr' &&
+      r.handledBy === 'partner' &&
+      r.adminWindowEnd &&
+      r.adminWindowEnd > now &&
+      !r.adminWindowUsed &&
+      r.visiblePartenaire === false
+    ) as any[]
+}
+
 // Widget 3 — Alertes relances 24h enrichies
 async function getPaymentAlerts(): Promise<AlertReservation[]> {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -272,7 +355,7 @@ export default async function AdminDashboard() {
   const [
     stats, recent, demandsData, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
-    birthdayClients, stayAnniversaryClients, commissionsData,
+    birthdayClients, stayAnniversaryClients, commissionsData, adminWindowResas, treasuryStats,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -290,6 +373,8 @@ export default async function AdminDashboard() {
     getBirthdayClients(),
     getStayAnniversaryClients(),
     getPartnerCommissionsData(),
+    getAdminWindowReservations(),
+    getTreasuryStats(),
   ])
 
   const pendingDemands = demandsData.all
@@ -302,6 +387,9 @@ export default async function AdminDashboard() {
 
   return (
     <div className="p-6 sm:p-8 pt-6 lg:pt-8 mt-14 lg:mt-0 space-y-6">
+      {/* Fenêtre admin prioritaire — alertes QR Code */}
+      <AdminWindowAlert reservations={adminWindowResas} />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -516,6 +604,9 @@ export default async function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* ── Widget Trésorerie & Sources ── */}
+      <TreasuryWidget stats={treasuryStats} />
 
       {/* ── LIGNE 5 : Widget 3 — Alertes relances ── */}
       <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden">

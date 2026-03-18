@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (credential store)
+Dernière mise à jour : 2026-03-18 — Différenciation deux flux de réservation + protection trésorerie L&Lui (5 blocs)
 
 ---
 
@@ -13,6 +13,13 @@ Dernière mise à jour : 2026-03-13 07:50 — Sécurisation token GitHub (creden
 ---
 
 ## FONCTIONNALITÉS COMPLÈTEMENT TERMINÉES
+
+### Session 2026-03-18 — Différenciation deux flux + protection trésorerie
+- **FLUX-BLOC-1** — Structure Firestore : champs `source` (`llui_site`/`partner_qr`), `handledBy`, `visiblePartenaire`, `acompteRequired/Amount/Status`, `adminWindow*`, `autoEscalated` — `lib/reservationRules.ts` + `actions/reservation-source.ts` (migration + buildSourceFields)
+- **FLUX-BLOC-2** — Seuil d'escalade automatique (100 000 FCFA par défaut) : bascule silencieuse `partner_qr` → `llui_site` si montant >= seuil. Section "Règles de réservation" dans `/admin/parametres-paiement` (seuil, fenêtre, acompte %) persistée dans Firestore `/settings/reservationRules`
+- **FLUX-BLOC-3** — Fenêtre admin prioritaire 2h : `AdminWindowAlert` sur le dashboard, compteur temps réel, deux boutons "Traiter moi-même / Laisser au partenaire"
+- **FLUX-BLOC-4** — Acompte 30% L&Lui obligatoire : `PartnerQrPipeline` (composant spécifique QR Code avec Bouton 0 acompte en 1er, boutons 1-4 verrouillés jusqu'à confirmation). `AcompteAdminPanel` sur `/admin/reservations/[id]` pour confirmer/dispenser
+- **FLUX-BLOC-5** — Flux A (llui_site) lecture seule chez le partenaire + masquage des montants. Widget `TreasuryWidget` sur le dashboard admin (KPIs : encaissé direct, acomptes en attente, ratio L&Lui). Toggle `ForceFluxLluiToggle` sur fiche partenaire
 
 ### Blocs fonctionnels (session principale)
 - **BLOC 1** — Pipeline WhatsApp admin (proposition → paiement → confirmation) avec boutons étapes progressives

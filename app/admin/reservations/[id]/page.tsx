@@ -11,6 +11,7 @@ import {
 import ReservationActions from '@/components/admin/ReservationActions'
 import WhatsAppPipeline from '@/components/admin/WhatsAppPipeline'
 import WhatsAppHistory from '@/components/admin/WhatsAppHistory'
+import AcompteAdminPanel from '@/components/admin/AcompteAdminPanel'
 
 async function getReservation(id: string) {
   const doc = await db.collection('reservations').doc(id).get()
@@ -99,7 +100,28 @@ export default async function AdminReservationDetailPage({ params }: { params: P
             </div>
           </Section>
 
-          {res.source === 'partenaire' && (
+          {/* Acompte L&Lui — réservations QR Code */}
+          {res.source === 'partner_qr' && res.acompteRequired && (
+            <AcompteAdminPanel
+              reservationId={res.id}
+              acompteAmount={res.acompteAmount || 0}
+              acompteStatus={res.acompteStatus}
+              acompteConfirmedAt={res.acompteConfirmedAt}
+            />
+          )}
+
+          {/* Source info */}
+          {(res.source === 'partner_qr' || res.source === 'llui_site') && (
+            <div className={`p-3 rounded-xl border text-xs ${res.source === 'partner_qr' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gold-50 border-gold-200 text-gold-800'}`}>
+              <span className="font-semibold">{res.source === 'partner_qr' ? '📱 QR Code partenaire' : '🏠 Site L&Lui Signature'}</span>
+              {res.autoEscalated && res.autoEscalatedReason && (
+                <span className="ml-2 text-orange-600">⚡ {res.autoEscalatedReason}</span>
+              )}
+              {res.handledBy && <span className="ml-2 opacity-70">— Traité par : {res.handledBy === 'admin' ? 'L&Lui Admin' : `Partenaire (${res.sourcePartnerName || res.partner_name || ''})`}</span>}
+            </div>
+          )}
+
+          {(res.source === 'partenaire' || res.source === 'partner_qr') && (
             <Section title="Réservation partenaire" icon={Handshake}>
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 space-y-3 text-sm">

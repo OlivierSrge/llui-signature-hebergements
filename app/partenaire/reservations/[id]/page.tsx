@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ArrowLeft, QrCode, CheckCircle2, User, Calendar, CreditCard, Handshake } from 'lucide-react'
 import { formatDate, formatPrice, getPaymentMethodLabel } from '@/lib/utils'
 import WhatsAppPipeline from '@/components/admin/WhatsAppPipeline'
+import PartnerQrPipeline from '@/components/partner/PartnerQrPipeline'
 import PartnerNotesForm from '@/components/partner/PartnerNotesForm'
 
 async function getReservation(id: string, partnerId: string) {
@@ -15,13 +16,19 @@ async function getReservation(id: string, partnerId: string) {
   const data = doc.data()!
 
   // Autoriser : réservations du partenaire OU réservations de ses hébergements
-  if (data.partner_id === partnerId) return { id: doc.id, ...data } as any
-
-  const accDoc = await db.collection('hebergements').doc(data.accommodation_id).get()
-  if (accDoc.exists && accDoc.data()?.partner_id === partnerId) {
-    return { id: doc.id, ...data } as any
+  let allowed = data.partner_id === partnerId
+  if (!allowed) {
+    const accDoc = await db.collection('hebergements').doc(data.accommodation_id).get()
+    if (accDoc.exists && accDoc.data()?.partner_id === partnerId) allowed = true
   }
-  return null
+  if (!allowed) return null
+
+  // Règle absolue llui_site : visible uniquement si confirmée + payée
+  if ((data.source === 'llui_site' || data.source === 'direct') && data.visiblePartenaire !== true) {
+    if (!(data.reservation_status === 'confirmee' && data.payment_status === 'paye')) return null
+  }
+
+  return { id: doc.id, ...data } as any
 }
 
 export default async function PartnerReservationDetailPage({
@@ -61,6 +68,23 @@ export default async function PartnerReservationDetailPage({
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
+        {/* Bannière lecture seule — réservations L&Lui Signature */}
+        {(res.source === 'llui_site' || (!res.source && res.partner_id !== partnerId)) && (
+          <div className="bg-gold-50 border border-gold-200 rounded-2xl p-4 text-sm text-gold-800">
+            <p className="font-semibold mb-1">🏠 Réservation confirmée via L&Lui Signature</p>
+            <p className="text-xs text-gold-700">
+              Réservation confirmée et réglée via L&Lui Signature. Accueillez votre client selon les dates indiquées.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <a href={`https://wa.me/${(res.guest_phone || '').replace(/\D/g,'').startsWith('237') ? res.guest_phone?.replace(/\D/g,'') : '237'+(res.guest_phone || '').replace(/\D/g,'')}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex-1 text-center py-2 bg-green-600 text-white rounded-xl text-xs font-medium hover:bg-green-700">
+                📱 Contacter le client
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* Status + arrivée */}
         <div className="flex flex-wrap gap-3 items-center">
           <span className={`text-sm font-medium px-3 py-1.5 rounded-full border ${STATUS_COLOR[res.reservation_status] ?? 'bg-beige-100 text-dark/60'}`}>
@@ -129,7 +153,8 @@ export default async function PartnerReservationDetailPage({
           )}
         </div>
 
-        {/* Financier */}
+        {/* Financier — masqué pour llui_site */}
+        {res.source !== 'llui_site' && (
         <div className="bg-white rounded-2xl border border-beige-200 p-5">
           <h2 className="font-semibold text-dark mb-3 flex items-center gap-2 text-sm">
             <CreditCard size={14} className="text-gold-500" /> Paiement
@@ -162,6 +187,7 @@ export default async function PartnerReservationDetailPage({
             </div>
           </div>
         </div>
+        )} {/* fin masquage financier llui_site */}
 
         {/* QR Code — uniquement si confirmée */}
         {res.confirmation_code && res.reservation_status === 'confirmee' && (
@@ -185,8 +211,21 @@ export default async function PartnerReservationDetailPage({
           </div>
         )}
 
-        {/* ── Pipeline WhatsApp 4 boutons (identique à l'admin) ── */}
-        <WhatsAppPipeline reservation={res} sentBy={partnerId} />
+        {/* ── Pipeline WhatsApp — adapté selon la source ── */}
+        {res.source === 'partner_qr' ? (
+          <PartnerQrPipeline reservation={res} sentBy={partnerId} />
+        ) : (
+          // Flux L&Lui (llui_site) — lecture seule pour le partenaire
+          res.source === 'llui_site' && res.visiblePartenaire === false ? (
+            <div className="bg-white rounded-2xl border border-beige-200 p-5">
+              <p className="text-sm text-dark/60 text-center">
+                Cette réservation est gérée directement par L&Lui Signature.
+              </p>
+            </div>
+          ) : (
+            <WhatsAppPipeline reservation={res} sentBy={partnerId} />
+          )
+        )}
 
         {/* Notes internes partenaire */}
         <PartnerNotesForm reservationId={res.id} initialNotes={res.partner_notes || ''} />

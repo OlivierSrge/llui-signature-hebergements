@@ -12,6 +12,17 @@ async function getPartnerReservations(partnerId: string) {
     .get()
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
+    // Règle absolue : llui_site invisible tant que non confirmée et payée, SAUF si visiblePartenaire explicitement true
+    .filter((r: any) => {
+      if (r.source === 'llui_site' || r.source === 'direct') {
+        // Visible uniquement si status confirmée ET payé ET visiblePartenaire !== false
+        return r.reservation_status === 'confirmee' && r.payment_status === 'paye' && r.visiblePartenaire !== false
+      }
+      // partner_qr : visible si visiblePartenaire !== false
+      if (r.source === 'partner_qr') return r.visiblePartenaire !== false
+      // Legacy (partenaire/admin) : toujours visible
+      return true
+    })
     .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? '')) as any[]
 }
 

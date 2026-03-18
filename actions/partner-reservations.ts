@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase'
 import { cookies } from 'next/headers'
 import { calculateReservation } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
+import { buildSourceFields } from '@/actions/reservation-source'
 
 type ActionResult = { success: true; reservationId: string; confirmationCode: string } | { success: false; error: string }
 
@@ -96,6 +97,22 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
         : commUsageValue
     }
 
+    // Déterminer la source et les champs de protection trésorerie
+    // Vérifier si le partenaire a le flux L&Lui forcé
+    const forceFlux = partnerData.forceFluxLlui === true
+    const sourceFields = await buildSourceFields(
+      forceFlux ? 'llui_site' as any : 'partner_qr',
+      subtotal,
+      partnerId,
+      partnerData.name,
+    )
+    // Si forceFlux, on force explicitement llui_site
+    if (forceFlux) {
+      sourceFields.source = 'llui_site'
+      sourceFields.autoEscalated = true
+      sourceFields.autoEscalatedReason = 'Flux L&Lui forcé pour ce partenaire'
+    }
+
     // Créer la réservation
     const docRef = db.collection('reservations').doc()
     await docRef.set({
@@ -133,8 +150,9 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
       cancellation_reason: null,
       notes,
       admin_notes: null,
-      // Partenaire
-      source: 'partenaire',
+      // Source & protection trésorerie
+      ...sourceFields,
+      // Partenaire (legacy + nouveau)
       partner_id: partnerId,
       partner_name: partnerData.name,
       confirmation_code: confirmationCode,

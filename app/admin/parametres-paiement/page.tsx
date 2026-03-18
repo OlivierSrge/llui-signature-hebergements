@@ -3,11 +3,16 @@ export const dynamic = 'force-dynamic'
 import { Settings2 } from 'lucide-react'
 import { loadAdminPaymentSettings } from '@/actions/payment-settings'
 import AdminGlobalPaymentSettingsForm from '@/components/admin/AdminGlobalPaymentSettingsForm'
+import ReservationRulesForm from '@/components/admin/ReservationRulesForm'
+import { loadReservationRules } from '@/actions/reservation-source'
 
 export const metadata = { title: 'Paramètres de paiement — Admin' }
 
 export default async function AdminPaymentSettingsPage() {
-  const settings = await loadAdminPaymentSettings()
+  const [settings, rules] = await Promise.all([
+    loadAdminPaymentSettings(),
+    loadReservationRules(),
+  ])
 
   return (
     <div className="p-6 sm:p-8 mt-14 lg:mt-0">
@@ -33,6 +38,10 @@ export default async function AdminPaymentSettingsPage() {
         </div>
 
         <AdminGlobalPaymentSettingsForm initialSettings={settings} />
+
+        <div className="mt-8">
+          <ReservationRulesForm initialRules={rules} />
+        </div>
       </div>
     </div>
   )
