@@ -5,14 +5,27 @@ import { loadAdminPaymentSettings } from '@/actions/payment-settings'
 import AdminGlobalPaymentSettingsForm from '@/components/admin/AdminGlobalPaymentSettingsForm'
 import ReservationRulesForm from '@/components/admin/ReservationRulesForm'
 import { loadReservationRules } from '@/actions/reservation-source'
+import AccommodationTypesManager from '@/components/admin/AccommodationTypesManager'
+import { loadAccommodationTypesSettings } from '@/actions/accommodation-types'
+import { ACCOMMODATION_TYPES } from '@/lib/accommodationTypes'
 
 export const metadata = { title: 'Paramètres de paiement — Admin' }
 
 export default async function AdminPaymentSettingsPage() {
-  const [settings, rules] = await Promise.all([
+  const [settings, rules, savedTypes] = await Promise.all([
     loadAdminPaymentSettings(),
     loadReservationRules(),
+    loadAccommodationTypesSettings(),
   ])
+
+  // Fusionner les types par défaut avec les overrides Firestore (actif/inactif)
+  const mergedTypes = ACCOMMODATION_TYPES.map((t) => {
+    const saved = savedTypes.find((s) => s.id === t.id)
+    return saved ? { ...t, active: saved.active } : t
+  })
+  // Ajouter les types personnalisés (dans Firestore mais pas dans la liste par défaut)
+  const customTypes = savedTypes.filter((s) => !ACCOMMODATION_TYPES.find((t) => t.id === s.id))
+  const allTypes = [...mergedTypes, ...customTypes]
 
   return (
     <div className="p-6 sm:p-8 mt-14 lg:mt-0">
@@ -41,6 +54,16 @@ export default async function AdminPaymentSettingsPage() {
 
         <div className="mt-8">
           <ReservationRulesForm initialRules={rules} />
+        </div>
+
+        <div className="mt-8">
+          <div className="mb-4">
+            <h2 className="font-semibold text-dark text-lg flex items-center gap-2">🏠 Gestion des types de logements</h2>
+            <p className="text-xs text-dark/50 mt-1">
+              Activez ou désactivez les types. Les types inactifs n'apparaissent plus dans les formulaires de création.
+            </p>
+          </div>
+          <AccommodationTypesManager initialTypes={allTypes} />
         </div>
       </div>
     </div>

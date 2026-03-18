@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Users, BedDouble, Bath, MapPin, Star } from 'lucide-react'
-import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import type { Accommodation } from '@/lib/types'
 
 interface Props {
@@ -29,7 +30,7 @@ export default function AccommodationCard({ accommodation: acc }: Props) {
           {/* Type badge */}
           <div className="absolute top-3 left-3">
             <span className="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-dark text-xs font-medium rounded-full">
-              {getTypeLabel(acc.type)}
+              <AccommodationTypeBadge typeId={acc.type} variant="compact" />
             </span>
           </div>
 

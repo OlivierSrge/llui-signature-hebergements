@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import { Users, BedDouble, Bath, MapPin, ChevronLeft, Star, Building2 } from 'lucide-react'
-import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import BookingWidget from '@/components/reservations/BookingWidget'
 import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 import AmenitiesSection from '@/components/accommodations/AmenitiesSection'
@@ -89,7 +90,9 @@ export default async function AccommodationDetailPage({ params }: { params: Prom
           <div className="lg:col-span-2">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                <span className="px-3 py-1 bg-gold-50 border border-gold-200 text-gold-700 text-xs font-medium rounded-full">{getTypeLabel(acc.type)}</span>
+                <span className="px-3 py-1 bg-gold-50 border border-gold-200 text-gold-700 text-xs font-medium rounded-full">
+                  <AccommodationTypeBadge typeId={acc.type} variant="compact" />
+                </span>
                 {acc.featured && (
                   <span className="flex items-center gap-1 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium rounded-full">
                     <Star size={10} fill="currentColor" /> Coup de cœur

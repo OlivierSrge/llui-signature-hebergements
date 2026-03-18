@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import { ChevronLeft, Building2, Users, BedDouble, Bath, MapPin } from 'lucide-react'
-import { getTypeLabel, formatPrice, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import PackRequestForm from '@/components/packs/PackRequestForm'
 import type { Pack, Accommodation } from '@/lib/types'
 
@@ -128,7 +129,7 @@ export default async function PackDetailPage({ params }: { params: Promise<{ slu
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs px-2 py-0.5 bg-beige-100 rounded-full text-dark/60">{getTypeLabel(acc.type)}</span>
+                          <span className="text-xs px-2 py-0.5 bg-beige-100 rounded-full text-dark/60"><AccommodationTypeBadge typeId={acc.type} variant="compact" /></span>
                         </div>
                         <h3 className="font-semibold text-dark text-sm mb-1 truncate">{acc.name}</h3>
                         {acc.location && (

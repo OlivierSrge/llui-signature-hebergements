@@ -2,7 +2,8 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import type { AccommodationType, PaymentMethod, PaymentStatus, ReservationStatus } from './types'
+import type { PaymentMethod, PaymentStatus, ReservationStatus } from './types'
+import { getTypeLabelFromId } from './accommodationTypes'
 
 // ============================================================
 // Styles
@@ -61,13 +62,8 @@ export function calculateReservation(
 // ============================================================
 // Labels & badges
 // ============================================================
-export function getTypeLabel(type: AccommodationType): string {
-  const labels: Record<AccommodationType, string> = {
-    villa: 'Villa',
-    appartement: 'Appartement',
-    chambre: 'Chambre',
-  }
-  return labels[type]
+export function getTypeLabel(type: string | null | undefined): string {
+  return getTypeLabelFromId(type)
 }
 
 export function getPaymentMethodLabel(method: PaymentMethod): string {
