@@ -2,15 +2,8 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Search, SlidersHorizontal, X, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
-
-const TYPES = [
-  { value: '', label: 'Tous les types' },
-  { value: 'villa', label: 'Villas' },
-  { value: 'appartement', label: 'Appartements' },
-  { value: 'chambre', label: 'Chambres' },
-]
+import { SlidersHorizontal, X, ChevronDown } from 'lucide-react'
+import { ACCOMMODATION_TYPES, ACCOMMODATION_CATEGORIES, getTypeLabelFromId } from '@/lib/accommodationTypes'
 
 export default function AccommodationFilters() {
   const router = useRouter()
@@ -59,9 +52,20 @@ export default function AccommodationFilters() {
               onChange={(e) => updateFilter('type', e.target.value)}
               className="input-field appearance-none pr-10"
             >
-              {TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
+              <option value="">Tous les types</option>
+              {ACCOMMODATION_CATEGORIES.map((cat) => {
+                const types = ACCOMMODATION_TYPES.filter((t) => t.category === cat.id && t.active)
+                if (!types.length) return null
+                return (
+                  <optgroup key={cat.id} label={`${cat.icon} ${cat.label}`}>
+                    {types.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.icon} {t.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              })}
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-dark/40 pointer-events-none" />
           </div>
@@ -166,7 +170,7 @@ export default function AccommodationFilters() {
         <div className="flex flex-wrap gap-2 mt-3">
           {currentType && (
             <FilterTag
-              label={TYPES.find(t => t.value === currentType)?.label || currentType}
+              label={getTypeLabelFromId(currentType)}
               onRemove={() => updateFilter('type', '')}
             />
           )}
@@ -201,3 +205,4 @@ function FilterTag({ label, onRemove }: { label: string; onRemove: () => void })
     </span>
   )
 }
+
