@@ -257,3 +257,23 @@ export async function updatePaymentStatus(
     return { success: false, error: e.message || 'Erreur lors de la mise à jour du paiement' }
   }
 }
+
+export async function deleteReservation(
+  reservationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Supprimer aussi les logs WhatsApp liés
+    const logsSnap = await db.collection('whatsapp_logs')
+      .where('reservation_id', '==', reservationId).get()
+    const batch = db.batch()
+    logsSnap.docs.forEach((d) => batch.delete(d.ref))
+    batch.delete(db.collection('reservations').doc(reservationId))
+    await batch.commit()
+
+    revalidatePath('/admin/reservations')
+    revalidatePath('/admin')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la suppression' }
+  }
+}

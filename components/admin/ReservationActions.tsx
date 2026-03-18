@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, XCircle, DollarSign, Loader2 } from 'lucide-react'
-import { updateReservationStatus, updatePaymentStatus } from '@/actions/reservations'
+import { CheckCircle, XCircle, DollarSign, Loader2, Trash2 } from 'lucide-react'
+import { updateReservationStatus, updatePaymentStatus, deleteReservation } from '@/actions/reservations'
 import type { Reservation } from '@/lib/types'
 
 interface Props {
@@ -18,6 +18,8 @@ export default function ReservationActions({ reservation: res }: Props) {
   const [cancelReason, setCancelReason] = useState('')
   const [paymentRef, setPaymentRef] = useState(res.payment_reference || '')
   const [showCancelForm, setShowCancelForm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
 
   const act = async (action: string, fn: () => Promise<{ error?: string; success?: boolean }>) => {
     setLoading(action)
@@ -164,6 +166,59 @@ export default function ReservationActions({ reservation: res }: Props) {
               Paiement reçu
               {res.payment_date && ` le ${new Date(res.payment_date).toLocaleDateString('fr-FR')}`}
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Zone danger — Supprimer */}
+      <div className="border-t border-red-100 pt-4">
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-red-200 text-red-500 rounded-xl text-xs font-medium hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={13} /> Supprimer cette réservation (test)
+          </button>
+        ) : (
+          <div className="p-3 bg-red-50 border border-red-300 rounded-xl space-y-2">
+            <p className="text-xs font-semibold text-red-800">⚠️ Suppression définitive</p>
+            <p className="text-xs text-red-600">
+              Cette action est irréversible. Tapez <span className="font-mono font-bold">SUPPRIMER</span> pour confirmer.
+            </p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder="SUPPRIMER"
+              className="input-field text-sm font-mono"
+            />
+            <div className="flex gap-2">
+              <button
+                disabled={deleteInput !== 'SUPPRIMER' || !!loading}
+                onClick={async () => {
+                  setLoading('delete')
+                  const result = await deleteReservation(res.id)
+                  setLoading(null)
+                  if (result.success) {
+                    router.push('/admin/reservations')
+                  } else {
+                    toast.error(result.error || 'Erreur')
+                    setShowDeleteConfirm(false)
+                    setDeleteInput('')
+                  }
+                }}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-40 flex items-center justify-center gap-1"
+              >
+                {isLoading('delete') ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                Supprimer définitivement
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteInput('') }}
+                className="py-2 px-3 border border-beige-200 rounded-lg text-xs text-dark/50"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         )}
       </div>
