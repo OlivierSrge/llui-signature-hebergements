@@ -8,6 +8,7 @@ import PartnerCardDownload from '@/components/admin/PartnerCardDownload'
 import PartnerContractSection from '@/components/admin/PartnerContractSection'
 import AdminPaymentSettingsForm from '@/components/admin/AdminPaymentSettingsForm'
 import PartnerCommissionsChart from '@/components/admin/PartnerCommissionsChart'
+import ForceFluxLluiToggle from '@/components/admin/ForceFluxLluiToggle'
 import { loadPaymentSettings } from '@/actions/payment-settings'
 import { getPartnerCommissions12Months } from '@/actions/commissions'
 import type { Partner } from '@/lib/types'
@@ -99,6 +100,11 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
       {/* Paramètres de paiement */}
       <div className="max-w-3xl mb-6">
         <AdminPaymentSettingsForm partnerId={partner.id} initialSettings={paymentSettings} />
+      </div>
+
+      {/* Flux L&Lui forcé */}
+      <div className="max-w-3xl mb-6">
+        <ForceFluxLluiToggle partnerId={partner.id} initialValue={!!(partner as any).forceFluxLlui} />
       </div>
 
       <PartnerForm partner={partner} />

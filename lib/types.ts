@@ -159,8 +159,35 @@ export interface Reservation {
   promo_code: string | null
   discount_amount: number | null
 
+  // ── Source & flux de trésorerie ──────────────────────────────────────────
+  // source métier (remplace l'ancien 'direct' | 'partenaire')
+  // 'llui_site'   → réservation venue du catalogue web L&Lui (admin uniquement)
+  // 'partner_qr'  → réservation venue du QR Code partenaire
+  // Anciens: 'direct' | 'partenaire' conservés pour compatibilité
+  source: 'llui_site' | 'partner_qr' | 'direct' | 'partenaire' | null
+  sourcePartnerId: string | null
+  sourcePartnerName: string | null
+  handledBy: 'admin' | 'partner' | null
+  adminCanOverride: boolean | null
+  visiblePartenaire: boolean | null
+
+  // Protection trésorerie — acompte L&Lui
+  acompteRequired: boolean | null
+  acompteAmount: number | null
+  acompteStatus: 'pending' | 'confirmed' | 'waived' | null
+  acompteConfirmedAt: string | null
+  acompteConfirmedBy: string | null
+
+  // Escalade automatique (seuil montant)
+  autoEscalated: boolean | null
+  autoEscalatedReason: string | null
+
+  // Fenêtre admin prioritaire
+  adminWindowStart: string | null
+  adminWindowEnd: string | null
+  adminWindowUsed: boolean | null
+
   // Partenaire
-  source: 'direct' | 'partenaire' | null    // canal d'origine de la réservation
   partner_id: string | null                  // partenaire ayant créé la réservation
   partner_name: string | null
   confirmation_code: string | null           // LLS-YYYY-XXXXX
@@ -171,6 +198,9 @@ export interface Reservation {
 
   // Commission à l'usage
   usage_commission_amount: number | null
+
+  // Partenaire (legacy)
+  partner_id_legacy?: string | null
 
   // WhatsApp pipeline
   product_type: 'hebergement' | 'pack' | 'autre' | null

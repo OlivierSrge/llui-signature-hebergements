@@ -134,9 +134,19 @@ export default async function AdminReservationsPage({
                       <td className="px-4 pl-6 py-4">
                         <p className="font-mono text-xs font-bold text-gold-600">#{res.id.slice(-8).toUpperCase()}</p>
                         <p className="text-xs text-dark/40">{formatDate(res.created_at, 'dd/MM/yy')}</p>
-                        {res.source === 'partenaire' && (
+                        {(res.source === 'partenaire' || res.source === 'partner_qr') && (
                           <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded-full">
-                            <Handshake size={10} /> Partenaire
+                            <Handshake size={10} /> {res.source === 'partner_qr' ? 'QR Code' : 'Partenaire'}
+                          </span>
+                        )}
+                        {res.source === 'llui_site' && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-gold-700 bg-gold-50 border border-gold-200 px-1.5 py-0.5 rounded-full">
+                            🏠 L&Lui
+                          </span>
+                        )}
+                        {res.source === 'partner_qr' && res.acompteStatus === 'pending' && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full">
+                            ⏳ Acompte en attente
                           </span>
                         )}
                         {isAlert && (
