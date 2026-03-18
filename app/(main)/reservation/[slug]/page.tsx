@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import ReservationForm from '@/components/reservations/ReservationForm'
-import { formatPrice, formatDate, countNights, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, formatDate, countNights, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft, MapPin, Users, Moon } from 'lucide-react'
@@ -65,7 +66,7 @@ export default async function ReservationPage({
                 <Image src={resolveImageUrl(accommodation.images?.[0]) || 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800'} alt={accommodation.name} fill unoptimized className="object-cover" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gold-600 font-medium mb-0.5">{getTypeLabel(accommodation.type)}</p>
+                <p className="text-xs text-gold-600 font-medium mb-0.5"><AccommodationTypeBadge typeId={accommodation.type} variant="compact" /></p>
                 <h3 className="font-serif text-base font-semibold text-dark line-clamp-1">{accommodation.name}</h3>
                 <p className="text-xs text-dark/50 flex items-center gap-1 mt-1"><MapPin size={11} />{accommodation.location}</p>
               </div>

@@ -4,7 +4,8 @@
 
 export type UserRole = 'client' | 'admin'
 
-export type AccommodationType = 'villa' | 'appartement' | 'chambre'
+// Compatibilité anciens types + nouveaux ids enrichis (voir lib/accommodationTypes.ts)
+export type AccommodationType = string
 
 export type ReservationStatus = 'demande' | 'en_attente' | 'confirmee' | 'annulee'
 

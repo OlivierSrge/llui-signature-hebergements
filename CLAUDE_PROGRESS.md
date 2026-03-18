@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-18 — Différenciation deux flux de réservation + protection trésorerie L&Lui (5 blocs)
+Dernière mise à jour : 2026-03-18 — Système types d'hébergements enrichi (3 blocs)
 
 ---
 
@@ -13,6 +13,13 @@ Dernière mise à jour : 2026-03-18 — Différenciation deux flux de réservati
 ---
 
 ## FONCTIONNALITÉS COMPLÈTEMENT TERMINÉES
+
+### Session 2026-03-18 — Système types d'hébergements enrichi (3 blocs)
+- **TYPES-BLOC-1** — `lib/accommodationTypes.ts` : 12 types répartis en 3 catégories (Classiques de Prestige 🏛️ / Évasion & Caractère 🌿 / Expériences Uniques ✨), interface `AccommodationTypeInfo`, fonctions `getAccommodationTypeById`, `resolveAccommodationTypeId`, `getTypeLabelFromId`, `getTypeIcon`, mapping legacy (villa→villa_exception, appartement→appartement_luxe, chambre→suite_privee…)
+- **TYPES-BLOC-2** — Sélecteur visuel `AccommodationTypeSelector.tsx` : grille 2×3, cartes cliquables avec icône 32px, description, étoiles prestige or #C9A84C, bordure or au survol/sélection, coche ✅, filtre par catégorie, badge "Type personnalisé" pour valeurs inconnues. Intégré dans `AccommodationForm.tsx` (admin) en remplacement du select simple
+- **TYPES-BLOC-3** — Badge `AccommodationTypeBadge.tsx` (variantes full/compact/icon) mis à jour partout : liste admin, fiche publique hebergement, packs, réservation, chambre, AccommodationCard, partner public page. Widget "Répartition par type" dans le dashboard admin. Section "Gestion des types" dans `/admin/parametres-paiement` avec toggle actif/inactif, ajout de types personnalisés, sauvegarde Firestore `/settings/accommodationTypes`
+- **FIX** — `deleteAccommodation` supprime désormais réellement le document Firestore (anciennement soft-delete status:inactive) + disponibilités associées
+- **FIX** — `deleteSelectedReservations` server action + `ReservationsTable` client component avec checkboxes, select-all, double-confirmation (SUPPRIMER)
 
 ### Session 2026-03-18 — Différenciation deux flux + protection trésorerie
 - **FLUX-BLOC-1** — Structure Firestore : champs `source` (`llui_site`/`partner_qr`), `handledBy`, `visiblePartenaire`, `acompteRequired/Amount/Status`, `adminWindow*`, `autoEscalated` — `lib/reservationRules.ts` + `actions/reservation-source.ts` (migration + buildSourceFields)

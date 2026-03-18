@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import { Users, BedDouble, MapPin, Building2 } from 'lucide-react'
-import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 
 async function getPartnerWithAccommodations(partnerSlug: string) {
   const doc = await db.collection('partenaires').doc(partnerSlug).get()
@@ -111,7 +112,7 @@ export default async function PartnerMiniSitePage({
                   />
                   {acc.type && (
                     <span className="absolute top-3 left-3 bg-white/90 text-[#1A1A1A] text-xs font-medium px-2.5 py-1 rounded-full border border-[#C9A84C]/30">
-                      {getTypeLabel(acc.type)}
+                      <AccommodationTypeBadge typeId={acc.type} variant="compact" />
                     </span>
                   )}
                 </div>

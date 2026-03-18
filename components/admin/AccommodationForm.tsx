@@ -7,6 +7,8 @@ import { Loader2, Trash2, Save, ChevronDown, ChevronUp, CheckCircle } from 'luci
 import { createAccommodation, updateAccommodation, deleteAccommodation, activateAccommodation } from '@/actions/accommodations'
 import { getAmenityIcon } from '@/lib/amenity-icons'
 import PhotoUploader from '@/components/admin/PhotoUploader'
+import AccommodationTypeSelector from '@/components/admin/AccommodationTypeSelector'
+import { resolveAccommodationTypeId } from '@/lib/accommodationTypes'
 import type { Accommodation, Partner } from '@/lib/types'
 
 // ─── Catalogue équipements ────────────────────────────────────────────────────
@@ -232,6 +234,9 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const isEdit = !!accommodation
 
   const [imageUrls, setImageUrls] = useState<string[]>(accommodation?.images || [])
+  const [selectedType, setSelectedType] = useState<string>(
+    resolveAccommodationTypeId(accommodation?.type) ?? accommodation?.type ?? 'villa_exception'
+  )
 
   // Séparer les équipements existants entre catalogue et personnalisés
   const existingAmenities = accommodation?.amenities ?? []
@@ -245,6 +250,9 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+
+    // Type
+    formData.set('type', selectedType)
 
     // Images
     formData.set('images', imageUrls.join('\n'))
@@ -325,27 +333,22 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
           Informations générales
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Partner */}
-          <div>
-            <label className="label">Partenaire <span className="text-red-500">*</span></label>
-            <select name="partner_id" required defaultValue={accommodation?.partner_id || ''} className="input-field">
-              <option value="">Sélectionner un partenaire</option>
-              {partners.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
+        {/* Partner */}
+        <div>
+          <label className="label">Partenaire <span className="text-red-500">*</span></label>
+          <select name="partner_id" required defaultValue={accommodation?.partner_id || ''} className="input-field">
+            <option value="">Sélectionner un partenaire</option>
+            {partners.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
 
-          {/* Type */}
-          <div>
-            <label className="label">Type <span className="text-red-500">*</span></label>
-            <select name="type" required defaultValue={accommodation?.type || 'villa'} className="input-field">
-              <option value="villa">Villa</option>
-              <option value="appartement">Appartement</option>
-              <option value="chambre">Chambre</option>
-            </select>
-          </div>
+        {/* Type — sélecteur visuel */}
+        <div>
+          <label className="label">Type d'hébergement <span className="text-red-500">*</span></label>
+          <input type="hidden" name="type" value={selectedType} />
+          <AccommodationTypeSelector value={selectedType} onChange={setSelectedType} />
         </div>
 
         <Field label="Nom de l'hébergement" name="name" required defaultValue={accommodation?.name} placeholder="Villa Royale M'Bekaa" />

@@ -21,6 +21,7 @@ import CommissionsWidget from '@/components/admin/CommissionsWidget'
 import { getPartnerCommissionsData } from '@/actions/commissions'
 import AdminWindowAlert from '@/components/admin/AdminWindowAlert'
 import TreasuryWidget from '@/components/admin/TreasuryWidget'
+import { ACCOMMODATION_TYPES, getTypeLabelFromId, getTypeIcon, resolveAccommodationTypeId } from '@/lib/accommodationTypes'
 
 // ── Helpers ────────────────────────────────────────────────────
 function formatPhone(phone: string): string {
@@ -349,13 +350,53 @@ async function getPaymentAlerts(): Promise<AlertReservation[]> {
     })) as AlertReservation[]
 }
 
+async function getTypeStats() {
+  const [accSnap, resSnap] = await Promise.all([
+    db.collection('hebergements').get(),
+    db.collection('reservations').where('reservation_status', '==', 'confirmee').get(),
+  ])
+
+  const accommodations = accSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  const reservations = resSnap.docs.map((d) => d.data()) as any[]
+
+  // Compter les logements par type
+  const accByType: Record<string, number> = {}
+  const revByType: Record<string, number> = {}
+  const resByType: Record<string, number> = {}
+
+  for (const acc of accommodations) {
+    const raw = acc.type || ''
+    const typeId = resolveAccommodationTypeId(raw) ?? raw
+    accByType[typeId] = (accByType[typeId] ?? 0) + 1
+  }
+
+  // Compter les réservations et revenus par type
+  for (const res of reservations) {
+    const typeId = resolveAccommodationTypeId(res.accommodation?.type) ?? (res.accommodation?.type || 'inconnu')
+    resByType[typeId] = (resByType[typeId] ?? 0) + 1
+    revByType[typeId] = (revByType[typeId] ?? 0) + (res.total_price || 0)
+  }
+
+  const allTypeIds = new Set([...Object.keys(accByType), ...Object.keys(resByType)])
+  return Array.from(allTypeIds)
+    .map((typeId) => ({
+      typeId,
+      label: getTypeLabelFromId(typeId),
+      icon: getTypeIcon(typeId),
+      nbLogements: accByType[typeId] ?? 0,
+      nbReservations: resByType[typeId] ?? 0,
+      revenue: revByType[typeId] ?? 0,
+    }))
+    .sort((a, b) => b.nbLogements - a.nbLogements)
+}
+
 export const metadata = { title: 'Dashboard' }
 
 export default async function AdminDashboard() {
   const [
     stats, recent, demandsData, packRequests, daily,
     pending, occupancy, arrivals, revenueDays, partnerPerf, sources, alerts, expiringSubscriptions,
-    birthdayClients, stayAnniversaryClients, commissionsData, adminWindowResas, treasuryStats,
+    birthdayClients, stayAnniversaryClients, commissionsData, adminWindowResas, treasuryStats, typeStats,
   ] = await Promise.all([
     getAdminStats(),
     getRecentReservations(),
@@ -375,6 +416,7 @@ export default async function AdminDashboard() {
     getPartnerCommissionsData(),
     getAdminWindowReservations(),
     getTreasuryStats(),
+    getTypeStats(),
   ])
 
   const pendingDemands = demandsData.all
@@ -607,6 +649,44 @@ export default async function AdminDashboard() {
 
       {/* ── Widget Trésorerie & Sources ── */}
       <TreasuryWidget stats={treasuryStats} />
+
+      {/* ── Répartition par type de logement ── */}
+      {typeStats.length > 0 && (
+        <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-beige-200 flex items-center justify-between">
+            <h2 className="font-semibold text-dark text-sm flex items-center gap-2">
+              🏠 Répartition par type de logement
+            </h2>
+            <Link href="/admin/hebergements" className="text-xs text-gold-600 hover:text-gold-700 flex items-center gap-1">
+              Voir tout <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-beige-100 bg-beige-50">
+                  <th className="text-left px-5 py-2.5 text-xs text-dark/50 font-semibold uppercase tracking-wider">Type</th>
+                  <th className="text-right px-4 py-2.5 text-xs text-dark/50 font-semibold uppercase tracking-wider">Logements</th>
+                  <th className="text-right px-4 py-2.5 text-xs text-dark/50 font-semibold uppercase tracking-wider">Réservations</th>
+                  <th className="text-right px-5 py-2.5 text-xs text-dark/50 font-semibold uppercase tracking-wider">CA confirmé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {typeStats.map((row) => (
+                  <tr key={row.typeId} className="border-b border-beige-100 hover:bg-beige-50 transition-colors">
+                    <td className="px-5 py-3 text-sm font-medium text-dark">
+                      {row.icon} {row.label}
+                    </td>
+                    <td className="px-4 py-3 text-right text-dark/70">{row.nbLogements}</td>
+                    <td className="px-4 py-3 text-right text-dark/70">{row.nbReservations}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-gold-700">{formatPrice(row.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── LIGNE 5 : Widget 3 — Alertes relances ── */}
       <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden">

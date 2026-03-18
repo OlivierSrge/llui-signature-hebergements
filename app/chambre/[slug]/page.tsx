@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { db } from '@/lib/firebase'
 import { Users, BedDouble, Bath, MapPin } from 'lucide-react'
-import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import BookingWidget from '@/components/reservations/BookingWidget'
 import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 import AmenitiesSection from '@/components/accommodations/AmenitiesSection'
@@ -134,7 +135,7 @@ export default async function ChambrePage({ params }: { params: Promise<{ slug: 
               className="inline-block text-xs font-medium px-2.5 py-1 rounded-full border mb-2"
               style={{ background: '#C9A84C15', borderColor: '#C9A84C50', color: '#9A7A30' }}
             >
-              {getTypeLabel(acc.type)}
+              <AccommodationTypeBadge typeId={acc.type} variant="compact" />
             </span>
           )}
           <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#1A1A1A] leading-snug">

@@ -4,7 +4,8 @@ import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus, Edit, Calendar, Users, Percent, Copy } from 'lucide-react'
-import { formatPrice, getTypeLabel, resolveImageUrl } from '@/lib/utils'
+import { formatPrice, resolveImageUrl } from '@/lib/utils'
+import AccommodationTypeBadge from '@/components/AccommodationTypeBadge'
 import { duplicateAccommodation } from '@/actions/accommodations'
 
 async function getAccommodations() {
@@ -68,7 +69,7 @@ function AccommodationAdminCard({ accommodation: acc }: { accommodation: any }) 
         </div>
         <div className="absolute top-3 right-3">
           <span className="text-xs font-medium px-2.5 py-1 bg-white/90 text-dark rounded-full">
-            {getTypeLabel(acc.type)}
+            <AccommodationTypeBadge typeId={acc.type} variant="compact" />
           </span>
         </div>
       </div>
