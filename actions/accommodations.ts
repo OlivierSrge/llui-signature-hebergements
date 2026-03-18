@@ -159,11 +159,20 @@ export async function duplicateAccommodation(id: string): Promise<ActionResult> 
 
 export async function deleteAccommodation(id: string): Promise<ActionResult> {
   try {
-    await db.collection('hebergements').doc(id).update({
-      status: 'inactive',
-      updated_at: new Date().toISOString(),
-    })
+    const batch = db.batch()
+
+    // Supprimer les disponibilités liées
+    const dispoSnap = await db.collection('disponibilites')
+      .where('accommodation_id', '==', id).get()
+    dispoSnap.docs.forEach((d) => batch.delete(d.ref))
+
+    // Supprimer le document hébergement
+    batch.delete(db.collection('hebergements').doc(id))
+
+    await batch.commit()
+
     revalidatePath('/admin/hebergements')
+    revalidatePath('/admin')
     revalidatePath('/')
     return { success: true }
   } catch (e: any) {
