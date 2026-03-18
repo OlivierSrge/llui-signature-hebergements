@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase'
 import AccommodationCard from '@/components/accommodations/AccommodationCard'
 import AccommodationFilters from '@/components/accommodations/AccommodationFilters'
 import { Award, Shield, HeartHandshake, Building2, Star, Crown, ArrowRight } from 'lucide-react'
+import { resolveAccommodationTypeId, getTypeLabelFromId } from '@/lib/accommodationTypes'
 
 interface SearchParams {
   type?: string
@@ -24,7 +25,13 @@ async function getAccommodations(filters: SearchParams) {
     return (b.created_at || '').localeCompare(a.created_at || '')
   })
 
-  if (filters.type) results = results.filter((a) => a.type === filters.type)
+  if (filters.type) {
+    const resolvedFilter = resolveAccommodationTypeId(filters.type) ?? filters.type
+    results = results.filter((a) => {
+      const resolvedAcc = resolveAccommodationTypeId(a.type) ?? a.type
+      return resolvedAcc === resolvedFilter
+    })
+  }
   if (filters.capacity) results = results.filter((a) => a.capacity >= Number(filters.capacity))
   if (filters.min_price) results = results.filter((a) => a.price_per_night >= Number(filters.min_price))
   if (filters.max_price) results = results.filter((a) => a.price_per_night <= Number(filters.max_price))
@@ -110,7 +117,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="mb-10">
             <p className="text-gold-600 text-sm font-medium tracking-widest uppercase mb-2">Nos hébergements</p>
             <div className="flex items-end justify-between gap-4 flex-wrap">
-              <h2 className="section-title">{sp.type ? `${sp.type.charAt(0).toUpperCase() + sp.type.slice(1)}s disponibles` : 'Tous les hébergements'}</h2>
+              <h2 className="section-title">{sp.type ? `${getTypeLabelFromId(sp.type)} — disponibles` : 'Tous les hébergements'}</h2>
               <span className="text-dark/50 text-sm">{accommodations.length} résultat{accommodations.length > 1 ? 's' : ''}</span>
             </div>
             <div className="gold-divider mt-4" />
