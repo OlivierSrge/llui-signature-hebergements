@@ -258,6 +258,36 @@ export async function updatePaymentStatus(
   }
 }
 
+export async function deleteSelectedReservations(
+  ids: string[],
+): Promise<{ success: boolean; deleted: number; error?: string }> {
+  if (!ids.length) return { success: true, deleted: 0 }
+  try {
+    // Firestore batch max 500 ops — split if needed
+    const chunks: string[][] = []
+    for (let i = 0; i < ids.length; i += 200) chunks.push(ids.slice(i, i + 200))
+
+    let deleted = 0
+    for (const chunk of chunks) {
+      const batch = db.batch()
+      for (const id of chunk) {
+        const logsSnap = await db.collection('whatsapp_logs')
+          .where('reservation_id', '==', id).get()
+        logsSnap.docs.forEach((d) => batch.delete(d.ref))
+        batch.delete(db.collection('reservations').doc(id))
+        deleted++
+      }
+      await batch.commit()
+    }
+
+    revalidatePath('/admin/reservations')
+    revalidatePath('/admin')
+    return { success: true, deleted }
+  } catch (e: any) {
+    return { success: false, deleted: 0, error: e.message || 'Erreur lors de la suppression' }
+  }
+}
+
 export async function deleteReservation(
   reservationId: string,
 ): Promise<{ success: boolean; error?: string }> {
