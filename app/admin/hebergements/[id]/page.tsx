@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import AccommodationForm from '@/components/admin/AccommodationForm'
 import SeasonalPricingManager from '@/components/admin/SeasonalPricingManager'
+import DeleteAccommodationButton from '@/components/admin/DeleteAccommodationButton'
 import Link from 'next/link'
 import { ChevronLeft, Calendar, Plus, Sun } from 'lucide-react'
 import type { Partner } from '@/lib/types'
@@ -67,6 +68,9 @@ export default async function EditHebergementPage({ params }: { params: Promise<
           />
         </div>
       </div>
+
+      {/* Zone danger */}
+      <DeleteAccommodationButton id={id} name={accommodation.name} />
     </div>
   )
 }
