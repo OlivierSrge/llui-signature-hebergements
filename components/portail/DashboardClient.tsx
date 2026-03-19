@@ -3,7 +3,9 @@
 // Dashboard principal portail mariés — 8 blocs
 
 import CountdownRing from './CountdownRing'
+import FastStartWidget from './FastStartWidget'
 import { getCitationDuJour } from '@/lib/citations'
+import type { FastStartWidgetProps } from './FastStartWidget'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
@@ -25,6 +27,7 @@ interface DashboardProps {
   revLifetime: number
   todos: TodoItem[]
   panierCount: number
+  fastStart: FastStartWidgetProps
 }
 
 function BudgetGauge({ depense, previsionnel }: { depense: number; previsionnel: number }) {
@@ -69,7 +72,7 @@ export default function DashboardClient(props: DashboardProps) {
   const {
     displayName, dateEvenement, nomEvenement, lieuEvenement,
     budgetPrevisionnel, budgetDepense, nombreInvitesPrev, invitesConfirmes,
-    walletCash, walletCredits, revLifetime, todos, panierCount,
+    walletCash, walletCredits, revLifetime, todos, panierCount, fastStart,
   } = props
   const citation = getCitationDuJour()
   const tachesRestantes = todos.filter(t => !t.done).length
@@ -124,6 +127,9 @@ export default function DashboardClient(props: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Bloc 4b — Fast Start Widget */}
+      <FastStartWidget {...fastStart} />
 
       {/* Bloc 5 — Invités visuels */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
