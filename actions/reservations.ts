@@ -258,6 +258,27 @@ export async function updatePaymentStatus(
   }
 }
 
+async function cleanupReservationReferences(ids: string[], batch: ReturnType<typeof db.batch>) {
+  for (const id of ids) {
+    // Supprimer les logs WhatsApp liés
+    const logsSnap = await db.collection('whatsapp_logs')
+      .where('reservation_id', '==', id).get()
+    logsSnap.docs.forEach((d) => batch.delete(d.ref))
+
+    // Supprimer les commissions liées
+    const commissionsSnap = await db.collection('commissions_usage')
+      .where('reservation_id', '==', id).get()
+    commissionsSnap.docs.forEach((d) => batch.delete(d.ref))
+
+    // Effacer la référence reservation_id dans les demandes de disponibilité
+    const demandesSnap = await db.collection('demandes_disponibilite')
+      .where('reservation_id', '==', id).get()
+    demandesSnap.docs.forEach((d) =>
+      batch.update(d.ref, { reservation_id: null, status: 'annulee', updated_at: new Date().toISOString() })
+    )
+  }
+}
+
 export async function deleteSelectedReservations(
   ids: string[],
 ): Promise<{ success: boolean; deleted: number; error?: string }> {
@@ -270,10 +291,8 @@ export async function deleteSelectedReservations(
     let deleted = 0
     for (const chunk of chunks) {
       const batch = db.batch()
+      await cleanupReservationReferences(chunk, batch)
       for (const id of chunk) {
-        const logsSnap = await db.collection('whatsapp_logs')
-          .where('reservation_id', '==', id).get()
-        logsSnap.docs.forEach((d) => batch.delete(d.ref))
         batch.delete(db.collection('reservations').doc(id))
         deleted++
       }
@@ -292,11 +311,8 @@ export async function deleteReservation(
   reservationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Supprimer aussi les logs WhatsApp liés
-    const logsSnap = await db.collection('whatsapp_logs')
-      .where('reservation_id', '==', reservationId).get()
     const batch = db.batch()
-    logsSnap.docs.forEach((d) => batch.delete(d.ref))
+    await cleanupReservationReferences([reservationId], batch)
     batch.delete(db.collection('reservations').doc(reservationId))
     await batch.commit()
 
