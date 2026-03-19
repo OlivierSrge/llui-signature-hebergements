@@ -4,7 +4,6 @@
 
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
-import { FAST_START_PALIERS } from '@/lib/calculatePayout'
 import { FieldValue } from 'firebase-admin/firestore'
 
 const PALIERS = [
