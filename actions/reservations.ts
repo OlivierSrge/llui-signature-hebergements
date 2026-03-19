@@ -260,9 +260,8 @@ export async function updatePaymentStatus(
 
 async function cleanupReservationReferences(ids: string[], batch: ReturnType<typeof db.batch>) {
   for (const id of ids) {
-    // Supprimer les logs WhatsApp liés
-    const logsSnap = await db.collection('whatsapp_logs')
-      .where('reservation_id', '==', id).get()
+    // Supprimer les logs WhatsApp liés (sous-collection reservations/{id}/whatsapp_logs)
+    const logsSnap = await db.collection('reservations').doc(id).collection('whatsapp_logs').get()
     logsSnap.docs.forEach((d) => batch.delete(d.ref))
 
     // Supprimer les commissions liées
