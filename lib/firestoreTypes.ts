@@ -18,12 +18,26 @@ export interface UserProfile {
   }
   fast_start: {
     enrolled_at: Timestamp | null
+    deadline_30j: Timestamp | null
+    deadline_60j: Timestamp | null
+    deadline_90j: Timestamp | null
     palier_30_unlocked: boolean
     palier_60_unlocked: boolean
     palier_90_unlocked: boolean
     palier_30_claimed: boolean
     palier_60_claimed: boolean
     palier_90_claimed: boolean
+    palier_30_expire: boolean
+    palier_60_expire: boolean
+    palier_90_expire: boolean
+    palier_30_valide_admin: boolean
+    palier_60_valide_admin: boolean
+    palier_90_valide_admin: boolean
+    palier_30_paye: boolean
+    palier_60_paye: boolean
+    palier_90_paye: boolean
+    total_primes_validees: number
+    total_primes_payees: number
   }
   displayName: string
   phone: string
@@ -59,6 +73,25 @@ export interface Commission {
   amount_credits: number       // 30% de la commission brute
   rev_attribues: number
   created_at: Timestamp
+}
+
+// ─── FastStart Demande (collection fast_start_demandes) ──────
+export interface FastStartDemande {
+  id: string
+  uid: string
+  nom_complet: string
+  telephone_om: string
+  palier: 30 | 60 | 90
+  rev_au_moment: number
+  montant_prime: number
+  atteint_at: Timestamp
+  deadline_palier: Timestamp
+  statut: 'EN_ATTENTE' | 'VALIDEE' | 'PAYEE' | 'REJETEE'
+  valide_par?: string
+  valide_at?: Timestamp
+  paye_at?: Timestamp
+  reference_om?: string
+  note_admin?: string
 }
 
 // ─── Wallet operation (sous-collection) ──────────────────────

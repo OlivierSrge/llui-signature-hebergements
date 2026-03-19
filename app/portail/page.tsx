@@ -32,6 +32,10 @@ async function getDashboardData() {
       done: doc.data().done ?? false,
     }))
 
+    const fs = d.fast_start ?? {}
+    const enrolledTs = fs.enrolled_at
+    const enrolledISO: string | null = enrolledTs?.toDate ? enrolledTs.toDate().toISOString() : null
+
     return {
       displayName: d.displayName ?? 'Utilisateur',
       dateEvenement: dateISO,
@@ -45,7 +49,14 @@ async function getDashboardData() {
       walletCredits: d.wallets?.credits_services ?? 0,
       revLifetime: d.rev_lifetime ?? 0,
       todos,
-      panierCount: 0, // sera mis à jour côté client via usePanier (ÉTAPE 4)
+      panierCount: 0,
+      fastStart: {
+        enrolledAt: enrolledISO,
+        revLifetime: d.rev_lifetime ?? 0,
+        palier30: { unlocked: fs.palier_30_unlocked ?? false, paye: fs.palier_30_paye ?? false, expire: fs.palier_30_expire ?? false, claimed: fs.palier_30_claimed ?? false },
+        palier60: { unlocked: fs.palier_60_unlocked ?? false, paye: fs.palier_60_paye ?? false, expire: fs.palier_60_expire ?? false, claimed: fs.palier_60_claimed ?? false },
+        palier90: { unlocked: fs.palier_90_unlocked ?? false, paye: fs.palier_90_paye ?? false, expire: fs.palier_90_expire ?? false, claimed: fs.palier_90_claimed ?? false },
+      },
     }
   } catch {
     redirect('/portail/login')

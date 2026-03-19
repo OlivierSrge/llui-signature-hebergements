@@ -5,8 +5,9 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getDb } from '@/lib/firebase'
 import { PORTAIL_GRADES, GRADE_COLORS, GRADE_THRESHOLDS } from '@/lib/portailGrades'
-import { FAST_START_PALIERS } from '@/lib/calculatePayout'
 import type { PortailGrade } from '@/lib/portailGrades'
+import FastStartSection from '@/components/portail/FastStartSection'
+import type { PalierState } from '@/components/portail/FastStartSection'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
@@ -33,20 +34,54 @@ async function getAvantagesData() {
     const d = snap.data()!
     const enrolledTs = d.fast_start?.enrolled_at
     const enrolledAt: string | null = enrolledTs?.toDate ? enrolledTs.toDate().toISOString() : null
+    const now = Date.now()
+    const joursRestants = (deadlineField: string): number | null => {
+      const ts = d.fast_start?.[deadlineField]
+      if (!ts?.toDate) return null
+      const diff = ts.toDate().getTime() - now
+      return diff > 0 ? Math.ceil(diff / 86_400_000) : 0
+    }
+    const isoOrNull = (field: string): string | null => {
+      const ts = d.fast_start?.[field]
+      return ts?.toDate ? ts.toDate().toISOString() : null
+    }
+
+    const paliers: PalierState[] = [
+      { palier: 30, rev_requis: 80,  montant_prime: 30_000,
+        unlocked: d.fast_start?.palier_30_unlocked ?? false,
+        claimed:  d.fast_start?.palier_30_claimed  ?? false,
+        expire:   d.fast_start?.palier_30_expire   ?? false,
+        paye:     d.fast_start?.palier_30_paye     ?? false,
+        jours_restants: joursRestants('deadline_30j'),
+        paye_at: isoOrNull('paye_30_at'), reference_om: d.fast_start?.reference_om_30 ?? null,
+        telephone_claimed: d.fast_start?.telephone_om_30 ?? null },
+      { palier: 60, rev_requis: 200, montant_prime: 80_000,
+        unlocked: d.fast_start?.palier_60_unlocked ?? false,
+        claimed:  d.fast_start?.palier_60_claimed  ?? false,
+        expire:   d.fast_start?.palier_60_expire   ?? false,
+        paye:     d.fast_start?.palier_60_paye     ?? false,
+        jours_restants: joursRestants('deadline_60j'),
+        paye_at: isoOrNull('paye_60_at'), reference_om: d.fast_start?.reference_om_60 ?? null,
+        telephone_claimed: d.fast_start?.telephone_om_60 ?? null },
+      { palier: 90, rev_requis: 450, montant_prime: 200_000,
+        unlocked: d.fast_start?.palier_90_unlocked ?? false,
+        claimed:  d.fast_start?.palier_90_claimed  ?? false,
+        expire:   d.fast_start?.palier_90_expire   ?? false,
+        paye:     d.fast_start?.palier_90_paye     ?? false,
+        jours_restants: joursRestants('deadline_90j'),
+        paye_at: isoOrNull('paye_90_at'), reference_om: d.fast_start?.reference_om_90 ?? null,
+        telephone_claimed: d.fast_start?.telephone_om_90 ?? null },
+    ]
+
     return {
+      uid,
+      displayName: d.displayName ?? 'Partenaire',
       grade: (d.grade ?? 'START') as PortailGrade,
       rev_lifetime: d.rev_lifetime ?? 0,
       walletCash: d.wallets?.cash ?? 0,
       walletCredits: d.wallets?.credits_services ?? 0,
-      fast_start: {
-        enrolledAt,
-        palier_30_unlocked: d.fast_start?.palier_30_unlocked ?? false,
-        palier_60_unlocked: d.fast_start?.palier_60_unlocked ?? false,
-        palier_90_unlocked: d.fast_start?.palier_90_unlocked ?? false,
-        palier_30_claimed: d.fast_start?.palier_30_claimed ?? false,
-        palier_60_claimed: d.fast_start?.palier_60_claimed ?? false,
-        palier_90_claimed: d.fast_start?.palier_90_claimed ?? false,
-      },
+      enrolledAt,
+      paliers,
     }
   } catch {
     redirect('/portail/login')
@@ -55,13 +90,13 @@ async function getAvantagesData() {
 
 export default async function AvantagesPage() {
   const data = await getAvantagesData()
-  const { grade, rev_lifetime, walletCash, walletCredits, fast_start } = data
+  const { uid, displayName, grade, rev_lifetime, walletCash, walletCredits, enrolledAt, paliers } = data
   const color = GRADE_COLORS[grade]
   const { next, pct, revManquants } = getNextGradeInfo(grade, rev_lifetime)
 
-  const enrolledAt = fast_start.enrolledAt ? new Date(fast_start.enrolledAt) : null
-  const joursEcoules = enrolledAt
-    ? Math.floor((Date.now() - enrolledAt.getTime()) / (1000 * 60 * 60 * 24))
+  const enrolledDate = enrolledAt ? new Date(enrolledAt) : null
+  const joursEcoules = enrolledDate
+    ? Math.floor((Date.now() - enrolledDate.getTime()) / (1000 * 60 * 60 * 24))
     : null
 
   return (
@@ -103,43 +138,14 @@ export default async function AvantagesPage() {
         </div>
       </div>
 
-      {/* Fast Start */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm font-semibold text-[#1A1A1A]">Fast Start Cameroun</p>
-          {joursEcoules !== null && (
-            <span className="text-[11px] text-[#888]">J+{joursEcoules}</span>
-          )}
-        </div>
-        <div className="space-y-3">
-          {FAST_START_PALIERS.map((palier, i) => {
-            const keys = ['palier_30', 'palier_60', 'palier_90'] as const
-            const key = keys[i]
-            const unlocked = fast_start[`${key}_unlocked`]
-            const claimed = fast_start[`${key}_claimed`]
-            return (
-              <div key={palier.label} className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-                  style={{
-                    background: claimed ? '#7C9A7E' : unlocked ? '#C9A84C' : '#F5F0E8',
-                    color: claimed || unlocked ? 'white' : '#888',
-                  }}
-                >
-                  {claimed ? '✓' : palier.jours}j
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-medium text-[#1A1A1A]">{palier.rev} REV en {palier.jours} jours</p>
-                  <p className="text-[10px] text-[#888]">
-                    {claimed ? 'Prime perçue' : unlocked ? 'Prime disponible' : 'Non débloqué'}
-                  </p>
-                </div>
-                <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(palier.prime)}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      {/* Fast Start — section interactive client */}
+      <FastStartSection
+        uid={uid}
+        displayName={displayName}
+        joursEcoules={joursEcoules}
+        paliers={paliers}
+        revLifetime={rev_lifetime}
+      />
 
       {/* Grades roadmap */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
