@@ -128,7 +128,7 @@ export default function MonComptePointsFullHistory({
               <YAxis tick={{ fontSize: 11, fill: '#9E9587' }} />
               <Tooltip
                 contentStyle={{ background: '#fff', border: '1px solid #E8DCC8', borderRadius: 12, fontSize: 12 }}
-                formatter={(v: number) => [`${v} pts`, 'Points']}
+                formatter={(v: number | undefined) => [`${v ?? 0} pts`, 'Points'] as [string, string]}
               />
               <Bar dataKey="points" fill={niveauColor || '#C9A84C'} radius={[4, 4, 0, 0]} maxBarSize={40} />
             </BarChart>
