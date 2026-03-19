@@ -1,5 +1,19 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-18 — Système types d'hébergements enrichi (3 blocs)
+Dernière mise à jour : 2026-03-19 — Patch Fast Start terminé (5 étapes)
+
+---
+
+## PATCH FAST START — TERMINÉ (2026-03-19)
+
+Patch Fast Start terminé : Fast Start opérationnel de bout en bout.
+- ✅ Types harmonisés + interface FastStartDemande (`lib/firestoreTypes.ts`)
+- ✅ Cron horaire unlock + expire automatique + notifs WA (`/api/cron/fast-start-check` + `vercel.json`)
+- ✅ API claim + formulaire Orange Money 5 états visuels (`/api/portail/fast-start/claim` + `FastStartSection.tsx`)
+- ✅ Page admin `/admin/fast-start` — KPIs, tableau demandes, validation/paiement OM, alertes 7j (`FastStartTable.tsx`)
+- ✅ Widget dashboard timeline J30/J60/J90 (`FastStartWidget.tsx`)
+- ✅ Auto-enroll à l'inscription (`/api/portail/auth/register`)
+
+Commits : dd9af42 | 57b5bd2 | af7f99d | 49f52c2 | 743249c
 
 ---
 
