@@ -619,7 +619,7 @@ et toggle admin entre version complète / simplifiée.
 | Module | Fichier lib | Page admin | Statut |
 |--------|-------------|-----------|--------|
 | Fidélité clients | `lib/loyaltyDefaults.ts` | `/admin/fidelite` | ✅ Implémenté |
-| Devis / Estimations | `lib/devisDefaults.ts` | `/admin/devis` | ❌ À implémenter |
+| Devis / Estimations | `lib/devisDefaults.ts` | `/admin/devis` | ✅ Implémenté |
 
 ---
 
@@ -932,6 +932,32 @@ et toggle admin entre version complète / simplifiée.
 
 ### Routes disponibles (nouvelles)
 - `/mon-compte/points` — Historique complet des points avec graphique et filtres
+
+---
+
+## SESSION 2026-03-19 (fin) — MODULE MARIAGES & DEVIS + CORRECTIONS
+
+### Module /admin/devis — 5 blocs implémentés
+
+| Fichier | Rôle |
+|---------|------|
+| `lib/devisDefaults.ts` | PACKS (PERLE/SAPHIR/ÉMERAUDE/DIAMANT), CATALOGUE, LLUI_CONFIG, calculerTotaux(), formatFCFA() |
+| `actions/devis.ts` | saveDevis, getDevisList, getDevis, updateDevisStatus, toggleDevisVisibleBoutique, dupliquerDevis, deleteDevis |
+| `app/admin/devis/page.tsx` | Page serveur — charge liste et rend DevisAdminTabs |
+| `components/admin/DevisAdminTabs.tsx` | Tabs : Nouveau devis / Mes devis (N) |
+| `components/admin/DevisWizard.tsx` | Wizard 4 étapes : client, pack, personnalisation, récap+PDF |
+| `components/admin/DevisVariantes.tsx` | 3 cartes variantes (Confort -15%, Équilibre, Prestige pack+) |
+| `components/admin/DevisHistorique.tsx` | Tableau historique avec badges statut, toggle boutique, actions |
+| `lib/generateDevisPDF.ts` | PDF A4 6 pages jsPDF (couverture, intro, budget, CDC, paiement, signature) |
+| `components/admin/AdminSidebar.tsx` | Entrée "💍 Mariages & Devis" ajoutée |
+
+### Corrections appliquées (2026-03-19)
+
+- **FIX formatFCFA** : `Intl.NumberFormat('fr-FR')` → séparateur espace (1 800 000 FCFA)
+- **FIX PDF emojis** : `sanitizeForPDF()` dans `lib/generateDevisPDF.ts` — supprime les caractères Unicode incompatibles avec jsPDF/helvetica (regex surrogate pairs + BMP U+2600-U+27BF)
+
+### Route disponible
+- `/admin/devis` — Générateur de propositions commerciales mariages
 
 ---
 
