@@ -1,9 +1,171 @@
-export default function PlaceholderPage() {
+// app/portail/avantages/page.tsx
+// Wallets, REV, Fast Start — Server Component
+
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { getDb } from '@/lib/firebase'
+import { PORTAIL_GRADES, GRADE_COLORS, GRADE_THRESHOLDS } from '@/lib/portailGrades'
+import { FAST_START_PALIERS } from '@/lib/calculatePayout'
+import type { PortailGrade } from '@/lib/portailGrades'
+
+function formatFCFA(n: number) {
+  return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
+}
+
+function getNextGradeInfo(grade: PortailGrade, rev: number) {
+  const idx = PORTAIL_GRADES.indexOf(grade)
+  if (idx === PORTAIL_GRADES.length - 1) return { next: null, pct: 100, revManquants: 0 }
+  const next = PORTAIL_GRADES[idx + 1]
+  const current = GRADE_THRESHOLDS[grade]
+  const target = GRADE_THRESHOLDS[next]
+  const pct = Math.max(0, Math.min(100, Math.round(((rev - current) / (target - current)) * 100)))
+  return { next, pct, revManquants: Math.max(0, target - rev) }
+}
+
+async function getAvantagesData() {
+  try {
+    const cookieStore = cookies()
+    const uid = cookieStore.get('portail_uid')?.value
+    if (!uid) redirect('/portail/login')
+    const db = getDb()
+    const snap = await db.collection('portail_users').doc(uid).get()
+    if (!snap.exists) redirect('/portail/login')
+    const d = snap.data()!
+    const enrolledTs = d.fast_start?.enrolled_at
+    const enrolledAt: string | null = enrolledTs?.toDate ? enrolledTs.toDate().toISOString() : null
+    return {
+      grade: (d.grade ?? 'START') as PortailGrade,
+      rev_lifetime: d.rev_lifetime ?? 0,
+      walletCash: d.wallets?.cash ?? 0,
+      walletCredits: d.wallets?.credits_services ?? 0,
+      fast_start: {
+        enrolledAt,
+        palier_30_unlocked: d.fast_start?.palier_30_unlocked ?? false,
+        palier_60_unlocked: d.fast_start?.palier_60_unlocked ?? false,
+        palier_90_unlocked: d.fast_start?.palier_90_unlocked ?? false,
+        palier_30_claimed: d.fast_start?.palier_30_claimed ?? false,
+        palier_60_claimed: d.fast_start?.palier_60_claimed ?? false,
+        palier_90_claimed: d.fast_start?.palier_90_claimed ?? false,
+      },
+    }
+  } catch {
+    redirect('/portail/login')
+  }
+}
+
+export default async function AvantagesPage() {
+  const data = await getAvantagesData()
+  const { grade, rev_lifetime, walletCash, walletCredits, fast_start } = data
+  const color = GRADE_COLORS[grade]
+  const { next, pct, revManquants } = getNextGradeInfo(grade, rev_lifetime)
+
+  const enrolledAt = fast_start.enrolledAt ? new Date(fast_start.enrolledAt) : null
+  const joursEcoules = enrolledAt
+    ? Math.floor((Date.now() - enrolledAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-16 text-center">
-      <div className="text-4xl mb-4">🔧</div>
-      <h2 className="font-serif italic text-2xl text-[#1A1A1A] mb-2">Module en cours de développement</h2>
-      <p className="text-sm text-[#888]">Ce module sera disponible dans la prochaine phase.</p>
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Mes Avantages</h1>
+
+      {/* Grade + REV */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-5 text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="px-3 py-1 rounded-full text-xs font-bold"
+            style={{ background: color + '33', color, border: `1px solid ${color}60` }}
+          >
+            {grade}
+          </div>
+          <span className="text-white/60 text-sm">{rev_lifetime.toLocaleString('fr-FR')} REV</span>
+        </div>
+        <div className="text-xs text-white/40 mb-1 flex justify-between">
+          <span>{grade}</span>
+          {next && <span>{next} — encore {revManquants.toLocaleString('fr-FR')} REV</span>}
+        </div>
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        {!next && <p className="text-xs text-[#C9A84C] mt-2 font-semibold">Niveau maximum atteint — Félicitations !</p>}
+      </div>
+
+      {/* Wallets */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+          <p className="text-[10px] text-[#888] mb-1">Cash retirable</p>
+          <p className="font-bold text-[#C9A84C] text-lg">{formatFCFA(walletCash)}</p>
+          <p className="text-[10px] text-[#888] mt-1">70% des commissions</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+          <p className="text-[10px] text-[#888] mb-1">Crédits services</p>
+          <p className="font-bold text-[#0F52BA] text-lg">{formatFCFA(walletCredits)}</p>
+          <p className="text-[10px] text-[#888] mt-1">30% — utilisable L&Lui</p>
+        </div>
+      </div>
+
+      {/* Fast Start */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-sm font-semibold text-[#1A1A1A]">Fast Start Cameroun</p>
+          {joursEcoules !== null && (
+            <span className="text-[11px] text-[#888]">J+{joursEcoules}</span>
+          )}
+        </div>
+        <div className="space-y-3">
+          {FAST_START_PALIERS.map((palier, i) => {
+            const keys = ['palier_30', 'palier_60', 'palier_90'] as const
+            const key = keys[i]
+            const unlocked = fast_start[`${key}_unlocked`]
+            const claimed = fast_start[`${key}_claimed`]
+            return (
+              <div key={palier.label} className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                  style={{
+                    background: claimed ? '#7C9A7E' : unlocked ? '#C9A84C' : '#F5F0E8',
+                    color: claimed || unlocked ? 'white' : '#888',
+                  }}
+                >
+                  {claimed ? '✓' : palier.jours}j
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-[#1A1A1A]">{palier.rev} REV en {palier.jours} jours</p>
+                  <p className="text-[10px] text-[#888]">
+                    {claimed ? 'Prime perçue' : unlocked ? 'Prime disponible' : 'Non débloqué'}
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(palier.prime)}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Grades roadmap */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+        <p className="text-sm font-semibold text-[#1A1A1A] mb-3">Progression des grades</p>
+        <div className="space-y-2">
+          {PORTAIL_GRADES.map(g => {
+            const isActive = g === grade
+            const isPassed = PORTAIL_GRADES.indexOf(g) < PORTAIL_GRADES.indexOf(grade)
+            const gColor = GRADE_COLORS[g]
+            return (
+              <div key={g} className="flex items-center gap-3">
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: isPassed || isActive ? gColor : '#E8E0D0' }}
+                />
+                <span className="text-xs flex-1" style={{ color: isActive ? gColor : isPassed ? '#888' : '#CCC', fontWeight: isActive ? 700 : 400 }}>
+                  {g}
+                </span>
+                <span className="text-[10px] text-[#888]">
+                  {GRADE_THRESHOLDS[g].toLocaleString('fr-FR')} REV
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
