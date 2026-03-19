@@ -969,7 +969,7 @@ et toggle admin entre version complète / simplifiée.
 |------|------------|--------|
 | BLOC 1 | npm install + `lib/pexelsClient.ts` | ✅ Terminé |
 | BLOC 2 | `app/api/devis/generate/route.ts` | ⏳ À faire |
-| BLOC 3 | `lib/devisTemplate.ts` (12 slides HTML) | ⏳ À faire |
+| BLOC 3 | `lib/devisTemplate.ts` (12 slides HTML) | ✅ Terminé (3A+3B+3C) |
 | BLOC 4 | `app/api/devis/pdf/route.ts` (Puppeteer) | ⏳ À faire |
 | BLOC 5 | Update `DevisWizard.tsx` + photos admin | ⏳ À faire |
 
