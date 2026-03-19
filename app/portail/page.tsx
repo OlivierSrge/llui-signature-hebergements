@@ -1,67 +1,58 @@
-import Link from 'next/link'
-import { Calculator, Home, Star, FolderOpen } from 'lucide-react'
+// app/portail/page.tsx
+// Dashboard mariés — Server Component (fetches Firestore data)
 
-const MODULES = [
-  {
-    href: '/portail/configurateur',
-    icon: Calculator,
-    titre: 'Ma Vision',
-    sous_titre: 'Configurer mon devis',
-    desc: 'Créez votre proposition commerciale sur mesure',
-    couleur: '#C9A84C',
-  },
-  {
-    href: '/portail/escales',
-    icon: Home,
-    titre: 'Mes Escales',
-    sous_titre: 'Hébergements & partenaires',
-    desc: 'Accédez aux logements L&Lui et partenaires',
-    couleur: '#7C9A7E',
-  },
-  {
-    href: '/portail/avantages',
-    icon: Star,
-    titre: 'Mes Avantages',
-    sous_titre: 'Crédits services & REV',
-    desc: 'Consultez votre wallet et vos points REV',
-    couleur: '#0F52BA',
-  },
-  {
-    href: '/portail/documents',
-    icon: FolderOpen,
-    titre: 'Mes Documents',
-    sous_titre: 'PDF & ressources',
-    desc: 'Téléchargez contrats, guides et propositions',
-    couleur: '#888888',
-  },
-]
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { getDb } from '@/lib/firebase'
+import DashboardClient from '@/components/portail/DashboardClient'
 
-export default function PortailPage() {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="font-serif italic text-3xl text-[#1A1A1A] mb-1">Mon Espace Signature</h1>
-      <p className="text-sm text-[#888] mb-8">Bienvenue dans votre espace L&Lui Signature</p>
+interface TodoDoc { id: string; libelle: string; done: boolean }
 
-      {/* Grille 2x2 mobile / 4 colonnes desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {MODULES.map(({ href, icon: Icon, titre, sous_titre, desc, couleur }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group flex flex-col bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8] hover:shadow-md transition-all hover:-translate-y-0.5"
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-              style={{ background: couleur + '18' }}
-            >
-              <Icon size={20} style={{ color: couleur }} />
-            </div>
-            <p className="font-semibold text-[#1A1A1A] text-sm mb-0.5">{titre}</p>
-            <p className="text-[11px] text-[#888] mb-2">{sous_titre}</p>
-            <p className="text-[11px] text-[#aaa] leading-relaxed hidden sm:block">{desc}</p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  )
+async function getDashboardData() {
+  try {
+    const cookieStore = cookies()
+    const uid = cookieStore.get('portail_uid')?.value
+    if (!uid) redirect('/portail/login')
+
+    const db = getDb()
+    const [userSnap, todosSnap] = await Promise.all([
+      db.collection('portail_users').doc(uid).get(),
+      db.collection('portail_users').doc(uid).collection('todos').orderBy('created_at', 'asc').limit(10).get(),
+    ])
+
+    if (!userSnap.exists) redirect('/portail/login')
+    const d = userSnap.data()!
+
+    const dateTs = d.projet?.date_evenement
+    const dateISO: string | null = dateTs?.toDate ? dateTs.toDate().toISOString() : null
+
+    const todos: TodoDoc[] = todosSnap.docs.map(doc => ({
+      id: doc.id,
+      libelle: doc.data().libelle ?? '',
+      done: doc.data().done ?? false,
+    }))
+
+    return {
+      displayName: d.displayName ?? 'Utilisateur',
+      dateEvenement: dateISO,
+      nomEvenement: d.projet?.nom ?? '',
+      lieuEvenement: d.projet?.lieu ?? '',
+      budgetPrevisionnel: d.projet?.budget_previsionnel ?? 0,
+      budgetDepense: d.wallets?.credits_services ?? 0,
+      nombreInvitesPrev: d.projet?.nombre_invites_prevu ?? 0,
+      invitesConfirmes: d.invites_confirmes ?? 0,
+      walletCash: d.wallets?.cash ?? 0,
+      walletCredits: d.wallets?.credits_services ?? 0,
+      revLifetime: d.rev_lifetime ?? 0,
+      todos,
+      panierCount: 0, // sera mis à jour côté client via usePanier (ÉTAPE 4)
+    }
+  } catch {
+    redirect('/portail/login')
+  }
+}
+
+export default async function PortailPage() {
+  const data = await getDashboardData()
+  return <DashboardClient {...data} />
 }
