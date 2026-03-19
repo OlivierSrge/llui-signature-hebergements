@@ -240,6 +240,176 @@ function slide6(data: DevisHTMLData, images: Record<string, string>): string {
 </div>`
 }
 
+// ─── Slide 7 — Services Exclusifs & Logistique ──────────────
+function slide7(data: DevisHTMLData, images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const hasFlotte = pack?.services.some(s => s.toLowerCase().includes('flotte'))
+  const cards = [
+    { titre: 'Coordination Événement', desc: 'Chef de projet dédié — présent du J-90 au Jour J. Planning détaillé, suivi prestataires, répétition cérémonie, gestion imprévus.' },
+    { titre: hasFlotte ? 'Flotte Véhicules Prestige' : 'Transport & Véhicules', desc: hasFlotte ? 'Flotte de véhicules prestige pour les mariés et la famille proche — chauffeurs en livrée, décoration florale des véhicules.' : 'Voiture de mariage pour les mariés, coordination des navettes invités si nécessaire.' },
+    { titre: 'Services Additionnels', desc: `${pack?.services.filter(s => s.includes('Conciergerie') || s.includes('Cadeaux') || s.includes('Chaises')).join(' — ') || 'Accueil VIP, mise en place advance, démontage et restitution des lieux.'}` },
+  ]
+  return `<div class="slide" style="background:var(--beige)">
+  <div class="content" style="justify-content:center">
+    <div style="text-align:center;margin-bottom:2rem">
+      <p class="label">Excellence &amp; Privilèges</p>
+      <h2 style="font-size:2.2rem;color:var(--noir);margin-bottom:.3rem">Services Exclusifs &amp; Gestion</h2>
+      <div class="gold-line" style="margin:.7rem auto"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:900px;margin:0 auto">
+      ${cards.map(c => `<div class="card"><div style="width:8px;height:3px;background:var(--or);margin-bottom:1rem"></div><p style="font-size:.85rem;font-weight:500;color:var(--noir);margin-bottom:.5rem">${c.titre}</p><p style="font-size:.75rem;color:var(--gris);line-height:1.6">${c.desc}</p></div>`).join('')}
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 8 — CDC Décoration (détail 2×2) ──────────────────
+function slide8(data: DevisHTMLData, _images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const cdcDeco = pack ? getCdcDecoration(pack.decoration) : ''
+  const blocs = [
+    { n: '01', titre: 'Structure & Ambiance Spatiale', desc: 'Implantation des tables rondes ou rectangulaires, allées de circulation de 1,50 m minimum, positionnement estrade mariés, scène DJ/orchestre et piste de danse. Configuration adaptée aux lieux de réception.' },
+    { n: '02', titre: 'Art de la Table — Minimalisme Stylisé', desc: `Nappage en tissu premium, chemin de table en organza ou en lin selon thème. Centres de table : ${cdcDeco}. Vaisselle assortie, couverts inox ou dorés selon pack.` },
+    { n: '03', titre: 'Concept Floral & Colorimétrie', desc: `${cdcDeco} — Arche florale pour la cérémonie et/ou la réception. Compositions florales de table avec fleurs fraîches ou séchées. Palette chromatique définie avec les mariés lors du brief déco.` },
+    { n: '04', titre: 'Signalétique & Éclairage', desc: 'Plan de table calligraphié, menus individuels, étiquettes de table. Éclairage : bougies LED longue durée, guirlandes lumineuses, spots directionnels sur la table des mariés.' },
+  ]
+  return `<div class="slide" style="background:#fff">
+  <div class="content" style="padding:2.5rem 5vw;justify-content:flex-start">
+    <p class="label" style="margin-bottom:.3rem">Technique &amp; Style</p>
+    <h2 style="font-size:1.9rem;color:var(--noir);margin-bottom:.5rem">Cahier des Charges Décoration</h2>
+    <div class="gold-line"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1rem;flex:1">
+      ${blocs.map(b => `<div style="background:var(--beige);border-radius:8px;padding:1.4rem"><p style="font-size:1.6rem;font-family:'Cormorant Garamond',serif;color:var(--or);margin-bottom:.4rem">${b.n}</p><p style="font-size:.82rem;font-weight:500;color:var(--noir);margin-bottom:.4rem">${b.titre}</p><p style="font-size:.74rem;color:var(--gris);line-height:1.6">${b.desc}</p></div>`).join('')}
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 9 — Récapitulatif Budgétaire ─────────────────────
+function slide9(data: DevisHTMLData, _images: Record<string, string>): string {
+  const { form, totaux } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const cats = [
+    { label: 'Restauration & Traiteur', val: pack ? Math.round(pack.prixBase * 0.40) : 0 },
+    { label: 'Décoration & Scénographie', val: pack ? Math.round(pack.prixBase * 0.30) : 0 },
+    { label: 'Image & Beauté', val: pack ? Math.round(pack.prixBase * 0.15) : 0 },
+    { label: 'Logistique & Lieux', val: (pack ? Math.round(pack.prixBase * 0.15) : 0) + totaux.totalLieux },
+  ]
+  const optionsSel = CATALOGUE.optionsALaCarte.filter(o => form.optionsSelectionnees.includes(o.nom))
+  const boutiqueSel = CATALOGUE.optionsBoutique.filter(o => form.optionsBoutiqueSelectionnees.includes(o.nom))
+  const row = (label: string, val: string, bold = false, gold = false) =>
+    `<div style="display:flex;justify-content:space-between;padding:.55rem 0;border-bottom:.5px solid #eee"><span style="font-size:${bold ? '.85' : '.8'}rem;${gold ? 'color:var(--or);' : 'color:#555;'}${bold ? 'font-weight:500' : ''}">${label}</span><span style="font-size:${bold ? '.85' : '.8'}rem;font-weight:${bold ? '600' : '400'};${gold ? 'color:var(--or)' : 'color:var(--noir)'}">${val}</span></div>`
+  return `<div class="slide" style="background:var(--beige)">
+  <div class="content" style="padding:2.5rem 5vw;justify-content:flex-start">
+    <p class="label">Finances</p>
+    <h2 style="font-size:1.9rem;color:var(--noir);margin-bottom:.5rem">Récapitulatif Budgétaire</h2>
+    <div class="gold-line"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1rem">
+      <div class="card">
+        ${cats.map(c => row(c.label, formatFCFA(c.val))).join('')}
+        ${optionsSel.map(o => row('+ ' + o.nom, formatFCFA(o.prix))).join('')}
+        <div style="height:.5px;background:var(--gris);opacity:.3;margin:.5rem 0"></div>
+        ${row('Sous-total prestations', formatFCFA(totaux.sousTotalPrestations))}
+        ${row('Honoraires L&amp;Lui (10%)', formatFCFA(totaux.honoraires))}
+        <div style="display:flex;justify-content:space-between;padding:.8rem 0;background:var(--or);margin-top:.5rem;border-radius:4px;padding-left:.8rem;padding-right:.8rem">
+          <span style="font-size:.9rem;font-weight:600;color:var(--noir)">TOTAL TTC</span>
+          <span style="font-size:.9rem;font-weight:700;color:var(--noir)">${formatFCFA(totaux.totalTTC)}</span>
+        </div>
+        ${totaux.totalBoutique > 0 ? `<div style="background:#fffaf0;border-radius:4px;padding:.7rem;margin-top:.6rem"><p style="font-size:.7rem;color:#a06000;font-weight:500;margin-bottom:.3rem">OPTIONS BOUTIQUE (hors total)</p>${boutiqueSel.map(o => row(o.nom, formatFCFA(o.prix))).join('')}<div style="display:flex;justify-content:space-between;margin-top:.3rem"><span style="font-size:.8rem;font-weight:600;color:#a06000">Total boutique</span><span style="font-size:.8rem;font-weight:700;color:#a06000">${formatFCFA(totaux.totalBoutique)}</span></div></div>` : ''}
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.8rem">Échéancier de paiement</p>
+        ${totaux.echeancier.map((e, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;background:${i % 2 === 0 ? '#fff' : 'rgba(255,255,255,.6)'};border-radius:6px;margin-bottom:.4rem"><span style="font-size:.8rem;color:#555">${e.pourcentage}% &mdash; ${e.label}</span><span style="font-size:.85rem;font-weight:600;color:var(--noir)">${formatFCFA(e.montant)}</span></div>`).join('')}
+        ${form.notes ? `<div class="card-sm" style="margin-top:1.2rem"><p style="font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.3rem">Notes</p><p style="font-size:.78rem;color:#555;line-height:1.5;font-style:italic">${form.notes}</p></div>` : ''}
+      </div>
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 10 — L&Lui Hébergements & Boutique ───────────────
+function slide10(_data: DevisHTMLData, images: Record<string, string>): string {
+  const col = (title: string, text: string, link: string, btnLabel: string, img: string) =>
+    `<div style="display:flex;flex-direction:column;gap:0;overflow:hidden;border-radius:8px;box-shadow:0 2px 20px rgba(0,0,0,.08)">
+      <div style="height:200px;overflow:hidden">${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" alt=""/>` : `<div style="width:100%;height:100%;background:#c0b090"></div>`}</div>
+      <div style="padding:1.5rem;background:#fff;flex:1">
+        <p style="font-size:.85rem;font-weight:500;color:var(--noir);margin-bottom:.5rem">${title}</p>
+        <p style="font-size:.76rem;color:var(--gris);line-height:1.6;margin-bottom:1rem">${text}</p>
+        <p style="font-size:.7rem;color:var(--or)">${link}</p>
+      </div>
+      <div style="background:var(--noir);padding:.7rem 1.5rem;text-align:center"><span style="font-size:.75rem;color:#fff;letter-spacing:1px">${btnLabel}</span></div>
+    </div>`
+  return `<div class="slide" style="background:var(--beige)">
+  <div class="content" style="padding:2.5rem 5vw;justify-content:flex-start">
+    <p class="label">Nos Autres Services</p>
+    <h2 style="font-size:1.9rem;color:var(--noir);margin-bottom:.5rem">L'Univers Complet L&amp;Lui Signature</h2>
+    <div class="gold-line"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1rem">
+      ${col('Hébergements Premium à Kribi', 'Offrez à vos invités une expérience de séjour inoubliable dans nos résidences sélectionnées au bord de l\'Atlantique. Villas d\'exception, lodges de charme, suites privées — L&amp;Lui Signature sélectionne pour vous les plus belles adresses de Kribi.', 'llui-signature-hebergements.vercel.app', 'Découvrir nos hébergements', images.hebergement || '')}
+      ${col('Boutique L&amp;Lui Signature', 'Retrouvez notre sélection exclusive d\'accessoires de mariage, décorations sur mesure, faire-parts premium et packs cadeaux. Tout l\'univers L&amp;Lui à portée de clic, livrable partout au Cameroun.', 'letlui-signature.netlify.app', 'Visiter la boutique', images.boutique || '')}
+    </div>
+    <div style="background:var(--or);border-radius:6px;padding:.8rem 1.5rem;margin-top:1rem;text-align:center"><p style="font-size:.78rem;color:var(--noir)">Bénéficiez de votre code promo L&amp;Lui Stars sur tous vos achats boutique — consultez votre niveau fidélité sur <strong>llui-signature-hebergements.vercel.app/mon-compte</strong></p></div>
+  </div>
+</div>`
+}
+
+// ─── Slide 11 — Conditions financières & paiement ───────────
+function slide11(_data: DevisHTMLData, _images: Record<string, string>): string {
+  const { cameroun, france, om, revolut } = LLUI_CONFIG.paiement
+  const conds = [
+    'Cette proposition est valable 30 jours à compter de sa date d\'émission.',
+    'Tout acompte versé est non remboursable en cas d\'annulation par le client.',
+    'L&Lui Signature se réserve le droit de substituer un prestataire en cas d\'indisponibilité.',
+    'Les prix sont exprimés en Francs CFA (FCFA) et sont fermes pour la durée de validité.',
+    'Les options boutique (alcools) sont soumises à réglementation locale en vigueur.',
+  ]
+  const payRow = (label: string, val: string) =>
+    `<div style="display:flex;gap:1rem;padding:.5rem 0;border-bottom:.5px solid #eee"><span style="font-size:.76rem;color:var(--gris);min-width:100px">${label}</span><span style="font-size:.76rem;color:var(--noir);font-weight:500">${val}</span></div>`
+  return `<div class="slide" style="background:var(--beige)">
+  <div class="content" style="padding:2.5rem 5vw;justify-content:flex-start">
+    <p class="label">Conditions Générales</p>
+    <h2 style="font-size:1.9rem;color:var(--noir);margin-bottom:.5rem">Modalités de Règlement</h2>
+    <div class="gold-line"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1rem">
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="card-sm"><p style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.6rem">Cameroun — BICEC</p>${payRow('Banque', cameroun.banque)}${payRow('IBAN / RIB', cameroun.iban)}${payRow('Bénéficiaire', LLUI_CONFIG.enseigne)}</div>
+        <div class="card-sm"><p style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.6rem">France / Europe — Revolut</p>${payRow('IBAN', france.iban)}${payRow('Bénéficiaire', LLUI_CONFIG.enseigne)}</div>
+        <div class="card-sm"><p style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.6rem">Paiement Mobile</p>${payRow('Orange Money', om)}${payRow('Revolut', revolut)}</div>
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--gris);margin-bottom:.8rem">Conditions générales</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem">
+          ${conds.map(c => `<li style="font-size:.76rem;color:#555;line-height:1.5;display:flex;gap:.6rem"><span style="color:var(--or);flex-shrink:0">—</span>${c}</li>`).join('')}
+        </ul>
+        <div style="margin-top:1.5rem;padding-top:1rem;border-top:.5px solid #ccc">
+          <p style="font-size:.72rem;color:var(--gris)">NIU : ${LLUI_CONFIG.niu} &bull; RCCM : ${LLUI_CONFIG.rccm}</p>
+          <p style="font-size:.72rem;color:var(--gris);margin-top:.2rem">${LLUI_CONFIG.adresse}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 12 — Page de clôture ─────────────────────────────
+function slide12(_data: DevisHTMLData, images: Record<string, string>): string {
+  const bg = images.closing || images.cover
+  return `<div class="slide">
+  ${bg ? `<img class="bg-img" src="${bg}" alt=""/>` : ''}
+  <div class="overlay"></div>
+  <div class="content" style="align-items:center;text-align:center;gap:.8rem">
+    <div class="gold-line" style="margin:0 auto"></div>
+    <h1 style="font-size:clamp(2rem,4.5vw,3rem);color:#fff;line-height:1.2">Merci de votre confiance</h1>
+    <p style="font-size:1rem;color:rgba(255,255,255,.75);max-width:500px;line-height:1.7;font-style:italic">"Nous mettons tout notre savoir-faire au service de votre bonheur."</p>
+    <div class="gold-line" style="margin:.8rem auto"></div>
+    <p style="font-size:1rem;font-weight:500;color:var(--or);letter-spacing:2px">L&amp;Lui Signature</p>
+    <p style="font-size:.82rem;color:rgba(255,255,255,.6)">${LLUI_CONFIG.email} &bull; ${LLUI_CONFIG.telephone}</p>
+  </div>
+</div>`
+}
+
 // ─── Assembleur principal ────────────────────────────────────
 export function generateDevisHTML(data: DevisHTMLData, images: Record<string, string>): string {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
@@ -252,7 +422,12 @@ ${slide3(data, images)}
 ${slide4(data, images)}
 ${slide5(data, images)}
 ${slide6(data, images)}
-<!-- SLIDES_7_12 -->
+${slide7(data, images)}
+${slide8(data, images)}
+${slide9(data, images)}
+${slide10(data, images)}
+${slide11(data, images)}
+${slide12(data, images)}
 <button class="nav-btn nav-prev" id="prv">&#8592;</button>
 <button class="nav-btn nav-next" id="nxt">&#8594;</button>
 <span class="page-counter" id="pc"></span>
