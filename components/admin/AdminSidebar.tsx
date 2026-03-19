@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/promo-codes', label: 'Codes promo', icon: Tag },
   { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/fidelite', label: '⭐ Fidélité L&Lui Stars', icon: Star },
+  { href: '/admin/devis', label: '💍 Mariages & Devis', icon: Gem },
   { href: '/admin/templates', label: 'Templates WhatsApp', icon: MessageCircle },
   { href: '/admin/contrat', label: 'Contrat partenariat', icon: FileSignature },
   { href: '/admin/abonnements', label: 'Abonnements', icon: CreditCard },
