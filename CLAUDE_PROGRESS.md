@@ -884,9 +884,60 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## SESSION 2026-03-19 (suite) — BLOCS 5 & 6 FIDÉLITÉ
+
+### BLOC 5 — Améliorations espace client /mon-compte
+
+| Fichier | Rôle |
+|---------|------|
+| `components/MonComptePromoWidget.tsx` | Widget code promo enrichi (expiry, boutique link, copy button, empty state) |
+| `components/MonComptePointsHistoryWidget.tsx` | 10 dernières transactions de points avec lien vers /mon-compte/points |
+| `components/MonCompteReferralWidget.tsx` | Widget parrainage (code, compteur filleuls, points gagnés, partage WhatsApp) |
+| `components/MonComptePointsFullHistory.tsx` | Historique complet avec recharts (6 mois), filtres par action, tableau avec solde cumulé |
+| `app/(main)/mon-compte/points/page.tsx` | Page /mon-compte/points — historique complet (server + client) |
+| `app/(main)/mon-compte/page.tsx` | Refonte avec barre progression animée, texte d'encouragement dynamique, tous les nouveaux widgets |
+| `components/MonCompteMemberCard.tsx` | Ajout bouton "📤 Partager sur WhatsApp" à côté du téléchargement |
+
+**Améliorations :**
+- Barre de progression animée avec texte d'encouragement dynamique
+- Widget code promo avec date d'expiration et lien boutique
+- Historique 10 dernières transactions + lien vers page complète
+- Compteur filleuls avec partage WhatsApp
+- Page `/mon-compte/points` avec graphique recharts et filtres
+- Carte membre partageable par WhatsApp
+
+### BLOC 6 — Notifications automatiques clients
+
+| Fichier | Rôle |
+|---------|------|
+| `lib/loyaltyNotifications.ts` | Fonctions pures : build messages WhatsApp (level_up, expiring_promo, birthday, stay_anniversary), buildWaUrl |
+| `actions/fidelite.ts` | + checkExpiringPromoCodes(), checkClientBirthdays(), checkStayAnniversaries(), getPendingNotifications(), getPendingNotificationsCount(), updateNotificationStatus() |
+| `components/admin/FideliteNotificationsTable.tsx` | Tableau pending notifications avec aperçu message, bouton WhatsApp, marquer envoyé/ignorer |
+| `components/admin/FideliteActionsPanel.tsx` | Ajout 3 boutons déclencheurs (anniversaires, séjour, codes expirants) + section notifications en attente |
+| `components/admin/FideliteParametresTabs.tsx` | Ajout bouton "🔔 Vérifier les codes expirants" dans l'onglet Codes promo |
+| `app/admin/fidelite/page.tsx` | Charge pendingNotifications et les passe à FideliteActionsPanel |
+| `app/api/admin/loyalty-badge/route.ts` | GET API retourne count des notifications pending |
+| `components/admin/AdminSidebar.tsx` | Badge rouge dynamique sur "⭐ Fidélité L&Lui Stars" si notifications pending |
+
+**Fonctionnement notifications :**
+- Stockées dans `clients/{clientId}/pendingNotifications` subcollection
+- Status : `pending` → `sent` (avec sentAt) ou `dismissed`
+- Envoi MANUEL via lien wa.me — aucun envoi automatique serveur
+- Déclencheurs manuels depuis le dashboard admin
+
+### Collections Firestore ajoutées
+| Collection | Contenu |
+|-----------|---------|
+| `clients/{id}/pendingNotifications` | Sous-collection — notifications WhatsApp en attente d'envoi manuel |
+
+### Routes disponibles (nouvelles)
+- `/mon-compte/points` — Historique complet des points avec graphique et filtres
+
+---
+
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-19** : Dashboard Fidélité L&Lui Stars complet (4 blocs) implémenté et pushé sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-19** : Blocs 5 & 6 Fidélité implémentés et pushés sur `claude/review-and-continue-phase-4-pibnO`.
 
 **Prochaine action prioritaire** :
 1. Lire ce fichier (`CLAUDE_PROGRESS.md`)

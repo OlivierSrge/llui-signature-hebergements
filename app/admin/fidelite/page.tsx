@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { Settings, Users, TrendingUp, Tag, ShoppingBag, Award } from 'lucide-react'
-import { getLoyaltyConfig, getDashboardStats, getDashboardChartData, getLevelDistributionStats, getActionsRequired } from '@/actions/fidelite'
+import { getLoyaltyConfig, getDashboardStats, getDashboardChartData, getLevelDistributionStats, getActionsRequired, getPendingNotifications } from '@/actions/fidelite'
 import { formatPrice } from '@/lib/utils'
 import FideliteToggleProgram from '@/components/admin/FideliteToggleProgram'
 import FideliteDashboardCharts from '@/components/admin/FideliteDashboardCharts'
@@ -11,12 +11,13 @@ import FideliteActionsPanel from '@/components/admin/FideliteActionsPanel'
 export const metadata = { title: 'Fidélité L&Lui Stars' }
 
 export default async function FidelitePage() {
-  const [config, stats, chartData, levelStats, actions] = await Promise.all([
+  const [config, stats, chartData, levelStats, actions, pendingNotifications] = await Promise.all([
     getLoyaltyConfig(),
     getDashboardStats(),
     getDashboardChartData(),
     getLevelDistributionStats(),
     getActionsRequired(),
+    getPendingNotifications(30),
   ])
 
   const programActive = config.programActive ?? true
@@ -155,11 +156,12 @@ export default async function FidelitePage() {
         currentYear={currentYear}
       />
 
-      {/* Actions requises */}
+      {/* Actions requises + Notifications */}
       <FideliteActionsPanel
         levelUpWithoutPromo={actions.levelUpWithoutPromo}
         expiredCodes={actions.expiredCodes}
         birthdayClients={actions.birthdayClients}
+        pendingNotifications={pendingNotifications as any}
       />
 
       {/* Lien liste clients */}
