@@ -615,6 +615,12 @@ et toggle admin entre version complète / simplifiée.
 - Système d'avis clients (formulaire client + affichage partenaire)
 - Page `/admin/clients` enrichie : historique réservations cross-partenaires
 
+## MODULES À IMPLÉMENTER (fichiers inexistants à ce jour)
+| Module | Fichier lib | Page admin | Statut |
+|--------|-------------|-----------|--------|
+| Fidélité clients | `lib/loyaltyDefaults.ts` | `/admin/fidelite` | ❌ À implémenter |
+| Devis / Estimations | `lib/devisDefaults.ts` | `/admin/devis` | ❌ À implémenter |
+
 ---
 
 ## PROBLÈMES RENCONTRÉS ET SOLUTIONS
@@ -711,15 +717,24 @@ et toggle admin entre version complète / simplifiée.
 |-----------|---------|
 | `hebergements` | Logements (name, slug, partner_id, price_per_night, status, images, ...) |
 | `reservations` | Réservations (guest_*, check_in, check_out, reservation_status, payment_status, ...) |
+| `reservations/{id}/whatsapp_logs` | ⚠️ Sous-collection — historique messages WhatsApp par réservation |
 | `partenaires` | Partenaires (name, email, access_code, reliability_score, ...) |
+| `partenaires/{id}/commissionRequests` | ⚠️ Sous-collection — demandes de paiement de commissions |
 | `disponibilites` | Dates bloquées manuellement (accommodation_id, date) |
-| `whatsapp_history` | Historique messages WhatsApp envoyés |
-| `whatsapp_templates` | Templates messages WhatsApp éditables |
+| `demandes_disponibilite` | Demandes de disponibilité clients (routed_to_partner_id, handled_by, reservation_id...) |
+| `commissions_usage` | Suivi commissions par réservation (reservation_id, partner_id, amount, paid) |
+| `clients` | Profils clients L&Lui Stars (email, firstName, lastName, phone, reservationIds) |
 | `promo_codes` | Codes promo (code, discount_percent, max_uses, ...) |
 | `packs` | Packs hébergement |
 | `pack_requests` | Demandes de packs clients |
 | `stats_views` | Vues pages logements (id: `{accommodationId}_{YYYY-MM}`, count) |
 | `messages` | Messagerie partenaire ↔ admin (partner_id, sender, text, created_at) |
+| `settings` | Documents de configuration (whatsappTemplates, adminPaymentSettings, reservationRules, accommodationTypes, documents, helpCenter, subscriptionPlans, contract) |
+
+> **Collections supprimées/renommées :**
+> - ~~`whatsapp_history`~~ → `reservations/{id}/whatsapp_logs` (sous-collection)
+> - ~~`whatsapp_templates`~~ → `settings/whatsappTemplates` (document Firestore)
+> - ~~`clients_stars`~~ → `clients`
 
 ### Statuts réservation
 - `en_attente` → demande reçue, admin n'a pas encore validé

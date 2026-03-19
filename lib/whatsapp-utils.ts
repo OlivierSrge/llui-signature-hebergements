@@ -33,7 +33,10 @@ const ADMIN_WA_PHONE = '237693407964'
 
 export async function sendAdminWhatsAppNotification(message: string): Promise<void> {
   const apiKey = process.env.CALLMEBOT_API_KEY
-  if (!apiKey) return // pas configuré → skip
+  if (!apiKey) {
+    console.warn('CALLMEBOT_API_KEY non défini — backup WhatsApp désactivé')
+    return
+  }
 
   const url = `https://api.callmebot.com/whatsapp.php?phone=${ADMIN_WA_PHONE}&text=${encodeURIComponent(message)}&apikey=${apiKey}`
   await fetch(url).catch((err) => console.error('[callmebot] WhatsApp notification failed:', err))
