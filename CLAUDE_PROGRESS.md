@@ -961,17 +961,33 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
-## SESSION 2026-03-19 (suite) — DEVIS PREMIUM HTML + PUPPETEER
+## SESSION 2026-03-19 — PHASE P1 PORTAIL SIGNATURE ✅ TERMINÉE
 
-### 5 blocs à implémenter
+### 4 commits — Phase P1 complète
 
-| Bloc | Fichier(s) | Statut |
-|------|------------|--------|
-| BLOC 1 | npm install + `lib/pexelsClient.ts` | ✅ Terminé |
-| BLOC 2 | `app/api/devis/generate/route.ts` | ⏳ À faire |
-| BLOC 3 | `lib/devisTemplate.ts` (12 slides HTML) | ✅ Terminé (3A+3B+3C) |
-| BLOC 4 | `app/api/devis/pdf/route.ts` (Puppeteer) | ⏳ À faire |
-| BLOC 5 | Update `DevisWizard.tsx` + photos admin | ⏳ À faire |
+| Étape | Commit | Fichiers |
+|-------|--------|---------|
+| ÉTAPE 1 | `b3a6aca` | `lib/portailGrades.ts` — grades START/BRONZE/ARGENT/OR/SAPHIR/DIAMANT |
+| ÉTAPE 2 | `82d32b5` | `app/portail/` (layout + page + 4 modules) + `components/portail/PortailTopBar.tsx` |
+| ÉTAPE 3 | `5d877ec` | `lib/calculatePayout.ts` + `lib/__tests__/calculatePayout.test.ts` |
+| ÉTAPE 4 | `123f7a3` | `lib/firestoreTypes.ts` + `firestore.rules` |
+
+### Notes techniques
+
+- **Grades portail** : START → BRONZE → ARGENT → OR → SAPHIR → DIAMANT (REV lifetime)
+- **Commission boutique** : N1 = 10% / N2 = 5% — split 70% cash / 30% crédits services
+- **Commission pack mariage** : N1 = 1,2% / N2 = 0,5%
+- **Fast Start Cameroun** : 80 REV/30j (30 000 FCFA) / 200 REV/60j (80 000) / 450 REV/90j (200 000)
+- **Auth portail** : cookie `portail_uid` → collection `portail_users` Firestore
+- **Packs mariage** (PERLE/SAPHIR/ÉMERAUDE/DIAMANT dans devisDefaults.ts) = noms de produits indépendants, NON modifiés
+
+### Prochaine phase P2
+
+> "Configurateur Smart drag&drop + Dashboard Cagnotte Mariage"
+> - `app/portail/configurateur/` — wizard devis intégré au portail (réutiliser DevisWizard)
+> - `app/portail/avantages/` — dashboard wallet (cash + crédits + REV + fast start progress)
+> - Page login `/portail/login` avec auth Firebase (email/password)
+> - Server actions : `createTransaction()`, `applyCommissions()`, `claimFastStartPrime()`
 
 ---
 
