@@ -24,8 +24,10 @@ async function getReservation(id: string, partnerId: string) {
   if (!allowed) return null
 
   // Règle absolue llui_site : visible uniquement si confirmée + payée
+  // Exception : le partenaire qui a créé la réservation (sourcePartnerId) peut toujours la voir
   if ((data.source === 'llui_site' || data.source === 'direct') && data.visiblePartenaire !== true) {
-    if (!(data.reservation_status === 'confirmee' && data.payment_status === 'paye')) return null
+    const isAuthor = data.sourcePartnerId === partnerId
+    if (!isAuthor && !(data.reservation_status === 'confirmee' && data.payment_status === 'paye')) return null
   }
 
   return { id: doc.id, ...data } as any
