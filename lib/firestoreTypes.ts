@@ -94,6 +94,32 @@ export interface FastStartDemande {
   note_admin?: string
 }
 
+// ─── Guest Connect ────────────────────────────────────────────
+export interface InviteGuest {
+  id: string
+  mariage_uid: string
+  nom: string
+  telephone: string
+  email?: string
+  magic_link_slug: string
+  qr_code_data_url?: string
+  lien_envoye: boolean
+  lien_envoye_at?: Timestamp
+  converted: boolean
+  converted_at?: Timestamp
+  total_achats: number
+  commissions_generees: number
+  created_at: Timestamp
+}
+
+export interface MagicLinkClick {
+  id: string
+  guest_id: string
+  mariage_uid: string
+  clicked_at: Timestamp
+  converted: boolean
+}
+
 // ─── Wallet operation (sous-collection) ──────────────────────
 export interface WalletOperation {
   id: string
