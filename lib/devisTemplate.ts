@@ -123,6 +123,123 @@ function slide2(data: DevisHTMLData, images: Record<string, string>): string {
 </div>`
 }
 
+// ─── Slide 3 — Scénographie & Décoration ────────────────────
+function slide3(data: DevisHTMLData, images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const cdcDeco = pack ? getCdcDecoration(pack.decoration) : ''
+  const nuance = CATALOGUE.decoration.nuances.find(n => {
+    if (pack?.decoration === 'N6') return n.prestige >= 7
+    if (pack?.decoration === 'N4') return n.prestige >= 4
+    if (pack?.decoration === 'N3') return n.prestige >= 3
+    return n.prestige <= 2
+  }) ?? CATALOGUE.decoration.nuances[0]
+  const cdcs = [
+    { n: '01', titre: 'Structure & Ambiance Spatiale', desc: 'Disposition des tables, couloirs de circulation, zones VIP et scène de réception adaptées au nombre d\'invités.' },
+    { n: '02', titre: 'Concept Floral & Colorimétrie', desc: `Thème ${nuance.nom} — ${cdcDeco}` },
+    { n: '03', titre: 'Art de la Table', desc: 'Nappage, vaisselle, centres de table, couverts et verres sélectionnés selon le niveau de prestige du pack.' },
+    { n: '04', titre: 'Signalétique & Éclairage', desc: 'Plan de table, éclairage d\'ambiance LED, bougies, spots et éléments décoratifs lumineux.' },
+  ]
+  return `<div class="slide">
+  <div class="content-row" style="grid-template-columns:1fr 380px">
+    <div style="background:var(--beige);padding:3.5rem 3.5rem;overflow-y:auto">
+      <p class="label">Concept &amp; Atmosphère</p>
+      <h2 style="font-size:2rem;color:var(--noir);margin-bottom:.3rem">Scénographie : ${nuance.nom}</h2>
+      <div class="gold-line"></div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.5rem">
+        ${cdcs.map(c => `<div class="cdc-item"><span class="cdc-number">${c.n}</span><div><p style="font-size:.8rem;font-weight:500;color:var(--noir);margin-bottom:.2rem">${c.titre}</p><p style="font-size:.75rem;color:var(--gris);line-height:1.5">${c.desc}</p></div></div>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <div style="flex:1;overflow:hidden">${images.decoration ? `<img src="${images.decoration}" style="width:100%;height:100%;object-fit:cover" alt=""/>` : `<div style="width:100%;height:100%;background:#d8d0c0"></div>`}</div>
+      <div style="flex:1;overflow:hidden;border-top:3px solid var(--beige)">${images.cover ? `<img src="${images.cover}" style="width:100%;height:100%;object-fit:cover" alt=""/>` : `<div style="width:100%;height:100%;background:#c8c0b0"></div>`}</div>
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 4 — Restauration & Traiteur ──────────────────────
+function slide4(data: DevisHTMLData, images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const cdcTraiteur = pack ? getCdcTraiteur(pack.traiteur) : ''
+  const prestige = pack?.decoration === 'N6' ? 6 : pack?.decoration === 'N4' ? 4 : pack?.decoration === 'N3' ? 3 : 2
+  const produits = CATALOGUE.traiteur.produits.filter(p => p.prestige <= prestige + 1).slice(0, 4)
+  const cards = [
+    { titre: 'Menu Principal', desc: cdcTraiteur || 'Service soigné adapté au nombre d\'invités et au standing du pack.' },
+    { titre: 'Service & Personnel', desc: `Ratio encadrement optimisé — ${pack?.traiteur === 'N6' ? 'Gants blancs, cristal, sommelier dédié' : pack?.traiteur === 'N4' ? '1 serveur / 15 personnes, maîtres d\'hôtel' : '1 serveur / 20 personnes, dressage signature'}.` },
+    { titre: 'Présentation & Dressage', desc: 'Mise en place soignée, nappage premium, vaisselle assortie au thème de décoration choisi.' },
+  ]
+  return `<div class="slide">
+  <div class="content-row" style="grid-template-columns:400px 1fr">
+    <div style="position:relative;overflow:hidden">${images.traiteur ? `<img src="${images.traiteur}" style="width:100%;height:100%;object-fit:cover" alt=""/>` : `<div style="width:100%;height:100%;background:#c0b090"></div>`}</div>
+    <div style="background:#fff;padding:3.5rem 3rem;overflow-y:auto">
+      <p class="label">Gastronomie &amp; Service</p>
+      <h2 style="font-size:2rem;color:var(--noir);margin-bottom:.3rem">Excellence Culinaire</h2>
+      <div class="gold-line"></div>
+      <p style="font-size:.78rem;color:var(--gris);margin-bottom:1rem">Niveau de service : <strong>${cdcTraiteur}</strong></p>
+      <p style="font-size:.75rem;font-weight:500;color:var(--gris);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:1px">Produits phares</p>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.2rem">
+        ${produits.map(p => `<span class="chip">${p.nom}</span>`).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.75rem">
+        ${cards.map(c => `<div class="card-sm"><p style="font-size:.8rem;font-weight:500;color:var(--noir);margin-bottom:.25rem">${c.titre}</p><p style="font-size:.74rem;color:var(--gris);line-height:1.5">${c.desc}</p></div>`).join('')}
+      </div>
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 5 — Pôle Image & Mémoires ────────────────────────
+function slide5(data: DevisHTMLData, images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const hasDrone = pack?.services.some(s => s.toLowerCase().includes('drone'))
+  const hasVideo = pack?.services.some(s => s.toLowerCase().includes('vid'))
+  const cards = [
+    { titre: 'Reportage Complet', desc: 'Couverture intégrale de la journée — préparatifs, cérémonie, vin d\'honneur, soirée. Livraison galerie privée en ligne.' },
+    { titre: hasDrone ? 'Cinéma Aérien Drone' : 'Séance Portraits', desc: hasDrone ? 'Prises de vue aériennes de la cérémonie et du site. Drone 4K, autorisations incluses.' : 'Séance portraits du couple et des familles dans les plus beaux cadres du lieu.' },
+    { titre: hasVideo ? 'Film Cinématique' : 'Album Premium', desc: hasVideo ? 'Montage vidéo cinématique avec musique choisie par les mariés, livré en 4K dans les 30 jours.' : 'Album photo premium tirage argentique, couverture personnalisée.' },
+  ]
+  return `<div class="slide" style="background:var(--noir)">
+  <div class="content" style="justify-content:center;gap:0">
+    <div style="text-align:center;margin-bottom:2.5rem">
+      <p class="label-light">Souvenirs Éternels</p>
+      <h2 style="font-size:2.2rem;color:#fff;margin-bottom:.3rem">Pôle Image &amp; Mémoires</h2>
+      <div class="gold-line" style="margin:.7rem auto"></div>
+      <p style="color:rgba(255,255,255,.55);font-size:.82rem">${pack?.nom ?? ''} — Pôle Multimédia</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:900px;margin:0 auto">
+      ${cards.map(c => `<div class="card" style="text-align:center"><div style="width:36px;height:36px;background:var(--beige);border-radius:50%;margin:0 auto .8rem;display:flex;align-items:center;justify-content:center"><span style="color:var(--or);font-size:1rem">&#x2665;</span></div><p style="font-size:.85rem;font-weight:500;color:var(--noir);margin-bottom:.5rem">${c.titre}</p><p style="font-size:.75rem;color:var(--gris);line-height:1.5">${c.desc}</p></div>`).join('')}
+    </div>
+  </div>
+</div>`
+}
+
+// ─── Slide 6 — Animation & Ingénierie Sonore ────────────────
+function slide6(data: DevisHTMLData, images: Record<string, string>): string {
+  const { form } = data
+  const pack = form.pack ? PACKS[form.pack] : null
+  const hasOrchestre = pack?.services.some(s => s.toLowerCase().includes('orchestre'))
+  const items = [
+    { titre: hasOrchestre ? 'Orchestre Live' : 'DJ & Sonorisation', desc: hasOrchestre ? 'Orchestre live avec musiciens professionnels — set Jazz/Afrobeat/Coupé-Décalé selon votre programme. Ingénieur du son dédié.' : 'DJ professionnel, sonorisation haute qualité, micros de cérémonie, éclairage scène inclus.' },
+    { titre: 'Maître de Cérémonie', desc: 'Animation des temps forts : entrée des mariés, toast, ouverture du bal, discours. Coordination avec les prestataires en temps réel.' },
+    { titre: 'Clôture Harmonieuse', desc: 'Programme de clôture soigné — dernier slow, remerciements, départ des mariés. Coordination avec le traiteur pour le timing café/dessert.' },
+  ]
+  return `<div class="slide" style="background:var(--beige)">
+  <div class="content" style="justify-content:center">
+    <div style="text-align:center;margin-bottom:2rem">
+      <p class="label">Rythme &amp; Harmonie</p>
+      <h2 style="font-size:2.2rem;color:var(--noir);margin-bottom:.3rem">Animation &amp; Ingénierie Sonore</h2>
+      <div class="gold-line" style="margin:.7rem auto"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:900px;margin:0 auto">
+      ${items.map(it => `<div class="card"><div style="width:8px;height:8px;background:var(--or);border-radius:50%;margin-bottom:1rem"></div><p style="font-size:.85rem;font-weight:500;color:var(--noir);margin-bottom:.5rem">${it.titre}</p><p style="font-size:.75rem;color:var(--gris);line-height:1.6">${it.desc}</p></div>`).join('')}
+    </div>
+  </div>
+</div>`
+}
+
 // ─── Assembleur principal ────────────────────────────────────
 export function generateDevisHTML(data: DevisHTMLData, images: Record<string, string>): string {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
@@ -131,7 +248,11 @@ export function generateDevisHTML(data: DevisHTMLData, images: Record<string, st
 <style>${CSS}</style></head><body>
 ${slide1(data, images)}
 ${slide2(data, images)}
-<!-- SLIDES_3_12 -->
+${slide3(data, images)}
+${slide4(data, images)}
+${slide5(data, images)}
+${slide6(data, images)}
+<!-- SLIDES_7_12 -->
 <button class="nav-btn nav-prev" id="prv">&#8592;</button>
 <button class="nav-btn nav-next" id="nxt">&#8594;</button>
 <span class="page-counter" id="pc"></span>
