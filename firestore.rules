@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Fonctions utilitaires ────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isAuth() && request.auth.token.role == 'ADMIN';
+    }
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // ─── Profils utilisateurs portail ────────────────────
+    // Un utilisateur peut lire uniquement son propre profil
+    // Seul l'admin peut créer/modifier les profils
+    match /portail_users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Transactions ────────────────────────────────────
+    // Seul l'admin peut créer des transactions
+    // Un utilisateur peut lire ses propres transactions (acheteur)
+    match /transactions/{txId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.buyer_id == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Commissions ─────────────────────────────────────
+    // Les commissions sont en lecture seule pour les bénéficiaires
+    // Seul l'admin peut les créer/modifier
+    match /commissions/{commId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.beneficiary_id == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Opérations wallet ───────────────────────────────
+    match /portail_users/{uid}/wallet_operations/{opId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Collections existantes (hébergements, réservations) ──
+    // Maintien des règles existantes
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
