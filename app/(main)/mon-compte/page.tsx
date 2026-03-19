@@ -3,28 +3,56 @@ export const dynamic = 'force-dynamic'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { ExternalLink, Star, ShoppingBag, Home, Calendar, Gift } from 'lucide-react'
+import { Star, Home, Calendar, Gift } from 'lucide-react'
 import type { LoyaltyClient } from '@/lib/types'
 import { NIVEAUX, NIVEAUX_ORDER, getProgressToNextLevel } from '@/lib/loyalty'
 import { formatDate } from '@/lib/utils'
-import MonCompteCopyButton from '@/components/MonCompteCopyButton'
 import MonCompteMemberCard from '@/components/MonCompteMemberCard'
 import MonCompteAuth from '@/components/MonCompteAuth'
 import { LogoutButton, ChangePinForm } from '@/components/MonCompteActions'
+import MonComptePromoWidget from '@/components/MonComptePromoWidget'
+import MonComptePointsHistoryWidget from '@/components/MonComptePointsHistoryWidget'
+import MonCompteReferralWidget from '@/components/MonCompteReferralWidget'
 
-async function getClientFromSession(): Promise<LoyaltyClient | null> {
+type ExtendedClient = LoyaltyClient & {
+  boutiquePromoCodeExpiry?: string
+  boutiquePromoCodeSentAt?: string
+  referralCode?: string
+  referrals?: { id: string; validatedAt: string }[]
+  referredBy?: string | null
+  levelChangedAt?: string
+}
+
+async function getClientFromSession(): Promise<ExtendedClient | null> {
   const jar = await cookies()
   const clientId = jar.get('client_session')?.value
   if (!clientId) return null
   const doc = await db.collection('clients').doc(clientId).get()
   if (!doc.exists) return null
-  return { id: doc.id, ...doc.data() } as LoyaltyClient
+  return { id: doc.id, ...doc.data() } as ExtendedClient
+}
+
+async function getLast10PointsHistory(clientId: string) {
+  try {
+    const snap = await db
+      .collection('clients')
+      .doc(clientId)
+      .collection('pointsHistory')
+      .orderBy('created_at', 'desc')
+      .limit(10)
+      .get()
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  } catch {
+    return []
+  }
 }
 
 export const metadata = { title: 'Mon compte — L&Lui Stars' }
 
 export default async function MonComptePage() {
   const client = await getClientFromSession()
+  const pointsHistory = client ? await getLast10PointsHistory(client.id) : []
+
   return (
     <div className="pt-20 pb-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -44,19 +72,42 @@ export default async function MonComptePage() {
             <NiveauxPresentation />
           </>
         )}
-        {client && <ClientProfile client={client} />}
+        {client && <ClientProfile client={client} pointsHistory={pointsHistory} />}
       </div>
     </div>
   )
 }
 
-function ClientProfile({ client }: { client: LoyaltyClient }) {
+function ClientProfile({
+  client,
+  pointsHistory,
+}: {
+  client: ExtendedClient
+  pointsHistory: any[]
+}) {
   const niveau = NIVEAUX[client.niveau || 'novice']
   const { next, progressPercent, sejoursToNext } = getProgressToNextLevel(client.totalSejours)
   const hasPermanentPin = !!client.accessPinPermanent
 
+  // Points gagnés via parrainage
+  const pointsFromReferrals = pointsHistory
+    .filter((e) => e.action === 'parrainage')
+    .reduce((sum: number, e: any) => sum + (e.points || 0), 0)
+
+  // Texte d'encouragement dynamique
+  function getEncouragementText() {
+    if (!next) return null
+    const discountText = next.hebergementDiscount > 0 ? `-${next.hebergementDiscount}%` : ''
+    const boutiqueText = `-${next.boutiqueDiscount}%`
+    if (discountText) {
+      return `Encore ${sejoursToNext} séjour${(sejoursToNext ?? 0) > 1 ? 's' : ''} pour débloquer ${discountText} sur vos hébergements et ${boutiqueText} en boutique !`
+    }
+    return `Encore ${sejoursToNext} séjour${(sejoursToNext ?? 0) > 1 ? 's' : ''} pour accéder au niveau ${next.label} !`
+  }
+
   return (
     <div className="space-y-6">
+      {/* Carte niveau */}
       <div className="rounded-2xl p-6 border" style={{ background: niveau.bgColor, borderColor: niveau.borderColor }}>
         <div className="flex justify-end gap-2 mb-4">
           <ChangePinForm hasPermanentPin={hasPermanentPin} />
@@ -73,6 +124,8 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
           </div>
           <MonCompteMemberCard client={client} />
         </div>
+
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="bg-white/70 rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-dark">{client.totalSejours}</p>
@@ -87,17 +140,32 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
             <p className="text-xs text-dark/50">Boutique</p>
           </div>
         </div>
-        {next && (
+
+        {/* Barre de progression animée */}
+        {next ? (
           <div>
             <div className="flex items-center justify-between text-xs text-dark/60 mb-1.5">
-              <span className="font-medium">{niveau.label}</span>
-              <span>{sejoursToNext} séjour{(sejoursToNext ?? 0) > 1 ? 's' : ''} pour atteindre {next.label}</span>
+              <span className="font-semibold">{niveau.emoji} {niveau.label}</span>
+              <span>{next.emoji} {next.label}</span>
             </div>
             <div className="w-full h-3 bg-white/60 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all" style={{ width: `${progressPercent}%`, background: niveau.color }} />
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${progressPercent}%`, background: niveau.color }}
+              />
             </div>
-            <p className="text-xs text-dark/40 mt-1">Progression : {progressPercent}%</p>
-            <div className="mt-3 bg-white/50 rounded-xl p-3">
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-dark/40">{client.totalSejours} séjours</p>
+              <p className="text-xs text-dark/40">{next.minSejours} séjours</p>
+            </div>
+            {/* Texte d'encouragement */}
+            <div className="mt-3 bg-white/60 rounded-xl p-3">
+              <p className="text-xs font-semibold text-dark/70">
+                ✨ {getEncouragementText()}
+              </p>
+            </div>
+            {/* Avantages à débloquer */}
+            <div className="mt-2 bg-white/50 rounded-xl p-3">
               <p className="text-xs font-semibold text-dark/70 mb-2">Niveau {next.label} {next.emoji} — À débloquer :</p>
               <ul className="space-y-1">
                 {[...next.benefits.hebergements.slice(0, 2), ...next.benefits.boutique.slice(0, 1)].map((b) => (
@@ -108,48 +176,38 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
               </ul>
             </div>
           </div>
-        )}
-        {!next && (
-          <div className="mt-3 bg-white/50 rounded-xl p-3 text-center">
-            <p className="text-sm font-semibold" style={{ color: niveau.color }}>Vous avez atteint le niveau maximum 👑</p>
-            <p className="text-xs text-dark/50 mt-1">Tous les avantages L&Lui Stars sont débloqués</p>
+        ) : (
+          <div className="mt-3 bg-white/50 rounded-xl p-4 text-center space-y-1">
+            <p className="text-sm font-semibold" style={{ color: niveau.color }}>Vous avez atteint le niveau maximum L&Lui Stars 👑</p>
+            <p className="text-xs text-dark/50">Merci de votre fidélité exceptionnelle !</p>
+            <p className="text-xs text-dark/40">Tous les avantages L&Lui Stars sont débloqués.</p>
           </div>
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-beige-200 p-6">
-        <div className="flex items-center gap-2 mb-3">
-          <ShoppingBag size={16} className="text-green-600" />
-          <h3 className="font-semibold text-dark">Votre code promo boutique</h3>
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-          <div className="flex-1">
-            <p className="font-mono text-2xl font-bold text-dark tracking-widest">{client.boutiquePromoCode}</p>
-            <p className="text-xs text-dark/50 mt-1">
-              Valable sur{' '}
-              <a href="https://letlui-signature.netlify.app" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline font-medium">
-                letlui-signature.netlify.app <ExternalLink size={10} className="inline" />
-              </a>
-            </p>
-            <p className="text-xs text-dark/40 mt-0.5">Réduction boutique : {niveau.boutiqueDiscount}% sur tous les articles</p>
-          </div>
-          <MonCompteCopyButton text={client.boutiquePromoCode} />
-        </div>
-        {(client.boutiqueAchats || []).length > 0 && (
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-dark/50 mb-2">Historique achats boutique</p>
-            <div className="space-y-2">
-              {[...(client.boutiqueAchats || [])].reverse().slice(0, 5).map((achat) => (
-                <div key={achat.id} className="flex items-center justify-between text-sm text-dark/70">
-                  <span>{achat.date ? formatDate(achat.date, 'dd/MM/yyyy') : '—'}{achat.articles ? ` — ${achat.articles}` : ''}</span>
-                  <span className="text-green-600 font-semibold flex-shrink-0 ml-2">+{achat.points} pts</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Widget code promo (remplace l'ancien) */}
+      <MonComptePromoWidget
+        promoCode={client.boutiquePromoCode || null}
+        promoCodeExpiry={client.boutiquePromoCodeExpiry || null}
+        boutiqueDiscount={client.boutiqueDiscount}
+        niveauColor={niveau.color}
+      />
 
+      {/* Historique 10 derniers points */}
+      <MonComptePointsHistoryWidget
+        history={pointsHistory}
+        totalPoints={client.totalPoints || 0}
+      />
+
+      {/* Widget parrainage */}
+      <MonCompteReferralWidget
+        referralCode={client.referralCode || null}
+        referrals={client.referrals || []}
+        pointsFromReferrals={pointsFromReferrals}
+        niveauColor={niveau.color}
+      />
+
+      {/* Tous les avantages actifs */}
       <div className="bg-white rounded-2xl border border-beige-200 p-6">
         <h3 className="font-semibold text-dark mb-5 flex items-center gap-2">
           <Star size={16} className="text-gold-500" /> Tous vos avantages actifs
@@ -157,7 +215,7 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
         <div className="space-y-5">
           {[
             { label: 'Hébergements', icon: Home, items: niveau.benefits.hebergements, color: '#1565C0', bg: '#E3F2FD' },
-            { label: 'Boutique L&Lui', icon: ShoppingBag, items: niveau.benefits.boutique, color: '#2E7D32', bg: '#E8F5E9' },
+            { label: 'Boutique L&Lui', icon: Home, items: niveau.benefits.boutique, color: '#2E7D32', bg: '#E8F5E9' },
             { label: 'Événementiel', icon: Calendar, items: niveau.benefits.evenementiel, color: '#7B1FA2', bg: '#F3E5F5' },
             ...(niveau.benefits.exclusifs ? [{ label: 'Avantages exclusifs', icon: Gift, items: niveau.benefits.exclusifs, color: '#B8860B', bg: '#FFF8DC' }] : []),
           ].map(({ label, icon: Icon, items, color, bg }) => (
@@ -177,6 +235,21 @@ function ClientProfile({ client }: { client: LoyaltyClient }) {
           ))}
         </div>
       </div>
+
+      {/* Achats boutique (héritage) */}
+      {(client.boutiqueAchats || []).length > 0 && (
+        <div className="bg-white rounded-2xl border border-beige-200 p-6">
+          <p className="text-xs font-semibold text-dark/50 mb-2">Historique achats boutique</p>
+          <div className="space-y-2">
+            {[...(client.boutiqueAchats || [])].reverse().slice(0, 5).map((achat) => (
+              <div key={achat.id} className="flex items-center justify-between text-sm text-dark/70">
+                <span>{achat.date ? formatDate(achat.date, 'dd/MM/yyyy') : '—'}{achat.articles ? ` — ${achat.articles}` : ''}</span>
+                <span className="text-green-600 font-semibold flex-shrink-0 ml-2">+{achat.points} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-beige-200 p-5 text-center">
         <p className="text-sm text-dark/60 mb-3">

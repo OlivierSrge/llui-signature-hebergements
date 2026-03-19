@@ -5,6 +5,12 @@ import { revalidatePath } from 'next/cache'
 import { LOYALTY_DEFAULTS, LOYALTY_LEVELS, PROMO_CODE_DEFAULTS } from '@/lib/loyaltyDefaults'
 import { generatePromoCode, addLoyaltyPoints, calculateLoyaltyLevel } from '@/lib/loyaltyUtils'
 import type { LoyaltyClient } from '@/lib/types'
+import {
+  buildLevelUpNotification,
+  buildExpiringPromoNotification,
+  buildBirthdayNotification,
+  buildStayAnniversaryNotification,
+} from '@/lib/loyaltyNotifications'
 
 // ============================================================
 // CHARGEMENT CONFIG
@@ -336,6 +342,26 @@ export async function changeClientLevel(
       updated_at: new Date().toISOString(),
     })
 
+    // Créer notification de montée de niveau si non Novice
+    if (newLevel !== 'novice' && newLevel !== oldLevel) {
+      try {
+        const promoCode = (await db.collection('clients').doc(clientId).get()).data()?.boutiquePromoCode || ''
+        const notif = buildLevelUpNotification(
+          clientId,
+          `${client.firstName} ${client.lastName}`,
+          client.phone || null,
+          newLevel,
+          promoCode,
+          levelData.discountAccommodation,
+          levelData.discountBoutique,
+          client.firstName
+        )
+        await db.collection('clients').doc(clientId).collection('pendingNotifications').add(notif)
+      } catch {
+        // Non-bloquant
+      }
+    }
+
     await logParamChange('clientLevel', `${client.firstName} ${client.lastName}`, oldLevel, newLevel, 'admin')
     revalidatePath(`/admin/fidelite/clients/${clientId}`)
     revalidatePath('/admin/fidelite/clients')
@@ -530,5 +556,214 @@ export async function getAuditLog() {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
   } catch {
     return []
+  }
+}
+
+// ============================================================
+// NOTIFICATIONS AUTOMATIQUES (BLOC 6)
+// ============================================================
+
+// Vérifie les codes promo expirant dans 7 jours
+// et crée des notifications pendingNotifications pour chaque client concerné
+export async function checkExpiringPromoCodes(): Promise<{ success: boolean; created: number; error?: string }> {
+  try {
+    const now = new Date()
+    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const snap = await db.collection('clients').get()
+    let created = 0
+
+    for (const doc of snap.docs) {
+      const c = doc.data() as any
+      if (!c.boutiquePromoCode || !c.boutiquePromoCodeExpiry) continue
+      const expiry = new Date(c.boutiquePromoCodeExpiry)
+      if (expiry <= now || expiry > in7Days) continue
+
+      // Vérifier si une notification pending de ce type existe déjà
+      const existingSnap = await doc.ref.collection('pendingNotifications')
+        .where('type', '==', 'expiring_promo')
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get()
+      if (!existingSnap.empty) continue
+
+      const levelData = LOYALTY_LEVELS[(c.niveau || 'novice') as keyof typeof LOYALTY_LEVELS]
+      const expiryLabel = expiry.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const notif = buildExpiringPromoNotification(
+        doc.id,
+        `${c.firstName} ${c.lastName}`,
+        c.phone || null,
+        c.boutiquePromoCode,
+        levelData?.discountBoutique || 5,
+        expiryLabel,
+        c.firstName
+      )
+      await doc.ref.collection('pendingNotifications').add(notif)
+      created++
+    }
+
+    revalidatePath('/admin/fidelite')
+    return { success: true, created }
+  } catch (e: any) {
+    return { success: false, created: 0, error: e.message }
+  }
+}
+
+// Vérifie les anniversaires clients (aujourd'hui) et crée notifications + crédite 500 pts
+export async function checkClientBirthdays(): Promise<{ success: boolean; processed: number; error?: string }> {
+  try {
+    const now = new Date()
+    const mmdd = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const snap = await db.collection('clients').get()
+    let processed = 0
+
+    for (const doc of snap.docs) {
+      const c = doc.data() as any
+      if (!c.birthDate) continue
+      const clientMmdd = c.birthDate.slice(5) // YYYY-MM-DD → MM-DD
+      if (clientMmdd !== mmdd) continue
+
+      // Éviter de recréer si déjà fait cette année
+      if (c.birthdayPointsGivenYear === now.getFullYear()) continue
+
+      const existingSnap = await doc.ref.collection('pendingNotifications')
+        .where('type', '==', 'birthday')
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get()
+      if (!existingSnap.empty) continue
+
+      // Créditer les points anniversaire
+      const config = await getLoyaltyConfig()
+      const pts = config.pointsAnniversary ?? LOYALTY_DEFAULTS.pointsAnniversary
+      await addLoyaltyPoints(doc.id, pts, 'anniversaire', `Points anniversaire — ${now.getFullYear()}`, 'birthday')
+      await doc.ref.update({ birthdayPointsGivenYear: now.getFullYear(), updated_at: now.toISOString() })
+
+      const notif = buildBirthdayNotification(
+        doc.id,
+        `${c.firstName} ${c.lastName}`,
+        c.phone || null,
+        c.firstName
+      )
+      await doc.ref.collection('pendingNotifications').add(notif)
+      processed++
+    }
+
+    revalidatePath('/admin/fidelite')
+    return { success: true, processed }
+  } catch (e: any) {
+    return { success: false, processed: 0, error: e.message }
+  }
+}
+
+// Vérifie les anniversaires de séjour (check_in il y a exactement 1 an)
+export async function checkStayAnniversaries(): Promise<{ success: boolean; processed: number; error?: string }> {
+  try {
+    const now = new Date()
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+    const start = new Date(oneYearAgo.getFullYear(), oneYearAgo.getMonth(), oneYearAgo.getDate()).toISOString().slice(0, 10)
+
+    const resSnap = await db.collection('reservations')
+      .where('reservation_status', '==', 'confirmee')
+      .get()
+
+    let processed = 0
+    const processedClients = new Set<string>()
+
+    for (const resDoc of resSnap.docs) {
+      const res = resDoc.data() as any
+      const checkIn = res.check_in?.slice(0, 10)
+      if (checkIn !== start) continue
+
+      const email = res.guest_email?.trim().toLowerCase()
+      if (!email || processedClients.has(email)) continue
+
+      // Trouver le client Stars
+      const clientSnap = await db.collection('clients').where('email', '==', email).limit(1).get()
+      if (clientSnap.empty) continue
+      const clientDoc = clientSnap.docs[0]
+      const c = clientDoc.data() as any
+      processedClients.add(email)
+
+      // Vérifier si déjà notifié
+      const existingSnap = await clientDoc.ref.collection('pendingNotifications')
+        .where('type', '==', 'stay_anniversary')
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get()
+      if (!existingSnap.empty) continue
+
+      // Créditer les points
+      const config = await getLoyaltyConfig()
+      const pts = config.pointsStayAnniversary ?? LOYALTY_DEFAULTS.pointsStayAnniversary
+      const accommodationName = res.accommodation?.name || res.pack_name || 'votre logement'
+      await addLoyaltyPoints(clientDoc.id, pts, 'anniversaire_sejour', `Anniversaire de séjour à ${accommodationName}`, resDoc.id)
+
+      const notif = buildStayAnniversaryNotification(
+        clientDoc.id,
+        `${c.firstName} ${c.lastName}`,
+        c.phone || null,
+        c.firstName,
+        accommodationName,
+        resDoc.id
+      )
+      await clientDoc.ref.collection('pendingNotifications').add(notif)
+      processed++
+    }
+
+    revalidatePath('/admin/fidelite')
+    return { success: true, processed }
+  } catch (e: any) {
+    return { success: false, processed: 0, error: e.message }
+  }
+}
+
+// Récupère toutes les notifications pending (collection group)
+export async function getPendingNotifications(limit = 50): Promise<any[]> {
+  try {
+    const snap = await db.collectionGroup('pendingNotifications')
+      .where('status', '==', 'pending')
+      .orderBy('triggeredAt', 'desc')
+      .limit(limit)
+      .get()
+    return snap.docs.map((d) => ({
+      id: d.id,
+      clientId: d.ref.parent.parent?.id,
+      ...d.data(),
+    }))
+  } catch {
+    return []
+  }
+}
+
+// Compte les notifications pending (pour badge sidebar)
+export async function getPendingNotificationsCount(): Promise<number> {
+  try {
+    const snap = await db.collectionGroup('pendingNotifications')
+      .where('status', '==', 'pending')
+      .get()
+    return snap.size
+  } catch {
+    return 0
+  }
+}
+
+// Met à jour le statut d'une notification
+export async function updateNotificationStatus(
+  clientId: string,
+  notifId: string,
+  status: 'sent' | 'dismissed'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('clients').doc(clientId)
+      .collection('pendingNotifications')
+      .doc(notifId)
+      .update({
+        status,
+        ...(status === 'sent' ? { sentAt: new Date().toISOString() } : {}),
+      })
+    revalidatePath('/admin/fidelite')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message }
   }
 }

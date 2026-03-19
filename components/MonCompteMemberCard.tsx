@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Share2 } from 'lucide-react'
 import type { LoyaltyClient } from '@/lib/types'
 import { NIVEAUX } from '@/lib/loyalty'
 
@@ -195,16 +195,31 @@ export default function MonCompteMemberCard({ client }: Props) {
     link.click()
   }
 
+  function handleShareWhatsApp() {
+    const msg = `Voici ma carte membre L&Lui Stars ${niveau.label} ! Rejoignez le programme sur llui-signature-hebergements.vercel.app/mon-compte`
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`
+    window.open(url, '_blank')
+  }
+
   return (
     <>
       <canvas ref={canvasRef} className="hidden" />
-      <button
-        onClick={generateCard}
-        className="flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-semibold transition-all hover:bg-dark hover:text-white hover:border-dark"
-        style={{ borderColor: niveau.color, color: niveau.color }}
-      >
-        <CreditCard size={14} /> Télécharger ma carte
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={generateCard}
+          className="flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-semibold transition-all hover:bg-dark hover:text-white hover:border-dark"
+          style={{ borderColor: niveau.color, color: niveau.color }}
+        >
+          <CreditCard size={14} /> Télécharger ma carte
+        </button>
+        <button
+          onClick={handleShareWhatsApp}
+          className="flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-semibold transition-all text-white"
+          style={{ background: '#25D366', borderColor: '#25D366' }}
+        >
+          <Share2 size={14} /> 📤 Partager
+        </button>
+      </div>
     </>
   )
 }

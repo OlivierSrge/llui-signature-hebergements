@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { saveLoyaltyConfig, saveLoyaltyLevelsConfig } from '@/actions/fidelite'
+import { saveLoyaltyConfig, saveLoyaltyLevelsConfig, checkExpiringPromoCodes } from '@/actions/fidelite'
 import type { LoyaltyConfig } from '@/lib/loyaltyDefaults'
 
 interface AuditEntry {
@@ -49,6 +49,7 @@ export default function FideliteParametresTabs({ config, levelsConfig, auditLog 
   const [activeTab, setActiveTab] = useState('points')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [checkingExpiry, setCheckingExpiry] = useState(false)
 
   // État local config points
   const [pointsForm, setPointsForm] = useState({
@@ -82,6 +83,13 @@ export default function FideliteParametresTabs({ config, levelsConfig, auditLog 
     const res = await saveLoyaltyLevelsConfig(levelsForm)
     setSaving(false)
     showMessage(res.success ? 'success' : 'error', res.success ? 'Niveaux sauvegardés' : (res.error || 'Erreur'))
+  }
+
+  const handleCheckExpiring = async () => {
+    setCheckingExpiry(true)
+    const res = await checkExpiringPromoCodes()
+    setCheckingExpiry(false)
+    showMessage(res.success ? 'success' : 'error', res.success ? `${res.created} notification(s) créée(s) pour codes expirants` : (res.error || 'Erreur'))
   }
 
   const updateLevel = (niveau: keyof LevelsConfig, field: keyof LevelData, value: any) => {
@@ -295,7 +303,14 @@ export default function FideliteParametresTabs({ config, levelsConfig, auditLog 
             <p>• Les codes expirés non utilisés apparaissent dans le panneau des actions requises</p>
           </div>
 
-          <div className="pt-2 border-t border-beige-100">
+          <div className="pt-2 border-t border-beige-100 flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleCheckExpiring}
+              disabled={checkingExpiry}
+              className="px-5 py-2.5 border border-amber-200 bg-amber-50 text-amber-800 text-sm font-medium rounded-xl hover:bg-amber-100 disabled:opacity-50"
+            >
+              {checkingExpiry ? 'Vérification...' : '🔔 Vérifier les codes expirants'}
+            </button>
             <button
               onClick={handleSaveLevels}
               disabled={saving}

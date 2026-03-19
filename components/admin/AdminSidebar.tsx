@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -28,6 +28,14 @@ export default function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [loyaltyBadge, setLoyaltyBadge] = useState(0)
+
+  useEffect(() => {
+    fetch('/api/admin/loyalty-badge')
+      .then((r) => r.json())
+      .then((d) => setLoyaltyBadge(d.count || 0))
+      .catch(() => {})
+  }, [pathname])
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -59,8 +67,14 @@ export default function AdminSidebar() {
                 : 'text-white/60 hover:bg-white/10 hover:text-white'
             )}>
             <Icon size={18} />
-            {label}
-            {isActive(href, exact) && <ChevronRight size={14} className="ml-auto" />}
+            <span className="flex-1">{label}</span>
+            {href === '/admin/fidelite' && loyaltyBadge > 0 && (
+              <span className="ml-auto w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                {loyaltyBadge > 9 ? '9+' : loyaltyBadge}
+              </span>
+            )}
+            {isActive(href, exact) && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && loyaltyBadge > 0 && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
           </Link>
         ))}
       </nav>
