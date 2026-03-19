@@ -618,7 +618,7 @@ et toggle admin entre version complète / simplifiée.
 ## MODULES À IMPLÉMENTER (fichiers inexistants à ce jour)
 | Module | Fichier lib | Page admin | Statut |
 |--------|-------------|-----------|--------|
-| Fidélité clients | `lib/loyaltyDefaults.ts` | `/admin/fidelite` | ❌ À implémenter |
+| Fidélité clients | `lib/loyaltyDefaults.ts` | `/admin/fidelite` | ✅ Implémenté |
 | Devis / Estimations | `lib/devisDefaults.ts` | `/admin/devis` | ❌ À implémenter |
 
 ---
@@ -828,9 +828,65 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+---
+
+## SESSION 2026-03-19 — DASHBOARD FIDÉLITÉ L&LUI STARS (4 BLOCS)
+
+### Corrections préalables (bugs)
+- **FIX** `actions/reservations.ts` : cascade delete `cleanupReservationReferences` corrigée — `whatsapp_logs` est une sous-collection (`reservations/{id}/whatsapp_logs`) et non une collection racine
+- **FIX** `actions/whatsapp-pipeline.ts` : `{numero_paiement}` manquant dans le template `template2_payment`, ajout de `📱 Numéro : *{numero_paiement}*` avant le montant
+- **FIX** `app/partenaire/reservations/[id]/page.tsx` : 404 pour partenaires sur réservations auto-escaladées — ajout de `isAuthor = sourcePartnerId === partnerId` comme exception d'accès
+- **FIX** `lib/whatsapp-utils.ts` : `console.warn` si `CALLMEBOT_API_KEY` absent (non-bloquant)
+
+### BLOC 1 — Fondations
+| Fichier | Rôle |
+|---------|------|
+| `lib/loyaltyDefaults.ts` | `LOYALTY_DEFAULTS`, `LOYALTY_LEVELS` (4 niveaux), `PROMO_CODE_DEFAULTS`, types `LoyaltyConfig`, `LoyaltyLevelsConfig`, `LoyaltyLevelKey` |
+| `lib/loyaltyUtils.ts` | `calculateLoyaltyLevel`, `generatePromoCode`, `addLoyaltyPoints`, `initLoyaltyFirestore` |
+| `actions/fidelite.ts` | Toutes les server actions : config, dashboard stats, chart data, clients, points, promo codes, parrainage, anniversaire, audit log |
+
+### BLOC 2 — Dashboard principal `/admin/fidelite`
+| Fichier | Rôle |
+|---------|------|
+| `app/admin/fidelite/page.tsx` | Page serveur : 6 KPIs (2 lignes), graphiques, actions panel, lien liste clients |
+| `components/admin/FideliteToggleProgram.tsx` | Toggle activation/suspension programme (modal de confirmation) |
+| `components/admin/FideliteDashboardCharts.tsx` | Graphiques recharts : BarChart points/montées de niveau + PieChart répartition niveaux + tableau |
+| `components/admin/FideliteActionsPanel.tsx` | Panel actions requises : sans code promo, codes expirés, anniversaires à venir |
+| `components/admin/AdminSidebar.tsx` | Ajout `⭐ Fidélité L&Lui Stars` dans le menu |
+
+### BLOC 3 — Liste et fiche client
+| Fichier | Rôle |
+|---------|------|
+| `app/admin/fidelite/clients/page.tsx` | Page serveur liste clients avec filtres searchParams |
+| `components/admin/FideliteClientsTable.tsx` | Tableau paginé filtrable (niveau, code promo, recherche) + export CSV |
+| `app/admin/fidelite/clients/[clientId]/page.tsx` | Page serveur fiche individuelle (données Firestore + calcul niveau suivant) |
+| `components/admin/FideliteClientDetail.tsx` | Composant interactif (5 sections) : niveau/progression, points/historique, code promo, parrainages, WhatsApp |
+
+### BLOC 4 — Paramètres `/admin/fidelite/parametres`
+| Fichier | Rôle |
+|---------|------|
+| `app/admin/fidelite/parametres/page.tsx` | Page serveur : charge config + niveaux + audit log |
+| `components/admin/FideliteParametresTabs.tsx` | 4 onglets : règles de points, niveaux & remises (avec messages WhatsApp), codes promo, journal d'audit |
+
+### Collections Firestore ajoutées
+| Collection | Contenu |
+|-----------|---------|
+| `settings/loyaltyConfig` | Règles de points (pointsFirstBooking, pointsPerNight, etc.) + `programActive` |
+| `settings/loyaltyLevels` | Config des 4 niveaux (remises, validité code, messages WhatsApp) |
+| `settings/loyaltyAuditLog/logs` | Sous-collection — journal des modifications admin |
+| `clients/{id}/pointsHistory` | Sous-collection — historique transactions de points par client |
+
+### Routes disponibles
+- `/admin/fidelite` — Dashboard L&Lui Stars (KPIs, graphiques, actions)
+- `/admin/fidelite/clients` — Liste clients filtrée + export CSV
+- `/admin/fidelite/clients/[clientId]` — Fiche individuelle complète
+- `/admin/fidelite/parametres` — Configuration programme (4 onglets)
+
+---
+
 ## PROCHAINE SESSION — REPRENDRE ICI
 
-**État au 2026-03-14** : notifications email partenaires + système complet demandes paiement commissions implémentés et pushés sur `claude/review-and-continue-phase-4-pibnO`.
+**État au 2026-03-19** : Dashboard Fidélité L&Lui Stars complet (4 blocs) implémenté et pushé sur `claude/review-and-continue-phase-4-pibnO`.
 
 **Prochaine action prioritaire** :
 1. Lire ce fichier (`CLAUDE_PROGRESS.md`)
