@@ -27,6 +27,14 @@ export interface UserProfile {
   }
   displayName: string
   phone: string
+  invites_confirmes: number
+  projet?: {
+    nom: string
+    date_evenement: Timestamp | null
+    lieu: string
+    budget_previsionnel: number
+    nombre_invites_prevu: number
+  }
   created_at: Timestamp
 }
 

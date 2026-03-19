@@ -41,6 +41,7 @@ export default async function PortailLayout({ children }: { children: React.Reac
   return (
     <div className="min-h-screen bg-[#F5F0E8]">
       <PortailTopBar
+        uid={user.uid}
         grade={user.grade}
         revLifetime={user.rev_lifetime}
         walletCash={user.wallet_cash}

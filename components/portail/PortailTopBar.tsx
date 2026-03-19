@@ -2,8 +2,10 @@
 
 import { formatFCFA } from '@/lib/devisDefaults'
 import { GRADE_COLORS, GRADE_THRESHOLDS, type PortailGrade, PORTAIL_GRADES } from '@/lib/portailGrades'
+import PanierIndicateur from '@/components/panier/PanierIndicateur'
 
 interface Props {
+  uid: string
   grade: PortailGrade
   revLifetime: number
   walletCash: number
@@ -20,7 +22,7 @@ function getNextGradeInfo(grade: PortailGrade, revLifetime: number) {
   return { label: next, pct: Math.max(0, pct), revNext: target - revLifetime }
 }
 
-export default function PortailTopBar({ grade, revLifetime, walletCash, displayName }: Props) {
+export default function PortailTopBar({ uid, grade, revLifetime, walletCash, displayName }: Props) {
   const color = GRADE_COLORS[grade]
   const { label: nextLabel, pct, revNext } = getNextGradeInfo(grade, revLifetime)
 
@@ -68,6 +70,9 @@ export default function PortailTopBar({ grade, revLifetime, walletCash, displayN
         <p className="text-[10px] text-white/40">Bonjour</p>
         <p className="text-sm text-white/80 truncate max-w-[120px]">{displayName}</p>
       </div>
+
+      {/* Panier */}
+      <PanierIndicateur uid={uid} />
     </header>
   )
 }
