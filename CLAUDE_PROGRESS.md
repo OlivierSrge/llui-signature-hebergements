@@ -618,9 +618,27 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
+## PHASE P3 TERMINÉE — 8 étapes complétées (2026-03-20)
+
+### Commit : 2945df2 — feat: analytics Guest Connect + nav portail Mes Invités
+
+**ÉTAPE 7 — analytics Guest Connect** : `app/portail/analytics/page.tsx`
+- Page "Mes Invités" : KPIs (prévus / confirmés / déclinés / en attente), barre progression taux confirmation, répartition visuelle couleur
+
+**ÉTAPE 8 — Navigation portail** : `components/portail/PortailNav.tsx` + `app/portail/layout.tsx`
+- 7 items : Accueil / Ma Vision / Mes Escales / Mon Panier (badge) / Mes Invités (badge invités en attente) / Mes Avantages / Documents
+- Mobile : bottom nav bar fixe avec icônes Lucide (overflow-x-auto si étroit)
+- Desktop : barre secondaire horizontale fixe sous le header (top-16)
+- Layout : padding responsive (`pt-16 md:pt-[104px] pb-16 md:pb-0`)
+
+### Actions manuelles requises
+- Copier `llui-tracker.js` sur Netlify
+- Activer CallMeBot WhatsApp (`CALLMEBOT_API_KEY` dans Vercel)
+- Vérifier `NEXT_PUBLIC_APP_URL` sur Vercel
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — PWA implémentée (2026-03-15)
-- **Dernière action** : PWAInstallBanner + manifest + icônes + next-pwa configuré
+- **Bloc actuel** : Aucun — P3 terminée (2026-03-20)
+- **Dernière action** : Étapes 7 + 8 portail (analytics + navigation) pushées sur `claude/resume-phase-4-analytics-4M9tA`
 
 ---
 
