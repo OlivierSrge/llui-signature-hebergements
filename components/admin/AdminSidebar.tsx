@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +28,7 @@ const NAV_ITEMS = [
   { href: '/admin/abonnements', label: 'Abonnements', icon: CreditCard },
   { href: '/admin/documents', label: 'Documents & Aide', icon: FolderOpen },
   { href: '/admin/parametres-paiement', label: '⚙️ Paramètres paiement', icon: Wallet },
+  { href: '/admin/commandes', label: '💸 Commandes & Versements', icon: ClipboardList },
   { href: '/admin/ecosysteme', label: '🌐 Écosystème', icon: Globe },
 ]
 

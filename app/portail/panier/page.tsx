@@ -176,6 +176,13 @@ export default function PanierPage() {
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <a
+          href="/portail/commande"
+          className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white text-center"
+          style={{ background: '#C9A84C' }}
+        >
+          Confirmer la commande →
+        </a>
+        <a
           href={`https://wa.me/237600000000?text=${buildWhatsAppMessage()}`}
           target="_blank"
           rel="noopener noreferrer"
