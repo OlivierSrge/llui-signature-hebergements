@@ -96,14 +96,18 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // Notifier le client WhatsApp si validé
+    // Notifier l'admin WhatsApp si validé
     if (statut === 'VALIDE') {
-      const phone = process.env.ADMIN_PHONE_NUMBER
-      const apiKey = process.env.ADMIN_CALLMEBOT_APIKEY
-      if (phone && apiKey) {
+      const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
+      const API_TOKEN = process.env.GREEN_API_TOKEN
+      const phone = (process.env.ADMIN_PHONE_NUMBER ?? '').replace(/\D/g, '')
+      if (INSTANCE_ID && API_TOKEN && phone) {
         const msg = `✅ Paiement validé\nMontant: ${(d.montant as number).toLocaleString('fr-FR')} FCFA\nMode: ${d.mode}\nUID: ${d.uid}`
-        const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(msg)}&apikey=${apiKey}`
-        await fetch(url).catch(() => {})
+        await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: `${phone}@c.us`, message: msg }),
+        }).catch(() => {})
       }
     }
 

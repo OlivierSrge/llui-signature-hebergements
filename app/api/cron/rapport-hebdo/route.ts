@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { sendCallMeBot, msgResumeSemaine } from '@/lib/whatsappNotif'
+import { sendWhatsApp, msgResumeSemaine } from '@/lib/whatsappNotif'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,10 +56,9 @@ export async function GET() {
     }
 
     const phone = (process.env.ADMIN_PHONE_NUMBER ?? '').replace(/\D/g, '')
-    const apikey = process.env.ADMIN_CALLMEBOT_APIKEY ?? ''
     const message = msgResumeSemaine(data)
 
-    await sendCallMeBot(phone, message, apikey)
+    await sendWhatsApp(phone, message)
 
     await db.collection('cron_logs').add({
       type: 'RAPPORT_HEBDO', sent_at: FieldValue.serverTimestamp(),

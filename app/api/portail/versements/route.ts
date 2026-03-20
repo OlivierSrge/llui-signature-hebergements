@@ -19,11 +19,15 @@ export interface VersementDeclare {
 }
 
 async function notifyAdminWhatsApp(message: string): Promise<void> {
-  const phone = process.env.ADMIN_PHONE_NUMBER
-  const apiKey = process.env.ADMIN_CALLMEBOT_APIKEY
-  if (!phone || !apiKey) return
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(message)}&apikey=${apiKey}`
-  await fetch(url).catch(() => {})
+  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
+  const API_TOKEN = process.env.GREEN_API_TOKEN
+  const phone = (process.env.ADMIN_PHONE_NUMBER ?? '').replace(/\D/g, '')
+  if (!INSTANCE_ID || !API_TOKEN || !phone) return
+  await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
+  }).catch(() => {})
 }
 
 // POST — Déclarer un versement

@@ -1,11 +1,11 @@
 // app/api/portail/notif-whatsapp/route.ts
-// Notifications WhatsApp CallMeBot — POST { uid, type, data }
+// Notifications WhatsApp Green API — POST { uid, type, data }
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import {
-  sendCallMeBot,
+  sendWhatsApp,
   msgBienvenue, msgNouveauGrade, msgCommissionRecue,
   msgFastStartDebloque, msgRappelTodo, msgRelanceInvite,
 } from '@/lib/whatsappNotif'
@@ -36,26 +36,25 @@ export async function POST(req: NextRequest) {
     if (!snap.exists) return NextResponse.json({ skipped: true, reason: 'user_not_found' })
 
     const d = snap.data()!
-    const apikey: string = d.whatsapp_apikey ?? ''
     const telephone: string = d.phone ?? ''
 
     // Logger dans notifs_log
     const logRef = db.collection('notifs_log').doc()
     await logRef.set({
-      uid, type, telephone, has_apikey: !!apikey,
+      uid, type, telephone,
       sent_at: FieldValue.serverTimestamp(), data,
     })
 
-    if (!apikey || !telephone) {
-      return NextResponse.json({ skipped: true, reason: 'no_apikey' })
+    if (!telephone) {
+      return NextResponse.json({ skipped: true, reason: 'no_telephone' })
     }
 
     const nom: string = d.displayName ?? 'Partenaire'
     const message = buildMessage(type, nom, data)
     if (!message) return NextResponse.json({ skipped: true, reason: 'type_inconnu' })
 
-    await sendCallMeBot(telephone, message, apikey)
-    await logRef.update({ delivered: true })
+    const result = await sendWhatsApp(telephone, message)
+    await logRef.update({ delivered: result.success, error: result.error ?? null })
 
     return NextResponse.json({ ok: true })
   } catch (e) {
