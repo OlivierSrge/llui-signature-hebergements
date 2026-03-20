@@ -8,6 +8,8 @@ import BoutonAjouterPanier from '@/components/panier/BoutonAjouterPanier'
 import type { ArticleCatalogue } from '@/app/api/portail/catalogue/route'
 import type { CategorieArticle } from '@/lib/panierTypes'
 
+const LAST_SYNC_KEY = 'llui_catalogue_synced_at'
+
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
 }
@@ -38,10 +40,17 @@ export default function ConfigurateurPage() {
   const [catalogue, setCatalogue] = useState<ArticleCatalogue[]>([])
   const [filtre, setFiltre] = useState<CategorieArticle | 'ALL'>('ALL')
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState<string>('')
   const { totaux } = usePanier(uid)
 
-  useEffect(() => {
-    fetch('/api/portail/catalogue')
+  function loadLastSync() {
+    const stored = localStorage.getItem(LAST_SYNC_KEY)
+    if (stored) setLastSync(stored)
+  }
+
+  function fetchCatalogue() {
+    return fetch('/api/portail/catalogue')
       .then(r => r.json())
       .then((data: { articles: ArticleCatalogue[]; synced_at: string | null } | ArticleCatalogue[]) => {
         const articles = Array.isArray(data) ? data : (data.articles ?? [])
@@ -49,7 +58,27 @@ export default function ConfigurateurPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadLastSync()
+    fetchCatalogue()
   }, [])
+
+  async function syncCatalogue() {
+    setSyncing(true)
+    try {
+      await fetch('/api/cron/sync-boutique')
+      const now = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      localStorage.setItem(LAST_SYNC_KEY, now)
+      setLastSync(now)
+      await fetchCatalogue()
+    } catch {
+      // silently ignore
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const filtres = filtre === 'ALL' ? catalogue : catalogue.filter(a => a.categorie === filtre)
 
@@ -62,6 +91,24 @@ export default function ConfigurateurPage() {
             ? `${totaux.nb_articles} article(s) — ${formatFCFA(totaux.total_ht)}`
             : 'Configurez vos prestations mariage'}
         </p>
+        <div className="flex items-center gap-2 mt-2">
+          <p className="text-[11px] text-[#AAA]">
+            {lastSync ? `Catalogue mis à jour le ${lastSync}` : 'Catalogue à jour'}
+          </p>
+          <button
+            onClick={syncCatalogue}
+            disabled={syncing}
+            className="text-[#888] hover:text-[#C9A84C] transition-colors disabled:opacity-40"
+            title="Synchroniser le catalogue"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={syncing ? 'animate-spin' : ''}>
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 16h5v5"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Filtres catégories */}

@@ -4,7 +4,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Wand2, MapPin, ShoppingBag, Users, Gift, FileText } from 'lucide-react'
+import { Home, Wand2, MapPin, ShoppingBag, Users, Gift, FileText, ClipboardList } from 'lucide-react'
 import { usePanier } from '@/hooks/usePanier'
 
 interface NavItem {
@@ -39,6 +39,7 @@ export default function PortailNav({ uid, invitesCount = 0 }: Props) {
     { href: '/portail/escales', label: 'Mes Escales', icon: MapPin },
     { href: '/portail/panier', label: 'Mon Panier', icon: ShoppingBag, badge: panierCount },
     { href: '/portail/analytics', label: 'Mes Invités', icon: Users, badge: invitesCount },
+    { href: '/portail/ma-commande', label: 'Ma Commande', icon: ClipboardList },
     { href: '/portail/avantages', label: 'Mes Avantages', icon: Gift },
     { href: '/portail/documents', label: 'Documents', icon: FileText },
   ]

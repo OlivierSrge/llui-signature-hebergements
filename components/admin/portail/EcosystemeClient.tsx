@@ -10,6 +10,13 @@ interface RapportResult {
   error?: string
 }
 
+interface SyncResult {
+  synced?: number
+  categories?: string[]
+  errors?: string[]
+  error?: string
+}
+
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
@@ -17,6 +24,8 @@ function formatFCFA(n: number) {
 export default function EcosystemeClient() {
   const [rapportLoading, setRapportLoading] = useState(false)
   const [rapportResult, setRapportResult] = useState<RapportResult | null>(null)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
 
   async function lancerRapport() {
     setRapportLoading(true)
@@ -29,6 +38,20 @@ export default function EcosystemeClient() {
       setRapportResult({ error: 'Erreur réseau' })
     } finally {
       setRapportLoading(false)
+    }
+  }
+
+  async function syncBoutique() {
+    setSyncLoading(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/cron/sync-boutique')
+      const data = await res.json()
+      setSyncResult(data)
+    } catch {
+      setSyncResult({ error: 'Erreur réseau' })
+    } finally {
+      setSyncLoading(false)
     }
   }
 
@@ -54,18 +77,46 @@ export default function EcosystemeClient() {
           </Link>
 
           {/* Boutique Signature */}
-          <a href="https://letlui-signature.netlify.app" target="_blank" rel="noopener noreferrer"
-            className="block bg-white rounded-2xl p-6 border-2 border-teal-500 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="bg-white rounded-2xl p-6 border-2 border-teal-500 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-xl">🛍️</div>
               <div>
-                <h2 className="font-bold text-[#1A1A1A] text-lg group-hover:text-teal-600 transition-colors">Boutique Signature</h2>
+                <h2 className="font-bold text-[#1A1A1A] text-lg">Boutique Signature</h2>
                 <p className="text-xs text-[#1A1A1A]/50">letlui-signature.netlify.app</p>
               </div>
             </div>
-            <p className="text-sm text-[#1A1A1A]/70 mb-4">Boutique en ligne avec suivi de conversions. Les achats invités déclenchent les commissions partenaires.</p>
-            <span className="inline-flex items-center gap-1 text-teal-600 text-sm font-medium">Ouvrir la boutique ↗</span>
-          </a>
+            <p className="text-sm text-[#1A1A1A]/70 mb-3">Boutique en ligne avec suivi de conversions. Les achats invités déclenchent les commissions partenaires.</p>
+            <div className="flex gap-2 mb-3">
+              <a href="https://letlui-signature.netlify.app" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-teal-600 text-sm font-medium hover:underline">
+                Ouvrir la boutique ↗
+              </a>
+            </div>
+            <button
+              onClick={syncBoutique}
+              disabled={syncLoading}
+              className="w-full py-2 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {syncLoading ? 'Synchronisation…' : '🔄 Synchroniser maintenant'}
+            </button>
+            {syncResult && (
+              <div className={`mt-2 p-3 rounded-xl text-sm ${syncResult.error || (syncResult.errors?.length ?? 0) > 0 ? 'bg-red-50 text-red-700' : 'bg-teal-50 text-teal-800'}`}>
+                {syncResult.error ? (
+                  <span>❌ {syncResult.error}</span>
+                ) : (
+                  <>
+                    <p className="font-semibold">✅ {syncResult.synced ?? 0} produits synchronisés</p>
+                    {(syncResult.categories?.length ?? 0) > 0 && (
+                      <p className="text-xs mt-0.5">Catégories : {syncResult.categories!.join(', ')}</p>
+                    )}
+                    {(syncResult.errors?.length ?? 0) > 0 && (
+                      <p className="text-xs mt-1 text-red-600">⚠ {syncResult.errors![0]}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Dashboard Hébergements */}
           <Link href="/admin/dashboard" className="block bg-white rounded-2xl p-6 border-2 border-blue-500 shadow-sm hover:shadow-md transition-shadow group">
