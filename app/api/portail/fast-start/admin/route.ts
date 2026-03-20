@@ -5,19 +5,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { cookies } from 'next/headers'
-const PORTAIL_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llui-signature-hebergements.vercel.app'
+import { sendWhatsApp } from '@/lib/whatsappNotif'
 
-async function sendWhatsApp(to: string, message: string) {
-  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
-  const API_TOKEN = process.env.GREEN_API_TOKEN
-  if (!INSTANCE_ID || !API_TOKEN || !to) return
-  const clean = to.replace(/[\s\-+]/g, '')
-  await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId: `${clean}@c.us`, message }),
-  }).catch(() => {})
-}
+const PORTAIL_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
 async function verifyAdmin(): Promise<boolean> {
   const cookieStore = cookies()
