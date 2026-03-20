@@ -24,6 +24,7 @@ const CAT_LABELS: Record<CategorieArticle, string> = {
   COORDINATION: 'Coordination',
   HEBERGEMENT: 'Hébergement',
   BOUTIQUE: 'Boutique',
+  AUTRE: 'Autre',
 }
 
 const MODES_PAIEMENT = [
