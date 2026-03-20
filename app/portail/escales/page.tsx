@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import BoutonAjouterPanier from '@/components/panier/BoutonAjouterPanier'
-import type { Hebergement } from '@/app/api/portail/hebergements/route'
+import type { Hebergement, Pack } from '@/app/api/portail/hebergements/route'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
@@ -26,18 +26,24 @@ const TYPE_COLORS: Record<string, string> = {
 export default function EscalesPage() {
   const [uid] = useState(() => getUidFromCookie())
   const [hebergements, setHebergements] = useState<Hebergement[]>([])
+  const [packs, setPacks] = useState<Pack[]>([])
   const [loading, setLoading] = useState(true)
   const [filtre, setFiltre] = useState<string>('ALL')
 
   useEffect(() => {
     fetch('/api/portail/hebergements')
       .then(r => r.json())
-      .then((data: Hebergement[]) => { setHebergements(data); setLoading(false) })
+      .then((data: { hebergements: Hebergement[]; packs: Pack[] }) => {
+        setHebergements(data.hebergements ?? [])
+        setPacks(data.packs ?? [])
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 
-  const types = ['ALL', 'VILLA', 'HOTEL', 'LODGE', 'APPARTEMENT']
-  const liste = filtre === 'ALL' ? hebergements : hebergements.filter(h => h.type === filtre)
+  const showPacks = filtre === 'PACKS'
+  const types = ['ALL', 'VILLA', 'HOTEL', 'LODGE', 'APPARTEMENT', 'PACKS']
+  const liste = showPacks ? [] : filtre === 'ALL' ? hebergements : hebergements.filter(h => h.type === filtre)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -58,13 +64,49 @@ export default function EscalesPage() {
               color: filtre === t ? 'white' : '#888',
             }}
           >
-            {t === 'ALL' ? 'Tous' : t}
+            {t === 'ALL' ? 'Tous' : t === 'PACKS' ? '🏨 Packs' : t}
           </button>
         ))}
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-[#888] text-sm">Chargement…</div>
+      ) : showPacks ? (
+        <div className="space-y-3">
+          {packs.length === 0 && (
+            <div className="text-center py-10 text-[#888] text-sm">Aucun pack disponible actuellement.</div>
+          )}
+          {packs.map(p => {
+            const PACK_COLORS: Record<string, string> = { F3: '#7C9A7E', VIP: '#C9A84C', SIGNATURE: '#0F52BA' }
+            const color = PACK_COLORS[p.sous_type] ?? '#888'
+            return (
+              <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 min-w-0 pr-3">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: color + '22', color }}>
+                      PACK {p.sous_type}
+                    </span>
+                    <p className="font-semibold text-[#1A1A1A] text-sm mt-1">{p.nom}</p>
+                    <p className="text-[11px] text-[#888] mt-0.5 leading-relaxed">{p.description}</p>
+                    {p.inclus.length > 0 && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {p.inclus.slice(0, 3).map((item, i) => (
+                          <p key={i} className="text-[10px] text-[#888]">• {item}</p>
+                        ))}
+                        {p.inclus.length > 3 && <p className="text-[10px] text-[#C9A84C]">+{p.inclus.length - 3} logements…</p>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(p.prix)}</p>
+                    {p.capacite > 0 && <p className="text-[10px] text-[#888]">{p.capacite} pers.</p>}
+                  </div>
+                </div>
+                <BoutonAjouterPanier uid={uid} article={{ id: p.id, nom: p.nom, categorie: 'HEBERGEMENT', prix_unitaire: p.prix, description: p.description }} label="Ajouter ce pack" />
+              </div>
+            )
+          })}
+        </div>
       ) : (
         <div className="space-y-3">
           {liste.map(h => {
@@ -127,3 +169,4 @@ export default function EscalesPage() {
     </div>
   )
 }
+

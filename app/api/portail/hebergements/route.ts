@@ -1,7 +1,10 @@
 // app/api/portail/hebergements/route.ts
-// Partenaires hébergements L&Lui Signature — données statiques
+// Hébergements individuels + Packs groupés L&Lui Signature
 
 import { NextResponse } from 'next/server'
+import { getDb } from '@/lib/firebase'
+
+export const dynamic = 'force-dynamic'
 
 export interface Hebergement {
   id: string
@@ -14,6 +17,19 @@ export interface Hebergement {
   description: string
   tags: string[]
   disponible: boolean
+}
+
+export interface Pack {
+  id: string
+  nom: string
+  type: 'PACK'
+  sous_type: string // 'F3' | 'VIP' | 'SIGNATURE'
+  description: string
+  prix: number
+  inclus: string[]
+  capacite: number
+  image_url: string
+  url_detail: string
 }
 
 const HEBERGEMENTS: Hebergement[] = [
@@ -116,5 +132,25 @@ const HEBERGEMENTS: Hebergement[] = [
 ]
 
 export async function GET() {
-  return NextResponse.json(HEBERGEMENTS)
+  let packs: Pack[] = []
+  try {
+    const db = getDb()
+    const snap = await db.collection('packs').where('status', '==', 'active').get()
+    packs = snap.docs.map(doc => {
+      const d = doc.data()
+      const nom = String(d.name ?? '')
+      const n = nom.toUpperCase()
+      const sous_type = n.includes('VIP') ? 'VIP' : n.includes('SIGNATURE') ? 'SIGNATURE' : 'F3'
+      return {
+        id: doc.id, nom, type: 'PACK' as const, sous_type,
+        description: String(d.description ?? ''),
+        prix: Number(d.price ?? 0),
+        inclus: Array.isArray(d.included_properties) ? d.included_properties : [],
+        capacite: Number(d.max_guests ?? 0),
+        image_url: Array.isArray(d.images) ? (d.images[0] ?? '') : '',
+        url_detail: '/packs/' + doc.id,
+      }
+    })
+  } catch { packs = [] }
+  return NextResponse.json({ hebergements: HEBERGEMENTS, packs })
 }
