@@ -1,8 +1,12 @@
 {
   "crons": [
     {
+      "path": "/api/cron/sync-boutique",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/fast-start-check",
-      "schedule": "0 8 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

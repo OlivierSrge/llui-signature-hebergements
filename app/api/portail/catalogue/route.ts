@@ -1,8 +1,11 @@
 // app/api/portail/catalogue/route.ts
-// Catalogue des prestations mariage — données statiques
+// Catalogue — lit Firestore catalogue_boutique (sync Netlify) avec fallback statique
 
 import { NextResponse } from 'next/server'
 import type { CategorieArticle } from '@/lib/panierTypes'
+import { getDb } from '@/lib/firebase'
+
+export const dynamic = 'force-dynamic'
 
 export interface ArticleCatalogue {
   id: string
@@ -11,6 +14,9 @@ export interface ArticleCatalogue {
   prix_unitaire: number   // FCFA HT
   description: string
   unite: string           // ex: "forfait", "heure", "personne"
+  image_url?: string
+  url_fiche?: string
+  source?: 'BOUTIQUE' | 'STATIC'
 }
 
 const CATALOGUE: ArticleCatalogue[] = [
@@ -40,6 +46,55 @@ const CATALOGUE: ArticleCatalogue[] = [
   { id: 'coord-full', nom: 'Organisation Complète', categorie: 'COORDINATION', prix_unitaire: 800_000, description: '6 mois d\'accompagnement + jour J', unite: 'forfait' },
 ]
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+
+async function fetchFromFirestore(): Promise<{ articles: ArticleCatalogue[]; synced_at: string | null }> {
+  const db = getDb()
+  let snap = await db.collection('catalogue_boutique')
+    .where('actif', '==', true)
+    .orderBy('categorie').orderBy('nom')
+    .get()
+
+  // Si vide → déclencher sync et retenter
+  if (snap.empty) {
+    const headers: Record<string, string> = {}
+    if (process.env.CRON_SECRET) headers['Authorization'] = `Bearer ${process.env.CRON_SECRET}`
+    await fetch(`${SITE_URL}/api/cron/sync-boutique`, { headers }).catch(() => {})
+    await new Promise(r => setTimeout(r, 3000))
+    snap = await db.collection('catalogue_boutique')
+      .where('actif', '==', true)
+      .orderBy('categorie').orderBy('nom')
+      .get()
+  }
+
+  if (snap.empty) return { articles: [], synced_at: null }
+
+  const articles: ArticleCatalogue[] = snap.docs.map(doc => {
+    const d = doc.data()
+    return {
+      id: doc.id,
+      nom: d.nom ?? '',
+      categorie: d.categorie ?? 'AUTRE',
+      prix_unitaire: d.prix ?? 0,
+      description: d.description ?? '',
+      unite: 'forfait',
+      image_url: d.image_url || undefined,
+      url_fiche: d.url_fiche || undefined,
+      source: 'BOUTIQUE' as const,
+    }
+  })
+  const synced_at = snap.docs[0]?.data()?.synced_at?.toDate?.()?.toISOString() ?? null
+  return { articles, synced_at }
+}
+
 export async function GET() {
-  return NextResponse.json(CATALOGUE)
+  try {
+    const { articles, synced_at } = await fetchFromFirestore()
+    if (articles.length > 0) {
+      return NextResponse.json({ articles, synced_at })
+    }
+  } catch {
+    // Firestore indisponible → fallback statique
+  }
+  return NextResponse.json({ articles: CATALOGUE.map(a => ({ ...a, source: 'STATIC' as const })), synced_at: null })
 }

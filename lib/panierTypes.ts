@@ -9,6 +9,7 @@ export type CategorieArticle =
   | 'COORDINATION'
   | 'HEBERGEMENT'
   | 'BOUTIQUE'
+  | 'AUTRE'
 
 export interface ArticlePanier {
   id: string              // identifiant unique (ex: "photo-basic")

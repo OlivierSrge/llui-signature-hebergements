@@ -63,17 +63,25 @@ export default function TodoPage() {
       })
   }, [uid])
 
-  async function toggleTodo(todo: TodoItem) {
+  const toggleTodo = async (todo: TodoItem) => {
     const next = !todo.done
     setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, done: next } : t))
-    if (next) setTotalRevGagnes(r => r + todo.rev_prime)
-    else setTotalRevGagnes(r => Math.max(0, r - todo.rev_prime))
+    const newTotal = totalRevGagnes + (next ? todo.rev_prime : -todo.rev_prime)
+    setTotalRevGagnes(Math.max(0, newTotal))
 
     await fetch('/api/portail/todos', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, id: todo.id, done: next }),
     }).catch(() => {})
+
+    // Notif CallMeBot si >= 5 REV gagnés en une session
+    if (next && newTotal >= 5) {
+      fetch('/api/portail/notif-whatsapp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, type: 'RAPPEL_TODO', data: { rev_gagnes: newTotal } }),
+      }).catch(() => {})
+    }
   }
 
   async function ajouterTodo() {
