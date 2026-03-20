@@ -689,9 +689,44 @@ P1 ✅ · P2 ✅ · P3 ✅ · Patch Fast Start ✅ · P4 ✅
 - Rapport hebdo WhatsApp (lundi 7h UTC)
 - Navigation admin complète (5 liens portail)
 
+## GOOGLE SHEETS — SYNC BOUTIQUE (2026-03-20)
+
+La boutique Netlify (`letlui-signature.netlify.app`) utilise **Google Sheets** comme base de données produits.
+Le scraping HTML cheerio a été **remplacé par Google Sheets API** (`googleapis ^171`).
+
+### Architecture
+- `app/api/cron/sync-boutique/route.ts` — lit le Google Sheet, une feuille = une catégorie
+- Colonnes attendues : `A=Nom | B=Prix(FCFA) | C=Description | D=Image URL | E=URL fiche | F=Actif(oui/non)`
+- Écrit dans Firestore `catalogue_boutique` (même structure qu'avant)
+- `app/api/admin/test-sheets/route.ts` — endpoint de test : GET /api/admin/test-sheets
+
+### VARIABLES VERCEL OBLIGATOIRES
+```
+GOOGLE_SHEETS_CLIENT_EMAIL=   (email du compte de service Google)
+GOOGLE_SHEETS_PRIVATE_KEY=    (clé privée avec \n, copier depuis JSON credentials)
+GOOGLE_SHEETS_BOUTIQUE_ID=    (ID visible dans l'URL du sheet : .../spreadsheets/d/[ID]/edit)
+```
+
+### PROCÉDURE ACTIVATION GOOGLE SHEETS API
+1. Aller sur `console.cloud.google.com` → Nouveau projet (ou projet existant)
+2. **APIs & Services** → Bibliothèque → Activer **"Google Sheets API"**
+3. **Credentials** → Créer des identifiants → **Compte de service**
+4. Télécharger le fichier JSON → extraire `client_email` et `private_key`
+5. Dans Google Sheets → **Partager** avec l'email du compte de service (accès Lecteur)
+6. Ajouter les 3 variables dans **Vercel → Settings → Environment Variables**
+7. Tester : `GET /api/admin/test-sheets`
+
+### Format Google Sheet attendu
+| A (Nom) | B (Prix) | C (Description) | D (Image URL) | E (URL fiche) | F (Actif) |
+|---------|---------|----------------|--------------|--------------|---------|
+| Robe de Mariée Gold | 450000 | Robe longue... | https://... | https://... | oui |
+
+- Ligne 1 = en-têtes (doit contenir "nom", "name" ou "produit")
+- Feuilles multiples OK : chaque feuille = catégorie dans le portail
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — P4 terminée (2026-03-20)
-- **Dernière action** : 8 étapes P4 pushées sur `claude/p4-wallets-service-4M9tA`
+- **Bloc actuel** : Aucun — P4 + Google Sheets sync terminés (2026-03-20)
+- **Dernière action** : sync-boutique remplacé par Google Sheets API
 
 ---
 
