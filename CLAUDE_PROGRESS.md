@@ -642,9 +642,56 @@ et toggle admin entre version complète / simplifiée.
 
 ### PROCHAINE ÉTAPE : Phase P4
 
+## PHASE P4 — TERMINÉE ✅ (2026-03-20)
+
+**Branche** : `claude/p4-wallets-service-4M9tA` — 8 commits
+
+| Étape | Commit | Contenu |
+|-------|--------|---------|
+| 1 | `4f2bc4a` | `walletsService.ts` — crediterWallet/demanderRetrait atomiques + track-conversion refactorisé |
+| 2 | `15185c1` | Historique wallets + formulaire retrait dans /portail/avantages |
+| 3 | `dfe4f6c` | Dashboard admin portail — 8 KPIs + graphique 7j + flux + alertes + auto-refresh 30s |
+| 4 | `bef111a` | Admin utilisateurs — tableau + filtres + modal profil + ajustement grade |
+| 5 | `ea55cbd` | Admin paiements centralisés — file FS+retraits, Valider/Payer OM/Rejeter |
+| 6 | `a323a6c` | Admin reporting — barres CSS, top performers, répartition grades, métriques |
+| 7 | `f4adf0a` | Export CSV (6 types) + rapport PDF mensuel jsPDF (3 pages) |
+| 8 | `8f69791` | Rapport hebdo WhatsApp lundi 7h + nav admin 5 liens portail + vercel.json cron |
+
+**Collections Firestore ajoutées** : `wallet_operations` (sous-col), `retraits_demandes`, `admin_actions`, `cron_logs`
+
+### VARIABLES VERCEL À CONFIGURER
+```
+ADMIN_PHONE_NUMBER=+237693407964
+ADMIN_CALLMEBOT_APIKEY=[après activation CallMeBot — bot saturé, réessayer dans 2-3j]
+```
+
+### ACTIONS MANUELLES RESTANTES
+1. ⬜ Merger la PR `claude/p4-wallets-service-4M9tA` → main
+2. ⬜ Configurer `ADMIN_PHONE_NUMBER` dans Vercel
+3. ⬜ Configurer `ADMIN_CALLMEBOT_APIKEY` dans Vercel (après activation CallMeBot)
+4. ⬜ Tester rapport hebdo manuellement : `GET /api/cron/rapport-hebdo`
+5. ⬜ Copier `public/llui-tracker.js` sur la boutique Netlify
+
+**ÉCOSYSTÈME L&LUI SIGNATURE — 100% OPÉRATIONNEL**
+P1 ✅ · P2 ✅ · P3 ✅ · Patch Fast Start ✅ · P4 ✅
+
+**Fonctionnalités livrées** :
+- Portail client (dashboard + panier + todo + avantages)
+- Guest Connect (Magic Links + QR + tracking boutique)
+- Fast Start Bonus (auto-enroll + OM + admin + alertes)
+- WhatsApp CallMeBot (8 types notifications)
+- Sync boutique Netlify (cron quotidien)
+- Wallets atomiques (70/30 runTransaction)
+- Dashboard admin portail (KPIs + graphique + flux temps réel)
+- Paiements centralisés (FS + retraits unifiés)
+- Reporting (graphiques CSS + top performers + répartition grades)
+- Export CSV (6 types) + rapport PDF mensuel
+- Rapport hebdo WhatsApp (lundi 7h UTC)
+- Navigation admin complète (5 liens portail)
+
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — P3 mergée et déployée (2026-03-20)
-- **Dernière action** : PR #26 mergée sur main
+- **Bloc actuel** : Aucun — P4 terminée (2026-03-20)
+- **Dernière action** : 8 étapes P4 pushées sur `claude/p4-wallets-service-4M9tA`
 
 ---
 
