@@ -618,27 +618,33 @@ et toggle admin entre version complète / simplifiée.
 
 ---
 
-## PHASE P3 TERMINÉE — 8 étapes complétées (2026-03-20)
+## PHASE P3 — MERGÉE ET DÉPLOYÉE ✅ (2026-03-20)
 
-### Commit : 2945df2 — feat: analytics Guest Connect + nav portail Mes Invités
+**Date** : 20 mars 2026
+**PR** : #26 mergée sur `main` — déployée sur Vercel
 
-**ÉTAPE 7 — analytics Guest Connect** : `app/portail/analytics/page.tsx`
-- Page "Mes Invités" : KPIs (prévus / confirmés / déclinés / en attente), barre progression taux confirmation, répartition visuelle couleur
+**Commits inclus :**
+- `2945df2` — analytics Guest Connect (Mes Invités) + PortailNav 7 items
+- `6aafcc4` — llui-tracker.js script public Netlify
+- `cf48338` — CLAUDE_PROGRESS.md P3 terminée
 
-**ÉTAPE 8 — Navigation portail** : `components/portail/PortailNav.tsx` + `app/portail/layout.tsx`
-- 7 items : Accueil / Ma Vision / Mes Escales / Mon Panier (badge) / Mes Invités (badge invités en attente) / Mes Avantages / Documents
-- Mobile : bottom nav bar fixe avec icônes Lucide (overflow-x-auto si étroit)
-- Desktop : barre secondaire horizontale fixe sous le header (top-16)
-- Layout : padding responsive (`pt-16 md:pt-[104px] pb-16 md:pb-0`)
+**Étapes 7 & 8 livrées :**
+- `app/portail/analytics/page.tsx` — KPIs invités, barre progression, répartition couleur
+- `components/portail/PortailNav.tsx` — nav 7 items + badges (panier + invités en attente)
+- `app/portail/layout.tsx` — padding responsive mobile/desktop
+- `public/llui-tracker.js` — tracking conversion boutique Netlify
 
-### Actions manuelles requises
-- Copier `llui-tracker.js` sur Netlify
-- Activer CallMeBot WhatsApp (`CALLMEBOT_API_KEY` dans Vercel)
-- Vérifier `NEXT_PUBLIC_APP_URL` sur Vercel
+### ACTIONS MANUELLES ENCORE EN ATTENTE
+1. ⬜ Copier `public/llui-tracker.js` sur la boutique Netlify (`l-et-lui-signature.com`)
+2. ⬜ Activer CallMeBot (bot saturé — réessayer dans 2-3j)
+3. ⬜ Ajouter `CALLMEBOT_API_KEY` dans Vercel → Settings → Environment Variables
+4. ⬜ Vérifier `NEXT_PUBLIC_APP_URL` dans Vercel → Settings → Environment Variables
+
+### PROCHAINE ÉTAPE : Phase P4
 
 ## TRAVAIL EN COURS
-- **Bloc actuel** : Aucun — P3 terminée (2026-03-20)
-- **Dernière action** : Étapes 7 + 8 portail (analytics + navigation) pushées sur `claude/resume-phase-4-analytics-4M9tA`
+- **Bloc actuel** : Aucun — P3 mergée et déployée (2026-03-20)
+- **Dernière action** : PR #26 mergée sur main
 
 ---
 
