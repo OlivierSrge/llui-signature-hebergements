@@ -11,6 +11,14 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Protection portail mariés/partenaires
+  if (pathname.startsWith('/portail') && !pathname.startsWith('/portail/login')) {
+    const uid = request.cookies.get('portail_uid')?.value
+    if (!uid) {
+      return NextResponse.redirect(new URL('/portail/login', request.url))
+    }
+  }
+
   // Protection portail partenaire
   const partnerProtectedPaths = ['/partenaire/dashboard', '/partenaire/reservations', '/partenaire/scanner']
   if (partnerProtectedPaths.some((p) => pathname.startsWith(p))) {
@@ -24,5 +32,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/partenaire/dashboard/:path*', '/partenaire/reservations/:path*', '/partenaire/scanner/:path*'],
+  matcher: ['/admin/:path*', '/portail/:path*', '/partenaire/dashboard/:path*', '/partenaire/reservations/:path*', '/partenaire/scanner/:path*'],
 }

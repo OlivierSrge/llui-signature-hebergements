@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getDb } from '@/lib/firebase'
 import PortailTopBar from '@/components/portail/PortailTopBar'
@@ -42,8 +41,10 @@ async function getUserData(): Promise<UserPortailData | null> {
 
 export default async function PortailLayout({ children }: { children: React.ReactNode }) {
   const user = await getUserData()
+  // Si pas d'utilisateur, le middleware a déjà redirigé vers /portail/login.
+  // On rend juste {children} sans nav (cas : page login elle-même).
   if (!user) {
-    redirect('/portail/login')
+    return <>{children}</>
   }
   return (
     <div className="min-h-screen bg-[#F5F0E8]">
