@@ -5,18 +5,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { cookies } from 'next/headers'
-import { sendCallMeBot } from '@/lib/whatsappNotif'
-
 const PORTAIL_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
 async function sendWhatsApp(to: string, message: string) {
-  const apiKey = process.env.WHATSAPP_API_KEY
-  const apiUrl = process.env.WHATSAPP_API_URL
-  if (!apiKey || !apiUrl || !to) return
-  await fetch(apiUrl, {
+  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
+  const API_TOKEN = process.env.GREEN_API_TOKEN
+  if (!INSTANCE_ID || !API_TOKEN || !to) return
+  const clean = to.replace(/[\s\-+]/g, '')
+  await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ to, message }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId: `${clean}@c.us`, message }),
   }).catch(() => {})
 }
 
@@ -50,7 +49,6 @@ export async function POST(req: NextRequest) {
     const userRef = db.collection('portail_users').doc(uid)
     const userSnap = await userRef.get()
     const userPhone: string = userSnap.data()?.phone ?? ''
-    const userApikey: string = userSnap.data()?.whatsapp_apikey ?? ''
 
     // ── VALIDER ──────────────────────────────────────────────
     if (action === 'VALIDER') {
@@ -63,7 +61,6 @@ export async function POST(req: NextRequest) {
         `✅ Prime Fast Start J${palier} validée !\n` +
         `Virement OM de ${montantStr} sous 48h sur votre numéro ${telephone_om}.`
       )
-      await sendCallMeBot(userPhone, `✅ Prime Fast Start J${palier} validée ! Virement de ${montantStr} sous 48h. L&Lui Signature 💛`, userApikey)
       return NextResponse.json({ success: true })
     }
 
@@ -86,7 +83,6 @@ export async function POST(req: NextRequest) {
         `Référence : ${reference_om}\n` +
         `Merci pour votre engagement L&Lui ! 🌟`
       )
-      await sendCallMeBot(userPhone, `💸 Prime Fast Start J${palier} payée ! ${montantStr} — Réf : ${reference_om}. L&Lui Signature 💛`, userApikey)
       return NextResponse.json({ success: true })
     }
 
@@ -100,7 +96,6 @@ export async function POST(req: NextRequest) {
         `Motif : ${note ?? 'Non précisé'}\n` +
         `Contactez-nous : +237 693 407 964`
       )
-      await sendCallMeBot(userPhone, `⚠️ Demande Fast Start J${palier} rejetée. Motif : ${note ?? 'non précisé'}. Contactez le +237693407964.`, userApikey)
       return NextResponse.json({ success: true })
     }
 

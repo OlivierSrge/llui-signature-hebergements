@@ -6,11 +6,12 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const uid = new URL(req.url).searchParams.get('uid')
-  if (!uid) return NextResponse.json({ has_apikey: false })
+  if (!uid) return NextResponse.json({ active: false })
   try {
     const snap = await getDb().collection('portail_users').doc(uid).get()
-    return NextResponse.json({ has_apikey: !!snap.data()?.whatsapp_apikey })
+    const telephone: string = snap.data()?.phone ?? ''
+    return NextResponse.json({ active: true, telephone })
   } catch {
-    return NextResponse.json({ has_apikey: false })
+    return NextResponse.json({ active: false })
   }
 }

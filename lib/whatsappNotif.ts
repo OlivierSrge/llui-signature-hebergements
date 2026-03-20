@@ -1,27 +1,50 @@
-// lib/whatsappNotif.ts — CallMeBot WhatsApp : lib + messages prédéfinis
-
-const CALLMEBOT_URL = 'https://api.callmebot.com/whatsapp.php'
+// lib/whatsappNotif.ts — Green API WhatsApp : lib + messages prédéfinis
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
 /**
- * Envoie un message WhatsApp via CallMeBot.
+ * Envoie un message WhatsApp via Green API.
  * NE BLOQUE JAMAIS l'application en cas d'échec.
- * phone : format international sans + (ex: 237693407964)
+ * phone : format international avec ou sans + (ex: +237693407964 ou 237693407964)
  */
-export async function sendCallMeBot(phone: string, message: string, apikey: string): Promise<void> {
-  if (!phone || !message || !apikey) return
-  const clean = phone.replace(/\D/g, '').replace(/^\+/, '')
-  const url = `${CALLMEBOT_URL}?phone=${clean}&text=${encodeURIComponent(message)}&apikey=${apikey}`
+export async function sendWhatsApp(
+  telephone: string,
+  message: string
+): Promise<{ success: boolean; error?: string }> {
+  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
+  const API_TOKEN = process.env.GREEN_API_TOKEN
+  if (!INSTANCE_ID || !API_TOKEN) {
+    return { success: false, error: 'GREEN_API_INSTANCE_ID ou GREEN_API_TOKEN non défini' }
+  }
+  if (!telephone || !message) return { success: false, error: 'Téléphone ou message vide' }
+
+  // Nettoyer le numéro : supprimer +, espaces, tirets
+  const clean = telephone.replace(/[\s\-+]/g, '').replace(/^\+/, '')
+  const chatId = `${clean}@c.us`
+  const BASE_URL = `https://api.green-api.com/waInstance${INSTANCE_ID}`
+
   try {
     const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 5000)
-    await fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid))
-  } catch {
+    const tid = setTimeout(() => ctrl.abort(), 8000)
+    const res = await fetch(`${BASE_URL}/sendMessage/${API_TOKEN}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, message }),
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(tid))
+    if (!res.ok) return { success: false, error: `HTTP ${res.status}` }
+    return { success: true }
+  } catch (e) {
     // Silencieux — ne jamais bloquer l'app
+    return { success: false, error: String(e) }
   }
+}
+
+/** Compat : ancienne signature CallMeBot — redirige vers sendWhatsApp (apikey ignoré) */
+export async function sendCallMeBot(phone: string, message: string, _apikey?: string): Promise<void> {
+  await sendWhatsApp(phone, message)
 }
 
 // ── Messages prédéfinis ────────────────────────────────────────
