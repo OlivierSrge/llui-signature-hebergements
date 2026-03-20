@@ -23,26 +23,15 @@ export function previewTemplate(template: string, vars: Record<string, string> =
     .replace(/\{lien_suivi\}/g, merged.lien_suivi)
 }
 
-// ── Notification WhatsApp admin via Green API ──────────────────
-// Variables d'env requises : GREEN_API_INSTANCE_ID + GREEN_API_TOKEN
+// ── Notification WhatsApp admin via Twilio ──────────────────
+// Variables d'env requises : TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_WHATSAPP_FROM
 // Si absentes, la notification est ignorée silencieusement.
+
+import { sendWhatsApp } from './whatsappNotif'
 
 const ADMIN_WA_PHONE = '237693407964'
 
 export async function sendAdminWhatsAppNotification(message: string): Promise<void> {
-  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
-  const API_TOKEN = process.env.GREEN_API_TOKEN
-  if (!INSTANCE_ID || !API_TOKEN) {
-    console.warn('[green-api] GREEN_API_INSTANCE_ID ou GREEN_API_TOKEN non défini — notification admin ignorée')
-    return
-  }
-
-  const chatId = `${ADMIN_WA_PHONE}@c.us`
-  const url = `https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId, message }),
-  }).catch((err) => console.error('[green-api] WhatsApp admin notification failed:', err))
+  await sendWhatsApp(ADMIN_WA_PHONE, message)
 }
 

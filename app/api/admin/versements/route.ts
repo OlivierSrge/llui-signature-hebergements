@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
+import { sendWhatsApp } from '@/lib/whatsappNotif'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,16 +99,10 @@ export async function PATCH(req: Request) {
 
     // Notifier l'admin WhatsApp si validé
     if (statut === 'VALIDE') {
-      const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
-      const API_TOKEN = process.env.GREEN_API_TOKEN
-      const phone = (process.env.ADMIN_PHONE_NUMBER ?? '').replace(/\D/g, '')
-      if (INSTANCE_ID && API_TOKEN && phone) {
+      const phone = process.env.ADMIN_PHONE_NUMBER ?? ''
+      if (phone) {
         const msg = `✅ Paiement validé\nMontant: ${(d.montant as number).toLocaleString('fr-FR')} FCFA\nMode: ${d.mode}\nUID: ${d.uid}`
-        await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatId: `${phone}@c.us`, message: msg }),
-        }).catch(() => {})
+        await sendWhatsApp(phone, msg)
       }
     }
 

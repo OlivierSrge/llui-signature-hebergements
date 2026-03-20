@@ -18,16 +18,12 @@ export interface VersementDeclare {
   declared_at?: unknown
 }
 
+import { sendWhatsApp } from '@/lib/whatsappNotif'
+
 async function notifyAdminWhatsApp(message: string): Promise<void> {
-  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
-  const API_TOKEN = process.env.GREEN_API_TOKEN
-  const phone = (process.env.ADMIN_PHONE_NUMBER ?? '').replace(/\D/g, '')
-  if (!INSTANCE_ID || !API_TOKEN || !phone) return
-  await fetch(`https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
-  }).catch(() => {})
+  const phone = process.env.ADMIN_PHONE_NUMBER ?? ''
+  if (!phone) return
+  await sendWhatsApp(phone, message)
 }
 
 // POST — Déclarer un versement

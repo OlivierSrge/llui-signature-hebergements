@@ -1,44 +1,37 @@
-// lib/whatsappNotif.ts — Green API WhatsApp : lib + messages prédéfinis
+// lib/whatsappNotif.ts — Twilio WhatsApp : lib + messages prédéfinis
+
+import twilio from 'twilio'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
-/**
- * Envoie un message WhatsApp via Green API.
- * NE BLOQUE JAMAIS l'application en cas d'échec.
- * phone : format international avec ou sans + (ex: +237693407964 ou 237693407964)
- */
 export async function sendWhatsApp(
   telephone: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
-  const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID
-  const API_TOKEN = process.env.GREEN_API_TOKEN
-  if (!INSTANCE_ID || !API_TOKEN) {
-    return { success: false, error: 'GREEN_API_INSTANCE_ID ou GREEN_API_TOKEN non défini' }
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  const fromNumber = process.env.TWILIO_WHATSAPP_FROM
+  if (!accountSid || !authToken || !fromNumber) {
+    console.warn('Twilio non configuré - skip WhatsApp')
+    return { success: false, error: 'Config manquante' }
   }
-  if (!telephone || !message) return { success: false, error: 'Téléphone ou message vide' }
-
-  // Nettoyer le numéro : supprimer +, espaces, tirets
-  const clean = telephone.replace(/[\s\-+]/g, '').replace(/^\+/, '')
-  const chatId = `${clean}@c.us`
-  const BASE_URL = `https://api.green-api.com/waInstance${INSTANCE_ID}`
-
   try {
-    const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 8000)
-    const res = await fetch(`${BASE_URL}/sendMessage/${API_TOKEN}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, message }),
-      signal: ctrl.signal,
-    }).finally(() => clearTimeout(tid))
-    if (!res.ok) return { success: false, error: `HTTP ${res.status}` }
+    let tel = telephone.replace(/\s|-/g, '')
+    if (tel.startsWith('00')) tel = '+' + tel.slice(2)
+    if (!tel.startsWith('+')) tel = '+237' + tel
+    const client = twilio(accountSid, authToken)
+    await client.messages.create({
+      from: fromNumber,
+      to: 'whatsapp:' + tel,
+      body: message
+    })
     return { success: true }
-  } catch (e) {
-    // Silencieux — ne jamais bloquer l'app
-    return { success: false, error: String(e) }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Twilio erreur:', msg)
+    return { success: false, error: msg }
   }
 }
 
