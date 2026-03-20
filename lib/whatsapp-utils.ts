@@ -22,16 +22,3 @@ export function previewTemplate(template: string, vars: Record<string, string> =
     .replace(/\{partenaire\}/g, merged.partenaire)
     .replace(/\{lien_suivi\}/g, merged.lien_suivi)
 }
-
-// ── Notification WhatsApp admin via Twilio ──────────────────
-// Variables d'env requises : TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_WHATSAPP_FROM
-// Si absentes, la notification est ignorée silencieusement.
-
-import { sendWhatsApp } from './whatsappNotif'
-
-const ADMIN_WA_PHONE = '237693407964'
-
-export async function sendAdminWhatsAppNotification(message: string): Promise<void> {
-  await sendWhatsApp(ADMIN_WA_PHONE, message)
-}
-
