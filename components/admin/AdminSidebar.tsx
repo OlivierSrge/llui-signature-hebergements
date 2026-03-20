@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,11 @@ const NAV_ITEMS = [
   { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/fidelite', label: '⭐ Fidélité L&Lui Stars', icon: Star },
   { href: '/admin/devis', label: '💍 Mariages & Devis', icon: Gem },
+  { href: '/admin/dashboard', label: '🏠 Dashboard Portail', icon: TrendingUp },
+  { href: '/admin/utilisateurs', label: '👤 Utilisateurs Portail', icon: UserCircle },
+  { href: '/admin/paiements', label: '💳 Paiements centralisés', icon: Banknote },
+  { href: '/admin/fast-start', label: '🏆 Fast Start', icon: Star },
+  { href: '/admin/reporting', label: '📊 Reporting', icon: BarChart2 },
   { href: '/admin/templates', label: 'Templates WhatsApp', icon: MessageCircle },
   { href: '/admin/contrat', label: 'Contrat partenariat', icon: FileSignature },
   { href: '/admin/abonnements', label: 'Abonnements', icon: CreditCard },

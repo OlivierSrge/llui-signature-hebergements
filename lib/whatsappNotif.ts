@@ -49,3 +49,27 @@ export function msgRappelTodo(nom: string, revGagnes: number): string {
 export function msgRelanceInvite(nomMaries: string, nomInvite: string, magicLink: string): string {
   return `💌 Rappel pour ${nomInvite} !\n\nVotre lien privilégié pour le mariage de *${nomMaries}* :\n${magicLink}\n\nDes hébergements et offres exclusives vous attendent 🏠\n\nL&Lui Signature 💛`
 }
+
+export interface ResumeSemaine {
+  dateDebut: string; dateFin: string
+  caSemaine: number; txBoutique: number; txMariage: number
+  nouveauxInscrits: number; upgradesGrades: number
+  commissionsVersees: number; primesFspayees: number; primesFsenAttente: number
+  retraitsTraites: number; retraitsEnAttente: number
+  topTransaction: { nom: string; montant: number }
+}
+
+export function msgResumeSemaine(data: ResumeSemaine): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  return `📊 *Résumé L&Lui Signature*\n` +
+    `Semaine du ${data.dateDebut} au ${data.dateFin}\n\n` +
+    `💰 CA semaine : *${formatFCFA(data.caSemaine)}*\n` +
+    `📈 Transactions : ${data.txBoutique} (boutique) + ${data.txMariage} (mariages)\n` +
+    `👥 Nouveaux inscrits : ${data.nouveauxInscrits}\n` +
+    `⭐ Upgrades grades : ${data.upgradesGrades} personne(s)\n` +
+    `💸 Commissions versées : ${formatFCFA(data.commissionsVersees)}\n` +
+    `🎯 Primes Fast Start : ${data.primesFspayees} payée(s) / ${data.primesFsenAttente} en attente\n` +
+    `📤 Retraits : ${data.retraitsTraites} traité(s) / ${data.retraitsEnAttente} en attente\n` +
+    (data.topTransaction.montant > 0 ? `🏆 Top transaction : ${data.topTransaction.nom} — ${formatFCFA(data.topTransaction.montant)}\n` : '') +
+    `\nVoir le dashboard : ${url}/admin/dashboard`
+}

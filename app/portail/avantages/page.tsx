@@ -9,6 +9,7 @@ import type { PortailGrade } from '@/lib/portailGrades'
 import FastStartSection from '@/components/portail/FastStartSection'
 import type { PalierState } from '@/components/portail/FastStartSection'
 import NotifWhatsAppSection from '@/components/portail/NotifWhatsAppSection'
+import WalletSection from '@/components/portail/WalletSection'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
@@ -74,6 +75,12 @@ async function getAvantagesData() {
         telephone_claimed: d.fast_start?.telephone_om_90 ?? null },
     ]
 
+    const tsISO = (o: Record<string, unknown>, f: string) => (o[f] as { toDate?: () => Date })?.toDate?.().toISOString() ?? new Date().toISOString()
+    const opsSnap = await db.collection('portail_users').doc(uid).collection('wallet_operations').orderBy('created_at', 'desc').limit(20).get()
+    const history = opsSnap.docs.map(doc => { const o = doc.data(); return { id: doc.id, type: o.type ?? '', source: o.source ?? '', created_at: tsISO(o, 'created_at'), amount_cash: o.amount_cash ?? 0, amount_credits: o.amount_credits ?? 0, rev_attribues: o.rev_attribues ?? 0 } })
+    const retraitsSnap = await db.collection('retraits_demandes').where('uid', '==', uid).orderBy('created_at', 'desc').limit(5).get()
+    const retraits = retraitsSnap.docs.map(doc => { const r = doc.data(); return { id: doc.id, montant: r.montant ?? 0, wallet_type: r.wallet_type ?? 'cash', statut: r.statut ?? 'EN_ATTENTE', created_at: tsISO(r, 'created_at') } })
+
     return {
       uid,
       displayName: d.displayName ?? 'Partenaire',
@@ -81,8 +88,7 @@ async function getAvantagesData() {
       rev_lifetime: d.rev_lifetime ?? 0,
       walletCash: d.wallets?.cash ?? 0,
       walletCredits: d.wallets?.credits_services ?? 0,
-      enrolledAt,
-      paliers,
+      enrolledAt, paliers, history, retraits,
     }
   } catch {
     redirect('/portail/login')
@@ -91,7 +97,7 @@ async function getAvantagesData() {
 
 export default async function AvantagesPage() {
   const data = await getAvantagesData()
-  const { uid, displayName, grade, rev_lifetime, walletCash, walletCredits, enrolledAt, paliers } = data
+  const { uid, displayName, grade, rev_lifetime, walletCash, walletCredits, enrolledAt, paliers, history, retraits } = data
   const color = GRADE_COLORS[grade]
   const { next, pct, revManquants } = getNextGradeInfo(grade, rev_lifetime)
 
@@ -146,6 +152,14 @@ export default async function AvantagesPage() {
         joursEcoules={joursEcoules}
         paliers={paliers}
         revLifetime={rev_lifetime}
+      />
+
+      {/* Historique wallet + demande retrait */}
+      <WalletSection
+        walletCash={walletCash}
+        walletCredits={walletCredits}
+        history={history}
+        retraits={retraits}
       />
 
       {/* Notifications WhatsApp CallMeBot */}
