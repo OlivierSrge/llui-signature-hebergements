@@ -1,156 +1,154 @@
 // lib/walletsService.ts
-// Wallets atomic Firestore — L&Lui Signature Portail
-// Toutes les mutations de wallet passent par ce service (runTransaction ou FieldValue.increment)
-// NE JAMAIS modifier wallets directement depuis une page ou action sans passer par ici
+// Wallets atomic Firestore — P4 — SEUL endroit autorisé pour toucher les wallets
+// NE JAMAIS update wallets directement en dehors de ce fichier
 
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { getGradeFromRev } from '@/lib/calculatePayout'
-import type { WalletOperation } from '@/lib/firestoreTypes'
+import { calculatePayout, getGradeFromRev } from '@/lib/calculatePayout'
+import type { TransactionType } from '@/lib/calculatePayout'
+import type { PortailGrade } from '@/lib/portailGrades'
 
-export type WalletKey = 'cash' | 'credits_services'
+export type WalletOpType = 'CREDIT_COMMISSION' | 'CREDIT_PRIME' | 'DEBIT_RETRAIT' | 'CREDIT_BONUS'
 
-// ─── Credit simple (FieldValue.increment — safe en parallèle) ────────────────
-export async function creditWallet(
-  uid: string,
-  wallet: WalletKey,
-  amount: number,
-  description: string,
-  refCommissionId: string | null = null
-): Promise<void> {
-  if (amount <= 0) throw new Error('creditWallet: amount doit être positif')
-  const db = getDb()
-  const userRef = db.collection('portail_users').doc(uid)
-  const logRef = userRef.collection('wallet_operations').doc()
-  const batch = db.batch()
-  batch.update(userRef, { [`wallets.${wallet}`]: FieldValue.increment(amount) })
-  const op: Omit<WalletOperation, 'id'> = {
-    user_id: uid,
-    type: 'CREDIT',
-    amount,
-    wallet,
-    description,
-    ref_commission_id: refCommissionId,
-    created_at: FieldValue.serverTimestamp() as WalletOperation['created_at'],
-  }
-  batch.set(logRef, op)
-  await batch.commit()
+export interface WalletOpResult {
+  success: boolean
+  payout: { cash: number; credits_services: number; rev_gagnes: number }
+  grade_change: { ancien: PortailGrade; nouveau: PortailGrade; changed: boolean; changed_at?: string }
 }
 
-// ─── Debit atomique (runTransaction — vérifie solde suffisant) ────────────────
-export async function debitWallet(
+// ─── crediterWallet ───────────────────────────────────────────────────────────
+// Transaction atomique : calcul payout → update wallet + rev + grade → log
+export async function crediterWallet(
   uid: string,
-  wallet: WalletKey,
-  amount: number,
-  description: string,
-  refCommissionId: string | null = null
-): Promise<void> {
-  if (amount <= 0) throw new Error('debitWallet: amount doit être positif')
+  transaction_id: string,
+  amount_ht: number,
+  type: TransactionType,
+  level: 1 | 2,
+  source: string
+): Promise<WalletOpResult> {
+  const payout = calculatePayout(amount_ht, type, level)
   const db = getDb()
   const userRef = db.collection('portail_users').doc(uid)
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef)
-    if (!snap.exists) throw new Error('debitWallet: utilisateur introuvable')
-    const solde: number = snap.data()?.wallets?.[wallet] ?? 0
-    if (solde < amount) throw new Error(`debitWallet: solde insuffisant (${solde} < ${amount})`)
-    const logRef = userRef.collection('wallet_operations').doc()
-    tx.update(userRef, { [`wallets.${wallet}`]: FieldValue.increment(-amount) })
-    const op: Omit<WalletOperation, 'id'> = {
-      user_id: uid,
-      type: 'DEBIT',
-      amount,
-      wallet,
-      description,
-      ref_commission_id: refCommissionId,
-      created_at: FieldValue.serverTimestamp() as WalletOperation['created_at'],
-    }
-    tx.set(logRef, op)
-  })
-}
+  let gradeChange = { ancien: 'START' as PortailGrade, nouveau: 'START' as PortailGrade, changed: false, changed_at: undefined as string | undefined }
 
-// ─── Apply commission (atomique : cash + credits + REV + grade) ───────────────
-// Appeler après validation d'une transaction boutique ou pack mariage
-export async function applyCommission(
-  uid: string,
-  amountCash: number,
-  amountCredits: number,
-  revAttribues: number,
-  description: string,
-  refCommissionId: string | null = null
-): Promise<void> {
-  if (amountCash < 0 || amountCredits < 0 || revAttribues < 0)
-    throw new Error('applyCommission: montants négatifs interdits')
-  const db = getDb()
-  const userRef = db.collection('portail_users').doc(uid)
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(userRef)
-    if (!snap.exists) throw new Error('applyCommission: utilisateur introuvable')
+    if (!snap.exists) throw new Error('crediterWallet: utilisateur introuvable')
     const d = snap.data()!
-    const newRev: number = (d.rev_lifetime ?? 0) + revAttribues
-    const newGrade = getGradeFromRev(newRev)
-    tx.update(userRef, {
-      'wallets.cash': FieldValue.increment(amountCash),
-      'wallets.credits_services': FieldValue.increment(amountCredits),
-      rev_lifetime: FieldValue.increment(revAttribues),
-      grade: newGrade,
+    const cashAvant: number = d.wallets?.cash ?? 0
+    const creditsAvant: number = d.wallets?.credits_services ?? 0
+    const revAvant: number = d.rev_lifetime ?? 0
+    const ancienGrade: PortailGrade = (d.grade ?? 'START') as PortailGrade
+    const newRev = revAvant + payout.rev_gagnes
+    const nouveauGrade = getGradeFromRev(newRev)
+    const changed = nouveauGrade !== ancienGrade
+    const now = new Date().toISOString()
+    gradeChange = { ancien: ancienGrade, nouveau: nouveauGrade, changed, changed_at: changed ? now : undefined }
+
+    const updates: Record<string, unknown> = {
+      'wallets.cash': FieldValue.increment(payout.cash),
+      'wallets.credits_services': FieldValue.increment(payout.credits_services),
+      rev_lifetime: FieldValue.increment(payout.rev_gagnes),
+      grade: nouveauGrade,
+    }
+    if (changed) updates.grade_change = { ancien: ancienGrade, nouveau: nouveauGrade, changed_at: FieldValue.serverTimestamp() }
+    tx.update(userRef, updates)
+
+    const opRef = userRef.collection('wallet_operations').doc()
+    tx.set(opRef, {
+      uid,
+      transaction_id,
+      type: 'CREDIT_COMMISSION' as WalletOpType,
+      amount_cash: payout.cash,
+      amount_credits: payout.credits_services,
+      rev_attribues: payout.rev_gagnes,
+      balance_cash_avant: cashAvant,
+      balance_cash_apres: cashAvant + payout.cash,
+      balance_credits_avant: creditsAvant,
+      balance_credits_apres: creditsAvant + payout.credits_services,
+      source,
+      created_at: FieldValue.serverTimestamp(),
     })
-    // Log cash
-    if (amountCash > 0) {
-      const logCash = userRef.collection('wallet_operations').doc()
-      const opCash: Omit<WalletOperation, 'id'> = {
-        user_id: uid,
-        type: 'CREDIT',
-        amount: amountCash,
-        wallet: 'cash',
-        description,
-        ref_commission_id: refCommissionId,
-        created_at: FieldValue.serverTimestamp() as WalletOperation['created_at'],
-      }
-      tx.set(logCash, opCash)
-    }
-    // Log credits
-    if (amountCredits > 0) {
-      const logCredits = userRef.collection('wallet_operations').doc()
-      const opCredits: Omit<WalletOperation, 'id'> = {
-        user_id: uid,
-        type: 'CREDIT',
-        amount: amountCredits,
-        wallet: 'credits_services',
-        description,
-        ref_commission_id: refCommissionId,
-        created_at: FieldValue.serverTimestamp() as WalletOperation['created_at'],
-      }
-      tx.set(logCredits, opCredits)
-    }
   })
+
+  // Notif grade change (non-bloquant)
+  if (gradeChange.changed) {
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/portail/notif-whatsapp`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, type: 'NOUVEAU_GRADE', data: { grade: gradeChange.nouveau } }),
+    }).catch(() => {})
+  }
+
+  return { success: true, payout, grade_change: gradeChange }
 }
 
-// ─── Lecture wallets (snapshot simple) ───────────────────────────────────────
-export async function getWallets(uid: string): Promise<{
-  cash: number
-  credits_services: number
-  rev_lifetime: number
-}> {
+// ─── demanderRetrait ──────────────────────────────────────────────────────────
+// Vérifie solde → crée doc retraits_demandes → notif admin
+export async function demanderRetrait(
+  uid: string,
+  montant: number,
+  telephone_om: string,
+  wallet_type: 'cash' | 'credits_services'
+): Promise<string> {
+  if (montant < 5_000) throw new Error('Montant minimum : 5 000 FCFA')
   const db = getDb()
   const snap = await db.collection('portail_users').doc(uid).get()
-  if (!snap.exists) return { cash: 0, credits_services: 0, rev_lifetime: 0 }
-  const d = snap.data()!
-  return {
-    cash: d.wallets?.cash ?? 0,
-    credits_services: d.wallets?.credits_services ?? 0,
-    rev_lifetime: d.rev_lifetime ?? 0,
-  }
+  if (!snap.exists) throw new Error('Utilisateur introuvable')
+  const solde: number = snap.data()?.wallets?.[wallet_type] ?? 0
+  if (solde < montant) throw new Error(`Solde insuffisant (${solde} FCFA disponible)`)
+
+  const ref = await db.collection('retraits_demandes').add({
+    uid, montant, telephone_om, wallet_type,
+    statut: 'EN_ATTENTE',
+    created_at: FieldValue.serverTimestamp(),
+  })
+
+  // Notif admin (non-bloquant)
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/portail/notif-whatsapp`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: 'admin', type: 'RETRAIT_DEMANDE', data: { uid, montant, telephone_om, wallet_type, demande_id: ref.id } }),
+  }).catch(() => {})
+
+  return ref.id
 }
 
-// ─── Historique opérations (50 dernières) ────────────────────────────────────
-export async function getWalletHistory(uid: string): Promise<(WalletOperation & { id: string })[]> {
+// ─── crediterPrime ────────────────────────────────────────────────────────────
+// Pour primes Fast Start : crédit cash uniquement, log CREDIT_PRIME
+export async function crediterPrime(
+  uid: string,
+  montant: number,
+  source: string,
+  refId: string
+): Promise<void> {
   const db = getDb()
-  const snap = await db
-    .collection('portail_users')
-    .doc(uid)
-    .collection('wallet_operations')
-    .orderBy('created_at', 'desc')
-    .limit(50)
-    .get()
-  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WalletOperation & { id: string }))
+  const userRef = db.collection('portail_users').doc(uid)
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef)
+    if (!snap.exists) throw new Error('crediterPrime: utilisateur introuvable')
+    const cashAvant: number = snap.data()?.wallets?.cash ?? 0
+    tx.update(userRef, { 'wallets.cash': FieldValue.increment(montant) })
+    const opRef = userRef.collection('wallet_operations').doc()
+    tx.set(opRef, {
+      uid, transaction_id: refId, type: 'CREDIT_PRIME' as WalletOpType,
+      amount_cash: montant, amount_credits: 0, rev_attribues: 0,
+      balance_cash_avant: cashAvant, balance_cash_apres: cashAvant + montant,
+      balance_credits_avant: 0, balance_credits_apres: 0,
+      source, created_at: FieldValue.serverTimestamp(),
+    })
+  })
+}
+
+// ─── getWallets ───────────────────────────────────────────────────────────────
+export async function getWallets(uid: string) {
+  const snap = await getDb().collection('portail_users').doc(uid).get()
+  if (!snap.exists) return { cash: 0, credits_services: 0, rev_lifetime: 0 }
+  const d = snap.data()!
+  return { cash: d.wallets?.cash ?? 0, credits_services: d.wallets?.credits_services ?? 0, rev_lifetime: d.rev_lifetime ?? 0 }
+}
+
+// ─── getWalletHistory ─────────────────────────────────────────────────────────
+export async function getWalletHistory(uid: string, limit = 20) {
+  const snap = await getDb().collection('portail_users').doc(uid)
+    .collection('wallet_operations').orderBy('created_at', 'desc').limit(limit).get()
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
