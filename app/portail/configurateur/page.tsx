@@ -43,7 +43,11 @@ export default function ConfigurateurPage() {
   useEffect(() => {
     fetch('/api/portail/catalogue')
       .then(r => r.json())
-      .then((data: ArticleCatalogue[]) => { setCatalogue(data); setLoading(false) })
+      .then((data: { articles: ArticleCatalogue[]; synced_at: string | null } | ArticleCatalogue[]) => {
+        const articles = Array.isArray(data) ? data : (data.articles ?? [])
+        setCatalogue(articles)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 
@@ -83,18 +87,47 @@ export default function ConfigurateurPage() {
       ) : (
         <div className="space-y-3">
           {filtres.map(article => (
-            <div key={article.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1 min-w-0 pr-3">
-                  <p className="font-semibold text-[#1A1A1A] text-sm">{article.nom}</p>
-                  <p className="text-[11px] text-[#888] mt-0.5 leading-relaxed">{article.description}</p>
+            <div key={article.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
+              {/* Image ou placeholder */}
+              {article.image_url ? (
+                <img src={article.image_url} alt={article.nom} className="w-full h-32 object-cover" />
+              ) : (
+                <div className="w-full h-20 flex items-center justify-center text-xl font-bold text-[#C9A84C]" style={{ background: '#F5F0E8' }}>
+                  {article.nom.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()}
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(article.prix_unitaire)}</p>
-                  <p className="text-[10px] text-[#888]">{UNITE_LABELS[article.unite] ?? article.unite}</p>
+              )}
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 min-w-0 pr-3">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="font-semibold text-[#1A1A1A] text-sm">{article.nom}</p>
+                      {article.source === 'BOUTIQUE' && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: '#C9A84C' }}>BOUTIQUE</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#888] leading-relaxed">{article.description}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {article.prix_unitaire > 0 && (
+                      <>
+                        <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(article.prix_unitaire)}</p>
+                        <p className="text-[10px] text-[#888]">{UNITE_LABELS[article.unite ?? ''] ?? article.unite}</p>
+                      </>
+                    )}
+                  </div>
                 </div>
+                <BoutonAjouterPanier uid={uid} article={article} />
+                {article.url_fiche && (
+                  <a
+                    href={article.url_fiche}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block mt-2 text-center text-xs text-[#C9A84C] hover:underline"
+                  >
+                    En savoir plus →
+                  </a>
+                )}
               </div>
-              <BoutonAjouterPanier uid={uid} article={article} />
             </div>
           ))}
         </div>

@@ -8,6 +8,7 @@ import { PORTAIL_GRADES, GRADE_COLORS, GRADE_THRESHOLDS } from '@/lib/portailGra
 import type { PortailGrade } from '@/lib/portailGrades'
 import FastStartSection from '@/components/portail/FastStartSection'
 import type { PalierState } from '@/components/portail/FastStartSection'
+import NotifWhatsAppSection from '@/components/portail/NotifWhatsAppSection'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
@@ -146,6 +147,9 @@ export default async function AvantagesPage() {
         paliers={paliers}
         revLifetime={rev_lifetime}
       />
+
+      {/* Notifications WhatsApp CallMeBot */}
+      <NotifWhatsAppSection uid={uid} />
 
       {/* Grades roadmap */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">

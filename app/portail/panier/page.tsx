@@ -24,6 +24,7 @@ const CAT_LABELS: Record<CategorieArticle, string> = {
   COORDINATION: 'Coordination',
   HEBERGEMENT: 'Hébergement',
   BOUTIQUE: 'Boutique',
+  AUTRE: 'Autre',
 }
 
 function BudgetGauge({ depense, budget }: { depense: number; budget: number }) {
