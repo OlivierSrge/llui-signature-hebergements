@@ -2,6 +2,7 @@
 // POST — Création complète espace marié : uid + code promo + Firestore + WhatsApp
 
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { getDb } from '@/lib/firebase'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import { generateCodePromo } from '@/lib/generatePromoCode'
@@ -45,8 +46,10 @@ async function genUniqueCode(noms_maries: string, uid: string, db: FirebaseFires
 }
 
 export async function POST(req: Request) {
-  const authToken = req.headers.get('x-admin-token') ?? new URL(req.url).searchParams.get('token')
-  if (authToken !== process.env.ADMIN_SECRET_TOKEN) {
+  // Auth : cookie admin_session (même logique que middleware.ts)
+  const jar = await cookies()
+  const session = jar.get('admin_session')?.value
+  if (!session || session !== process.env.ADMIN_SESSION_TOKEN) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
