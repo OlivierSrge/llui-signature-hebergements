@@ -26,12 +26,13 @@ async function getUserData(): Promise<UserPortailData | null> {
     const confirmes = data.invites_confirmes ?? 0
     const declines = data.invites_declines ?? 0
     const invitesCount = Math.max(0, prevus - confirmes - declines)
+    const noms_maries = data.noms_maries || data.displayName || ''
     return {
       uid,
       grade: (data.grade ?? 'START') as PortailGrade,
       rev_lifetime: data.rev_lifetime ?? 0,
       wallet_cash: data.wallets?.cash ?? 0,
-      displayName: data.displayName ?? 'Utilisateur',
+      displayName: noms_maries || 'Mon espace mariage',
       invitesCount,
     }
   } catch {

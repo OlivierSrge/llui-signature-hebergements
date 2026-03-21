@@ -1,71 +1,52 @@
-// app/portail/page.tsx
-// Dashboard mariés — Server Component (fetches Firestore data)
+// app/portail/page.tsx — Dashboard mariés P6 — 12 blocs
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getDb } from '@/lib/firebase'
-import DashboardClient from '@/components/portail/DashboardClient'
+import HeroCTA from '@/components/portail/dashboard/HeroCTA'
+import StatsDashboard from '@/components/portail/dashboard/StatsDashboard'
+import ActionsDashboard from '@/components/portail/dashboard/ActionsDashboard'
 
-interface TodoDoc { id: string; libelle: string; done: boolean }
+export const dynamic = 'force-dynamic'
+interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number }
 
-async function getDashboardData() {
+async function getData() {
   try {
-    const cookieStore = cookies()
-    const uid = cookieStore.get('portail_uid')?.value
+    const uid = cookies().get('portail_uid')?.value
     if (!uid) redirect('/portail/login')
-
     const db = getDb()
-    const [userSnap, todosSnap] = await Promise.all([
+    const [snap, todosSnap] = await Promise.all([
       db.collection('portail_users').doc(uid).get(),
-      db.collection('portail_users').doc(uid).collection('todos').orderBy('created_at', 'asc').limit(10).get(),
+      db.collection('portail_users').doc(uid).collection('todos').orderBy('created_at', 'asc').limit(20).get(),
     ])
-
-    if (!userSnap.exists) redirect('/portail/login')
-    const d = userSnap.data()!
-
-    const dateTs = d.projet?.date_evenement
-    const dateISO: string | null = dateTs?.toDate ? dateTs.toDate().toISOString() : null
-
-    const todos: TodoDoc[] = todosSnap.docs.map(doc => ({
-      id: doc.id,
-      libelle: doc.data().libelle ?? '',
-      done: doc.data().done ?? false,
-    }))
-
-    const fs = d.fast_start ?? {}
-    const enrolledTs = fs.enrolled_at
-    const enrolledISO: string | null = enrolledTs?.toDate ? enrolledTs.toDate().toISOString() : null
-
+    if (!snap.exists) redirect('/portail/login')
+    const d = snap.data()!
+    const todos: Todo[] = todosSnap.docs.map(doc => {
+      const td = doc.data()
+      const dlTs = td.date_limite
+      const dlISO = dlTs?.toDate ? dlTs.toDate().toISOString() : (typeof dlTs === 'string' ? dlTs : null)
+      return { id: doc.id, libelle: td.libelle ?? '', done: td.done ?? false, date_limite: dlISO, rev: td.rev ?? 0 }
+    })
     return {
       uid,
-      hasProjet: !!(d.projet?.date_evenement),
-      displayName: d.displayName ?? 'Utilisateur',
-      dateEvenement: dateISO,
-      nomEvenement: d.projet?.nom ?? '',
-      lieuEvenement: d.projet?.lieu ?? '',
-      budgetPrevisionnel: d.projet?.budget_previsionnel ?? 0,
-      budgetDepense: d.wallets?.credits_services ?? 0,
-      nombreInvitesPrev: d.projet?.nombre_invites_prevu ?? 0,
-      invitesConfirmes: d.invites_confirmes ?? 0,
       walletCash: d.wallets?.cash ?? 0,
       walletCredits: d.wallets?.credits_services ?? 0,
-      revLifetime: d.rev_lifetime ?? 0,
+      lieu: d.projet?.lieu ?? 'Kribi',
       todos,
-      panierCount: 0,
-      fastStart: {
-        enrolledAt: enrolledISO,
-        revLifetime: d.rev_lifetime ?? 0,
-        palier30: { unlocked: fs.palier_30_unlocked ?? false, paye: fs.palier_30_paye ?? false, expire: fs.palier_30_expire ?? false, claimed: fs.palier_30_claimed ?? false },
-        palier60: { unlocked: fs.palier_60_unlocked ?? false, paye: fs.palier_60_paye ?? false, expire: fs.palier_60_expire ?? false, claimed: fs.palier_60_claimed ?? false },
-        palier90: { unlocked: fs.palier_90_unlocked ?? false, paye: fs.palier_90_paye ?? false, expire: fs.palier_90_expire ?? false, claimed: fs.palier_90_claimed ?? false },
-      },
+      todosDone: todos.filter(t => t.done).length,
+      todosTotal: todos.length,
     }
-  } catch {
-    redirect('/portail/login')
-  }
+  } catch { redirect('/portail/login') }
 }
 
 export default async function PortailPage() {
-  const data = await getDashboardData()
-  return <DashboardClient {...data} />
+  const data = await getData()
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <HeroCTA uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal} />
+      <StatsDashboard uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal}
+        walletCash={data.walletCash} walletCredits={data.walletCredits} />
+      <ActionsDashboard uid={data.uid} todos={data.todos} lieu={data.lieu} hasCommande={false} />
+    </div>
+  )
 }

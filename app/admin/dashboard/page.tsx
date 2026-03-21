@@ -95,7 +95,26 @@ async function getDashboardData() {
 
 export const dynamic = 'force-dynamic'
 
+const DEFAULT_DATA = {
+  kpis: {
+    caTotal: '0 FCFA', caMois: '0 FCFA',
+    commissionsVerseesMois: '0 FCFA', creditsVerseesMois: '0 FCFA',
+    primesEnAttente: '0 FCFA', primesCount: 0,
+    retraitsEnAttente: '0 FCFA', retraitsCount: 0,
+    actifsMonth: 0, totalMaries: 0, totalPartenaires: 0, invitesConvertis: 0,
+  },
+  jours7: [] as { label: string; ca: number }[],
+  maxCA: 1,
+  fluxTx: [] as { label: string; date: string }[],
+  alertes: { primesFsNonValidees: 0, retraitsCount: 0, generatedAt: '' },
+}
+
 export default async function AdminDashboardPage() {
-  const data = await getDashboardData()
+  let data = DEFAULT_DATA
+  try {
+    data = await getDashboardData()
+  } catch (err) {
+    console.error('[admin/dashboard] getDashboardData error:', err)
+  }
   return <PortailDashboardClient data={data} />
 }

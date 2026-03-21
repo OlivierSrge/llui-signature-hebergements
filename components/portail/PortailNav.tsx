@@ -35,13 +35,12 @@ export default function PortailNav({ uid, invitesCount = 0 }: Props) {
 
   const navItems: NavItem[] = [
     { href: '/portail', label: 'Accueil', icon: Home },
-    { href: '/portail/configurateur', label: 'Ma Vision', icon: Wand2 },
-    { href: '/portail/escales', label: 'Mes Escales', icon: MapPin },
-    { href: '/portail/panier', label: 'Mon Panier', icon: ShoppingBag, badge: panierCount },
-    { href: '/portail/analytics', label: 'Mes Invités', icon: Users, badge: invitesCount },
-    { href: '/portail/ma-commande', label: 'Ma Commande', icon: ClipboardList },
-    { href: '/portail/avantages', label: 'Mes Avantages', icon: Gift },
-    { href: '/portail/documents', label: 'Documents', icon: FileText },
+    { href: '/portail/configurateur', label: '✨ Ma Vision', icon: Wand2 },
+    { href: '/portail/escales', label: '🏡 Escales', icon: MapPin },
+    { href: '/portail/panier', label: '🛒 Panier', icon: ShoppingBag, badge: panierCount },
+    { href: '/portail/invites', label: '👥 Invités', icon: Users, badge: invitesCount },
+    { href: '/portail/avantages', label: '⭐ Avantages', icon: Gift },
+    { href: '/portail/documents', label: '📋 Documents', icon: FileText },
   ]
 
   const isActive = (href: string) =>

@@ -1,207 +1,146 @@
 'use client'
-// app/portail/panier/page.tsx
-// Panier unifié — récap + action WhatsApp + sauvegarde Firestore
+// app/portail/panier/page.tsx — Panier dynamique Option B — honoraires PACK_MARIAGE uniquement
 
 import { useState } from 'react'
+import { useClientIdentity } from '@/hooks/useClientIdentity'
 import { usePanier } from '@/hooks/usePanier'
 import type { ArticlePanier, CategorieArticle } from '@/lib/panierTypes'
 
-function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
-}
-
-function getUidFromCookie(): string {
+function getUid() {
   if (typeof document === 'undefined') return ''
-  const match = document.cookie.match(/portail_uid=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : ''
+  return decodeURIComponent(document.cookie.match(/portail_uid=([^;]+)/)?.[1] ?? '')
+}
+function formatFCFA(n: number) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
 const CAT_LABELS: Record<CategorieArticle, string> = {
-  PHOTO_VIDEO: 'Photo / Vidéo',
-  DECORATION: 'Décoration',
-  TRAITEUR: 'Traiteur',
-  MUSIQUE: 'Musique',
-  COORDINATION: 'Coordination',
-  HEBERGEMENT: 'Hébergement',
-  BOUTIQUE: 'Boutique',
-  AUTRE: 'Autre',
+  BOUTIQUE: 'Services & Prestations', HEBERGEMENT: 'Hébergements',
+  PHOTO_VIDEO: 'Photo & Vidéo', DECORATION: 'Décoration', TRAITEUR: 'Traiteur',
+  MUSIQUE: 'Musique', COORDINATION: 'Coordination', AUTRE: 'Autre',
 }
+const CAT_ICONS: Partial<Record<CategorieArticle, string>> = { BOUTIQUE: '🛍️', HEBERGEMENT: '🏡' }
 
-function BudgetGauge({ depense, budget }: { depense: number; budget: number }) {
-  if (budget <= 0) return null
-  const pct = Math.min(100, Math.round((depense / budget) * 100))
-  const color = pct < 60 ? '#7C9A7E' : pct < 85 ? '#C9A84C' : '#C0392B'
-  return (
-    <div className="mb-4">
-      <div className="flex justify-between text-xs text-[#888] mb-1">
-        <span>Budget utilisé</span>
-        <span style={{ color }}>{pct}%</span>
-      </div>
-      <div className="h-2.5 bg-[#F5F0E8] rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  )
-}
-
-function ArticleRow({ article, onMoins, onPlus, onSupprimer }: {
-  article: ArticlePanier
-  onMoins: () => void
-  onPlus: () => void
-  onSupprimer: () => void
-}) {
-  return (
-    <div className="flex items-center gap-3 py-3 border-b border-[#F5F0E8] last:border-0">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#1A1A1A] truncate">{article.nom}</p>
-        <p className="text-[11px] text-[#888]">{formatFCFA(article.prix_unitaire)} / unité</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button onClick={onMoins} className="w-7 h-7 rounded-full bg-[#F5F0E8] text-[#1A1A1A] font-bold flex items-center justify-center text-sm">−</button>
-        <span className="text-sm font-semibold w-5 text-center">{article.quantite}</span>
-        <button onClick={onPlus} className="w-7 h-7 rounded-full bg-[#C9A84C] text-white font-bold flex items-center justify-center text-sm">+</button>
-      </div>
-      <div className="text-right min-w-[90px]">
-        <p className="text-sm font-semibold text-[#1A1A1A]">{formatFCFA(article.prix_unitaire * article.quantite)}</p>
-        <button onClick={onSupprimer} className="text-[10px] text-red-400 hover:text-red-600">Retirer</button>
-      </div>
-    </div>
-  )
-}
+// RÈGLE : honoraires 10% sur HEBERGEMENT uniquement (= PACK_MARIAGE)
+const isPackMariage = (a: ArticlePanier) => a.categorie === 'HEBERGEMENT'
 
 export default function PanierPage() {
-  const [uid] = useState(() => getUidFromCookie())
-  const [budgetSaisi, setBudgetSaisi] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [uid] = useState(() => getUid())
+  const identity = useClientIdentity()
   const { articles, totaux, modifierQuantite, supprimerArticle, viderPanier } = usePanier(uid)
 
-  // Grouper par catégorie
-  const groupes = articles.reduce<Record<CategorieArticle, ArticlePanier[]>>((acc, a) => {
-    if (!acc[a.categorie]) acc[a.categorie] = []
-    acc[a.categorie].push(a)
-    return acc
-  }, {} as Record<CategorieArticle, ArticlePanier[]>)
+  // Calculs séparés
+  const articlesBoutique = articles.filter(a => !isPackMariage(a))
+  const articlesPack = articles.filter(a => isPackMariage(a))
+  const ssBoutique = articlesBoutique.reduce((s, a) => s + a.prix_unitaire * a.quantite, 0)
+  const ssPack = articlesPack.reduce((s, a) => s + a.prix_unitaire * a.quantite, 0)
+  const honoraires = Math.round(ssPack * 0.10)
+  const totalTTC = ssBoutique + ssPack + honoraires
+  const revPotentiels = Math.round(totalTTC * 0.05)
 
-  function buildWhatsAppMessage() {
-    const lines = ['*Récapitulatif panier L&Lui Signature*', '']
-    Object.entries(groupes).forEach(([cat, items]) => {
-      lines.push(`*${CAT_LABELS[cat as CategorieArticle]}*`)
-      items.forEach(a => lines.push(`- ${a.nom} x${a.quantite} : ${formatFCFA(a.prix_unitaire * a.quantite)}`))
-      lines.push('')
-    })
-    lines.push(`*Total HT : ${formatFCFA(totaux.total_ht)}*`)
+  const groupes = articles.reduce<Record<string, ArticlePanier[]>>((acc, a) => {
+    const k = CAT_LABELS[a.categorie] ?? a.categorie
+    if (!acc[k]) acc[k] = []
+    acc[k].push(a)
+    return acc
+  }, {})
+
+  function buildWhatsApp() {
+    const lines = [`*Devis mariage — ${identity.noms_maries}*`, '']
+    if (ssBoutique > 0) {
+      lines.push('🛍️ *Services & Prestations*')
+      articlesBoutique.forEach(a => lines.push(`- ${a.nom} x${a.quantite} : ${formatFCFA(a.prix_unitaire * a.quantite)}`))
+      lines.push(`Sous-total : ${formatFCFA(ssBoutique)}`, '')
+    }
+    if (ssPack > 0) {
+      lines.push('🏡 *Hébergements*')
+      articlesPack.forEach(a => lines.push(`- ${a.nom} x${a.quantite} : ${formatFCFA(a.prix_unitaire * a.quantite)}`))
+      lines.push(`Sous-total : ${formatFCFA(ssPack)}`)
+      lines.push(`Honoraires 10% : ${formatFCFA(honoraires)}`, '')
+    }
+    lines.push(`*TOTAL TTC : ${formatFCFA(totalTTC)}*`)
     return encodeURIComponent(lines.join('\n'))
   }
 
-  async function handleSaveFirestore() {
-    if (!uid) return
-    setSaving(true)
-    try {
-      await fetch('/api/portail/panier/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, articles, total_ht: totaux.total_ht }),
-      })
-      setSaved(true)
-    } catch {
-      // silently ignore
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (articles.length === 0) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <p className="text-5xl mb-4">🛍️</p>
-        <h2 className="font-serif italic text-2xl text-[#1A1A1A] mb-2">Panier vide</h2>
-        <p className="text-sm text-[#888] mb-6">Ajoutez des prestations depuis le configurateur ou les escales</p>
-        <a href="/portail/configurateur" className="px-5 py-2.5 rounded-xl text-sm font-medium text-white" style={{ background: '#C9A84C' }}>
-          Parcourir le catalogue
-        </a>
+  if (articles.length === 0) return (
+    <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+      <p className="text-5xl mb-4">🛒</p>
+      <h2 className="font-serif italic text-2xl text-[#1A1A1A] mb-2">Votre panier est vide</h2>
+      <p className="text-sm text-[#888] mb-6">Ajoutez des prestations ou des hébergements</p>
+      <div className="flex flex-col gap-3 max-w-xs mx-auto">
+        <a href="/portail/configurateur" className="py-3 rounded-2xl text-sm font-semibold text-white text-center" style={{ background: '#1A1A1A' }}>Boutique L&amp;Lui Signature →</a>
+        <a href="/portail/escales" className="py-3 rounded-2xl text-sm font-semibold text-[#1A1A1A] text-center" style={{ background: '#C9A84C' }}>Sélection Hébergements →</a>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <h1 className="font-serif italic text-2xl text-[#1A1A1A] mb-1">Mon Panier</h1>
-      <p className="text-sm text-[#888] mb-5">{totaux.nb_articles} article(s)</p>
-
-      {/* Budget gauge */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8] mb-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs text-[#888]">Budget prévisionnel</span>
-          <input
-            type="number"
-            placeholder="ex: 5000000"
-            className="flex-1 text-sm border border-[#E8E0D0] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#C9A84C]"
-            onChange={e => setBudgetSaisi(Number(e.target.value))}
-          />
-        </div>
-        <BudgetGauge depense={totaux.total_ht} budget={budgetSaisi} />
+      <div className="mb-5">
+        <a href="/portail/configurateur" className="text-xs text-[#C9A84C]">← Continuer mes achats</a>
+        <h1 className="font-serif italic text-2xl text-[#1A1A1A] mt-1">Mon Panier</h1>
+        {identity.noms_maries !== 'Mon mariage' && <p className="text-sm text-[#888]">{identity.noms_maries}</p>}
       </div>
 
       {/* Articles groupés */}
-      {Object.entries(groupes).map(([cat, items]) => (
-        <div key={cat} className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8] mb-3">
-          <p className="text-xs font-semibold text-[#888] uppercase tracking-wide mb-2">
-            {CAT_LABELS[cat as CategorieArticle]}
-          </p>
-          {items.map(a => (
-            <ArticleRow
-              key={a.id}
-              article={a}
-              onMoins={() => modifierQuantite(a.id, a.quantite - 1)}
-              onPlus={() => modifierQuantite(a.id, a.quantite + 1)}
-              onSupprimer={() => supprimerArticle(a.id)}
-            />
-          ))}
-        </div>
-      ))}
+      {Object.entries(groupes).map(([cat, items]) => {
+        const catKey = Object.keys(CAT_LABELS).find(k => CAT_LABELS[k as CategorieArticle] === cat) as CategorieArticle
+        return (
+          <div key={cat} className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8] mb-3">
+            <p className="text-xs font-semibold text-[#888] uppercase tracking-wide mb-2">
+              {CAT_ICONS[catKey] ?? ''} {cat}
+            </p>
+            {items.map(a => (
+              <div key={a.id} className="flex items-center gap-2 py-2 border-b border-[#F5F0E8] last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#1A1A1A] truncate">{a.nom}</p>
+                  <p className="text-[11px] text-[#888]">{formatFCFA(a.prix_unitaire)}/u</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button onClick={() => modifierQuantite(a.id, a.quantite - 1)} className="w-6 h-6 rounded-full bg-[#F5F0E8] font-bold text-sm flex items-center justify-center">−</button>
+                  <span className="text-sm font-semibold w-4 text-center">{a.quantite}</span>
+                  <button onClick={() => modifierQuantite(a.id, a.quantite + 1)} className="w-6 h-6 rounded-full bg-[#C9A84C] text-white font-bold text-sm flex items-center justify-center">+</button>
+                </div>
+                <div className="text-right min-w-[70px]">
+                  <p className="text-sm font-semibold">{formatFCFA(a.prix_unitaire * a.quantite)}</p>
+                  <button onClick={() => supprimerArticle(a.id)} className="text-[10px] text-red-400">🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })}
 
-      {/* Récap dark */}
+      {/* Récapitulatif */}
       <div className="bg-[#1A1A1A] rounded-2xl p-5 mb-4">
-        <div className="flex justify-between text-white/60 text-sm mb-2">
-          <span>Sous-total HT</span>
-          <span>{formatFCFA(totaux.total_ht)}</span>
+        {ssBoutique > 0 && (
+          <div className="flex justify-between text-white/60 text-sm mb-1">
+            <span>🛍️ Services</span><span>{formatFCFA(ssBoutique)}</span>
+          </div>
+        )}
+        {ssPack > 0 && <>
+          <div className="flex justify-between text-white/60 text-sm mb-1">
+            <span>🏡 Hébergements</span><span>{formatFCFA(ssPack)}</span>
+          </div>
+          <div className="flex justify-between text-white/60 text-sm mb-2">
+            <span>Honoraires 10%</span><span>{formatFCFA(honoraires)}</span>
+          </div>
+        </>}
+        <div className="border-t border-white/10 pt-2 flex justify-between text-white font-bold text-lg">
+          <span>Total TTC</span><span style={{ color: '#C9A84C' }}>{formatFCFA(totalTTC)}</span>
         </div>
-        <div className="flex justify-between text-white font-bold text-lg">
-          <span>Total</span>
-          <span className="text-[#C9A84C]">{formatFCFA(totaux.total_ht)}</span>
-        </div>
+        <p className="text-[11px] text-white/30 mt-1">💎 REV potentiels : +{formatFCFA(revPotentiels)}</p>
       </div>
 
       {/* Actions */}
       <div className="flex flex-col gap-3">
-        <a
-          href="/portail/commande"
-          className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white text-center"
-          style={{ background: '#C9A84C' }}
-        >
-          Confirmer la commande →
+        <a href="/portail/commande" className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white text-center" style={{ background: '#C9A84C' }}>Confirmer ma commande →</a>
+        <a href={`https://wa.me/237600000000?text=${buildWhatsApp()}`} target="_blank" rel="noopener noreferrer"
+          className="w-full py-3 rounded-2xl text-sm font-semibold text-white text-center" style={{ background: '#25D366' }}>
+          📲 Envoyer par WhatsApp
         </a>
-        <a
-          href={`https://wa.me/237600000000?text=${buildWhatsAppMessage()}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full py-3 rounded-2xl text-sm font-semibold text-white text-center"
-          style={{ background: '#25D366' }}
-        >
-          Envoyer sur WhatsApp
-        </a>
-        <button
-          onClick={handleSaveFirestore}
-          disabled={saving || saved}
-          className="w-full py-3 rounded-2xl text-sm font-semibold transition-all"
-          style={{ background: saved ? '#7C9A7E' : '#C9A84C', color: 'white' }}
-        >
-          {saved ? 'Sauvegardé !' : saving ? 'Sauvegarde…' : 'Sauvegarder mon panier'}
-        </button>
-        <button onClick={viderPanier} className="text-xs text-red-400 text-center py-2">
-          Vider le panier
-        </button>
+        <a href="/portail/configurateur" className="w-full py-2.5 rounded-2xl text-sm text-center text-[#888] border border-[#E8E0D0]">← Continuer mes achats</a>
+        <button onClick={viderPanier} className="text-xs text-red-400 text-center py-1">Vider le panier</button>
       </div>
     </div>
   )

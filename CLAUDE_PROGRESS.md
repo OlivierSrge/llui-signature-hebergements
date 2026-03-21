@@ -1145,3 +1145,41 @@ GOOGLE_SHEETS_BOUTIQUE_ID=    (ID visible dans l'URL du sheet : .../spreadsheets
 - Page `/admin/clients` : historique réservations cross-partenaires
 - Statistiques avancées partenaire (taux occupation, saisonnalité)
 - Supprimer les 15 profils Stars de test (emails invalides) depuis `/admin/clients`
+
+---
+
+## PHASE P6 — TERMINÉE (2026-03-21)
+
+7 étapes complétées. Branche : `claude/resume-phase-4-analytics-4M9tA`
+
+### DASHBOARD COMPLET
+- 12 blocs livrés dont CTA Boutique/Hébergements
+- `components/portail/dashboard/HeroCTA.tsx` — countdown ring SVG + boutons CTA
+- `components/portail/dashboard/StatsDashboard.tsx` — stats 2×2, gauge budget, cagnotte, invités
+- `components/portail/dashboard/ActionsDashboard.tsx` — prestataires, timeline todos, météo, versements, citation
+
+### GESTION INVITÉS
+- Ajout manuel + import CSV
+- QR codes + envoi WhatsApp
+- PDF invitations personnalisées A5 (`lib/generateInvitationPDF.ts` + `app/portail/invites/pdf/page.tsx`)
+
+### PANIER DYNAMIQUE OPTION B
+- Catalogue produits boutique (Firestore `/catalogue`) — `app/portail/configurateur/page.tsx`
+- Hébergements Firestore — `app/portail/escales/page.tsx`
+- Honoraires 10% uniquement sur PACK_MARIAGE (catégorie HEBERGEMENT) — `app/portail/panier/page.tsx`
+- Hook `usePanier` (localStorage) + hook `useClientIdentity` (fetch `/api/portail/user`)
+
+### NAVIGATION
+- Noms mariés mémorisés partout (`useClientIdentity`)
+- Bouton retour dashboard sur chaque page
+- `PortailNav` : 7 onglets avec badges panier + invités
+
+### FIX ADMIN
+- Digest 398097678 corrigé : `getDashboardData()` wrappé dans try/catch + DEFAULT_DATA fallback
+- `app/admin/dashboard/page.tsx` ne crash plus si Firebase credentials invalides
+
+### ACTIONS MANUELLES RESTANTES
+- Twilio : activer sandbox WhatsApp
+- Google Sheets : vérifier partage public
+- Vercel : ajouter WEATHER_API_KEY
+- Netlify : installer llui-tracker.js

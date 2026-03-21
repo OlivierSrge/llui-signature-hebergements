@@ -1,192 +1,129 @@
 'use client'
-// app/portail/configurateur/page.tsx
-// Configurateur de prestations mariage — catalogue + panier
+// app/portail/configurateur/page.tsx — Boutique catalogue Firestore + panier dynamique
 
 import { useEffect, useState } from 'react'
+import { useClientIdentity } from '@/hooks/useClientIdentity'
 import { usePanier } from '@/hooks/usePanier'
-import BoutonAjouterPanier from '@/components/panier/BoutonAjouterPanier'
 import type { ArticleCatalogue } from '@/app/api/portail/catalogue/route'
-import type { CategorieArticle } from '@/lib/panierTypes'
 
-const LAST_SYNC_KEY = 'llui_catalogue_synced_at'
-
-function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
-}
-
-const CATEGORIES: { key: CategorieArticle | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tout' },
-  { key: 'PHOTO_VIDEO', label: 'Photo / Vidéo' },
-  { key: 'DECORATION', label: 'Décoration' },
-  { key: 'TRAITEUR', label: 'Traiteur' },
-  { key: 'MUSIQUE', label: 'Musique' },
-  { key: 'COORDINATION', label: 'Coordination' },
-]
-
-const UNITE_LABELS: Record<string, string> = {
-  'personne': '/ pers.',
-  'forfait': 'forfait',
-  'heure': '/ h',
-}
-
-function getUidFromCookie(): string {
+function getUid() {
   if (typeof document === 'undefined') return ''
-  const match = document.cookie.match(/portail_uid=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : ''
+  return decodeURIComponent(document.cookie.match(/portail_uid=([^;]+)/)?.[1] ?? '')
+}
+function formatFCFA(n: number) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
 export default function ConfigurateurPage() {
-  const [uid] = useState(() => getUidFromCookie())
+  const [uid] = useState(() => getUid())
+  const identity = useClientIdentity()
+  const { totaux, ajouterArticle } = usePanier(uid)
   const [catalogue, setCatalogue] = useState<ArticleCatalogue[]>([])
-  const [filtre, setFiltre] = useState<CategorieArticle | 'ALL'>('ALL')
+  const [filtre, setFiltre] = useState<string>('ALL')
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [lastSync, setLastSync] = useState<string>('')
-  const { totaux } = usePanier(uid)
-
-  function loadLastSync() {
-    const stored = localStorage.getItem(LAST_SYNC_KEY)
-    if (stored) setLastSync(stored)
-  }
-
-  function fetchCatalogue() {
-    return fetch('/api/portail/catalogue')
-      .then(r => r.json())
-      .then((data: { articles: ArticleCatalogue[]; synced_at: string | null } | ArticleCatalogue[]) => {
-        const articles = Array.isArray(data) ? data : (data.articles ?? [])
-        setCatalogue(articles)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }
+  const [qtes, setQtes] = useState<Record<string, number>>({})
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
-    loadLastSync()
-    fetchCatalogue()
+    fetch('/api/portail/catalogue').then(r => r.json())
+      .then(d => { setCatalogue(Array.isArray(d) ? d : (d.articles ?? [])); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
-  async function syncCatalogue() {
-    setSyncing(true)
-    try {
-      await fetch('/api/cron/sync-boutique')
-      const now = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-      localStorage.setItem(LAST_SYNC_KEY, now)
-      setLastSync(now)
-      await fetchCatalogue()
-    } catch {
-      // silently ignore
-    } finally {
-      setSyncing(false)
-    }
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  const categories = ['ALL', ...Array.from(new Set(catalogue.map(a => a.categorie)))]
+  const filtres = filtre === 'ALL' ? catalogue : catalogue.filter(a => a.categorie === filtre)
+
+  const getQte = (id: string) => qtes[id] ?? 1
+  const setQte = (id: string, v: number) => setQtes(p => ({ ...p, [id]: Math.max(1, Math.min(99, v)) }))
+
+  const handleAjouter = (article: ArticleCatalogue) => {
+    const isPack = article.categorie?.toLowerCase().includes('pack')
+    ajouterArticle({
+      id: article.id,
+      nom: article.nom,
+      categorie: article.categorie as 'BOUTIQUE' | 'HEBERGEMENT' | 'DECORATION' | 'PHOTO_VIDEO' | 'TRAITEUR' | 'MUSIQUE' | 'COORDINATION' | 'AUTRE',
+      prix_unitaire: article.prix_unitaire,
+      quantite: getQte(article.id),
+      description: article.description,
+    })
+    showToast(`✓ ${article.nom} ajouté !`)
   }
 
-  const filtres = filtre === 'ALL' ? catalogue : catalogue.filter(a => a.categorie === filtre)
+  const catLabel = (c: string) => c === 'ALL' ? 'Tout' : c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
+      {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>}
+
       <div className="mb-5">
-        <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Ma Vision</h1>
-        <p className="text-sm text-[#888] mt-1">
-          {totaux.nb_articles > 0
-            ? `${totaux.nb_articles} article(s) — ${formatFCFA(totaux.total_ht)}`
-            : 'Configurez vos prestations mariage'}
-        </p>
-        <div className="flex items-center gap-2 mt-2">
-          <p className="text-[11px] text-[#AAA]">
-            {lastSync ? `Catalogue mis à jour le ${lastSync}` : 'Catalogue à jour'}
-          </p>
-          <button
-            onClick={syncCatalogue}
-            disabled={syncing}
-            className="text-[#888] hover:text-[#C9A84C] transition-colors disabled:opacity-40"
-            title="Synchroniser le catalogue"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={syncing ? 'animate-spin' : ''}>
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-              <path d="M16 16h5v5"/>
-            </svg>
-          </button>
-        </div>
+        <a href="/portail" className="text-xs text-[#C9A84C]">← Mon tableau de bord</a>
+        {identity.noms_maries && identity.noms_maries !== 'Mon mariage' && (
+          <p className="text-sm text-[#888] mt-1">Bonjour {identity.prenom_principal} 👋</p>
+        )}
+        <h1 className="font-serif italic text-2xl text-[#1A1A1A] mt-0.5">Boutique L&amp;Lui Signature</h1>
       </div>
 
       {/* Filtres catégories */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
-        {CATEGORIES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFiltre(key)}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-            style={{
-              background: filtre === key ? '#C9A84C' : '#F5F0E8',
-              color: filtre === key ? 'white' : '#888',
-            }}
-          >
-            {label}
+        {categories.map(c => (
+          <button key={c} onClick={() => setFiltre(c)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+            style={{ background: filtre === c ? '#C9A84C' : '#F5F0E8', color: filtre === c ? 'white' : '#888' }}>
+            {catLabel(c)}
           </button>
         ))}
       </div>
 
-      {/* Catalogue */}
-      {loading ? (
-        <div className="text-center py-12 text-[#888] text-sm">Chargement…</div>
-      ) : (
+      {loading ? <div className="text-center py-12 text-[#888] text-sm">Chargement…</div> : (
         <div className="space-y-3">
-          {filtres.map(article => (
-            <div key={article.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
-              {/* Image ou placeholder */}
-              {article.image_url ? (
-                <img src={article.image_url} alt={article.nom} className="w-full h-32 object-cover" />
-              ) : (
-                <div className="w-full h-20 flex items-center justify-center text-xl font-bold text-[#C9A84C]" style={{ background: '#F5F0E8' }}>
-                  {article.nom.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()}
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1 min-w-0 pr-3">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className="font-semibold text-[#1A1A1A] text-sm">{article.nom}</p>
-                      {article.source === 'BOUTIQUE' && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: '#C9A84C' }}>BOUTIQUE</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[#888] leading-relaxed">{article.description}</p>
+          {filtres.map(article => {
+            const isPack = article.categorie?.toLowerCase().includes('pack')
+            return (
+              <div key={article.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
+                {article.image_url ? (
+                  <img src={article.image_url} alt={article.nom} className="w-full h-32 object-cover" />
+                ) : (
+                  <div className="w-full h-16 flex items-center justify-center text-xl font-bold text-[#C9A84C]" style={{ background: '#F5F0E8' }}>
+                    {article.nom.split(' ').map((w: string) => w[0]).join('').slice(0, 3).toUpperCase()}
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    {article.prix_unitaire > 0 && (
-                      <>
-                        <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(article.prix_unitaire)}</p>
-                        <p className="text-[10px] text-[#888]">{UNITE_LABELS[article.unite ?? ''] ?? article.unite}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <BoutonAjouterPanier uid={uid} article={article} />
-                {article.url_fiche && (
-                  <a
-                    href={article.url_fiche}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block mt-2 text-center text-xs text-[#C9A84C] hover:underline"
-                  >
-                    En savoir plus →
-                  </a>
                 )}
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <p className="font-semibold text-[#1A1A1A] text-sm">{article.nom}</p>
+                        {isPack && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: '#C9A84C' }}>Pack complet</span>}
+                      </div>
+                      {isPack && <p className="text-[10px] text-[#888]">+10% honoraires</p>}
+                      <p className="text-[11px] text-[#888] leading-relaxed">{article.description}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {article.prix_unitaire > 0 && <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(article.prix_unitaire)}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 border border-[#E8E0D0] rounded-xl px-2 py-1">
+                      <button onClick={() => setQte(article.id, getQte(article.id) - 1)} className="w-6 h-6 flex items-center justify-center text-[#888] font-bold">−</button>
+                      <span className="text-sm font-semibold w-5 text-center">{getQte(article.id)}</span>
+                      <button onClick={() => setQte(article.id, getQte(article.id) + 1)} className="w-6 h-6 flex items-center justify-center text-[#888] font-bold">+</button>
+                    </div>
+                    <button onClick={() => handleAjouter(article)} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#1A1A1A' }}>
+                      Ajouter au panier
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
+          {filtres.length === 0 && <p className="text-center py-10 text-[#888] text-sm">Aucun article dans cette catégorie</p>}
         </div>
       )}
 
+      {/* Bouton sticky */}
       {totaux.nb_articles > 0 && (
-        <a
-          href="/portail/panier"
-          className="fixed bottom-6 right-6 px-5 py-3 rounded-2xl text-sm font-semibold text-white shadow-lg"
-          style={{ background: '#C9A84C' }}
-        >
-          Voir panier ({totaux.nb_articles})
+        <a href="/portail/panier" className="fixed bottom-20 md:bottom-6 right-4 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg text-sm font-semibold" style={{ background: '#1A1A1A', color: '#C9A84C' }}>
+          🛒 Mon panier ({totaux.nb_articles}) — Voir →
         </a>
       )}
     </div>
