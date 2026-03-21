@@ -1,104 +1,128 @@
 'use client'
-// app/portail/escales/page.tsx — Mes Escales : liens directs + aperçu 3 hébergements
+// app/portail/escales/page.tsx — Hébergements Firestore + panier dynamique
 
 import { useEffect, useState } from 'react'
+import { useClientIdentity } from '@/hooks/useClientIdentity'
+import { usePanier } from '@/hooks/usePanier'
 import type { Hebergement } from '@/app/api/portail/hebergements/route'
 
+function getUid() {
+  if (typeof document === 'undefined') return ''
+  return decodeURIComponent(document.cookie.match(/portail_uid=([^;]+)/)?.[1] ?? '')
+}
 function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
 export default function EscalesPage() {
-  const [apercu, setApercu] = useState<Hebergement[]>([])
+  const [uid] = useState(() => getUid())
+  const identity = useClientIdentity()
+  const { totaux, ajouterArticle } = usePanier(uid)
+  const [hebergements, setHebergements] = useState<Hebergement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filtre, setFiltre] = useState('ALL')
+  const [nuits, setNuits] = useState<Record<string, number>>({})
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
-    fetch('/api/portail/hebergements')
-      .then(r => r.json())
-      .then((data: { hebergements: Hebergement[] }) => {
-        const actifs = (data.hebergements ?? []).filter(h => h.disponible)
-        setApercu(actifs.slice(0, 3))
-      })
-      .catch(() => {})
+    fetch('/api/portail/hebergements').then(r => r.json())
+      .then((d: { hebergements: Hebergement[] }) => { setHebergements(d.hebergements ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  const types = ['ALL', ...Array.from(new Set(hebergements.map(h => h.type))).filter(Boolean)]
+  const liste = filtre === 'ALL' ? hebergements : hebergements.filter(h => h.type === filtre)
+
+  const getNuits = (id: string) => nuits[id] ?? 1
+  const setN = (id: string, v: number) => setNuits(p => ({ ...p, [id]: Math.max(1, Math.min(30, v)) }))
+
+  const handleAjouter = (h: Hebergement) => {
+    const n = getNuits(h.id)
+    const prix = h.prix_nuit || h.prix_nuit_base
+    ajouterArticle({
+      id: h.id,
+      nom: `${h.nom} (${n} nuit${n > 1 ? 's' : ''})`,
+      categorie: 'HEBERGEMENT',
+      prix_unitaire: prix,
+      quantite: n,
+      description: h.description,
+    })
+    showToast(`✓ ${h.nom} ajouté (${n} nuit${n > 1 ? 's' : ''}) !`)
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      {/* HERO */}
-      <div className="mb-6">
-        <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Mes Escales</h1>
-        <p className="text-sm text-[#888] mt-1">Hébergements partenaires L&amp;Lui à Kribi</p>
+      {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>}
+
+      <div className="mb-5">
+        <a href="/portail" className="text-xs text-[#C9A84C]">← Mon tableau de bord</a>
+        {identity.prenom_principal && <p className="text-sm text-[#888] mt-1">Bonjour {identity.prenom_principal} 👋</p>}
+        <h1 className="font-serif italic text-2xl text-[#1A1A1A] mt-0.5">Sélection Hébergements</h1>
+        <p className="text-sm text-[#888]">Kribi &amp; environs · Villas, suites, lodges</p>
       </div>
 
-      {/* CARD PRINCIPALE */}
-      <div className="rounded-2xl p-5 mb-6" style={{ background: '#1A1A1A' }}>
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-2xl">🏨</span>
-          <div>
-            <h2 className="font-bold text-white text-base">Découvrez nos hébergements premium</h2>
-            <p className="text-xs text-white/50">Villas · Lodges · Suites · Packs groupés</p>
-          </div>
-        </div>
-        <p className="text-sm text-white/70 mb-4">
-          Sélection exclusive d&apos;hébergements de prestige à Kribi pour votre mariage et vos invités.
-        </p>
-        <a
-          href="https://llui-signature-hebergements.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-3 rounded-xl text-sm font-semibold text-center text-white transition-opacity hover:opacity-90"
-          style={{ background: '#C9A84C' }}
-        >
-          Voir tous les hébergements →
-        </a>
+      {/* Filtres types */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
+        {types.map(t => (
+          <button key={t} onClick={() => setFiltre(t)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+            style={{ background: filtre === t ? '#C9A84C' : '#F5F0E8', color: filtre === t ? 'white' : '#888' }}>
+            {t === 'ALL' ? 'Tous' : t}
+          </button>
+        ))}
       </div>
 
-      {/* APERÇU 3 HÉBERGEMENTS */}
-      {apercu.length > 0 && (
+      {loading ? <div className="text-center py-12 text-[#888] text-sm">Chargement…</div> : (
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Sélection du moment</p>
-          {apercu.map(h => (
-            <div key={h.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
-              {h.image_url ? (
-                <img src={h.image_url} alt={h.nom} className="w-full h-36 object-cover" />
-              ) : (
-                <div className="w-full h-24 flex items-center justify-center text-2xl bg-[#F5F0E8]">🏠</div>
-              )}
-              <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 pr-3">
-                    <p className="font-semibold text-[#1A1A1A] text-sm">{h.nom}</p>
-                    <p className="text-[11px] text-[#888] mt-0.5">{h.lieu || h.localisation} · {h.capacite} pers.</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(h.prix_nuit || h.prix_nuit_base)}</p>
-                    <p className="text-[10px] text-[#AAA]">/nuit</p>
-                  </div>
-                </div>
-                {h.url_reservation ? (
-                  <a
-                    href={h.url_reservation}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 block w-full py-2 rounded-xl text-xs font-semibold text-center text-white"
-                    style={{ background: '#C9A84C' }}
-                  >
-                    Réserver
-                  </a>
+          {liste.map(h => {
+            const prix = h.prix_nuit || h.prix_nuit_base
+            const n = getNuits(h.id)
+            return (
+              <div key={h.id} className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8] ${!h.disponible ? 'opacity-60' : ''}`}>
+                {h.image_url ? (
+                  <img src={h.image_url} alt={h.nom} className="w-full h-36 object-cover" />
                 ) : (
-                  <a
-                    href="https://llui-signature-hebergements.vercel.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 block w-full py-2 rounded-xl text-xs font-semibold text-center text-white"
-                    style={{ background: '#C9A84C' }}
-                  >
-                    Voir les détails →
-                  </a>
+                  <div className="w-full h-20 flex items-center justify-center text-2xl bg-[#F5F0E8]">🏠</div>
                 )}
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <p className="font-semibold text-[#1A1A1A] text-sm">{h.nom}</p>
+                      <p className="text-[11px] text-[#888]">{h.lieu || h.localisation} · {h.type} · {h.capacite} pers.</p>
+                      <p className="text-[11px] text-[#888] mt-1 leading-relaxed line-clamp-2">{h.description}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(prix)}</p>
+                      <p className="text-[10px] text-[#AAA]">/nuit</p>
+                    </div>
+                  </div>
+                  {h.disponible && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 border border-[#E8E0D0] rounded-xl px-2 py-1">
+                        <button onClick={() => setN(h.id, n - 1)} className="w-6 h-6 flex items-center justify-center text-[#888] font-bold">−</button>
+                        <span className="text-sm font-semibold w-6 text-center">{n}</span>
+                        <button onClick={() => setN(h.id, n + 1)} className="w-6 h-6 flex items-center justify-center text-[#888] font-bold">+</button>
+                        <span className="text-[10px] text-[#AAA] pl-1">nuit{n > 1 ? 's' : ''}</span>
+                      </div>
+                      <button onClick={() => handleAjouter(h)} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#C9A84C' }}>
+                        Ajouter · {formatFCFA(prix * n)}
+                      </button>
+                    </div>
+                  )}
+                  {!h.disponible && <p className="text-center text-xs text-[#AAA] py-2">Indisponible actuellement</p>}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
+          {liste.length === 0 && <p className="text-center py-10 text-[#888] text-sm">Aucun hébergement disponible</p>}
         </div>
+      )}
+
+      {totaux.nb_articles > 0 && (
+        <a href="/portail/panier" className="fixed bottom-20 md:bottom-6 right-4 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg text-sm font-semibold" style={{ background: '#1A1A1A', color: '#C9A84C' }}>
+          🛒 Mon panier ({totaux.nb_articles}) — Voir →
+        </a>
       )}
     </div>
   )
