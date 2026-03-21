@@ -17,10 +17,18 @@ export async function GET(req: Request) {
     if (!snap.exists) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
 
     const d = snap.data()!
+    const dateTs = d.projet?.date_evenement ?? d.date_evenement
+    const dateISO = dateTs?.toDate ? dateTs.toDate().toISOString() : (typeof dateTs === 'string' ? dateTs : null)
     return NextResponse.json({
       uid,
       displayName: d.displayName ?? '',
-      date_evenement: d.projet?.date_evenement ?? d.date_evenement ?? '',
+      noms_maries: d.noms_maries ?? d.displayName ?? '',
+      grade: d.grade ?? 'START',
+      rev_lifetime: d.rev_lifetime ?? 0,
+      wallet_cash: d.wallets?.cash ?? 0,
+      wallet_credits: d.wallets?.credits_services ?? 0,
+      invites_confirmes: d.invites_confirmes ?? 0,
+      date_evenement: dateISO,
       lieu: d.projet?.lieu ?? d.lieu ?? '',
       budget_previsionnel: d.projet?.budget_previsionnel ?? d.budget_previsionnel ?? 0,
       nombre_invites_prevu: d.projet?.nombre_invites_prevu ?? d.nombre_invites_prevu ?? 0,
