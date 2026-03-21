@@ -12,6 +12,7 @@ interface NavItem {
   label: string
   icon: React.ElementType
   badge?: number
+  title?: string
 }
 
 interface Props {
@@ -35,9 +36,9 @@ export default function PortailNav({ uid, invitesCount = 0 }: Props) {
 
   const navItems: NavItem[] = [
     { href: '/portail', label: 'Accueil', icon: Home },
-    { href: '/portail/configurateur', label: '✨ Ma Vision', icon: Wand2 },
-    { href: '/portail/escales', label: '🏡 Escales', icon: MapPin },
-    { href: '/portail/mes-achats', label: '🛒 Mes Achats', icon: ShoppingCart, badge: panierCount },
+    { href: '/portail/configurateur', label: '✨ Mes Achats', icon: Wand2, title: 'Enregistrer vos achats boutique' },
+    { href: '/portail/escales', label: '🏡 Hébergement', icon: MapPin, title: 'Enregistrer votre réservation' },
+    { href: '/portail/mes-achats', label: '🛒 Récap', icon: ShoppingCart, badge: panierCount },
     { href: '/portail/invites', label: '👥 Invités', icon: Users, badge: invitesCount },
     { href: '/portail/avantages', label: '⭐ Avantages', icon: Gift },
     { href: '/portail/documents', label: '📋 Documents', icon: FileText },
@@ -50,12 +51,13 @@ export default function PortailNav({ uid, invitesCount = 0 }: Props) {
     <>
       {/* Desktop : barre secondaire sous le header */}
       <nav className="hidden md:flex fixed top-16 left-0 right-0 z-40 h-10 bg-white border-b border-gray-200 px-4 items-center gap-1 shadow-sm">
-        {navItems.map(({ href, label, icon: Icon, badge }) => {
+        {navItems.map(({ href, label, icon: Icon, badge, title }) => {
           const active = isActive(href)
           return (
             <Link
               key={href}
               href={href}
+              title={title}
               className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm transition-colors whitespace-nowrap ${
                 active
                   ? 'bg-[#C9A84C]/10 text-[#C9A84C] font-semibold'
