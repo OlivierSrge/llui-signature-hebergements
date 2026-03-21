@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
+import { generateCodePromo } from '@/lib/generatePromoCode'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +20,19 @@ export async function GET(req: Request) {
     const d = snap.data()!
     const dateTs = d.projet?.date_evenement ?? d.date_evenement
     const dateISO = dateTs?.toDate ? dateTs.toDate().toISOString() : (typeof dateTs === 'string' ? dateTs : null)
+    const nomsMaries = d.noms_maries ?? d.displayName ?? ''
+
+    // Auto-générer code_promo si absent
+    let codePromo: string = d.code_promo ?? ''
+    if (!codePromo && nomsMaries) {
+      codePromo = generateCodePromo(nomsMaries, uid)
+      await db.collection('portail_users').doc(uid).update({ code_promo: codePromo }).catch(() => {})
+    }
+
     return NextResponse.json({
       uid,
       displayName: d.displayName ?? '',
-      noms_maries: d.noms_maries ?? d.displayName ?? '',
+      noms_maries: nomsMaries,
       grade: d.grade ?? 'START',
       rev_lifetime: d.rev_lifetime ?? 0,
       wallet_cash: d.wallets?.cash ?? 0,
@@ -32,6 +42,7 @@ export async function GET(req: Request) {
       lieu: d.projet?.lieu ?? d.lieu ?? '',
       budget_previsionnel: d.projet?.budget_previsionnel ?? d.budget_previsionnel ?? 0,
       nombre_invites_prevu: d.projet?.nombre_invites_prevu ?? d.nombre_invites_prevu ?? 0,
+      code_promo: codePromo,
     })
   } catch (err) {
     return NextResponse.json(

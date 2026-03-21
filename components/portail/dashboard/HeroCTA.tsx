@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useClientIdentity } from '@/hooks/useClientIdentity'
 import { usePanier } from '@/hooks/usePanier'
+import { getCodePromoUrl } from '@/lib/generatePromoCode'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
@@ -34,16 +35,37 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
   const identity = useClientIdentity()
   const { totaux } = usePanier(uid)
   const pctPrep = todosTotal > 0 ? Math.round((todosDone / todosTotal) * 100) : 0
+  const [toast, setToast] = useState('')
 
   // Compte à rebours live (secondes)
-  const [secondes, setSecondes] = useState(0)
+  const [, setSecondes] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setSecondes(s => (s + 1) % 60), 1000)
     return () => clearInterval(t)
   }, [])
 
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
+
+  function openBoutique() {
+    const url = identity.code_promo
+      ? getCodePromoUrl(identity.code_promo, identity.uid || uid, 'boutique')
+      : `https://letlui-signature.netlify.app?ref=${identity.uid || uid}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+    showToast('Boutique ouverte ! Revenez ici pour enregistrer vos achats.')
+  }
+
+  function openHebergements() {
+    const url = identity.code_promo
+      ? getCodePromoUrl(identity.code_promo, identity.uid || uid, 'hebergement')
+      : `https://llui-signature-hebergements.vercel.app/hebergements?ref=${identity.uid || uid}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+    showToast('Site hébergements ouvert ! Revenez ici pour enregistrer votre réservation.')
+  }
+
   return (
     <div className="space-y-4">
+      {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-xs px-4 py-2.5 rounded-xl shadow-lg text-center max-w-xs">{toast}</div>}
+
       {/* BLOC 1 — Hero countdown */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8] text-center">
         <p className="font-serif italic text-base text-[#C9A84C] mb-0.5">{identity.noms_maries}</p>
@@ -56,20 +78,20 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
         )}
       </div>
 
-      {/* BLOC 2 — CTA Boutique + Hébergements */}
+      {/* BLOC 2 — CTA Boutique + Hébergements (liens externes) */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
         <p className="text-sm font-semibold text-[#1A1A1A] text-center mb-3">Composez votre mariage ✨</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <a href="/portail/configurateur" className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90" style={{ background: '#1A1A1A' }}>
+          <button onClick={openBoutique} className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90 w-full" style={{ background: '#1A1A1A' }}>
             <span style={{ fontSize: 24 }}>🛍️</span>
             <p className="text-xs font-bold text-[#C9A84C] text-center leading-tight">Boutique L&amp;Lui Signature</p>
-            <p className="text-[10px] text-white/50 text-center">Services & prestations</p>
-          </a>
-          <a href="/portail/escales" className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90" style={{ background: '#C9A84C' }}>
+            <p className="text-[10px] text-white/50 text-center">26 prestations disponibles</p>
+          </button>
+          <button onClick={openHebergements} className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90 w-full" style={{ background: '#C9A84C' }}>
             <span style={{ fontSize: 24 }}>🏡</span>
             <p className="text-xs font-bold text-[#1A1A1A] text-center leading-tight">Sélection Hébergements</p>
             <p className="text-[10px] text-[#1A1A1A]/60 text-center">Kribi &amp; environs</p>
-          </a>
+          </button>
         </div>
 
         {/* Bouton panier si articles */}

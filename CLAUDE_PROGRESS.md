@@ -1183,3 +1183,43 @@ GOOGLE_SHEETS_BOUTIQUE_ID=    (ID visible dans l'URL du sheet : .../spreadsheets
 - Google Sheets : vérifier partage public
 - Vercel : ajouter WEATHER_API_KEY
 - Netlify : installer llui-tracker.js
+
+---
+
+## ARCHITECTURE HYBRIDE PORTAIL — TERMINÉE (2026-03-21)
+
+7 étapes complétées. Branche : `claude/resume-phase-4-analytics-4M9tA`
+
+**Vision** : portail = carnet de bord. Boutique et hébergements = sites externes. Invités = fiche personnalisée + code promo.
+
+### FLUX VALIDÉ
+Dashboard → Clic → Site externe → Retour → Saisie manuelle → Budget mis à jour → REV crédités → Cagnotte calculée
+
+### CODE PROMO PAR MARIÉ
+- `lib/generatePromoCode.ts` — format LLUI-GJ-2026
+- Auto-généré à la 1ère connexion dans `/api/portail/user`
+- Stocké dans `portail_users/{uid}.code_promo`
+
+### FICHE INVITÉS
+- Page publique `/invite/[slug]` refactorée avec design luxe
+- Code promo affiché + bouton "Copier"
+- 2 boutons : Boutique + Hébergements (liens avec ?code=&ref=)
+- Section parrainage + footer cagnotte
+- Tracking clics : `POST /api/portail/track-invite-click`
+
+### SAISIE MANUELLE DASHBOARD
+- `SaisieBoutique.tsx` — modal ajout achat + liste 3 derniers + REV auto
+- `SaisieHebergement.tsx` — modal + fiche récap éditable
+- APIs : `POST /api/portail/achats-boutique` + `POST /api/portail/hebergement-choisi`
+- REV calculés : 1 REV par tranche 10 000 FCFA
+
+### PAGE MES ACHATS
+- `/portail/mes-achats` — résumé 3 cards + liste boutique + fiche hébergement + impact cagnotte
+- Lien vers boutique/hébergements avec code promo dans l'URL
+
+### NAVIGATION
+- `PortailNav` mis à jour : "Mes Achats" remplace "Panier" dans la nav
+- Badge panier toujours visible sur "Mes Achats"
+
+### MESSAGE WHATSAPP INVITÉS
+- Inclut désormais noms_maries + code_promo + magic_link dans le message
