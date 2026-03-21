@@ -1,5 +1,5 @@
 // app/api/admin/export/csv/route.ts
-// GET /api/admin/export/csv?type=transactions|commissions|utilisateurs|fast_start|retraits|wallet_operations
+// GET /api/admin/export/csv?type=transactions|commissions|utilisateurs|fast_start|retraits|wallet_operations|maries|commandes_boutique
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
@@ -60,6 +60,20 @@ export async function GET(req: NextRequest) {
     snap.docs.forEach(d => {
       const o = d.data()
       csv += row([dateStr(o.created_at), o.uid, o.type, o.amount_cash, o.amount_credits, o.rev_attribues, o.source]) + '\n'
+    })
+  } else if (type === 'maries') {
+    csv += 'UID,Noms Mariés,WhatsApp,Date Mariage,Lieu,Code Promo,Grade,REV,Cash (FCFA),Actif,Inscrit le\n'
+    const snap = await db.collection('portail_users').where('role', '==', 'MARIÉ').orderBy('created_at', 'desc').limit(500).get()
+    snap.docs.forEach(d => {
+      const o = d.data()
+      csv += row([o.uid, o.noms_maries, o.whatsapp, o.projet?.date_evenement?.toDate?.()?.toLocaleDateString('fr-FR') ?? '', o.projet?.lieu, o.code_promo, o.grade, o.rev_lifetime, o.wallets?.cash, o.actif ? 'OUI' : 'NON', dateStr(o.created_at)]) + '\n'
+    })
+  } else if (type === 'commandes_boutique') {
+    csv += 'Date,Mariage UID,Code Promo,Client,Tel,Produit,Montant (FCFA),Statut,Notes\n'
+    const snap = await db.collectionGroup('transactions').where('type', '==', 'BOUTIQUE').orderBy('created_at', 'desc').limit(500).get()
+    snap.docs.forEach(d => {
+      const o = d.data()
+      csv += row([dateStr(o.created_at), d.ref.parent.parent?.id, o.code_promo, o.client_nom, o.client_tel, o.produit, o.amount_ht, o.status, o.notes]) + '\n'
     })
   } else {
     return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
