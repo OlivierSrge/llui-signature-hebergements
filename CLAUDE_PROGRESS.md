@@ -1223,3 +1223,45 @@ Dashboard → Clic → Site externe → Retour → Saisie manuelle → Budget mi
 
 ### MESSAGE WHATSAPP INVITÉS
 - Inclut désormais noms_maries + code_promo + magic_link dans le message
+
+---
+
+## ═══════════════════════════════════════
+## RÈGLE DE REPRISE DE SESSION
+## ═══════════════════════════════════════
+
+En cas de coupure ou nouvelle session :
+1. Lire ce fichier CLAUDE_PROGRESS.md
+2. Faire git log --oneline -10
+3. Faire git status
+4. Identifier l'étape interrompue
+5. Reprendre exactement là où on s'est arrêté sans recommencer depuis le début
+
+### DÉCISIONS IMMUABLES
+- Honoraires 10% : PACK_MARIAGE uniquement
+- str_replace pour fichiers existants
+- Max 200 lignes par fichier
+- Push avant étape suivante
+- NE PAS modifier vercel.json schedules
+- formatFCFA() partout
+- Tout en français / mobile first
+
+### GOOGLE SHEETS
+- Sheet ID : `15tgAgMOSpzytCyh4YM_1CXXufhM93vBD6GjTDP8jfl4`
+- Produits GID : `0`
+- Commandes GID : `1138952486`
+
+### TWILIO
+- `TWILIO_ACCOUNT_SID` : configuré Vercel
+- `TWILIO_AUTH_TOKEN` : configuré Vercel
+- `TWILIO_WHATSAPP_FROM` : configuré Vercel
+
+### CODES PROMOS
+- Format : `LLUI-[INITIALES]-[ANNÉE]`
+- Stockés : Firestore `codes_promos`
+- Sheets : feuille `Codes_Valides`
+
+### CONTACT L&LUI
+- WhatsApp : +237 693 407 964
+- Portail : llui-signature-hebergements.vercel.app
+- Boutique : letlui-signature.netlify.app
