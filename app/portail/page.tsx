@@ -37,6 +37,8 @@ async function getDashboardData() {
     const enrolledISO: string | null = enrolledTs?.toDate ? enrolledTs.toDate().toISOString() : null
 
     return {
+      uid,
+      hasProjet: !!(d.projet?.date_evenement),
       displayName: d.displayName ?? 'Utilisateur',
       dateEvenement: dateISO,
       nomEvenement: d.projet?.nom ?? '',

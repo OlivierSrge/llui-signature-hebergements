@@ -52,7 +52,6 @@ async function fetchFromFirestore(): Promise<{ articles: ArticleCatalogue[]; syn
   const db = getDb()
   let snap = await db.collection('catalogue_boutique')
     .where('actif', '==', true)
-    .orderBy('categorie').orderBy('nom')
     .get()
 
   // Si vide → déclencher sync et retenter
@@ -63,7 +62,6 @@ async function fetchFromFirestore(): Promise<{ articles: ArticleCatalogue[]; syn
     await new Promise(r => setTimeout(r, 3000))
     snap = await db.collection('catalogue_boutique')
       .where('actif', '==', true)
-      .orderBy('categorie').orderBy('nom')
       .get()
   }
 
