@@ -1,33 +1,7 @@
 'use client'
-// app/portail/configurateur/page.tsx
-// Configurateur de prestations mariage — catalogue + panier
+// app/portail/configurateur/page.tsx — Ma Vision : liens directs boutique + hébergements
 
-import { useEffect, useState } from 'react'
-import { usePanier } from '@/hooks/usePanier'
-import BoutonAjouterPanier from '@/components/panier/BoutonAjouterPanier'
-import type { ArticleCatalogue } from '@/app/api/portail/catalogue/route'
-import type { CategorieArticle } from '@/lib/panierTypes'
-
-const LAST_SYNC_KEY = 'llui_catalogue_synced_at'
-
-function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n)) + ' FCFA'
-}
-
-const CATEGORIES: { key: CategorieArticle | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tout' },
-  { key: 'PHOTO_VIDEO', label: 'Photo / Vidéo' },
-  { key: 'DECORATION', label: 'Décoration' },
-  { key: 'TRAITEUR', label: 'Traiteur' },
-  { key: 'MUSIQUE', label: 'Musique' },
-  { key: 'COORDINATION', label: 'Coordination' },
-]
-
-const UNITE_LABELS: Record<string, string> = {
-  'personne': '/ pers.',
-  'forfait': 'forfait',
-  'heure': '/ h',
-}
+import { useState } from 'react'
 
 function getUidFromCookie(): string {
   if (typeof document === 'undefined') return ''
@@ -35,160 +9,89 @@ function getUidFromCookie(): string {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
+const PILLS_BOUTIQUE = ['Packs Mariage', 'Décoration', 'Photo & Vidéo', 'Soins de Beauté', 'Son & Lumière', 'Traiteur', 'Location', 'Club Privé']
+const PILLS_HEBERGEMENTS = ["Villa d'Exception", 'Suite Privée', 'Lodge', 'Cottage', 'Penthouse', 'Pack F3', 'Pack VIP']
+
 export default function ConfigurateurPage() {
   const [uid] = useState(() => getUidFromCookie())
-  const [catalogue, setCatalogue] = useState<ArticleCatalogue[]>([])
-  const [filtre, setFiltre] = useState<CategorieArticle | 'ALL'>('ALL')
-  const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [lastSync, setLastSync] = useState<string>('')
-  const { totaux } = usePanier(uid)
 
-  function loadLastSync() {
-    const stored = localStorage.getItem(LAST_SYNC_KEY)
-    if (stored) setLastSync(stored)
-  }
-
-  function fetchCatalogue() {
-    return fetch('/api/portail/catalogue')
-      .then(r => r.json())
-      .then((data: { articles: ArticleCatalogue[]; synced_at: string | null } | ArticleCatalogue[]) => {
-        const articles = Array.isArray(data) ? data : (data.articles ?? [])
-        setCatalogue(articles)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    loadLastSync()
-    fetchCatalogue()
-  }, [])
-
-  async function syncCatalogue() {
-    setSyncing(true)
-    try {
-      await fetch('/api/cron/sync-boutique')
-      const now = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-      localStorage.setItem(LAST_SYNC_KEY, now)
-      setLastSync(now)
-      await fetchCatalogue()
-    } catch {
-      // silently ignore
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const filtres = filtre === 'ALL' ? catalogue : catalogue.filter(a => a.categorie === filtre)
+  const boutiqueUrl = `https://letlui-signature.netlify.app${uid ? `?ref=${uid}` : ''}`
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <div className="mb-5">
+      <div className="mb-6">
         <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Ma Vision</h1>
-        <p className="text-sm text-[#888] mt-1">
-          {totaux.nb_articles > 0
-            ? `${totaux.nb_articles} article(s) — ${formatFCFA(totaux.total_ht)}`
-            : 'Configurez vos prestations mariage'}
-        </p>
-        <div className="flex items-center gap-2 mt-2">
-          <p className="text-[11px] text-[#AAA]">
-            {lastSync ? `Catalogue mis à jour le ${lastSync}` : 'Catalogue à jour'}
-          </p>
-          <button
-            onClick={syncCatalogue}
-            disabled={syncing}
-            className="text-[#888] hover:text-[#C9A84C] transition-colors disabled:opacity-40"
-            title="Synchroniser le catalogue"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={syncing ? 'animate-spin' : ''}>
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-              <path d="M16 16h5v5"/>
-            </svg>
-          </button>
-        </div>
+        <p className="text-sm text-[#888] mt-1">Explorez nos plateformes pour composer votre mariage</p>
       </div>
 
-      {/* Filtres catégories */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
-        {CATEGORIES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFiltre(key)}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-            style={{
-              background: filtre === key ? '#C9A84C' : '#F5F0E8',
-              color: filtre === key ? 'white' : '#888',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Catalogue */}
-      {loading ? (
-        <div className="text-center py-12 text-[#888] text-sm">Chargement…</div>
-      ) : (
-        <div className="space-y-3">
-          {filtres.map(article => (
-            <div key={article.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
-              {/* Image ou placeholder */}
-              {article.image_url ? (
-                <img src={article.image_url} alt={article.nom} className="w-full h-32 object-cover" />
-              ) : (
-                <div className="w-full h-20 flex items-center justify-center text-xl font-bold text-[#C9A84C]" style={{ background: '#F5F0E8' }}>
-                  {article.nom.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()}
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1 min-w-0 pr-3">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className="font-semibold text-[#1A1A1A] text-sm">{article.nom}</p>
-                      {article.source === 'BOUTIQUE' && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: '#C9A84C' }}>BOUTIQUE</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[#888] leading-relaxed">{article.description}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    {article.prix_unitaire > 0 && (
-                      <>
-                        <p className="font-bold text-[#C9A84C] text-sm">{formatFCFA(article.prix_unitaire)}</p>
-                        <p className="text-[10px] text-[#888]">{UNITE_LABELS[article.unite ?? ''] ?? article.unite}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <BoutonAjouterPanier uid={uid} article={article} />
-                {article.url_fiche && (
-                  <a
-                    href={article.url_fiche}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block mt-2 text-center text-xs text-[#C9A84C] hover:underline"
-                  >
-                    En savoir plus →
-                  </a>
-                )}
-              </div>
+      <div className="space-y-4">
+        {/* BOUTIQUE */}
+        <div className="rounded-2xl p-5 border-2" style={{ background: '#1A1A1A', borderColor: '#C9A84C' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl">🛍️</span>
+            <div>
+              <h2 className="font-bold text-white text-base">Services & Prestations</h2>
+              <p className="text-xs text-white/50">Boutique Signature</p>
             </div>
-          ))}
+          </div>
+          <p className="text-sm text-white/70 mb-4">
+            Packs mariage, décoration, photo, traiteur, soins beauté et plus encore.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-5">
+            {PILLS_BOUTIQUE.map(p => (
+              <span key={p} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: '#C9A84C22', color: '#C9A84C', border: '1px solid #C9A84C44' }}>
+                {p}
+              </span>
+            ))}
+          </div>
+          <a
+            href={boutiqueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-3 rounded-xl text-sm font-semibold text-center text-white transition-opacity hover:opacity-90"
+            style={{ background: '#C9A84C' }}
+          >
+            Explorer la boutique →
+          </a>
         </div>
-      )}
 
-      {totaux.nb_articles > 0 && (
-        <a
-          href="/portail/panier"
-          className="fixed bottom-6 right-6 px-5 py-3 rounded-2xl text-sm font-semibold text-white shadow-lg"
-          style={{ background: '#C9A84C' }}
-        >
-          Voir panier ({totaux.nb_articles})
-        </a>
-      )}
+        {/* HÉBERGEMENTS */}
+        <div className="rounded-2xl p-5 border-2 bg-[#FAF7F2]" style={{ borderColor: '#C9A84C' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl">🏠</span>
+            <div>
+              <h2 className="font-bold text-[#1A1A1A] text-base">Hébergements & Packs</h2>
+              <p className="text-xs text-[#888]">L&amp;Lui Signature · Kribi</p>
+            </div>
+          </div>
+          <p className="text-sm text-[#555] mb-4">
+            Villas, lodges, suites et packs groupés pour vos invités à Kribi.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-5">
+            {PILLS_HEBERGEMENTS.map(p => (
+              <span key={p} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: '#C9A84C15', color: '#C9A84C', border: '1px solid #C9A84C33' }}>
+                {p}
+              </span>
+            ))}
+          </div>
+          <a
+            href="https://llui-signature-hebergements.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-3 rounded-xl text-sm font-semibold text-center text-white transition-opacity hover:opacity-90"
+            style={{ background: '#C9A84C' }}
+          >
+            Choisir un hébergement →
+          </a>
+        </div>
+      </div>
+
+      {/* BANDEAU INFO */}
+      <div className="mt-5 rounded-2xl p-4" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+        <p className="text-sm text-[#92400E]">
+          💡 Après avoir choisi vos services, revenez ici pour composer votre devis et suivre votre commande.
+        </p>
+      </div>
     </div>
   )
 }
