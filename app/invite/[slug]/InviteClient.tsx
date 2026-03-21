@@ -1,107 +1,138 @@
 'use client'
-// app/invite/[slug]/InviteClient.tsx — Affichage page publique invité
+// app/invite/[slug]/InviteClient.tsx — Fiche invité publique avec code promo
 
-import { useEffect } from 'react'
-
-const BOUTIQUE_URL = 'https://letlui-signature.netlify.app'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
-
-function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
-}
+import { useEffect, useState } from 'react'
+import { getCodePromoUrl } from '@/lib/generatePromoCode'
 
 interface Props {
   guestId: string; mariageUid: string; guestNom: string; slug: string
   nomsMaries: string; dateEvenement: string | null; lieu: string | null
-  hebergements: { id: string; nom: string; prix_nuit: number; image_url?: string }[]
-  produits: { id: string; nom: string; prix: number; url_fiche?: string; image_url?: string }[]
+  codePromo: string
 }
 
-export default function InviteClient({ guestId, mariageUid, nomsMaries, dateEvenement, lieu, hebergements, produits }: Props) {
-  // Stocker ref dans localStorage
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export default function InviteClient({ guestId, mariageUid, guestNom, slug, nomsMaries, dateEvenement, lieu, codePromo }: Props) {
+  const [copied, setCopied] = useState(false)
+
   useEffect(() => {
     try {
-      localStorage.setItem('llui_ref', JSON.stringify({ guest_id: guestId, mariage_uid: mariageUid }))
+      localStorage.setItem('llui_ref', JSON.stringify({ guest_id: guestId, mariage_uid: mariageUid, slug, code: codePromo }))
     } catch {}
-  }, [guestId, mariageUid])
+  }, [guestId, mariageUid, slug, codePromo])
 
-  const dateStr = dateEvenement ? new Date(dateEvenement).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const dateStr = formatDate(dateEvenement)
+  const dateExpiry = formatDate(dateEvenement)
+
+  function trackAndOpen(platform: 'boutique' | 'hebergement') {
+    fetch('/api/portail/track-invite-click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guest_id: guestId, mariage_uid: mariageUid, platform, code_promo: codePromo }),
+    }).catch(() => {})
+    window.open(getCodePromoUrl(codePromo, mariageUid, platform), '_blank', 'noopener,noreferrer')
+  }
+
+  function copyCode() {
+    navigator.clipboard.writeText(codePromo).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: '#1A1A1A', color: 'white' }}>
-      {/* HERO */}
-      <div className="text-center px-6 pt-12 pb-8">
-        <p className="font-serif italic text-3xl mb-6" style={{ color: '#C9A84C' }}>L&Lui</p>
-        <p className="text-white/60 text-sm mb-2">Vous êtes invité(e) au mariage de</p>
-        <p className="font-serif italic text-2xl mb-3" style={{ color: '#C9A84C' }}>{nomsMaries}</p>
-        {(dateStr || lieu) && (
-          <p className="text-white/50 text-xs">{[dateStr, lieu].filter(Boolean).join(' · ')}</p>
-        )}
+    <div className="min-h-screen pb-12" style={{ background: '#1A1A1A', color: 'white' }}>
+
+      {/* EN-TÊTE */}
+      <div className="text-center pt-8 pb-4 px-6">
+        <p className="font-serif italic text-2xl mb-2" style={{ color: '#C9A84C' }}>L&Lui Signature</p>
+        <div className="h-px w-24 mx-auto" style={{ background: 'linear-gradient(90deg,transparent,#C9A84C,transparent)' }} />
       </div>
 
-      {/* SECTION 1 — Hébergements */}
-      {hebergements.length > 0 && (
-        <section className="px-4 pb-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-4 text-center">Hébergements recommandés</p>
-          <div className="space-y-3">
-            {hebergements.map(h => (
-              <div key={h.id} className="rounded-2xl overflow-hidden border border-white/10">
-                {h.image_url && <img src={h.image_url} alt={h.nom} className="w-full h-36 object-cover" />}
-                <div className="p-4 flex items-center justify-between" style={{ background: '#242424' }}>
-                  <div>
-                    <p className="font-semibold text-sm">{h.nom}</p>
-                    {h.prix_nuit > 0 && <p className="text-xs text-white/50">{formatFCFA(h.prix_nuit)} / nuit</p>}
-                  </div>
-                  <a href={`${APP_URL}/reservation/${h.id}?ref=${guestId}&mariage=${mariageUid}`}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[#1A1A1A]" style={{ background: '#C9A84C' }}>
-                    Réserver
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* INVITATION PERSONNALISÉE */}
+      <div className="text-center px-6 pb-6">
+        <p className="text-xs text-white/50 uppercase tracking-widest mb-1">Invitation personnalisée pour</p>
+        <p className="text-xl font-semibold" style={{ color: 'white' }}>{guestNom}</p>
+      </div>
+
+      {/* HERO MARIAGE */}
+      <div className="mx-4 rounded-2xl p-6 text-center mb-6" style={{ background: '#111', border: '1px solid rgba(201,168,76,0.2)' }}>
+        <p className="text-xs text-white/40 mb-2">Vous êtes invité(e) au mariage de</p>
+        <p className="font-serif italic text-2xl font-bold mb-3" style={{ color: '#C9A84C' }}>{nomsMaries}</p>
+        {dateStr && <p className="text-xs text-white/50 mb-1">{dateStr}</p>}
+        {lieu && <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>{lieu}</p>}
+      </div>
+
+      {/* MESSAGE */}
+      <div className="px-8 mb-6 text-center">
+        <p className="text-sm italic text-white/50 leading-relaxed">
+          Nous avons préparé pour vous des offres exclusives.<br />
+          Profitez de notre code privilège.
+        </p>
+      </div>
+
+      {/* CODE PROMO */}
+      {codePromo && (
+        <div className="mx-4 rounded-2xl p-5 mb-6 text-center" style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.27)' }}>
+          <p className="text-xs text-white/40 uppercase tracking-widest mb-2">Votre code privilège</p>
+          <p className="text-2xl font-bold tracking-widest mb-2" style={{ color: '#C9A84C', letterSpacing: '0.12em' }}>{codePromo}</p>
+          <p className="text-xs text-white/40 mb-3">
+            Remise exclusive{dateExpiry ? ` · Valable jusqu&apos;au ${dateExpiry}` : ''}
+          </p>
+          <button onClick={copyCode}
+            className="px-4 py-1.5 rounded-xl text-xs font-medium transition-all"
+            style={{ background: copied ? '#C9A84C' : 'transparent', color: copied ? '#1A1A1A' : '#C9A84C', border: '1px solid #C9A84C' }}>
+            {copied ? '✓ Copié !' : 'Copier le code'}
+          </button>
+        </div>
       )}
 
-      {/* SECTION 2 — Boutique */}
-      <section className="px-4 pb-8" style={{ background: '#242424' }}>
-        <div className="py-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-4 text-center">Boutique mariage</p>
-          {produits.length > 0 && (
-            <div className="space-y-3 mb-4">
-              {produits.map(p => (
-                <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl border border-white/10">
-                  {p.image_url && <img src={p.image_url} alt={p.nom} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{p.nom}</p>
-                    {p.prix > 0 && <p className="text-xs text-white/50">{formatFCFA(p.prix)}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <a href={`${BOUTIQUE_URL}?ref=${guestId}&mariage=${mariageUid}`} target="_blank" rel="noopener noreferrer"
-            className="block w-full py-3 rounded-2xl text-sm font-semibold text-[#1A1A1A] text-center" style={{ background: '#C9A84C' }}>
-            Découvrir la boutique →
-          </a>
-        </div>
-      </section>
+      {/* BOUTONS D'ACTION */}
+      <div className="px-4 space-y-3 mb-6">
+        <button onClick={() => trackAndOpen('boutique')} className="w-full rounded-2xl p-4 text-left flex items-center gap-3"
+          style={{ background: '#C9A84C' }}>
+          <span className="text-2xl">🛍️</span>
+          <div>
+            <p className="font-semibold text-sm text-[#1A1A1A]">Boutique L&Lui Signature</p>
+            <p className="text-xs text-[#1A1A1A]/70">Prestations mariage · Cadeaux · Beauté</p>
+          </div>
+        </button>
 
-      {/* SECTION 3 — Rejoindre L&Lui */}
-      <section className="px-4 py-8 text-center">
-        <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Opportunité</p>
-        <p className="font-serif italic text-xl mb-2" style={{ color: '#C9A84C' }}>Transformez votre présence</p>
-        <p className="text-sm text-white/60 mb-5">en opportunité de revenus</p>
+        <button onClick={() => trackAndOpen('hebergement')} className="w-full rounded-2xl p-4 text-left flex items-center gap-3"
+          style={{ background: 'transparent', border: '1px solid #C9A84C' }}>
+          <span className="text-2xl">🏡</span>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: '#C9A84C' }}>Sélection Hébergements</p>
+            <p className="text-xs text-white/50">Villas & lodges à Kribi · Réservez vos dates</p>
+          </div>
+        </button>
+      </div>
+
+      {/* PARRAINAGE */}
+      <div className="mx-4 rounded-2xl p-5 mb-6" style={{ background: '#222' }}>
+        <p className="font-semibold text-sm mb-1">Rejoindre L&Lui Signature gratuitement</p>
+        <p className="text-xs text-white/50 mb-4">
+          Transformez votre présence à ce mariage en opportunité. Gagnez des commissions.
+        </p>
         <a href={`/inscription?ref=${mariageUid}`}
-          className="inline-block px-8 py-3 rounded-2xl text-sm font-semibold border text-white" style={{ borderColor: '#C9A84C', color: '#C9A84C' }}>
-          Rejoindre L&Lui Signature
+          className="inline-block px-5 py-2 rounded-xl text-sm font-semibold"
+          style={{ background: '#C9A84C', color: '#1A1A1A' }}>
+          S&apos;inscrire gratuitement →
         </a>
-      </section>
+      </div>
 
       {/* FOOTER */}
-      <footer className="px-4 py-6 text-center border-t border-white/10">
-        <p className="font-serif italic text-lg mb-3" style={{ color: '#C9A84C' }}>L&Lui</p>
-        <a href="https://wa.me/237693407964" className="text-xs text-white/40 hover:text-white/70">Contact WhatsApp</a>
+      <footer className="px-4 text-center border-t border-white/10 pt-6">
+        <p className="text-xs text-white/40 mb-3 leading-relaxed">
+          Chaque achat via ce lien participe<br />à la cagnotte mariage de{' '}
+          <span style={{ color: '#C9A84C' }}>{nomsMaries}</span>
+        </p>
+        <p className="text-xs text-white/30 mb-2">L&Lui Signature · +237 693 407 964</p>
+        <a href="https://wa.me/237693407964" target="_blank" rel="noopener noreferrer"
+          className="text-xs text-white/40 hover:text-white/70">💬 WhatsApp</a>
       </footer>
     </div>
   )
