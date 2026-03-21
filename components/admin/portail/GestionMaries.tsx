@@ -16,8 +16,6 @@ export default function GestionMaries() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<CreationResult | null>(null)
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') ?? '' : ''
-
   async function creer() {
     if (!form.noms_maries || !form.whatsapp || !form.date_mariage || !form.lieu) {
       setResult({ error: 'Tous les champs sont requis' }); return
@@ -26,7 +24,7 @@ export default function GestionMaries() {
     try {
       const res = await fetch('/api/admin/creer-espace-marie', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
       const data = await res.json()
