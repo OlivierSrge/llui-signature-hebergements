@@ -1,5 +1,5 @@
 // app/api/portail/hebergements/route.ts
-// Hébergements individuels + Packs groupés L&Lui Signature
+// Hébergements depuis Firestore collection "hebergements" + Packs groupés
 
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/firebase'
@@ -9,13 +9,17 @@ export const dynamic = 'force-dynamic'
 export interface Hebergement {
   id: string
   nom: string
+  localisation: string
   lieu: string
-  type: 'VILLA' | 'HOTEL' | 'LODGE' | 'APPARTEMENT'
-  capacite: number         // nombre de personnes
-  prix_nuit: number        // FCFA
-  reduction_fidelite: number // % de réduction pour membres portail
+  type: string
+  prix_nuit_base: number
+  prix_nuit: number
+  reduction_fidelite: number
+  image_url: string
+  url_reservation: string
   description: string
   tags: string[]
+  capacite: number
   disponible: boolean
 }
 
@@ -23,7 +27,7 @@ export interface Pack {
   id: string
   nom: string
   type: 'PACK'
-  sous_type: string // 'F3' | 'VIP' | 'SIGNATURE'
+  sous_type: string
   description: string
   prix: number
   inclus: string[]
@@ -32,109 +36,37 @@ export interface Pack {
   url_detail: string
 }
 
-const HEBERGEMENTS: Hebergement[] = [
-  {
-    id: 'villa-rosa-yaounde',
-    nom: 'Villa Rosa',
-    lieu: 'Yaoundé, Bastos',
-    type: 'VILLA',
-    capacite: 20,
-    prix_nuit: 350_000,
-    reduction_fidelite: 10,
-    description: 'Villa luxueuse avec piscine, parfaite pour les familles de mariés',
-    tags: ['Piscine', 'Jardin', 'Parking'],
-    disponible: true,
-  },
-  {
-    id: 'hotel-mont-febe',
-    nom: 'Hôtel Mont Fébe',
-    lieu: 'Yaoundé, Mont Fébe',
-    type: 'HOTEL',
-    capacite: 80,
-    prix_nuit: 120_000,
-    reduction_fidelite: 8,
-    description: 'Hôtel 4 étoiles avec vue panoramique sur Yaoundé',
-    tags: ['Vue panoramique', 'Restaurant', 'Spa'],
-    disponible: true,
-  },
-  {
-    id: 'lodge-wouri-douala',
-    nom: 'Lodge du Wouri',
-    lieu: 'Douala, Akwa Nord',
-    type: 'LODGE',
-    capacite: 30,
-    prix_nuit: 200_000,
-    reduction_fidelite: 12,
-    description: 'Lodge en bord de fleuve, ambiance naturelle et raffinée',
-    tags: ['Bord de fleuve', 'Terrasse', 'BBQ'],
-    disponible: true,
-  },
-  {
-    id: 'appart-bonapriso',
-    nom: 'Résidence Bonapriso',
-    lieu: 'Douala, Bonapriso',
-    type: 'APPARTEMENT',
-    capacite: 8,
-    prix_nuit: 85_000,
-    reduction_fidelite: 15,
-    description: 'Appartements meublés haut de gamme en plein cœur de Douala',
-    tags: ['Centre-ville', 'Sécurisé', 'Wifi'],
-    disponible: true,
-  },
-  {
-    id: 'villa-ngaoundere',
-    nom: 'Villa des Hauts Plateaux',
-    lieu: 'Ngaoundéré, Adamaoua',
-    type: 'VILLA',
-    capacite: 15,
-    prix_nuit: 180_000,
-    reduction_fidelite: 10,
-    description: 'Villa authentique sur les hauts plateaux camerounais',
-    tags: ['Vue montagne', 'Calme', 'Nature'],
-    disponible: true,
-  },
-  {
-    id: 'hotel-kribi-beach',
-    nom: 'Hôtel Kribi Beach',
-    lieu: 'Kribi, Bord de mer',
-    type: 'HOTEL',
-    capacite: 50,
-    prix_nuit: 160_000,
-    reduction_fidelite: 10,
-    description: 'Hôtel en bord de mer, idéal pour les lunes de miel',
-    tags: ['Plage privée', 'Piscine', 'Brunch'],
-    disponible: true,
-  },
-  {
-    id: 'lodge-limbe',
-    nom: 'Atlantic Lodge Limbé',
-    lieu: 'Limbé, Sud-Ouest',
-    type: 'LODGE',
-    capacite: 25,
-    prix_nuit: 140_000,
-    reduction_fidelite: 8,
-    description: 'Lodge face à l\'océan Atlantique, plages volcaniques',
-    tags: ['Océan', 'Volcan', 'Plongée'],
-    disponible: false,
-  },
-  {
-    id: 'villa-bafoussam',
-    nom: 'Villa Bamiléké',
-    lieu: 'Bafoussam, Ouest',
-    type: 'VILLA',
-    capacite: 18,
-    prix_nuit: 220_000,
-    reduction_fidelite: 12,
-    description: 'Villa authentique dans la région bamiléké, idéale pour les célébrations',
-    tags: ['Culture', 'Jardins', 'Cuisine locale'],
-    disponible: true,
-  },
-]
-
 export async function GET() {
+  const db = getDb()
+  let hebergements: Hebergement[] = []
   let packs: Pack[] = []
+
   try {
-    const db = getDb()
+    const snap = await db.collection('hebergements').where('status', '==', 'active').get()
+    hebergements = snap.docs.map(doc => {
+      const d = doc.data()
+      const loc = d.location ?? d.localisation ?? d.lieu ?? 'Kribi, Cameroun'
+      const prixNuit = d.price_per_night ?? d.prix_nuit ?? 0
+      return {
+        id: doc.id,
+        nom: d.name ?? d.nom ?? '',
+        localisation: loc,
+        lieu: loc,
+        type: d.type ?? 'HEBERGEMENT',
+        prix_nuit_base: prixNuit,
+        prix_nuit: prixNuit,
+        reduction_fidelite: d.reduction_fidelite ?? 0,
+        image_url: (Array.isArray(d.images) ? d.images[0] : undefined) ?? d.image_url ?? '',
+        url_reservation: '/hebergements/' + (d.slug ?? doc.id),
+        description: d.description ?? '',
+        tags: Array.isArray(d.tags) ? d.tags : (Array.isArray(d.amenities) ? d.amenities : []),
+        capacite: d.max_guests ?? d.capacite ?? 0,
+        disponible: d.disponible !== false,
+      }
+    })
+  } catch { hebergements = [] }
+
+  try {
     const snap = await db.collection('packs').where('status', '==', 'active').get()
     packs = snap.docs.map(doc => {
       const d = doc.data()
@@ -152,5 +84,6 @@ export async function GET() {
       }
     })
   } catch { packs = [] }
-  return NextResponse.json({ hebergements: HEBERGEMENTS, packs })
+
+  return NextResponse.json({ hebergements, packs })
 }
