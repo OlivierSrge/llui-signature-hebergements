@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import GestionMaries from './GestionMaries'
+import ReservationHebergementAdmin from './ReservationHebergementAdmin'
 
 interface RapportResult {
   caSemaine?: number
@@ -170,6 +171,9 @@ export default function EcosystemeClient() {
 
           {/* Gestion Mariés */}
           <GestionMaries />
+
+          {/* Réservations Hébergements */}
+          <ReservationHebergementAdmin />
 
           {/* Codes Promos */}
           <div className="bg-white rounded-2xl p-6 border-2 border-purple-400 shadow-sm">
