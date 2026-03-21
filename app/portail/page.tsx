@@ -6,6 +6,8 @@ import { getDb } from '@/lib/firebase'
 import HeroCTA from '@/components/portail/dashboard/HeroCTA'
 import StatsDashboard from '@/components/portail/dashboard/StatsDashboard'
 import ActionsDashboard from '@/components/portail/dashboard/ActionsDashboard'
+import SaisieBoutique from '@/components/portail/dashboard/SaisieBoutique'
+import SaisieHebergement from '@/components/portail/dashboard/SaisieHebergement'
 
 export const dynamic = 'force-dynamic'
 interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number }
@@ -46,6 +48,8 @@ export default async function PortailPage() {
       <HeroCTA uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal} />
       <StatsDashboard uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal}
         walletCash={data.walletCash} walletCredits={data.walletCredits} />
+      <SaisieBoutique uid={data.uid} />
+      <SaisieHebergement uid={data.uid} />
       <ActionsDashboard uid={data.uid} todos={data.todos} lieu={data.lieu} hasCommande={false} />
     </div>
   )
