@@ -1,11 +1,12 @@
 'use client'
-// app/portail/invites/page.tsx — Guest Connect : import + liste + QR + WhatsApp
+// app/portail/invites/page.tsx — Guest Connect : import + liste + QR + WhatsApp + PDF
 
 import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { generateSlug, getMagicLinkUrl, validateTelephoneCM, normalizeTelephone } from '@/lib/generateMagicLink'
 import GuestCard, { QrModal } from '@/components/portail/GuestCard'
 import type { Guest } from '@/components/portail/GuestCard'
+import { useClientIdentity } from '@/hooks/useClientIdentity'
 
 interface CsvRow { Nom?: string; Telephone?: string; Email?: string }
 
@@ -19,6 +20,7 @@ function getUid() {
 
 export default function InvitesPage() {
   const [uid] = useState(() => getUid())
+  const identity = useClientIdentity()
   const [guests, setGuests] = useState<Guest[]>([])
   const [search, setSearch] = useState('')
   const [filtre, setFiltre] = useState<'tous' | 'non_envoye' | 'envoye' | 'converti'>('tous')
@@ -55,7 +57,9 @@ export default function InvitesPage() {
   }
 
   const waUrlFor = (g: Guest) => {
-    const msg = `Bonjour ${g.nom} ! 🎊\nVous êtes invité(e) au mariage.\nVotre espace privilégié L&Lui :\n${getMagicLinkUrl(g.magic_link_slug)}\nAvec nos meilleurs vœux 💛\nL&Lui Signature`
+    const nomsMaries = identity.noms_maries && identity.noms_maries !== 'Mon mariage' ? identity.noms_maries : 'les Mariés'
+    const codePromo = identity.code_promo ? `\nVotre code privilège : ${identity.code_promo}` : ''
+    const msg = `Bonjour ${g.nom} ! 🎊\nVous êtes invité(e) au mariage de ${nomsMaries}.\nNous avons préparé pour vous une fiche personnalisée avec des offres exclusives :\n${getMagicLinkUrl(g.magic_link_slug)}${codePromo}\nAvec nos meilleurs vœux 💛\n${nomsMaries} / L&Lui Signature`
     return `https://wa.me/${g.telephone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`
   }
 
@@ -98,7 +102,10 @@ export default function InvitesPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Mes Invités</h1>
-        <a href="/portail/invites/analytics" className="text-xs text-[#C9A84C] hover:underline">Statistiques →</a>
+        <div className="flex gap-3">
+          <a href="/portail/invites/pdf" className="text-xs text-[#C9A84C] hover:underline">📄 PDF →</a>
+          <a href="/portail/invites/analytics" className="text-xs text-[#888] hover:underline">Stats →</a>
+        </div>
       </div>
 
       {/* Stats */}
