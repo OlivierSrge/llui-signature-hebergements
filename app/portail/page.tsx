@@ -8,6 +8,7 @@ import StatsDashboard from '@/components/portail/dashboard/StatsDashboard'
 import ActionsDashboard from '@/components/portail/dashboard/ActionsDashboard'
 import SaisieBoutique from '@/components/portail/dashboard/SaisieBoutique'
 import SaisieHebergement from '@/components/portail/dashboard/SaisieHebergement'
+import CardCodePromo from '@/components/portail/dashboard/CardCodePromo'
 
 export const dynamic = 'force-dynamic'
 interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number }
@@ -34,6 +35,7 @@ async function getData() {
       walletCash: d.wallets?.cash ?? 0,
       walletCredits: d.wallets?.credits_services ?? 0,
       lieu: d.projet?.lieu ?? 'Kribi',
+      codePromo: (d.code_promo as string) ?? '',
       todos,
       todosDone: todos.filter(t => t.done).length,
       todosTotal: todos.length,
@@ -46,6 +48,7 @@ export default async function PortailPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <HeroCTA uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal} />
+      <CardCodePromo code={data.codePromo} uid={data.uid} />
       <StatsDashboard uid={data.uid} todosDone={data.todosDone} todosTotal={data.todosTotal}
         walletCash={data.walletCash} walletCredits={data.walletCredits} />
       <SaisieBoutique uid={data.uid} />

@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import GestionMaries from './GestionMaries'
 
 interface RapportResult {
   caSemaine?: number
@@ -12,6 +13,8 @@ interface RapportResult {
 
 interface SyncResult {
   synced?: number
+  produits_synced?: number
+  commandes_synced?: number
   categories?: string[]
   errors?: string[]
   error?: string
@@ -105,10 +108,9 @@ export default function EcosystemeClient() {
                   <span>❌ {syncResult.error}</span>
                 ) : (
                   <>
-                    <p className="font-semibold">✅ {syncResult.synced ?? 0} produits synchronisés</p>
-                    {(syncResult.categories?.length ?? 0) > 0 && (
-                      <p className="text-xs mt-0.5">Catégories : {syncResult.categories!.join(', ')}</p>
-                    )}
+                    <p className="font-semibold">✅ Sync réussie</p>
+                    <p className="text-xs mt-0.5">🛍 {syncResult.produits_synced ?? syncResult.synced ?? 0} produits</p>
+                    <p className="text-xs mt-0.5">📋 {syncResult.commandes_synced ?? 0} nouvelles commandes</p>
                     {(syncResult.errors?.length ?? 0) > 0 && (
                       <p className="text-xs mt-1 text-red-600">⚠ {syncResult.errors![0]}</p>
                     )}
@@ -166,6 +168,27 @@ export default function EcosystemeClient() {
             )}
           </div>
 
+          {/* Gestion Mariés */}
+          <GestionMaries />
+
+          {/* Codes Promos */}
+          <div className="bg-white rounded-2xl p-6 border-2 border-purple-400 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-xl">🎁</div>
+              <div>
+                <h2 className="font-bold text-[#1A1A1A] text-lg">Codes Promos</h2>
+                <p className="text-xs text-[#1A1A1A]/50">Codes actifs + CA généré</p>
+              </div>
+            </div>
+            <p className="text-sm text-[#1A1A1A]/70 mb-4">Collection Firestore <code className="bg-gray-100 px-1 rounded text-xs">codes_promos</code> — un code par espace marié. Initialiser pour créer la structure.</p>
+            <div className="flex gap-2">
+              <a href={`/api/admin/init-codes-sheet?token=${encodeURIComponent(typeof window !== 'undefined' ? localStorage.getItem('admin_token') ?? '' : '')}`}
+                className="flex-1 py-2 rounded-xl bg-purple-500 text-white text-sm font-semibold hover:bg-purple-600 transition-colors text-center">
+                🔧 Initialiser collection
+              </a>
+            </div>
+          </div>
+
         </div>
 
         {/* Exports rapides */}
@@ -177,6 +200,8 @@ export default function EcosystemeClient() {
               { label: 'CSV Utilisateurs', type: 'utilisateurs' },
               { label: 'CSV Commissions', type: 'commissions' },
               { label: 'CSV Retraits', type: 'retraits' },
+              { label: 'CSV Mariés', type: 'maries' },
+              { label: 'CSV Commandes Boutique', type: 'commandes_boutique' },
             ].map(({ label, type }) => (
               <a key={type} href={`/api/admin/export/csv?type=${type}`}
                 className="px-4 py-2 bg-[#F5F0E8] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#C9A84C]/20 transition-colors border border-[#C9A84C]/30">
