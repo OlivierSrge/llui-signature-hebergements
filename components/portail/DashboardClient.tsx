@@ -2,6 +2,7 @@
 // components/portail/DashboardClient.tsx
 // Dashboard principal portail mariés — 8 blocs
 
+import { useState } from 'react'
 import CountdownRing from './CountdownRing'
 import FastStartWidget from './FastStartWidget'
 import { getCitationDuJour } from '@/lib/citations'
@@ -14,6 +15,8 @@ function formatFCFA(n: number) {
 interface TodoItem { id: string; libelle: string; done: boolean }
 
 interface DashboardProps {
+  uid: string
+  hasProjet: boolean
   displayName: string
   dateEvenement: string | null
   nomEvenement: string
@@ -68,14 +71,97 @@ function InvitesCircles({ confirmes, prevu }: { confirmes: number; prevu: number
   )
 }
 
+function OnboardingForm({ uid }: { uid: string }) {
+  const [form, setForm] = useState({ noms_maries: '', date_evenement: '', lieu: '', budget_previsionnel: '', nombre_invites_prevu: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  function set(k: keyof typeof form, v: string) { setForm(f => ({ ...f, [k]: v })) }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.noms_maries || !form.date_evenement || !form.lieu) { setError('Veuillez remplir les champs obligatoires'); return }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/portail/setup-projet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          noms_maries: form.noms_maries,
+          date_evenement: form.date_evenement,
+          lieu: form.lieu,
+          budget_previsionnel: parseInt(form.budget_previsionnel || '0', 10),
+          nombre_invites_prevu: parseInt(form.nombre_invites_prevu || '0', 10),
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Erreur serveur')
+      window.location.reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <h1 className="font-serif italic text-3xl text-[#1A1A1A] mb-1 text-center">Configurons votre mariage 💛</h1>
+        <p className="text-sm text-[#888] text-center mb-8">Quelques informations pour personnaliser votre espace</p>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8] space-y-4">
+          <div>
+            <label className="text-xs font-medium text-[#444] block mb-1">Vos prénoms *</label>
+            <input id="noms_maries" value={form.noms_maries} onChange={e => set('noms_maries', e.target.value)}
+              placeholder="Gaëlle & Junior" required
+              className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#444] block mb-1">Date du mariage *</label>
+            <input id="date_evenement" type="date" value={form.date_evenement} onChange={e => set('date_evenement', e.target.value)} required
+              className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#444] block mb-1">Lieu de la cérémonie *</label>
+            <input id="lieu" value={form.lieu} onChange={e => set('lieu', e.target.value)}
+              placeholder="Kribi, Cameroun" required
+              className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#444] block mb-1">Budget prévisionnel (FCFA)</label>
+            <input id="budget_previsionnel" type="number" value={form.budget_previsionnel} onChange={e => set('budget_previsionnel', e.target.value)}
+              placeholder="5000000"
+              className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[#444] block mb-1">Nombre d&apos;invités prévus</label>
+            <input id="nombre_invites_prevu" type="number" value={form.nombre_invites_prevu} onChange={e => set('nombre_invites_prevu', e.target.value)}
+              placeholder="200"
+              className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button type="submit" disabled={loading}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            style={{ background: '#C9A84C' }}>
+            {loading ? 'Création…' : 'Créer mon espace →'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardClient(props: DashboardProps) {
   const {
+    uid, hasProjet,
     displayName, dateEvenement, nomEvenement, lieuEvenement,
     budgetPrevisionnel, budgetDepense, nombreInvitesPrev, invitesConfirmes,
     walletCash, walletCredits, revLifetime, todos, panierCount, fastStart,
   } = props
   const citation = getCitationDuJour()
   const tachesRestantes = todos.filter(t => !t.done).length
+
+  if (!hasProjet) return <OnboardingForm uid={uid} />
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
