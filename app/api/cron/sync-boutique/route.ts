@@ -1,10 +1,9 @@
 // app/api/cron/sync-boutique/route.ts
-// Sync catalogue depuis Google Sheets → Firestore catalogue_boutique
-// Colonnes attendues : A=Nom  B=Prix(FCFA)  C=Description  D=Image URL  E=URL fiche  F=Actif(oui/non)
-// Une feuille = une catégorie de produits
+// Sync catalogue depuis Google Sheets (CSV public) → Firestore catalogue_boutique
+// Colonnes attendues : Nom | Prix(FCFA) | Description | Image URL | URL fiche | Actif(OUI/NON)
 
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis'
+import Papa from 'papaparse'
 import { getDb } from '@/lib/firebase'
 import { Timestamp } from 'firebase-admin/firestore'
 
@@ -28,83 +27,51 @@ interface ProduitSheet {
   source: 'BOUTIQUE'; actif: boolean; synced_at: Timestamp
 }
 
-async function syncFromSheets(): Promise<{ produits: ProduitSheet[]; categories: string[]; errors: string[] }> {
-  const clientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL
-  const privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  const spreadsheetId = process.env.GOOGLE_SHEETS_BOUTIQUE_ID
+async function syncFromCSV(): Promise<{ produits: ProduitSheet[]; errors: string[] }> {
+  const sheetId = process.env.GOOGLE_SHEETS_BOUTIQUE_ID
+  if (!sheetId) throw new Error('Variable GOOGLE_SHEETS_BOUTIQUE_ID manquante — configurer dans Vercel')
 
-  if (!clientEmail || !privateKey || !spreadsheetId) {
-    throw new Error('Variables GOOGLE_SHEETS_* manquantes — configurer dans Vercel')
-  }
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`
 
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  const response = await fetch(csvUrl)
+  if (!response.ok) throw new Error(`Fetch CSV échoué : ${response.status} ${response.statusText}`)
+
+  const csvText = await response.text()
+
+  const { data, errors: parseErrors } = Papa.parse<Record<string, string>>(csvText, {
+    header: true,
+    skipEmptyLines: true,
   })
-  const api = google.sheets({ version: 'v4', auth })
 
-  // Récupérer les noms de toutes les feuilles
-  const meta = await api.spreadsheets.get({ spreadsheetId })
-  const sheetNames = (meta.data.sheets ?? [])
-    .map(s => s.properties?.title ?? '')
-    .filter(Boolean)
-
-  if (sheetNames.length === 0) throw new Error('Aucune feuille trouvée dans le Google Sheet')
-
+  const errors: string[] = parseErrors.map(e => `Parse CSV : ${e.message}`)
   const produits: ProduitSheet[] = []
-  const categories: string[] = []
-  const errors: string[] = []
   const now = Timestamp.now()
 
-  for (const sheetName of sheetNames) {
-    try {
-      const resp = await api.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${sheetName}!A:F`,
-      })
+  for (const row of data) {
+    const actifVal = (row['Actif'] ?? row['actif'] ?? 'OUI').trim().toUpperCase()
+    if (actifVal !== 'OUI') continue
 
-      const rows = resp.data.values ?? []
-      if (rows.length < 2) continue // Vide ou entête seul
+    const nom = (row['Nom'] ?? row['nom'] ?? '').trim()
+    if (!nom || nom.length < 2) continue
 
-      // Vérification structure : ligne 1 doit contenir un champ "nom/name/produit"
-      const headers = rows[0].map((h: unknown) => String(h).toLowerCase())
-      if (!headers.some(h => /nom|name|produit/.test(h))) {
-        errors.push(`Feuille "${sheetName}" : structure inattendue — headers : ${headers.join(', ')}`)
-        continue
-      }
+    const id = slugify(nom)
+    if (!id) continue
 
-      categories.push(sheetName)
-
-      for (const row of rows.slice(1)) {
-        const nom = String(row[0] ?? '').trim()
-        if (!nom || nom.length < 2) continue
-
-        // Colonne F : actif (oui/non/true/false/1/0) — défaut oui
-        const actifVal = String(row[5] ?? 'oui').toLowerCase()
-        if (['non', 'false', '0', 'no'].includes(actifVal)) continue
-
-        const id = slugify(nom)
-        if (!id) continue
-
-        produits.push({
-          id, nom,
-          prix: parsePrix(String(row[1] ?? '0')),
-          description: String(row[2] ?? '').trim().slice(0, 300),
-          image_url: String(row[3] ?? '').trim(),
-          url_fiche: String(row[4] ?? '').trim(),
-          categorie: sheetName,
-          source: 'BOUTIQUE',
-          actif: true,
-          synced_at: now,
-        })
-      }
-    } catch (e) {
-      errors.push(`Feuille "${sheetName}" : ${e instanceof Error ? e.message : String(e)}`)
-    }
+    produits.push({
+      id,
+      nom,
+      prix: parsePrix(row['Prix(FCFA)'] ?? row['Prix'] ?? row['prix'] ?? '0'),
+      description: (row['Description'] ?? row['description'] ?? '').trim().slice(0, 300),
+      image_url: (row['Image URL'] ?? row['image_url'] ?? '').trim(),
+      url_fiche: (row['URL fiche'] ?? row['url_fiche'] ?? '').trim(),
+      categorie: 'boutique',
+      source: 'BOUTIQUE',
+      actif: true,
+      synced_at: now,
+    })
   }
 
-  return { produits, categories, errors }
+  return { produits, errors }
 }
 
 export async function GET(req: Request) {
@@ -114,10 +81,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { produits, categories, errors } = await syncFromSheets()
+    const { produits, errors } = await syncFromCSV()
 
     if (produits.length === 0) {
-      return NextResponse.json({ synced: 0, categories, errors })
+      return NextResponse.json({ synced: 0, errors })
     }
 
     const db = getDb()
@@ -136,10 +103,10 @@ export async function GET(req: Request) {
     }
     await b2.commit()
 
-    return NextResponse.json({ synced: produits.length, categories, errors })
+    return NextResponse.json({ synced: produits.length, errors })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[sync-boutique] erreur:', msg)
-    return NextResponse.json({ synced: 0, categories: [], errors: [msg] })
+    return NextResponse.json({ synced: 0, errors: [msg] })
   }
 }
