@@ -48,5 +48,6 @@ export function getCodePromoUrl(
   if (platform === 'boutique') {
     return `${BOUTIQUE_BASE}${params}`
   }
-  return `${HEBERGEMENT_BASE}/hebergements${params}`
+  // La page catalogue hébergements est à la racine du site
+  return `${HEBERGEMENT_BASE}/${params}`
 }
