@@ -1265,3 +1265,71 @@ En cas de coupure ou nouvelle session :
 - WhatsApp : +237 693 407 964
 - Portail : llui-signature-hebergements.vercel.app
 - Boutique : letlui-signature.netlify.app
+
+---
+
+## SYSTÈME TRAÇABILITÉ CODES PROMOS — TERMINÉ (2026-03-21)
+
+8 étapes complètes — traçabilité bout-en-bout boutique → portail mariés.
+
+### ÉTAPE 1 — init-codes-sheet ✅
+- `app/api/admin/init-codes-sheet/route.ts` (112 lignes)
+- GET protégé ADMIN_SECRET_TOKEN
+- Vérifie credentials Google Sheets (optionnels), fallback Firestore `codes_promos`
+- Seed exemple si collection vide, retourne `has_write_credentials`
+- Commit : `aaf265e`
+
+### ÉTAPE 2 — creer-espace-marie ✅
+- `app/api/admin/creer-espace-marie/route.ts` (123 lignes)
+- POST protégé : génère uid (`mariage_[slug]_[année]`), code promo unique (suffix -A/-B si collision)
+- Crée `portail_users/{uid}` (fast_start, projet, wallets, grade START)
+- Crée `codes_promos/{code}`, envoie WhatsApp via `sendWhatsApp()`
+- Commit : `2a39fc0`
+
+### ÉTAPE 3 — sync-boutique commandes ✅
+- `app/api/cron/sync-boutique/route.ts` (reécrit 162 lignes)
+- Sync catalogue produits (GID=0) + nouvelles commandes (GID=1138952486)
+- CSV parser gérant les guillemets, ID transaction idempotent
+- Match `Code_U` → `codes_promos` → `mariage_uid` → crée transaction + update ca_total + rev_lifetime
+- Commit : `05ec8bb`
+
+### ÉTAPE 4 — llui-boutique-tracker.js v2 ✅
+- `public/llui-boutique-tracker.js` (114 lignes)
+- Capture `?code=[code_promo]&ref=[mariage_uid]` (nouveau format)
+- Rétrocompat ancien format `?ref=[guest_id]&mariage=[mariage_uid]`
+- Pré-remplit `input[name="Code_U"]` + injecte hidden input dans tous les formulaires
+- Tracking conversion sur pages `/confirmation|merci|success|thank`
+- Commit : `7cf0102`
+
+### ÉTAPE 5 — Admin écosystème 6 cards ✅
+- `components/admin/portail/GestionMaries.tsx` (nouveau, 90 lignes) — formulaire création marié
+- `components/admin/portail/EcosystemeClient.tsx` — +2 cards (Gestion Mariés + Codes Promos), sync result affiche commandes_synced, +2 exports CSV
+- Commit : `1561e97`
+
+### ÉTAPE 6 — Export CSV ✅
+- `app/api/admin/export/csv/route.ts` — +2 types : `maries` + `commandes_boutique`
+- `maries` : UID/Noms/WhatsApp/Date/Lieu/Code Promo/Grade/REV/Cash
+- `commandes_boutique` : collectionGroup `transactions` filtrés type=BOUTIQUE
+- Commit : `744dffa`
+
+### ÉTAPE 7 — Card code promo dashboard ✅
+- `components/portail/dashboard/CardCodePromo.tsx` (nouveau, 53 lignes)
+- Affiche code promo avec bouton copier + lien boutique direct avec code dans l'URL
+- `app/portail/page.tsx` — ajout `codePromo` dans getData() + `<CardCodePromo>` entre HeroCTA et StatsDashboard
+- Commit : `915f75d`
+
+### ÉTAPE 8 — Vérification finale ✅
+- `npx tsc --noEmit` → 0 erreurs
+- Tous les commits poussés sur `claude/resume-phase-4-analytics-4M9tA`
+- Ce bloc CLAUDE_PROGRESS.md mis à jour
+
+### FICHIERS CLÉS DU SYSTÈME TRAÇABILITÉ
+```
+lib/generatePromoCode.ts          — génération code promo LLUI-XX-YYYY
+app/api/admin/init-codes-sheet/   — initialisation collection Firestore
+app/api/admin/creer-espace-marie/ — création espace marié complet
+app/api/cron/sync-boutique/       — sync catalogue + commandes Sheets
+public/llui-boutique-tracker.js   — tracker JS à déployer sur Netlify
+components/admin/portail/GestionMaries.tsx — formulaire création admin
+components/portail/dashboard/CardCodePromo.tsx — card dashboard marié
+```
