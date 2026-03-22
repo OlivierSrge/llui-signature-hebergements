@@ -19,8 +19,13 @@ export async function POST(req: NextRequest) {
     }
 
     const cookieStore = cookies()
+    // Note : portail_uid n'est PAS httpOnly intentionnellement.
+    // L'uid est l'identifiant de connexion (tapé dans le formulaire login) — ce n'est pas
+    // un token secret. De nombreux composants client lisent document.cookie pour l'uid.
+    // La sécurité est assurée par le middleware (vérifie que le doc Firestore existe)
+    // et par les API serveur qui valident l'uid contre Firestore.
     cookieStore.set('portail_uid', uid, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 jours

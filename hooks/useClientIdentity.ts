@@ -1,12 +1,10 @@
 'use client'
 // hooks/useClientIdentity.ts — Identité client centralisée pour toutes les pages portail
+//
+// IMPORTANT : le cookie portail_uid est httpOnly → document.cookie ne peut pas le lire.
+// On appelle /api/portail/me qui lit le cookie côté serveur et retourne les données.
 
 import { useState, useEffect } from 'react'
-
-function getUidFromCookie(): string {
-  if (typeof document === 'undefined') return ''
-  return decodeURIComponent(document.cookie.match(/portail_uid=([^;]+)/)?.[1] ?? '')
-}
 
 export interface ClientIdentity {
   uid: string
@@ -48,13 +46,15 @@ export function useClientIdentity(): ClientIdentity {
   const [identity, setIdentity] = useState<ClientIdentity>(DEFAULT)
 
   useEffect(() => {
-    const uid = getUidFromCookie()
-    if (!uid) return
-    fetch(`/api/portail/user?uid=${uid}`)
-      .then(r => r.json())
+    // /api/portail/me lit le cookie httpOnly côté serveur — pas besoin d'uid côté client
+    fetch('/api/portail/me')
+      .then(r => {
+        if (!r.ok) throw new Error('Non authentifié')
+        return r.json()
+      })
       .then(d => {
         const noms_maries = d.noms_maries || d.displayName || 'Mon mariage'
-        const prenom_principal = noms_maries.split(/[&\/&]/)[0].trim()
+        const prenom_principal = noms_maries.split(/[&/]/)[0].trim()
         const budget_previsionnel = d.budget_previsionnel ?? 0
         const wallet_credits = d.wallet_credits ?? 0
         const pourcentage_budget = budget_previsionnel > 0
@@ -68,7 +68,7 @@ export function useClientIdentity(): ClientIdentity {
           jours_avant_mariage = Math.ceil(diff / 86400000) // négatif si passé, 0 = aujourd'hui
         }
         setIdentity({
-          uid,
+          uid: d.uid ?? '',
           noms_maries,
           prenom_principal,
           grade_actuel: d.grade ?? 'START',
@@ -85,7 +85,9 @@ export function useClientIdentity(): ClientIdentity {
           code_promo: d.code_promo ?? '',
         })
       })
-      .catch(() => {})
+      .catch(() => {
+        // Non authentifié ou erreur réseau — garder les valeurs par défaut
+      })
   }, [])
 
   return identity
