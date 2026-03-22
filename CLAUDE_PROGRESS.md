@@ -1,5 +1,22 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P7-A Tableau invités enrichi terminé (4 étapes)
+Dernière mise à jour : 2026-03-22 — Fix Safari iOS impersonation
+
+---
+
+## FIX SAFARI IOS — IMPERSONATION — TERMINÉ (2026-03-22)
+
+### Problème
+Le bouton "Accéder →" (Espaces Mariés Actifs) ne fonctionnait pas sur iPhone Safari :
+- `window.open(url, '_blank')` est bloqué par Safari iOS dans un contexte `async` (après `await fetch()`, le geste utilisateur est perdu)
+
+### Corrections (commit `cfa99d8`)
+- **`EspacesMariesCard.tsx`** : `window.open` → `window.location.href = data.url` (navigation directe, jamais bloquée)
+- **`EspacesMariesCard.tsx`** : `localStorage.setItem('admin_view'/'admin_marie_uid'/'admin_marie_noms')` avant navigation
+- **`AdminBandeau.tsx`** : `localStorage.removeItem(...)` dans `quitter()` — nettoyage propre
+
+### Architecture conservée (déjà correcte)
+- `admin_view` + `portail_uid` → cookies HTTP (set par `/api/admin/open-portail`, lu par `portail/layout.tsx` Server Component)
+- Pas de sessionStorage dans la codebase — les cookies suffisent
 
 ---
 
