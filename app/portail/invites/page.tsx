@@ -26,6 +26,7 @@ export default function InvitesPage() {
   const [filtre, setFiltre] = useState<'tous' | 'non_envoye' | 'envoye' | 'converti'>('tous')
   const [qrGuest, setQrGuest] = useState<Guest | null>(null)
   const [nom, setNom] = useState(''); const [telephone, setTelephone] = useState(''); const [email, setEmail] = useState('')
+  const [table, setTable] = useState(''); const [hebergement, setHebergement] = useState(false)
   const [telError, setTelError] = useState(''); const [ajoutLoading, setAjoutLoading] = useState(false)
   const [toast, setToast] = useState(''); const [csvPreview, setCsvPreview] = useState<CsvRow[]>([])
   const [csvErrors, setCsvErrors] = useState<string[]>([]); const [csvLoading, setCsvLoading] = useState(false)
@@ -41,9 +42,13 @@ export default function InvitesPage() {
   const handleAjouter = async (e: React.FormEvent) => {
     e.preventDefault(); if (telError || !uid) return
     setAjoutLoading(true)
+    const nomFull = nom.trim()
     await fetch('/api/portail/invites', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nom: nom.trim(), telephone: normalizeTelephone(telephone.trim()), email: email.trim() || null, magic_link_slug: generateSlug(nom.trim()) }) })
-    setNom(''); setTelephone(''); setEmail(''); setAjoutLoading(false); showToast('Invité ajouté ✓'); load()
+      body: JSON.stringify({ nom: nomFull, telephone: normalizeTelephone(telephone.trim()), email: email.trim() || null, magic_link_slug: generateSlug(nomFull) }) })
+    // Aussi écrire dans mariés/[uid].invites[] pour le compteur dashboard
+    await fetch('/api/portail/ajouter-invite', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prenom: nomFull.split(' ')[0], nom: nomFull.split(' ').slice(1).join(' '), tel: normalizeTelephone(telephone.trim()), table: table.trim(), hebergement }) }).catch(() => {})
+    setNom(''); setTelephone(''); setEmail(''); setTable(''); setHebergement(false); setAjoutLoading(false); showToast('Invité ajouté ✓'); load()
   }
 
   const handleDelete = async (g: Guest) => {
@@ -131,6 +136,13 @@ export default function InvitesPage() {
             {telError && <p className="text-[11px] text-red-500 mt-1">{telError}</p>}
           </div>
           <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optionnel)" className="w-full border border-[#E8E0D0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={table} onChange={e => setTable(e.target.value)} placeholder="Table (optionnel)" className="border border-[#E8E0D0] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]" />
+            <label className="flex items-center gap-2 px-3 py-2.5 border border-[#E8E0D0] rounded-xl cursor-pointer">
+              <input type="checkbox" checked={hebergement} onChange={e => setHebergement(e.target.checked)} className="w-4 h-4 accent-[#C9A84C]" />
+              <span className="text-sm text-[#1A1A1A]">Hébergement</span>
+            </label>
+          </div>
           <button type="submit" disabled={ajoutLoading || !!telError || !nom || !telephone} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#C9A84C' }}>
             {ajoutLoading ? 'Ajout…' : '+ Ajouter cet invité'}
           </button>

@@ -9,7 +9,7 @@ function formatFCFA(n: number) {
 }
 
 interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number; priorite?: string }
-interface Versement { label: string; statut: 'payé' | 'en_attente' | 'en_retard' | 'à_venir'; montant: number }
+interface Versement { id?: string; montant: number; date?: string; mode?: string; statut: string; note?: string }
 interface Prestataire { nom: string; statut: string; type: string }
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
   todos: Todo[]
   lieu: string
   versements?: Versement[]
-  hasCommande?: boolean
+  budgetTotal?: number
   prestataires?: Prestataire[]
 }
 
@@ -51,11 +51,17 @@ const PRESTATAIRES_DEFAUT: Prestataire[] = [
   { nom: 'Traiteur', statut: 'a_confirmer', type: 'traiteur' },
 ]
 
-const STATUT_COLOR: Record<string, string> = {
-  payé: '#7C9A7E', en_attente: '#C9A84C', en_retard: '#C0392B', 'à_venir': '#888'
+const VERSEMENT_STATUT_COLOR: Record<string, string> = {
+  declare: '#C9A84C', confirme: '#7C9A7E',
+}
+const VERSEMENT_STATUT_LABEL: Record<string, string> = {
+  declare: 'Déclaré', confirme: 'Confirmé',
+}
+const MODE_LABELS: Record<string, string> = {
+  orange_money: 'Orange Money', virement: 'Virement', especes: 'Espèces', carte: 'Carte', autre: 'Autre',
 }
 
-export default function ActionsDashboard({ uid, todos, lieu, versements = [], hasCommande = false, prestataires }: Props) {
+export default function ActionsDashboard({ uid, todos, lieu, versements = [], budgetTotal = 0, prestataires }: Props) {
   const [checkedIds, setCheckedIds] = useState<string[]>([])
   const [toast, setToast] = useState('')
   const citation = getCitationDuJour()
@@ -131,7 +137,7 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
           <div className="flex justify-between items-center mb-3">
             <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Prochaines étapes</p>
-            <a href="/portail/todo" className="text-xs text-[#C9A84C]">Todo →</a>
+            <a href="/portail/taches" className="text-xs text-[#C9A84C]">Planning →</a>
           </div>
           <div className="space-y-2">
             {timeline.map(t => (
@@ -164,7 +170,7 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
                   </span>
                 )}
               </div>
-              <a href="/portail/todo" className="text-xs text-[#C9A84C]">Gérer →</a>
+              <a href="/portail/taches" className="text-xs text-[#C9A84C]">Planning →</a>
             </div>
             <div className="space-y-2">
               {displayed.map(t => {
@@ -197,11 +203,11 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
           <div className="flex justify-between items-center mb-2">
             <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Tâches</p>
-            <a href="/portail/todo" className="text-xs text-[#C9A84C]">Gérer →</a>
+            <a href="/portail/taches" className="text-xs text-[#C9A84C]">Planning →</a>
           </div>
-          <p className="text-sm text-[#AAA] text-center py-2">Votre planning est vierge — commencez par ajouter vos premières tâches ✨</p>
-          <a href="/portail/todo" className="block w-full py-2 rounded-xl text-xs font-semibold text-center text-white mt-1" style={{ background: '#C9A84C' }}>
-            + Créer mes tâches
+          <p className="text-sm text-[#AAA] text-center py-2">Votre planning se prépare — votre coordinateur va bientôt le compléter ✨</p>
+          <a href="/portail/taches" className="block w-full py-2 rounded-xl text-xs font-semibold text-center text-white mt-1" style={{ background: '#C9A84C' }}>
+            Voir mon planning →
           </a>
         </div>
       )}
@@ -216,38 +222,61 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
         </div>
       </div>
 
-      {/* BLOC 11 — Versements 30/40/30 (depuis Firestore mariés/[uid].versements) */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
-        <div className="flex justify-between items-center mb-3">
-          <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Versements</p>
-        </div>
-        {hasCommande && versements.length > 0 ? (
-          <>
-            {versements.map((v, i) => (
-              <div key={i} className="flex justify-between items-center py-1.5 border-b border-[#F5F0E8] last:border-0">
-                <span className="text-sm">{v.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{formatFCFA(v.montant)}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full"
-                    style={{ background: (STATUT_COLOR[v.statut] ?? '#888') + '22', color: STATUT_COLOR[v.statut] ?? '#888' }}>
-                    {v.statut.replace('_', ' ')}
-                  </span>
+      {/* BLOC 11 — Versements libres (historique des paiements déclarés) */}
+      {(() => {
+        const vArray = Array.isArray(versements) ? versements : []
+        const totalConfirme = vArray.filter(v => v.statut === 'confirme').reduce((s, v) => s + v.montant, 0)
+        const totalDeclare = vArray.reduce((s, v) => s + v.montant, 0)
+        const resteAPayer = budgetTotal > 0 ? Math.max(0, budgetTotal - totalConfirme) : null
+        const pct = budgetTotal > 0 ? Math.min(100, Math.round((totalConfirme / budgetTotal) * 100)) : 0
+        return (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Versements</p>
+              <a href="/portail/ma-commande" className="text-xs text-[#C9A84C]">Déclarer →</a>
+            </div>
+            {budgetTotal > 0 && (
+              <div className="mb-3">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-[#888]">Payé : <strong className="text-[#7C9A7E]">{formatFCFA(totalConfirme)}</strong></span>
+                  {resteAPayer !== null && <span className="text-[#888]">Reste : <strong className="text-[#1A1A1A]">{formatFCFA(resteAPayer)}</strong></span>}
+                </div>
+                <div className="w-full bg-[#F5F0E8] rounded-full h-2 overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: '#C9A84C' }} />
                 </div>
               </div>
-            ))}
-            <a href="/portail/ma-commande" className="mt-3 block w-full py-2 rounded-xl text-xs font-semibold text-center text-white" style={{ background: '#C9A84C' }}>
-              Déclarer un versement →
-            </a>
-          </>
-        ) : (
-          <div className="text-center py-2">
-            <p className="text-sm text-[#888] mb-2">Budget en cours de définition par votre coordinateur L&amp;Lui Signature</p>
-            <a href="/portail/panier" className="inline-block px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#C9A84C' }}>
-              Créer mon devis →
+            )}
+            {vArray.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                {vArray.slice(-5).map((v, i) => {
+                  const sc = VERSEMENT_STATUT_COLOR[v.statut] ?? '#888'
+                  const sl = VERSEMENT_STATUT_LABEL[v.statut] ?? v.statut
+                  return (
+                    <div key={v.id ?? i} className="flex items-center justify-between py-1.5 border-b border-[#F5F0E8] last:border-0">
+                      <div>
+                        <p className="text-xs text-[#888]">{v.date ? new Date(v.date).toLocaleDateString('fr-FR') : '—'}{v.mode ? ` · ${MODE_LABELS[v.mode] ?? v.mode}` : ''}</p>
+                        {v.note && <p className="text-[10px] text-[#AAA] truncate max-w-[140px]">{v.note}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">{formatFCFA(v.montant)}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: sc + '22', color: sc }}>{sl}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+                {totalDeclare > totalConfirme && (
+                  <p className="text-[10px] text-[#C9A84C] text-center">⏳ {formatFCFA(totalDeclare - totalConfirme)} en attente de confirmation</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-[#888] text-center py-2 mb-2">Aucun versement déclaré pour l&apos;instant</p>
+            )}
+            <a href="/portail/ma-commande" className="block w-full py-2.5 rounded-xl text-xs font-semibold text-center text-white" style={{ background: '#C9A84C' }}>
+              + Déclarer un versement
             </a>
           </div>
-        )}
-      </div>
+        )
+      })()}
 
       {/* BLOC 12 — Citation du jour */}
       <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ borderLeft: '3px solid #C9A84C' }}>

@@ -4,6 +4,7 @@
 
 import { getDb } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
+import { sendWhatsApp } from '@/lib/whatsappNotif'
 
 const GID_COMMANDES = '1138952486'
 
@@ -32,7 +33,7 @@ async function fetchCSV(sheetId: string, gid: string): Promise<string[][]> {
 
 export interface CommandeSyncResult {
   synced: number
-  details: Record<string, { noms_maries: string; nb_commandes: number; montant_total: number }>
+  details: Record<string, { noms_maries: string; nb_commandes: number; montant_total: number; cagnotte_cash_ajoute: number }>
 }
 
 // Sync commandes (GID=1138952486) → root collection "transactions"
@@ -44,7 +45,7 @@ export async function syncCommandes(sheetId: string): Promise<CommandeSyncResult
   if (rows.length < 2) return { synced: 0, details: {} }
 
   let synced = 0
-  const details: Record<string, { noms_maries: string; nb_commandes: number; montant_total: number }> = {}
+  const details: Record<string, { noms_maries: string; nb_commandes: number; montant_total: number; cagnotte_cash_ajoute: number }> = {}
 
   for (let i = 1; i < rows.length; i++) {
     const cols = rows[i]
@@ -121,10 +122,29 @@ export async function syncCommandes(sheetId: string): Promise<CommandeSyncResult
     })
 
     // Rapport
-    if (!details[mariageUid]) details[mariageUid] = { noms_maries: nomsMaries, nb_commandes: 0, montant_total: 0 }
+    if (!details[mariageUid]) details[mariageUid] = { noms_maries: nomsMaries, nb_commandes: 0, montant_total: 0, cagnotte_cash_ajoute: 0 }
     details[mariageUid].nb_commandes++
     details[mariageUid].montant_total += montantFinal
+    details[mariageUid].cagnotte_cash_ajoute += cagnotteCash
     synced++
+  }
+
+  // Notifications WhatsApp cagnotte après sync complète
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+  for (const [marieUid, d] of Object.entries(details)) {
+    if (d.cagnotte_cash_ajoute <= 0) continue
+    try {
+      // Lire le numéro WhatsApp et le nouveau total de cagnotte
+      const marieSnap = await getDb().collection('portail_users').doc(marieUid).get()
+      if (!marieSnap.exists) continue
+      const marieData = marieSnap.data()!
+      const tel = (marieData.whatsapp as string) || ''
+      if (!tel) continue
+      const nouvCagnotte = (marieData.wallets?.cash as number) ?? 0
+      const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n))
+      const msg = `🎉 Bonne nouvelle ${d.noms_maries} !\nVotre cagnotte L&Lui vient de s'enrichir de ${fmt(d.cagnotte_cash_ajoute)} FCFA grâce à un achat invité.\n💰 Total cagnotte : ${fmt(nouvCagnotte)} FCFA\nConnectez-vous pour voir le détail :\n${appUrl}/portail`
+      await sendWhatsApp(tel, msg).catch(() => {})
+    } catch { /* best-effort */ }
   }
 
   return { synced, details }

@@ -89,19 +89,22 @@ export async function POST(req: Request) {
     const deadline90 = new Date(now); deadline90.setDate(now.getDate() + 90)
 
     const dateMariageTs = Timestamp.fromDate(new Date(date_mariage))
-    const v1Montant = Math.round(budget_previsionnel * 0.3)
-    const v2Montant = Math.round(budget_previsionnel * 0.4)
-    const v3Montant = Math.round(budget_previsionnel * 0.3)
-
     const TACHES_TEMPLATE = [
-      { id: 1, titre: 'Confirmer le lieu de réception',    statut: 'todo', priorite: 'haute',   categorie: 'logistique' },
-      { id: 2, titre: 'Signer le contrat traiteur',        statut: 'todo', priorite: 'haute',   categorie: 'traiteur'   },
-      { id: 3, titre: 'Finaliser la liste des invités',    statut: 'todo', priorite: 'haute',   categorie: 'invites'    },
-      { id: 4, titre: 'Partager mon code avec les invités',statut: 'todo', priorite: 'haute',   categorie: 'cagnotte'   },
-      { id: 5, titre: 'Choisir les hébergements',          statut: 'todo', priorite: 'moyenne', categorie: 'hebergement'},
-      { id: 6, titre: 'Confirmer le photographe',          statut: 'todo', priorite: 'moyenne', categorie: 'photo'      },
-      { id: 7, titre: 'Envoyer les invitations',           statut: 'todo', priorite: 'basse',   categorie: 'invites'    },
-      { id: 8, titre: 'Préparer le plan de table',         statut: 'todo', priorite: 'basse',   categorie: 'logistique' },
+      // Phase 1 — Verrouillage
+      { id: 1, titre: "Finaliser la liste d'invités (indispensable pour ajuster les devis traiteur)", statut: 'todo', priorite: 'haute', phase: 1, categorie: 'invites' },
+      { id: 2, titre: 'Validation du lieu de réception à Kribi (accessibilité plage si cérémonie extérieure)', statut: 'todo', priorite: 'haute', phase: 1, categorie: 'logistique' },
+      { id: 3, titre: 'Signature contrat Traiteur + versement acompte', statut: 'todo', priorite: 'haute', phase: 1, categorie: 'traiteur' },
+      { id: 4, titre: 'Partager mon code L&Lui avec les invités', statut: 'todo', priorite: 'haute', phase: 1, categorie: 'cagnotte' },
+      // Phase 2 — Logistique
+      { id: 5, titre: 'Réserver le bloc de chambres pour les invités', statut: 'todo', priorite: 'haute', phase: 2, categorie: 'hebergement', cta_url: '/portail/escales', cta_label: 'Voir la Sélection Hébergements →' },
+      { id: 6, titre: 'Valider le plan de transport invités (navettes aéroport / hôtel / lieu)', statut: 'todo', priorite: 'moyenne', phase: 2, categorie: 'logistique' },
+      { id: 7, titre: 'Choisir les cadeaux invités', statut: 'todo', priorite: 'moyenne', phase: 2, categorie: 'boutique', cta_url: '/portail/configurateur', cta_label: 'Voir les options en boutique →' },
+      { id: 8, titre: 'Dégustation Vins & Spiritueux', statut: 'todo', priorite: 'basse', phase: 2, categorie: 'boutique', cta_url: '/portail/configurateur', cta_label: 'Voir la sélection L&Lui →' },
+      // Phase 3 — Esthétique
+      { id: 9, titre: 'Brief photographe : lister les moments clés de la journée', statut: 'todo', priorite: 'moyenne', phase: 3, categorie: 'photo' },
+      { id: 10, titre: "Validation palette de couleurs : envoi moodboard définitif à Fleurs & Décors", statut: 'todo', priorite: 'moyenne', phase: 3, categorie: 'decoration' },
+      { id: 11, titre: "Confirmer la musique et l'animation", statut: 'todo', priorite: 'moyenne', phase: 3, categorie: 'musique' },
+      { id: 12, titre: 'Préparer le plan de table', statut: 'todo', priorite: 'basse', phase: 3, categorie: 'logistique' },
     ]
 
     await db.collection('portail_users').doc(uid).set({
@@ -132,12 +135,8 @@ export async function POST(req: Request) {
       cagnotte_credits: 0,
       wallets: { cash: 0, credits_services: 0 },
 
-      // Versements 30/40/30
-      versements: {
-        v1: { label: 'Acompte 30%', montant: v1Montant, statut: 'en_attente' },
-        v2: { label: 'Versement 40%', montant: v2Montant, statut: 'en_attente' },
-        v3: { label: 'Solde 30%', montant: v3Montant, statut: 'en_attente' },
-      },
+      // Versements libres (historique des paiements déclarés)
+      versements: [],
 
       // Prestataires (template)
       prestataires: [
@@ -175,20 +174,22 @@ export async function POST(req: Request) {
     })
 
     // Seeder la sous-collection todos depuis le template (tâches interactives portail)
-    const TODOS_SEED = [
-      { libelle: 'Confirmer le lieu de réception',     done: false, rev: 50, priorite: 'haute',   categorie: 'logistique'  },
-      { libelle: 'Signer le contrat traiteur',         done: false, rev: 50, priorite: 'haute',   categorie: 'traiteur'    },
-      { libelle: 'Finaliser la liste des invités',     done: false, rev: 50, priorite: 'haute',   categorie: 'invites'     },
-      { libelle: 'Partager mon code avec les invités', done: false, rev: 50, priorite: 'haute',   categorie: 'cagnotte'    },
-      { libelle: 'Choisir les hébergements',           done: false, rev: 30, priorite: 'moyenne', categorie: 'hebergement' },
-      { libelle: 'Confirmer le photographe',           done: false, rev: 30, priorite: 'moyenne', categorie: 'photo'       },
-      { libelle: 'Envoyer les invitations',            done: false, rev: 20, priorite: 'basse',   categorie: 'invites'     },
-      { libelle: 'Préparer le plan de table',          done: false, rev: 20, priorite: 'basse',   categorie: 'logistique'  },
-    ]
+    const revMap: Record<string, number> = { haute: 50, moyenne: 30, basse: 20 }
     const batch = db.batch()
-    for (const t of TODOS_SEED) {
+    for (const t of TACHES_TEMPLATE) {
       const ref = db.collection('portail_users').doc(uid).collection('todos').doc()
-      batch.set(ref, { ...t, created_at: FieldValue.serverTimestamp() })
+      const payload: Record<string, unknown> = {
+        libelle: t.titre,
+        done: false,
+        phase: t.phase,
+        priorite: t.priorite,
+        categorie: t.categorie,
+        rev: revMap[t.priorite] ?? 20,
+        created_at: FieldValue.serverTimestamp(),
+      }
+      if ('cta_url' in t) payload.cta_url = t.cta_url
+      if ('cta_label' in t) payload.cta_label = t.cta_label
+      batch.set(ref, payload)
     }
     await batch.commit()
 

@@ -64,7 +64,7 @@ export function useClientIdentity(): ClientIdentity {
         let jours_avant_mariage: number | null = null
         if (d.date_evenement) {
           const diff = new Date(d.date_evenement).getTime() - Date.now()
-          if (diff > 0) jours_avant_mariage = Math.ceil(diff / 86400000)
+          jours_avant_mariage = Math.ceil(diff / 86400000) // négatif si passé, 0 = aujourd'hui
         }
         setIdentity({
           uid,
