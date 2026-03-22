@@ -37,6 +37,8 @@ export async function GET() {
         : typeof dateTs === 'string' ? dateTs : ''
       const budgetTotal = (d.budget_total as number) ?? (d.projet?.budget_previsionnel as number) ?? 0
       const versements = (d.versements as Record<string, unknown>) ?? null
+      const versementsArray = Array.isArray(d.versements) ? (d.versements as Array<Record<string, unknown>>) : []
+      const versementsAConfirmer = versementsArray.filter(v => v.statut === 'declare').length
       return {
         uid: doc.id,
         noms_maries: (d.noms_maries as string) || '',
@@ -48,6 +50,7 @@ export async function GET() {
         budget_total: budgetTotal,
         nb_invites_prevus: (d.nb_invites_prevus as number) ?? (d.projet?.nombre_invites_prevu as number) ?? 0,
         versements,
+        versements_a_confirmer: versementsAConfirmer,
         actif: (d.actif as boolean) ?? true,
       }
     })
