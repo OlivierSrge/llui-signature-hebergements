@@ -1,5 +1,36 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P7-B Code Privilège partage viral terminé (4 étapes)
+Dernière mise à jour : 2026-03-22 — P7-A Tableau invités enrichi terminé (4 étapes)
+
+---
+
+## P7-A — TABLEAU INVITÉS ENRICHI — TERMINÉ (2026-03-22)
+
+RÈGLE ABSOLUE : "L'admin initialise, Firestore stocke, le portail affiche."
+
+### Étapes complétées
+- ✅ **Étape 1** — Page invités enrichie 2 colonnes
+  - Section stats (total / contactés / commandés / taux%) + barre de progression
+  - Colonne "Ont commandé ✅" + Colonne "Silencieux 🔕" avec bouton "Relancer →"
+  - Commit : `8fe61d1`
+- ✅ **Étape 2** — Relance WhatsApp individuelle
+  - API `POST /api/portail/relancer-invite` — Twilio, marque relance_envoyee=true, badge "Relancé"
+  - Bouton fonctionnel dans colonne Silencieux
+  - Commit : `218e0a3`
+- ✅ **Étape 3** — Lien achats-invités par téléphone
+  - `invites-stats/route.ts` réécrit : croise transactions (marie_code=code_promo, type=BOUTIQUE) ↔ invités par normalizeTel()
+  - Retourne `{ guests (enrichis), invites (dots), stats }`
+  - Commit : `3425953`
+- ✅ **Étape 4** — Bloc récap dashboard
+  - StatsDashboard.tsx : fetch invites-stats au mount → "X invités ont commandé 🎉" + "Y silencieux" + bouton "Relancer Y silencieux →"
+  - Commit : `48a0c79`
+
+### Fichiers modifiés / créés
+- `app/portail/invites/page.tsx` — enrichi avec 2 colonnes + relance
+- `app/api/portail/relancer-invite/route.ts` (créé)
+- `app/api/portail/invites-stats/route.ts` (réécrit — croisement transactions)
+- `components/portail/dashboard/StatsDashboard.tsx` — bloc récap
+
+---
 
 ---
 
