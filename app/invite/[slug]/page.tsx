@@ -49,7 +49,12 @@ async function getData(slug: string) {
 }
 
 export default async function InvitePage({ params }: { params: { slug: string } }) {
-  const data = await getData(params.slug)
+  let data = null
+  try {
+    data = await getData(params.slug)
+  } catch {
+    // Firestore error (index manquant, credentials, etc.)
+  }
   if (!data) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#1A1A1A' }}>
