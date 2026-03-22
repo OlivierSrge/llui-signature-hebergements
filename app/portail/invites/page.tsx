@@ -13,6 +13,8 @@ type GuestEnrichi = Guest & {
   relance_envoyee?: boolean
   relance_date?: string
   date_envoi?: string
+  fiche_envoyee?: boolean
+  fiche_date?: string
   achats?: Array<{ produit: string; montant: number; date: string }>
 }
 
@@ -168,6 +170,33 @@ export default function InvitesPage() {
     } finally {
       setRelanceEnCours(null)
     }
+  }
+
+  const ficheUrl = (g: GuestEnrichi) => {
+    const prenom = encodeURIComponent(g.nom.split(' ')[0] || g.nom)
+    const code = encodeURIComponent(identity.code_promo || '')
+    return `https://llui-signature-hebergements.vercel.app/fiche/${uid}?prenom=${prenom}&code=${code}`
+  }
+
+  const ficheWaUrlFor = (g: GuestEnrichi) => {
+    const nomsMaries = identity.noms_maries && identity.noms_maries !== 'Mon mariage' ? identity.noms_maries : 'les Mariés'
+    const prenom = g.nom.split(' ')[0] || g.nom
+    const code = identity.code_promo || ''
+    const url = ficheUrl(g)
+    const msg = `Bonjour ${prenom} ! 🎉\n${nomsMaries} vous ont préparé une invitation personnalisée pour leur mariage.\n\nDécouvrez votre fiche d'invitation :\n👉 ${url}\n\nVotre code privilège : *${code}*\nChaque achat participe à leur cagnotte 💝`
+    return `https://wa.me/${g.telephone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`
+  }
+
+  const handleEnvoyerFiche = async (g: GuestEnrichi) => {
+    // Ouvrir WhatsApp
+    window.open(ficheWaUrlFor(g), '_blank', 'noopener,noreferrer')
+    // Marquer fiche_envoyee = true dans Firestore
+    await fetch(`/api/portail/invites/${g.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fiche_envoyee: true, fiche_date: new Date().toISOString(), lien_envoye: true }),
+    }).catch(() => {})
+    load()
   }
 
   const filtered = guests
@@ -382,7 +411,15 @@ export default function InvitesPage() {
                             <p className="text-[10px] text-[#888]">{new Intl.NumberFormat('fr-FR').format(g.total_achats)} FCFA</p>
                           ) : null}
                         </div>
-                        <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#7C9A7E]/15 text-[#7C9A7E] flex-shrink-0">Actif</span>
+                        <button
+                          onClick={() => handleEnvoyerFiche(g)}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0 transition-colors"
+                          style={g.fiche_envoyee
+                            ? { background: '#7C9A7E22', color: '#7C9A7E' }
+                            : { background: '#C9A84C22', color: '#C9A84C' }}
+                        >
+                          {g.fiche_envoyee ? '🎫 Envoyée' : '🎫 Fiche →'}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -417,16 +454,27 @@ export default function InvitesPage() {
                                 : 'Pas encore contacté'}
                           </p>
                         </div>
-                        <button
-                          onClick={() => !g.relance_envoyee && handleRelancer(g)}
-                          disabled={relanceEnCours === g.id}
-                          className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-50"
-                          style={g.relance_envoyee
-                            ? { borderColor: '#E8A84C', color: '#E8A84C', background: '#E8A84C10' }
-                            : { borderColor: '#C9A84C', color: '#C9A84C', background: 'transparent' }}
-                        >
-                          {relanceEnCours === g.id ? '…' : g.relance_envoyee ? 'Relancé' : 'Relancer →'}
-                        </button>
+                        <div className="flex flex-col gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => handleEnvoyerFiche(g)}
+                            className="text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-colors"
+                            style={g.fiche_envoyee
+                              ? { background: '#7C9A7E22', color: '#7C9A7E' }
+                              : { background: '#C9A84C', color: '#1A1A1A' }}
+                          >
+                            {g.fiche_envoyee ? '🎫 Envoyée' : '🎫 Fiche →'}
+                          </button>
+                          <button
+                            onClick={() => !g.relance_envoyee && handleRelancer(g)}
+                            disabled={relanceEnCours === g.id}
+                            className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-colors disabled:opacity-50"
+                            style={g.relance_envoyee
+                              ? { borderColor: '#E8A84C', color: '#E8A84C', background: '#E8A84C10' }
+                              : { borderColor: '#C9A84C', color: '#C9A84C', background: 'transparent' }}
+                          >
+                            {relanceEnCours === g.id ? '…' : g.relance_envoyee ? 'Relancé' : 'Relancer →'}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
