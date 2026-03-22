@@ -66,6 +66,7 @@ export default function InvitesPage() {
   const [toast, setToast] = useState(''); const [csvPreview, setCsvPreview] = useState<CsvRow[]>([])
   const [csvErrors, setCsvErrors] = useState<string[]>([]); const [csvLoading, setCsvLoading] = useState(false)
   const [sendAllIdx, setSendAllIdx] = useState(0)
+  const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const loadMainInvites = () =>
@@ -132,6 +133,28 @@ export default function InvitesPage() {
     }
     showToast(`${csvPreview.length} invités importés ✓`); setCsvPreview([]); setCsvErrors([])
     if (fileRef.current) fileRef.current.value = ''; setCsvLoading(false); load()
+  }
+
+  const handleRelancer = async (g: GuestEnrichi) => {
+    setRelanceEnCours(g.id)
+    try {
+      const prenom = g.nom.split(' ')[0] || g.nom
+      const res = await fetch('/api/portail/relancer-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_id: g.id, tel: g.telephone, prenom }),
+      })
+      if (res.ok) {
+        showToast(`Relance envoyée à ${prenom} ✓`)
+        load()
+      } else {
+        showToast('Échec envoi — vérifier Twilio')
+      }
+    } catch {
+      showToast('Erreur réseau')
+    } finally {
+      setRelanceEnCours(null)
+    }
   }
 
   const filtered = guests
@@ -382,13 +405,14 @@ export default function InvitesPage() {
                           </p>
                         </div>
                         <button
-                          onClick={() => {/* Étape 2 */}}
-                          className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-colors flex-shrink-0"
+                          onClick={() => !g.relance_envoyee && handleRelancer(g)}
+                          disabled={relanceEnCours === g.id}
+                          className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-50"
                           style={g.relance_envoyee
                             ? { borderColor: '#E8A84C', color: '#E8A84C', background: '#E8A84C10' }
                             : { borderColor: '#C9A84C', color: '#C9A84C', background: 'transparent' }}
                         >
-                          {g.relance_envoyee ? 'Relancé' : 'Relancer →'}
+                          {relanceEnCours === g.id ? '…' : g.relance_envoyee ? 'Relancé' : 'Relancer →'}
                         </button>
                       </div>
                     ))}
