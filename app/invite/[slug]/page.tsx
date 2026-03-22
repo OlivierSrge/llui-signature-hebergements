@@ -17,9 +17,12 @@ interface Props {
 async function getMarieDataForFiche(marie_uid: string) {
   try {
     const db = getDb()
+    console.log(`[invite/fiche] Lookup portail_users/${marie_uid}`)
     const snap = await db.collection('portail_users').doc(marie_uid).get()
+    console.log(`[invite/fiche] snap.exists=${snap.exists}`)
     if (!snap.exists) return null
     const d = snap.data()!
+    console.log(`[invite/fiche] data keys: ${Object.keys(d).join(', ')}`)
     const dateTs = d.date_mariage ?? d.projet?.date_evenement
     const dateISO = dateTs?.toDate
       ? dateTs.toDate().toISOString().slice(0, 10)
@@ -30,7 +33,8 @@ async function getMarieDataForFiche(marie_uid: string) {
       lieu: (d.lieu as string) || (d.projet?.lieu as string) || 'Kribi, Cameroun',
       code_promo: (d.code_promo as string) || '',
     }
-  } catch {
+  } catch (err) {
+    console.error(`[invite/fiche] Firestore error for ${marie_uid}:`, err)
     return null
   }
 }
