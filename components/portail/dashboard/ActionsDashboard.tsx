@@ -8,7 +8,7 @@ function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
-interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number }
+interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number; priorite?: string }
 interface Versement { label: string; statut: 'payé' | 'en_attente' | 'en_retard' | 'à_venir'; montant: number }
 interface Prestataire { nom: string; statut: string; type: string }
 
@@ -145,32 +145,55 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
         </div>
       )}
 
-      {/* BLOC 8 — Mes Tâches (depuis subcollection todos) */}
-      {todos.length > 0 ? (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
-          <div className="flex justify-between items-center mb-3">
-            <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Tâches</p>
-            <a href="/portail/todo" className="text-xs text-[#C9A84C]">Voir tout →</a>
-          </div>
-          <div className="space-y-2">
-            {todos.slice(0, 5).map(t => (
-              <div key={t.id} className="flex items-center gap-2">
-                <button onClick={() => handleCheck(t)} className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
-                  style={{ borderColor: t.done || checkedIds.includes(t.id) ? '#C9A84C' : '#E8E0D0', background: t.done || checkedIds.includes(t.id) ? '#C9A84C' : 'white' }}>
-                  {(t.done || checkedIds.includes(t.id)) && <span className="text-white text-[10px]">✓</span>}
-                </button>
-                <span className={`text-sm flex-1 ${t.done || checkedIds.includes(t.id) ? 'line-through text-[#AAA]' : ''}`}>{t.libelle}</span>
-                {t.rev && <span className="text-[10px] text-[#C9A84C] font-semibold">+{t.rev}</span>}
+      {/* BLOC 8 — Mes Tâches priorité haute en premier, puis les autres */}
+      {todos.length > 0 ? (() => {
+        // 3 tâches "haute" non-done en premier, puis compléter avec les autres jusqu'à 5
+        const hautes = todos.filter(t => !t.done && !checkedIds.includes(t.id) && t.priorite === 'haute').slice(0, 3)
+        const autresIds = new Set(hautes.map(t => t.id))
+        const autres = todos.filter(t => !autresIds.has(t.id)).slice(0, Math.max(0, 5 - hautes.length))
+        const displayed = [...hautes, ...autres]
+        const reste = todos.length - displayed.length
+        return (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Tâches</p>
+                {hautes.length > 0 && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold text-white" style={{ background: '#C0392B' }}>
+                    {hautes.length} urgente{hautes.length > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
-            ))}
+              <a href="/portail/todo" className="text-xs text-[#C9A84C]">Gérer →</a>
+            </div>
+            <div className="space-y-2">
+              {displayed.map(t => {
+                const isDone = t.done || checkedIds.includes(t.id)
+                const isHaute = t.priorite === 'haute' && !isDone
+                return (
+                  <div key={t.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCheck(t)}
+                      className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                      style={{ borderColor: isDone ? '#C9A84C' : isHaute ? '#C0392B' : '#E8E0D0', background: isDone ? '#C9A84C' : 'white' }}
+                    >
+                      {isDone && <span className="text-white text-[10px]">✓</span>}
+                    </button>
+                    <span className={`text-sm flex-1 ${isDone ? 'line-through text-[#AAA]' : ''}`}>{t.libelle}</span>
+                    {isHaute && <span className="text-[9px] text-red-500 font-semibold">!</span>}
+                    {t.rev && <span className="text-[10px] text-[#C9A84C] font-semibold">+{t.rev}</span>}
+                  </div>
+                )
+              })}
+            </div>
+            {reste > 0 && (
+              <a href="/portail/todo" className="mt-2 block text-center text-xs text-[#C9A84C]">
+                +{reste} autre{reste > 1 ? 's' : ''} tâche{reste > 1 ? 's' : ''} →
+              </a>
+            )}
           </div>
-          {todos.length > 5 && (
-            <a href="/portail/todo" className="mt-2 block text-center text-xs text-[#C9A84C]">
-              +{todos.length - 5} autres tâches →
-            </a>
-          )}
-        </div>
-      ) : (
+        )
+      })() : (
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
           <div className="flex justify-between items-center mb-2">
             <p className="text-xs font-semibold text-[#888] uppercase tracking-wide">Mes Tâches</p>
@@ -218,7 +241,7 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], ha
           </>
         ) : (
           <div className="text-center py-2">
-            <p className="text-sm text-[#888] mb-2">Votre plan de paiement sera affiché ici une fois votre budget défini</p>
+            <p className="text-sm text-[#888] mb-2">Budget en cours de définition par votre coordinateur L&amp;Lui Signature</p>
             <a href="/portail/panier" className="inline-block px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#C9A84C' }}>
               Créer mon devis →
             </a>

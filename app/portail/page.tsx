@@ -11,11 +11,12 @@ import SaisieHebergement from '@/components/portail/dashboard/SaisieHebergement'
 import CardCodePromo from '@/components/portail/dashboard/CardCodePromo'
 import ReservationsHebergement from '@/components/portail/dashboard/ReservationsHebergement'
 import AchatsBoutiqueInvites from '@/components/portail/dashboard/AchatsBoutiqueInvites'
+import AdminBandeau from '@/components/portail/dashboard/AdminBandeau'
 import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsBoutiqueInvites'
 
 export const dynamic = 'force-dynamic'
 
-interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number }
+interface Todo { id: string; libelle: string; done: boolean; date_limite?: string | null; rev?: number; priorite?: string }
 interface Reservation { id: string; logement: string; montant_total: number; commission_cash: number; date: string }
 interface Prestataire { nom: string; statut: string; type: string }
 interface TacheDoc { titre: string; statut: 'todo' | 'done'; priorite: 'haute' | 'moyenne' | 'basse' }
@@ -32,6 +33,7 @@ async function getData() {
   try {
     const uid = cookies().get('portail_uid')?.value
     if (!uid) redirect('/portail/login')
+    const adminView = cookies().get('admin_view')?.value ?? ''
     const db = getDb()
     const [snap, todosSnap] = await Promise.all([
       db.collection('portail_users').doc(uid).get(),
@@ -44,7 +46,7 @@ async function getData() {
       const td = doc.data()
       const dlTs = td.date_limite
       const dlISO = dlTs?.toDate ? dlTs.toDate().toISOString() : (typeof dlTs === 'string' ? dlTs : null)
-      return { id: doc.id, libelle: td.libelle ?? '', done: td.done ?? false, date_limite: dlISO, rev: td.rev ?? 0 }
+      return { id: doc.id, libelle: td.libelle ?? '', done: td.done ?? false, date_limite: dlISO, rev: td.rev ?? 0, priorite: td.priorite ?? 'basse' }
     })
 
     // Réservations hébergements (isolé pour ne pas bloquer si index manquant)
@@ -146,6 +148,7 @@ async function getData() {
       versements,
       invitesConfirmesFirestore,
       nbInvitesPrevus,
+      adminView,
     }
   } catch { redirect('/portail/login') }
 }
@@ -164,6 +167,9 @@ export default async function PortailPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      {/* BANDEAU ADMIN — visible uniquement en mode impersonation */}
+      <AdminBandeau nomsMaries={data.adminView} />
+
       {/* BLOC 1 — Hero countdown (lit date_mariage + noms via useClientIdentity) */}
       {/* BLOC 2 — CTA Boutique/Hébergements */}
       <HeroCTA
