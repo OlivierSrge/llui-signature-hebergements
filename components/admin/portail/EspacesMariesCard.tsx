@@ -16,6 +16,17 @@ interface Versements {
   v3?: VersementItem
 }
 
+interface VersementLibre {
+  id: string
+  montant: number
+  date?: string
+  mode?: string
+  note?: string
+  recu_url?: string
+  statut: string
+  created_at?: string
+}
+
 interface Marie {
   uid: string
   noms_maries: string
@@ -68,42 +79,46 @@ function nextStatut(current: string): 'en_attente' | 'payé' | 'en_retard' {
   return STATUTS_CYCLE[(idx + 1) % STATUTS_CYCLE.length]
 }
 
+const MODE_LABELS: Record<string, string> = {
+  orange_money: 'Orange Money',
+  virement: 'Virement',
+  especes: 'Espèces',
+  carte: 'Carte',
+  autre: 'Autre',
+}
+
 function PanneauGestionRapide({ marie, onClose, onUpdate }: {
   marie: Marie
   onClose: () => void
   onUpdate: (uid: string, updates: Partial<Marie>) => void
 }) {
+  const [onglet, setOnglet] = useState<'parametres' | 'versements'>('parametres')
   const [budget, setBudget] = useState(String(marie.budget_total || 0))
   const [nbInvites, setNbInvites] = useState(String(marie.nb_invites_prevus || 0))
-  const [versements, setVersements] = useState<Versements>(marie.versements ?? {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  // Versements libres
+  const [versementsLibres, setVersementsLibres] = useState<VersementLibre[]>([])
+  const [versLoading, setVersLoading] = useState(false)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [versToast, setVersToast] = useState('')
 
   const budgetNum = Number(budget) || 0
 
-  // Recalcul en temps réel des montants
-  const v1Montant = Math.round(budgetNum * 0.3)
-  const v2Montant = Math.round(budgetNum * 0.4)
-  const v3Montant = Math.round(budgetNum * 0.3)
-
-  function cycleStatut(key: 'v1' | 'v2' | 'v3') {
-    setVersements(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        statut: nextStatut(prev[key]?.statut ?? 'en_attente'),
-      },
-    }))
-  }
+  // Charger versements quand onglet versements ouvert
+  useEffect(() => {
+    if (onglet !== 'versements') return
+    setVersLoading(true)
+    fetch(`/api/admin/versements-marie?uid=${marie.uid}`)
+      .then(r => r.json())
+      .then(d => setVersementsLibres(Array.isArray(d.versements) ? d.versements : []))
+      .catch(() => {})
+      .finally(() => setVersLoading(false))
+  }, [onglet, marie.uid])
 
   async function handleSave() {
     setSaving(true)
     try {
-      const versementStatuts = {
-        v1: versements.v1?.statut,
-        v2: versements.v2?.statut,
-        v3: versements.v3?.statut,
-      }
       await fetch('/api/admin/update-marie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,26 +126,43 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
           uid: marie.uid,
           budget_total: budgetNum,
           nb_invites_prevus: Number(nbInvites) || 0,
-          versement_statuts: versementStatuts,
         }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
-      onUpdate(marie.uid, {
-        budget_total: budgetNum,
-        nb_invites_prevus: Number(nbInvites) || 0,
-        versements: {
-          v1: { label: 'Acompte 30%', montant: v1Montant, statut: versements.v1?.statut ?? 'en_attente' },
-          v2: { label: 'Versement 40%', montant: v2Montant, statut: versements.v2?.statut ?? 'en_attente' },
-          v3: { label: 'Solde 30%', montant: v3Montant, statut: versements.v3?.statut ?? 'en_attente' },
-        },
-      })
+      onUpdate(marie.uid, { budget_total: budgetNum, nb_invites_prevus: Number(nbInvites) || 0 })
     } catch {
       alert('Erreur réseau')
     } finally {
       setSaving(false)
     }
   }
+
+  async function handleConfirmerVersement(versementId: string) {
+    setConfirming(versementId)
+    try {
+      const res = await fetch('/api/admin/confirmer-versement', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: marie.uid, versement_id: versementId }),
+      })
+      if (res.ok) {
+        setVersementsLibres(prev => prev.map(v => v.id === versementId ? { ...v, statut: 'confirme' } : v))
+        setVersToast('✅ Versement confirmé — WhatsApp envoyé')
+        setTimeout(() => setVersToast(''), 3000)
+      } else {
+        setVersToast('Erreur lors de la confirmation')
+        setTimeout(() => setVersToast(''), 3000)
+      }
+    } catch {
+      setVersToast('Erreur réseau')
+      setTimeout(() => setVersToast(''), 3000)
+    } finally {
+      setConfirming(null)
+    }
+  }
+
+  const declareVersements = versementsLibres.filter(v => v.statut === 'declare')
 
   return (
     <div className="mt-3 rounded-2xl p-4 bg-[#FAFAF8] border border-[#C9A84C]/30">
@@ -155,68 +187,143 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
         </div>
       </div>
 
-      {/* Budget total */}
-      <div className="mb-3">
-        <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Budget total (FCFA)</label>
-        <input
-          type="number"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
-          value={budget}
-          onChange={e => setBudget(e.target.value)}
-          placeholder="0"
-        />
-        {budgetNum > 0 && (
-          <p className="text-[10px] text-[#888] mt-1">
-            Acompte 30% = {formatFCFA(v1Montant)} · 40% = {formatFCFA(v2Montant)} · Solde 30% = {formatFCFA(v3Montant)}
-          </p>
-        )}
+      {/* Onglets */}
+      <div className="flex gap-1 mb-4 bg-[#F5F0E8] p-1 rounded-xl">
+        {([
+          { key: 'parametres', label: '⚙ Paramètres' },
+          { key: 'versements', label: `💳 Versements${declareVersements.length > 0 && onglet !== 'versements' ? ` (${declareVersements.length})` : ''}` },
+        ] as const).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setOnglet(t.key)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: onglet === t.key ? 'white' : 'transparent',
+              color: onglet === t.key ? '#1A1A1A' : '#888',
+              boxShadow: onglet === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Nb invités */}
-      <div className="mb-3">
-        <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Nombre d&apos;invités prévus</label>
-        <input
-          type="number"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
-          value={nbInvites}
-          onChange={e => setNbInvites(e.target.value)}
-          placeholder="0"
-        />
-      </div>
-
-      {/* Versements — clic pour cycler le statut */}
-      {(versements.v1 || versements.v2 || versements.v3) && (
-        <div className="mb-3">
-          <p className="text-[10px] text-[#888] uppercase tracking-wide mb-2">Versements (cliquer pour changer statut)</p>
-          <div className="space-y-1.5">
-            {(['v1', 'v2', 'v3'] as const).map(key => {
-              const v = versements[key]
-              if (!v) return null
-              const montant = key === 'v1' ? v1Montant : key === 'v2' ? v2Montant : v3Montant
-              return (
-                <div key={key} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-[#F5F0E8]">
-                  <span className="text-xs">{v.label ?? key}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[#888]">
-                      {budgetNum > 0 ? formatFCFA(montant) : formatFCFA(v.montant ?? 0)}
-                    </span>
-                    <StatutBadge statut={v.statut ?? 'en_attente'} onClick={() => cycleStatut(key)} />
-                  </div>
-                </div>
-              )
-            })}
+      {/* ONGLET PARAMÈTRES */}
+      {onglet === 'parametres' && (
+        <>
+          {/* Budget total */}
+          <div className="mb-3">
+            <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Budget total (FCFA)</label>
+            <input
+              type="number"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+              value={budget}
+              onChange={e => setBudget(e.target.value)}
+              placeholder="0"
+            />
           </div>
-        </div>
+
+          {/* Nb invités */}
+          <div className="mb-3">
+            <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Nombre d&apos;invités prévus</label>
+            <input
+              type="number"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+              value={nbInvites}
+              onChange={e => setNbInvites(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors"
+            style={{ background: saved ? '#7C9A7E' : '#C9A84C' }}
+          >
+            {saving ? 'Enregistrement…' : saved ? '✅ Enregistré !' : '💾 Enregistrer les modifications'}
+          </button>
+        </>
       )}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors"
-        style={{ background: saved ? '#7C9A7E' : '#C9A84C' }}
-      >
-        {saving ? 'Enregistrement…' : saved ? '✅ Enregistré !' : '💾 Enregistrer les modifications'}
-      </button>
+      {/* ONGLET VERSEMENTS */}
+      {onglet === 'versements' && (
+        <div>
+          {versToast && (
+            <div className="mb-3 text-xs text-center font-medium py-2 rounded-xl" style={{ background: '#7C9A7E22', color: '#7C9A7E' }}>
+              {versToast}
+            </div>
+          )}
+          {versLoading && <p className="text-xs text-[#888] text-center py-4">Chargement…</p>}
+
+          {!versLoading && versementsLibres.length === 0 && (
+            <p className="text-xs text-[#AAA] text-center py-4">Aucun versement déclaré</p>
+          )}
+
+          {!versLoading && versementsLibres.length > 0 && (
+            <div className="space-y-2">
+              {/* En attente de confirmation */}
+              {declareVersements.length > 0 && (
+                <p className="text-[10px] text-[#888] uppercase tracking-wide mb-2">
+                  En attente de confirmation ({declareVersements.length})
+                </p>
+              )}
+              {versementsLibres.map(v => (
+                <div key={v.id} className="bg-white rounded-xl p-3 border border-[#F5F0E8] flex gap-3 items-start">
+                  {/* Miniature reçu */}
+                  {v.recu_url ? (
+                    <a href={v.recu_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <img src={v.recu_url} alt="Reçu" className="w-10 h-10 rounded-lg object-cover border border-[#E8E0D0]" />
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-[#F5F0E8] flex items-center justify-center text-lg shrink-0">🧾</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-[#1A1A1A]">{formatFCFA(v.montant)}</span>
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0"
+                        style={{
+                          background: v.statut === 'confirme' ? '#7C9A7E22' : '#C9A84C22',
+                          color: v.statut === 'confirme' ? '#7C9A7E' : '#C9A84C',
+                        }}
+                      >
+                        {v.statut === 'confirme' ? 'Confirmé' : 'Déclaré'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#888] mt-0.5">
+                      {MODE_LABELS[v.mode ?? 'autre'] ?? v.mode} · {v.date ?? '—'}
+                    </p>
+                    {v.note && <p className="text-[10px] text-[#555] mt-0.5 truncate">{v.note}</p>}
+                  </div>
+                  {v.statut === 'declare' && (
+                    <button
+                      onClick={() => handleConfirmerVersement(v.id)}
+                      disabled={confirming === v.id}
+                      className="shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+                      style={{ background: '#7C9A7E' }}
+                    >
+                      {confirming === v.id ? '…' : '✅ Confirmer'}
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {/* Résumé */}
+              <div className="pt-2 border-t border-[#F5F0E8]">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#888]">Total versé</span>
+                  <span className="font-semibold">{formatFCFA(versementsLibres.reduce((s, v) => s + v.montant, 0))}</span>
+                </div>
+                <div className="flex justify-between text-xs mt-0.5">
+                  <span className="text-[#888]">Confirmé</span>
+                  <span className="font-semibold text-[#7C9A7E]">{formatFCFA(versementsLibres.filter(v => v.statut === 'confirme').reduce((s, v) => s + v.montant, 0))}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

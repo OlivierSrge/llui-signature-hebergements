@@ -30,12 +30,28 @@ const CATEGORIES = [
 
 interface BudgetCat { [key: string]: number }
 
+const CAT_COLORS: Record<string, string> = {
+  traiteur:          '#E8744A',
+  hebergement:       '#4A90D9',
+  decoration:        '#C96FB0',
+  photographie:      '#7C9A7E',
+  beaute:            '#D4A5C9',
+  technique:         '#5B6FA6',
+  musique:           '#F0A500',
+  maitre_ceremonies: '#A0522D',
+  transport:         '#6B8E8E',
+  cadeaux:           '#E74C3C',
+  vins:              '#8E44AD',
+  autres:            '#888888',
+}
+
 export default function ParametresPage() {
   const [uid] = useState(() => getUid())
   const identity = useClientIdentity()
   const [nbInvites, setNbInvites] = useState('')
   const [budgetGlobal, setBudgetGlobal] = useState('')
   const [cats, setCats] = useState<BudgetCat>({})
+  const [budgetReel, setBudgetReel] = useState<BudgetCat>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
@@ -57,6 +73,11 @@ export default function ParametresPage() {
       .then(d => {
         if (d.budget_categories) setCats(d.budget_categories)
       })
+      .catch(() => {})
+    // Charger budget réel (depuis prestataires)
+    fetch('/api/portail/budget-reel')
+      .then(r => r.json())
+      .then(d => { if (d.budget_reel) setBudgetReel(d.budget_reel) })
       .catch(() => {})
   }, [uid])
 
@@ -214,6 +235,86 @@ export default function ParametresPage() {
           {saving ? 'Enregistrement…' : '✓ Enregistrer mes paramètres'}
         </button>
       </form>
+
+      {/* SECTION C — Budget prévisionnel vs réel */}
+      {(Object.keys(cats).length > 0 || Object.keys(budgetReel).length > 0) && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+          <p className="font-semibold text-sm text-[#1A1A1A] mb-1">C — Prévisionnel vs Réel</p>
+          <p className="text-xs text-[#888] mb-4">Comparaison par catégorie · Or = prévisionnel · Couleur = engagé</p>
+
+          {/* Légende */}
+          <div className="flex gap-4 mb-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#C9A84C' }} />
+              <span className="text-[11px] text-[#888]">Prévisionnel</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#4A90D9' }} />
+              <span className="text-[11px] text-[#888]">Réel engagé</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {CATEGORIES.map(cat => {
+              const prev = Number(cats[cat.key]) || 0
+              const reel = Number(budgetReel[cat.key]) || 0
+              if (prev === 0 && reel === 0) return null
+              const maxVal = Math.max(prev, reel, 1)
+              const prevPct = Math.min(100, (prev / maxVal) * 100)
+              const reelPct = Math.min(100, (reel / maxVal) * 100)
+              const isOver = reel > prev * 1.10 && prev > 0
+              const catColor = CAT_COLORS[cat.key] ?? '#888'
+
+              return (
+                <div key={cat.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-[#1A1A1A] font-medium">{cat.label}</span>
+                    {isOver && (
+                      <span className="text-[10px] text-red-600 font-medium">
+                        ⚠️ +{fmt(Math.round(((reel / prev) - 1) * 100))}%
+                      </span>
+                    )}
+                  </div>
+                  {/* Double barre */}
+                  <div className="space-y-1">
+                    {prev > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-14 text-right text-[10px] text-[#888] shrink-0">{fmt(prev)}</div>
+                        <div className="flex-1 bg-[#F5F0E8] rounded-full h-2 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${prevPct}%`, background: '#C9A84C' }} />
+                        </div>
+                      </div>
+                    )}
+                    {reel > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-14 text-right text-[10px] shrink-0" style={{ color: isOver ? '#C0392B' : catColor }}>
+                          {fmt(reel)}
+                        </div>
+                        <div className="flex-1 bg-[#F5F0E8] rounded-full h-2 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${reelPct}%`, background: isOver ? '#C0392B' : catColor }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {isOver && (
+                    <p className="text-[10px] text-red-600 mt-0.5">
+                      Dépassement de {fmt(reel - prev)} FCFA ({fmt(Math.round(((reel / prev) - 1) * 100))}% au-dessus de l&apos;estimation)
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Totaux */}
+          <div className="mt-4 pt-3 border-t border-[#F5F0E8] flex justify-between text-xs">
+            <span className="text-[#888]">Total prévisionnel : <strong className="text-[#C9A84C]">{fmt(totalAlloue)} FCFA</strong></span>
+            <span className="text-[#888]">Total réel : <strong style={{ color: Object.values(budgetReel).reduce((s, v) => s + v, 0) > totalAlloue ? '#C0392B' : '#1A1A1A' }}>
+              {fmt(Object.values(budgetReel).reduce((s, v) => s + v, 0))} FCFA
+            </strong></span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
