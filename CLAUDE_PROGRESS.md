@@ -1,5 +1,31 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-19 — Patch Fast Start terminé (5 étapes)
+Dernière mise à jour : 2026-03-22 — P7-B Code Privilège partage viral terminé (4 étapes)
+
+---
+
+## P7-B — CODE PRIVILÈGE PARTAGE VIRAL — TERMINÉ (2026-03-22)
+
+RÈGLE ABSOLUE : "L'admin initialise, Firestore stocke, le portail affiche."
+
+### Étapes complétées
+- ✅ **Étape 1** — Bouton "Copier le lien" + bouton "Partager sur WhatsApp" dans `CardCodePromo.tsx`
+  - Commit : `833ed8a`
+- ✅ **Étape 2** — QR Code 256×256px via `qrcode` + modale + téléchargement PNG
+  - `components/portail/CodePartage.tsx` (créé)
+  - Commit : `0afce3f`
+- ✅ **Étape 3** — Envoi groupé WhatsApp invités
+  - Modale : liste invités (invites_guests subcollection), cases à cocher, message pré-rédigé éditable, max 50
+  - API : `app/api/portail/envoyer-invitations/route.ts` — Twilio WhatsApp personnalisé, marque invitation_envoyee=true
+  - Commit : `a56f2f6`
+- ✅ **Étape 4** — Stats partage sous les boutons : invités contactés, commandés, taux conversion
+  - Commit : `190e3ef`
+
+### Fichiers modifiés / créés
+- `components/portail/CodePartage.tsx` — QR Code + envoi groupé + stats
+- `components/portail/dashboard/CardCodePromo.tsx` — intégration CodePartage
+- `app/api/portail/envoyer-invitations/route.ts` — API envoi groupé Twilio
+
+---
 
 ---
 

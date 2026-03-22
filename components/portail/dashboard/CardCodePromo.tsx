@@ -2,6 +2,7 @@
 // components/portail/dashboard/CardCodePromo.tsx — Card code promo marié + partage viral
 
 import { useState } from 'react'
+import CodePartage from '@/components/portail/CodePartage'
 
 interface Props {
   code: string
@@ -60,8 +61,8 @@ export default function CardCodePromo({ code, uid }: Props) {
         Chaque achat avec ce code vous rapporte des REV.
       </p>
 
-      {/* Boutons de partage */}
-      <div className="flex gap-2 mb-3">
+      {/* Boutons de partage — ligne 1 : Copier lien + WhatsApp */}
+      <div className="flex gap-2 mb-2">
         <button
           onClick={copierLien}
           className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[#F5F0E8]/10 border border-[#F5F0E8]/20 text-[#F5F0E8] text-sm font-semibold rounded-xl hover:bg-[#F5F0E8]/20 transition-colors"
@@ -79,6 +80,9 @@ export default function CardCodePromo({ code, uid }: Props) {
           <span>WhatsApp</span>
         </a>
       </div>
+
+      {/* Boutons de partage — ligne 2 : QR Code + Envoyer à mes invités */}
+      <CodePartage code={code} uid={uid} />
 
       <a href={lienPartage} target="_blank" rel="noopener noreferrer"
         className="block text-center text-xs text-[#C9A84C] hover:underline">
