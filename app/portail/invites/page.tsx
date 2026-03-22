@@ -69,14 +69,27 @@ export default function InvitesPage() {
   const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // invites-stats retourne maintenant : guests (enrichis), invites (dots), stats
+  const load = () =>
+    fetch('/api/portail/invites-stats')
+      .then(r => r.json())
+      .then(d => {
+        setGuests(d.guests ?? [])
+        setMainInvites(d.invites ?? [])
+      })
+      .catch(() => {})
+
+  // Conserver aussi le fetch direct /invites pour les opérations d'écriture (reload après ajout/suppression)
   const loadMainInvites = () =>
     fetch('/api/portail/invites-stats')
       .then(r => r.json())
-      .then(d => setMainInvites(d.invites ?? []))
+      .then(d => {
+        setGuests(d.guests ?? [])
+        setMainInvites(d.invites ?? [])
+      })
       .catch(() => {})
 
-  const load = () => fetch('/api/portail/invites').then(r => r.json()).then(d => setGuests(d.guests ?? []))
-  useEffect(() => { if (uid) { load(); loadMainInvites() } }, [uid])
+  useEffect(() => { if (uid) { load() } }, [uid])
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
   const handleTelChange = (v: string) => { setTelephone(v); setTelError(v && !validateTelephoneCM(v) ? 'Format attendu : +237XXXXXXXXX' : '') }
