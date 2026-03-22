@@ -23,10 +23,12 @@ async function getUserData(): Promise<UserPortailData | null> {
     const snap = await db.collection('portail_users').doc(uid).get()
     if (!snap.exists) return null
     const data = snap.data()!
-    const prevus = data.projet?.nombre_invites_prevu ?? 0
-    const confirmes = data.invites_confirmes ?? 0
-    const declines = data.invites_declines ?? 0
-    const invitesCount = Math.max(0, prevus - confirmes - declines)
+    // CORRECTION 3 — badge basé sur invites[] array réel (pas sur prevus - confirmes)
+    // Évite le "99+" quand nombre_invites_prevu est grand mais aucune invitation envoyée
+    const invitesList = (data.invites as Array<{ statut?: string }> | undefined) ?? []
+    const invitesCount = invitesList.filter(
+      i => i.statut && i.statut !== 'confirme' && i.statut !== 'decline' && i.statut !== 'declined'
+    ).length
     const noms_maries = data.noms_maries || data.displayName || ''
     return {
       uid,

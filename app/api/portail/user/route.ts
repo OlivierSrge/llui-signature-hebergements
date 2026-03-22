@@ -18,7 +18,8 @@ export async function GET(req: Request) {
     if (!snap.exists) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
 
     const d = snap.data()!
-    const dateTs = d.projet?.date_evenement ?? d.date_evenement
+    // CORRECTION 1 — chercher date dans les 3 emplacements possibles (nouveau → ancien)
+    const dateTs = d.date_mariage ?? d.projet?.date_evenement ?? d.date_evenement
     const dateISO = dateTs?.toDate ? dateTs.toDate().toISOString() : (typeof dateTs === 'string' ? dateTs : null)
     const nomsMaries = d.noms_maries ?? d.displayName ?? ''
 
@@ -39,9 +40,10 @@ export async function GET(req: Request) {
       wallet_credits: d.wallets?.credits_services ?? 0,
       invites_confirmes: d.invites_confirmes ?? 0,
       date_evenement: dateISO,
-      lieu: d.projet?.lieu ?? d.lieu ?? '',
-      budget_previsionnel: d.projet?.budget_previsionnel ?? d.budget_previsionnel ?? 0,
-      nombre_invites_prevu: d.projet?.nombre_invites_prevu ?? d.nombre_invites_prevu ?? 0,
+      lieu: d.lieu ?? d.projet?.lieu ?? '',
+      // Chercher dans tous les emplacements (nouveau structure → ancien)
+      budget_previsionnel: d.budget_total ?? d.projet?.budget_previsionnel ?? d.budget_previsionnel ?? 0,
+      nombre_invites_prevu: d.nb_invites_prevus ?? d.projet?.nombre_invites_prevu ?? d.nombre_invites_prevu ?? 0,
       code_promo: codePromo,
     })
   } catch (err) {

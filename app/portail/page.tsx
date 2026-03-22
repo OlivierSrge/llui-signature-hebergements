@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getDb } from '@/lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
 import HeroCTA from '@/components/portail/dashboard/HeroCTA'
 import StatsDashboard from '@/components/portail/dashboard/StatsDashboard'
 import ActionsDashboard from '@/components/portail/dashboard/ActionsDashboard'
@@ -11,8 +12,9 @@ import SaisieHebergement from '@/components/portail/dashboard/SaisieHebergement'
 import CardCodePromo from '@/components/portail/dashboard/CardCodePromo'
 import ReservationsHebergement from '@/components/portail/dashboard/ReservationsHebergement'
 import AchatsBoutiqueInvites from '@/components/portail/dashboard/AchatsBoutiqueInvites'
-import AdminBandeau from '@/components/portail/dashboard/AdminBandeau'
 import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsBoutiqueInvites'
+
+// Note : le bandeau admin est géré par portail/layout.tsx (AdminBandeau + cookie admin_view)
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +35,6 @@ async function getData() {
   try {
     const uid = cookies().get('portail_uid')?.value
     if (!uid) redirect('/portail/login')
-    const adminView = cookies().get('admin_view')?.value ?? ''
     const db = getDb()
     const [snap, todosSnap] = await Promise.all([
       db.collection('portail_users').doc(uid).get(),
@@ -42,7 +43,7 @@ async function getData() {
     if (!snap.exists) redirect('/portail/login')
     const d = snap.data()!
 
-    const todos: Todo[] = todosSnap.docs.map(doc => {
+    let todos: Todo[] = todosSnap.docs.map(doc => {
       const td = doc.data()
       const dlTs = td.date_limite
       const dlISO = dlTs?.toDate ? dlTs.toDate().toISOString() : (typeof dlTs === 'string' ? dlTs : null)
@@ -95,13 +96,39 @@ async function getData() {
       ? { date: boutiqueTransactions[0].date, produit: boutiqueTransactions[0].produit, montant: boutiqueTransactions[0].montant_final }
       : null
 
-    // --- Nouveaux champs depuis le document principal ---
+    // --- Champs enrichis depuis le document principal ---
 
     // BLOC 7 — Prestataires (template admin ou vide)
     const prestataires: Prestataire[] = (d.prestataires as Prestataire[] | undefined) ?? []
 
-    // BLOC 9 — Tâches template (pour affichage dashboard si todos subcollection vide)
+    // BLOC 9 / CORRECTION 2 — Tâches template depuis mariés/[uid].taches[]
     const tachesDoc: TacheDoc[] = (d.taches as TacheDoc[] | undefined) ?? []
+
+    // CORRECTION 2 — Si todos subcollection vide, seeder depuis taches[] du doc principal (migration auto)
+    if (todos.length === 0 && tachesDoc.length > 0) {
+      try {
+        const revMap: Record<string, number> = { haute: 50, moyenne: 30, basse: 20 }
+        const batch = db.batch()
+        for (const t of tachesDoc) {
+          const ref = db.collection('portail_users').doc(uid).collection('todos').doc()
+          batch.set(ref, {
+            libelle: t.titre,
+            done: t.statut === 'done',
+            priorite: t.priorite,
+            rev: revMap[t.priorite] ?? 20,
+            created_at: FieldValue.serverTimestamp(),
+          })
+        }
+        await batch.commit()
+        // Relire les todos fraîchement seedés
+        const newSnap = await db.collection('portail_users').doc(uid)
+          .collection('todos').orderBy('created_at', 'asc').limit(20).get()
+        todos = newSnap.docs.map(doc => {
+          const td = doc.data()
+          return { id: doc.id, libelle: td.libelle ?? '', done: false, date_limite: null, rev: td.rev ?? 0, priorite: td.priorite ?? 'basse' }
+        })
+      } catch { /* best-effort migration */ }
+    }
 
     // BLOC 10 — Budget catégories
     const budgetCategories: BudgetCategories = (d.budget_categories as BudgetCategories | undefined) ?? {
@@ -121,7 +148,7 @@ async function getData() {
     const todosDone = todos.filter(t => t.done).length
     const todosTotal = todos.length
 
-    // Progression globale = tâches done + invités confirmés vs prévus
+    // Progression depuis taches[] du doc pour les stats (si todos vide, utiliser tachesDoc)
     const tachesDoneTpl = tachesDoc.filter(t => t.statut === 'done').length
     const tachesTotalTpl = tachesDoc.length
 
@@ -138,7 +165,6 @@ async function getData() {
       boutiqueTransactions,
       nbCommandesInvites: boutiqueTransactions.length,
       derniereCommande: derniere,
-      // Nouveaux
       prestataires,
       tachesDoc,
       tachesDoneTpl,
@@ -148,7 +174,6 @@ async function getData() {
       versements,
       invitesConfirmesFirestore,
       nbInvitesPrevus,
-      adminView,
     }
   } catch { redirect('/portail/login') }
 }
@@ -164,19 +189,15 @@ export default async function PortailPage() {
   ].filter((v): v is NonNullable<typeof v> => v !== null)
 
   const hasVersements = versementsArray.length > 0 && data.budgetTotal > 0
+  // Compteur pour les stats — préfère les todos seedés, sinon tachesDoc
+  const displayDone = data.todosDone > 0 ? data.todosDone : data.tachesDoneTpl
+  const displayTotal = data.todosTotal > 0 ? data.todosTotal : data.tachesTotalTpl
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      {/* BANDEAU ADMIN — visible uniquement en mode impersonation */}
-      <AdminBandeau nomsMaries={data.adminView} />
-
-      {/* BLOC 1 — Hero countdown (lit date_mariage + noms via useClientIdentity) */}
+      {/* BLOC 1 — Hero countdown (noms + jours via useClientIdentity → /api/portail/user) */}
       {/* BLOC 2 — CTA Boutique/Hébergements */}
-      <HeroCTA
-        uid={data.uid}
-        todosDone={data.todosDone > 0 ? data.todosDone : data.tachesDoneTpl}
-        todosTotal={data.todosTotal > 0 ? data.todosTotal : data.tachesTotalTpl}
-      />
+      <HeroCTA uid={data.uid} todosDone={displayDone} todosTotal={displayTotal} />
 
       {/* BLOC 2 — Code privilège */}
       <CardCodePromo code={data.codePromo} uid={data.uid} />
@@ -184,8 +205,8 @@ export default async function PortailPage() {
       {/* BLOCS 3, 4, 5, 9 — Stats + Budget + Cagnotte + Invités */}
       <StatsDashboard
         uid={data.uid}
-        todosDone={data.todosDone > 0 ? data.todosDone : data.tachesDoneTpl}
-        todosTotal={data.todosTotal > 0 ? data.todosTotal : data.tachesTotalTpl}
+        todosDone={displayDone}
+        todosTotal={displayTotal}
         walletCash={data.walletCash}
         walletCredits={data.walletCredits}
         nbCommandesInvites={data.nbCommandesInvites}
