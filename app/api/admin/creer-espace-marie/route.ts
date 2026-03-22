@@ -88,11 +88,69 @@ export async function POST(req: Request) {
     const deadline60 = new Date(now); deadline60.setDate(now.getDate() + 60)
     const deadline90 = new Date(now); deadline90.setDate(now.getDate() + 90)
 
+    const dateMariageTs = Timestamp.fromDate(new Date(date_mariage))
+    const v1Montant = Math.round(budget_previsionnel * 0.3)
+    const v2Montant = Math.round(budget_previsionnel * 0.4)
+    const v3Montant = Math.round(budget_previsionnel * 0.3)
+
+    const TACHES_TEMPLATE = [
+      { titre: 'Confirmer le lieu de réception', statut: 'todo', priorite: 'haute' },
+      { titre: 'Signer le contrat traiteur', statut: 'todo', priorite: 'haute' },
+      { titre: 'Finaliser la liste des invités', statut: 'todo', priorite: 'moyenne' },
+      { titre: 'Choisir les hébergements', statut: 'todo', priorite: 'moyenne' },
+      { titre: 'Envoyer les invitations', statut: 'todo', priorite: 'basse' },
+    ]
+
     await db.collection('portail_users').doc(uid).set({
-      uid, role: 'MARIÉ', noms_maries, whatsapp,
-      grade: 'START', rev_lifetime: 0,
+      uid,
+      marie_uid: uid,
+      role: 'MARIÉ',
+      noms_maries,
+      whatsapp,
+      grade: 'START',
+      rev_lifetime: 0,
       code_promo: code,
+
+      // Identité mariage
+      date_mariage: dateMariageTs,
+      lieu,
+
+      // Financier
+      budget_total: budget_previsionnel,
+      budget_categories: {
+        traiteur: 0,
+        decoration: 0,
+        hebergement: 0,
+        beaute: 0,
+        photographie: 0,
+        autres: 0,
+      },
+      cagnotte_cash: 0,
+      cagnotte_credits: 0,
       wallets: { cash: 0, credits_services: 0 },
+
+      // Versements 30/40/30
+      versements: {
+        v1: { label: 'Acompte 30%', montant: v1Montant, statut: 'en_attente' },
+        v2: { label: 'Versement 40%', montant: v2Montant, statut: 'en_attente' },
+        v3: { label: 'Solde 30%', montant: v3Montant, statut: 'en_attente' },
+      },
+
+      // Prestataires (template)
+      prestataires: [
+        { nom: 'L&Lui Signature', statut: 'confirme', type: 'wedding_planner' },
+        { nom: 'Photographe', statut: 'a_confirmer', type: 'photo' },
+        { nom: 'Traiteur', statut: 'a_confirmer', type: 'traiteur' },
+      ],
+
+      // Invités
+      nb_invites_prevus: nombre_invites_prevu,
+      invites_confirmes: 0,
+      invites: [],
+
+      // Tâches (template admin — pour référence et dashboard)
+      taches: TACHES_TEMPLATE,
+
       fast_start: {
         enrolled_at: Timestamp.fromDate(now),
         deadline_30j: Timestamp.fromDate(deadline30),
@@ -101,13 +159,32 @@ export async function POST(req: Request) {
       },
       projet: {
         nom: `Mariage ${noms_maries}`,
-        date_evenement: Timestamp.fromDate(new Date(date_mariage)),
-        lieu, budget_previsionnel, nombre_invites_prevu,
+        date_evenement: dateMariageTs,
+        lieu,
+        budget_previsionnel,
+        nombre_invites_prevu,
       },
-      invites_confirmes: 0, actif: true,
+
+      actif: true,
+      derniere_connexion: null,
       created_at: FieldValue.serverTimestamp(),
       created_by: 'admin',
     })
+
+    // Seeder la sous-collection todos depuis le template (tâches interactives portail)
+    const TODOS_SEED = [
+      { libelle: 'Confirmer le lieu de réception', done: false, rev: 50, priorite: 'haute' },
+      { libelle: 'Signer le contrat traiteur', done: false, rev: 50, priorite: 'haute' },
+      { libelle: 'Finaliser la liste des invités', done: false, rev: 30, priorite: 'moyenne' },
+      { libelle: 'Choisir les hébergements', done: false, rev: 30, priorite: 'moyenne' },
+      { libelle: 'Envoyer les invitations', done: false, rev: 20, priorite: 'basse' },
+    ]
+    const batch = db.batch()
+    for (const t of TODOS_SEED) {
+      const ref = db.collection('portail_users').doc(uid).collection('todos').doc()
+      batch.set(ref, { ...t, created_at: FieldValue.serverTimestamp() })
+    }
+    await batch.commit()
 
     // ÉTAPE E — Écrire dans codes_promos
     await db.collection('codes_promos').doc(code).set({

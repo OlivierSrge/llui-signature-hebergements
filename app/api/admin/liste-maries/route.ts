@@ -31,16 +31,23 @@ export async function GET() {
 
     const maries = snap.docs.map(doc => {
       const d = doc.data()
-      const dateTs = d.projet?.date_evenement
+      // Support both old (projet.date_evenement) and new (date_mariage) structure
+      const dateTs = d.date_mariage ?? d.projet?.date_evenement
       const dateISO = dateTs?.toDate ? dateTs.toDate().toISOString().slice(0, 10)
         : typeof dateTs === 'string' ? dateTs : ''
+      const budgetTotal = (d.budget_total as number) ?? (d.projet?.budget_previsionnel as number) ?? 0
+      const versements = (d.versements as Record<string, unknown>) ?? null
       return {
         uid: doc.id,
         noms_maries: (d.noms_maries as string) || '',
         code: (d.code_promo as string) || '',
         date_mariage: dateISO,
-        lieu: (d.projet?.lieu as string) || '',
-        cagnotte_cash: (d.wallets?.cash as number) || 0,
+        lieu: (d.lieu as string) || (d.projet?.lieu as string) || '',
+        cagnotte_cash: (d.wallets?.cash as number) ?? (d.cagnotte_cash as number) ?? 0,
+        cagnotte_credits: (d.wallets?.credits_services as number) ?? (d.cagnotte_credits as number) ?? 0,
+        budget_total: budgetTotal,
+        nb_invites_prevus: (d.nb_invites_prevus as number) ?? (d.projet?.nombre_invites_prevu as number) ?? 0,
+        versements,
         actif: (d.actif as boolean) ?? true,
       }
     })
