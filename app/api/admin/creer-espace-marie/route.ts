@@ -94,11 +94,14 @@ export async function POST(req: Request) {
     const v3Montant = Math.round(budget_previsionnel * 0.3)
 
     const TACHES_TEMPLATE = [
-      { titre: 'Confirmer le lieu de réception', statut: 'todo', priorite: 'haute' },
-      { titre: 'Signer le contrat traiteur', statut: 'todo', priorite: 'haute' },
-      { titre: 'Finaliser la liste des invités', statut: 'todo', priorite: 'moyenne' },
-      { titre: 'Choisir les hébergements', statut: 'todo', priorite: 'moyenne' },
-      { titre: 'Envoyer les invitations', statut: 'todo', priorite: 'basse' },
+      { id: 1, titre: 'Confirmer le lieu de réception',    statut: 'todo', priorite: 'haute',   categorie: 'logistique' },
+      { id: 2, titre: 'Signer le contrat traiteur',        statut: 'todo', priorite: 'haute',   categorie: 'traiteur'   },
+      { id: 3, titre: 'Finaliser la liste des invités',    statut: 'todo', priorite: 'haute',   categorie: 'invites'    },
+      { id: 4, titre: 'Partager mon code avec les invités',statut: 'todo', priorite: 'haute',   categorie: 'cagnotte'   },
+      { id: 5, titre: 'Choisir les hébergements',          statut: 'todo', priorite: 'moyenne', categorie: 'hebergement'},
+      { id: 6, titre: 'Confirmer le photographe',          statut: 'todo', priorite: 'moyenne', categorie: 'photo'      },
+      { id: 7, titre: 'Envoyer les invitations',           statut: 'todo', priorite: 'basse',   categorie: 'invites'    },
+      { id: 8, titre: 'Préparer le plan de table',         statut: 'todo', priorite: 'basse',   categorie: 'logistique' },
     ]
 
     await db.collection('portail_users').doc(uid).set({
@@ -173,11 +176,14 @@ export async function POST(req: Request) {
 
     // Seeder la sous-collection todos depuis le template (tâches interactives portail)
     const TODOS_SEED = [
-      { libelle: 'Confirmer le lieu de réception', done: false, rev: 50, priorite: 'haute' },
-      { libelle: 'Signer le contrat traiteur', done: false, rev: 50, priorite: 'haute' },
-      { libelle: 'Finaliser la liste des invités', done: false, rev: 30, priorite: 'moyenne' },
-      { libelle: 'Choisir les hébergements', done: false, rev: 30, priorite: 'moyenne' },
-      { libelle: 'Envoyer les invitations', done: false, rev: 20, priorite: 'basse' },
+      { libelle: 'Confirmer le lieu de réception',     done: false, rev: 50, priorite: 'haute',   categorie: 'logistique'  },
+      { libelle: 'Signer le contrat traiteur',         done: false, rev: 50, priorite: 'haute',   categorie: 'traiteur'    },
+      { libelle: 'Finaliser la liste des invités',     done: false, rev: 50, priorite: 'haute',   categorie: 'invites'     },
+      { libelle: 'Partager mon code avec les invités', done: false, rev: 50, priorite: 'haute',   categorie: 'cagnotte'    },
+      { libelle: 'Choisir les hébergements',           done: false, rev: 30, priorite: 'moyenne', categorie: 'hebergement' },
+      { libelle: 'Confirmer le photographe',           done: false, rev: 30, priorite: 'moyenne', categorie: 'photo'       },
+      { libelle: 'Envoyer les invitations',            done: false, rev: 20, priorite: 'basse',   categorie: 'invites'     },
+      { libelle: 'Préparer le plan de table',          done: false, rev: 20, priorite: 'basse',   categorie: 'logistique'  },
     ]
     const batch = db.batch()
     for (const t of TODOS_SEED) {
