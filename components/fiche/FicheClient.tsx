@@ -1,11 +1,11 @@
 'use client'
-// app/fiche/[marie_uid]/FicheClient.tsx — Client Component
-// Reçoit toutes les données depuis le Server Component (page.tsx)
-// Gère : QR code, PDF, UI interactive
+// components/fiche/FicheClient.tsx — Client Component fiche invitation
+// Déplacé hors de app/fiche/[marie_uid]/ pour éviter l'ambiguïté webpack
+// sur les chemins contenant des crochets ([marie_uid])
 
 import { useState, useEffect } from 'react'
 
-interface Props {
+export interface FicheClientProps {
   marie_uid: string
   noms_maries: string
   date_mariage: string
@@ -25,20 +25,20 @@ function formatDate(iso: string): string {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
-export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu, code, prenom }: Props) {
+export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu, code, prenom }: FicheClientProps) {
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
 
   const boutiqueUrl = `https://l-et-lui-signature.com?code=${code}`
   const hebergUrl = `${APP_URL}/hebergements?code=${code}`
-  // URL de la fiche elle-même (pour QR code + partage)
+  // URL de la fiche elle-même (QR code + partage)
   const ficheUrl = marie_uid
     ? `${APP_URL}/invite/${marie_uid}?prenom=${encodeURIComponent(prenom)}&code=${encodeURIComponent(code)}`
     : boutiqueUrl
 
-  // Générer QR code côté client — encode l'URL de la fiche personnalisée
+  // QR code généré côté client uniquement (useEffect = pas de SSR)
   useEffect(() => {
-    if (!code && !marie_uid) return
+    if (!ficheUrl) return
     import('qrcode').then(QRCode => {
       QRCode.toDataURL(ficheUrl, {
         width: 160, margin: 2,
@@ -50,6 +50,7 @@ export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
     try {
+      // jsPDF importé dynamiquement — côté client uniquement
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' })
       const W = 148, H = 210
@@ -137,7 +138,7 @@ export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu
         yPos += qrSize + 5
         doc.setTextColor(180, 165, 130)
         doc.setFontSize(6.5)
-        doc.text('Scannez pour accéder à la boutique', W / 2, yPos, { align: 'center' })
+        doc.text('Scannez pour accéder à la fiche', W / 2, yPos, { align: 'center' })
         yPos += 10
       }
 
@@ -217,10 +218,10 @@ export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu
           {qrDataUrl && (
             <div className="flex flex-col items-center mt-5">
               <div className="rounded-xl p-3" style={{ background: '#F5F0E8' }}>
-                <img src={qrDataUrl} alt="QR Code boutique" width={120} height={120} />
+                <img src={qrDataUrl} alt="QR Code invitation" width={120} height={120} />
               </div>
               <p className="text-[10px] mt-2" style={{ color: 'rgba(245,240,232,0.3)' }}>
-                Scannez pour accéder à la boutique
+                Scannez pour accéder à votre invitation
               </p>
             </div>
           )}

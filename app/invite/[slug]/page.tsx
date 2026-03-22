@@ -5,7 +5,7 @@
 import { getDb } from '@/lib/firebase'
 import { generateCodePromo } from '@/lib/generatePromoCode'
 import InviteClient from './InviteClient'
-import FicheClient from '@/app/fiche/[marie_uid]/FicheClient'
+import FicheClient from '@/components/fiche/FicheClient'
 
 export const dynamic = 'force-dynamic'
 
