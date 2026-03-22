@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { syncCommandes } from '@/app/api/cron/sync-boutique/route'
+import { syncCommandes } from '@/lib/syncBoutique'
 
 export const dynamic = 'force-dynamic'
 
