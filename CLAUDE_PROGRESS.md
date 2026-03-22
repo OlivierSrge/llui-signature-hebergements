@@ -1,9 +1,32 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P8-B Fiche invitation invité (en cours)
+Dernière mise à jour : 2026-03-22 — P8-B fix erreur serveur fiche (commit c30ad9a)
 
 ---
 
-## P8-B — FICHE INVITATION PERSONNALISÉE INVITÉ — EN COURS (2026-03-22)
+## FIX ERREUR SERVEUR — /fiche/[marie_uid] — TERMINÉ (2026-03-22)
+
+### Problème
+`app/fiche/[marie_uid]/page.tsx` était `'use client'` avec `useSearchParams()` au niveau page → **interdit en Next.js 14** hors Suspense, cause "Application error: a server-side exception".
+
+### Cause racine (Next.js 14 rule)
+- Page `'use client'` + `useSearchParams()` = rendu client-side pur
+- Next.js 14 tente un pre-render SSR sur ces pages → échoue avec Digest error
+- Fix : pattern Server Component (`params`/`searchParams` comme props) + Client Component séparé
+
+### Corrections (commit `c30ad9a`)
+- **`app/fiche/[marie_uid]/page.tsx`** : converti en `async` Server Component
+  - Props typées : `{ params: { marie_uid }, searchParams: { prenom?, code? } }` ✅
+  - Fetch Firestore direct côté serveur (supprime le fetch client vers `/api/invite/`)
+  - Passe données + prenom + code à `FicheClient` comme props
+- **`app/fiche/[marie_uid]/FicheClient.tsx`** : créé, `'use client'`
+  - Reçoit tout en props (zéro `useSearchParams`/`useParams`)
+  - Gère QR code, PDF jsPDF, UI interactive
+- **`app/invite/[slug]/page.tsx`** : try/catch autour de `getData()`
+  - Évite "Application error" si Firestore échoue (index manquant, credentials)
+
+---
+
+## P8-B — FICHE INVITATION PERSONNALISÉE INVITÉ — TERMINÉ (2026-03-22)
 
 ### Étapes complétées
 - ✅ **Étape 1** — Page fiche invité + API publique (commit `709cf2f`)
