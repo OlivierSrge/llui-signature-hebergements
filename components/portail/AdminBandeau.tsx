@@ -5,6 +5,10 @@ interface Props { nomsMaries: string }
 
 export default function AdminBandeau({ nomsMaries }: Props) {
   async function quitter() {
+    // Nettoyage localStorage (posé au démarrage de l'impersonation)
+    localStorage.removeItem('admin_view')
+    localStorage.removeItem('admin_marie_uid')
+    localStorage.removeItem('admin_marie_noms')
     await fetch('/api/admin/quitter-impersonation', { method: 'POST' })
     window.location.href = '/admin/ecosysteme'
   }
