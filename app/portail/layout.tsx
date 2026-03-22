@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { getDb } from '@/lib/firebase'
 import PortailTopBar from '@/components/portail/PortailTopBar'
 import PortailNav from '@/components/portail/PortailNav'
+import AdminBandeau from '@/components/portail/AdminBandeau'
 import type { PortailGrade } from '@/lib/portailGrades'
 
 interface UserPortailData {
@@ -41,6 +42,9 @@ async function getUserData(): Promise<UserPortailData | null> {
 }
 
 export default async function PortailLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = cookies()
+  const adminView = cookieStore.get('admin_view')?.value || null
+
   const user = await getUserData()
   // Si pas d'utilisateur, le middleware a déjà redirigé vers /portail/login.
   // On rend juste {children} sans nav (cas : page login elle-même).
@@ -49,6 +53,8 @@ export default async function PortailLayout({ children }: { children: React.Reac
   }
   return (
     <div className="min-h-screen bg-[#F5F0E8]">
+      {/* Bandeau mode admin — décalage supplémentaire quand actif */}
+      {adminView && <AdminBandeau nomsMaries={adminView} />}
       <PortailTopBar
         uid={user.uid}
         grade={user.grade}
@@ -58,7 +64,10 @@ export default async function PortailLayout({ children }: { children: React.Reac
       />
       <PortailNav uid={user.uid} invitesCount={user.invitesCount} />
       {/* pt-16 header mobile / pt-[104px] header+nav desktop — pb-16 bottom nav mobile */}
-      <main className="pt-16 md:pt-[104px] pb-16 md:pb-0">{children}</main>
+      {/* Quand bandeau admin : +10 de padding-top (bandeau = ~40px) */}
+      <main className={`pb-16 md:pb-0 ${adminView ? 'pt-26 md:pt-[144px]' : 'pt-16 md:pt-[104px]'}`}>
+        {children}
+      </main>
     </div>
   )
 }
