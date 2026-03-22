@@ -69,6 +69,9 @@ export default function InvitesPage() {
   const [csvErrors, setCsvErrors] = useState<string[]>([]); const [csvLoading, setCsvLoading] = useState(false)
   const [sendAllIdx, setSendAllIdx] = useState(0)
   const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null)
+  const [showFicheModal, setShowFicheModal] = useState(false)
+  const [ficheSelection, setFicheSelection] = useState<Set<string>>(new Set())
+  const [ficheEnvoyLoading, setFicheEnvoyLoading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // invites-stats retourne maintenant : guests (enrichis), invites (dots), stats
@@ -199,6 +202,34 @@ export default function InvitesPage() {
     load()
   }
 
+  const handleEnvoyerFichesGroupees = async () => {
+    if (ficheSelection.size === 0) return
+    setFicheEnvoyLoading(true)
+    const invitesSelectionnes = guests
+      .filter(g => ficheSelection.has(g.id))
+      .map(g => ({ id: g.id, tel: g.telephone, prenom: g.nom.split(' ')[0] || g.nom }))
+    try {
+      const res = await fetch('/api/portail/envoyer-fiches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invites: invitesSelectionnes }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        showToast(`✅ ${d.envoyes} fiche(s) envoyée(s)${d.echecs?.length ? ` · ${d.echecs.length} échec(s)` : ''}`)
+        setShowFicheModal(false)
+        setFicheSelection(new Set())
+        load()
+      } else {
+        showToast('Erreur envoi — ' + (d.error ?? 'inconnu'))
+      }
+    } catch {
+      showToast('Erreur réseau')
+    } finally {
+      setFicheEnvoyLoading(false)
+    }
+  }
+
   const filtered = guests
     .filter(g => filtre === 'tous' || (filtre === 'non_envoye' && !g.lien_envoye) || (filtre === 'envoye' && g.lien_envoye && !g.converted) || (filtre === 'converti' && g.converted))
     .filter(g => !search || g.nom.toLowerCase().includes(search.toLowerCase()) || g.telephone.includes(search))
@@ -225,9 +256,77 @@ export default function InvitesPage() {
       {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>}
       {qrGuest && <QrModal guest={qrGuest} onClose={() => setQrGuest(null)} />}
 
+      {/* MODALE ENVOI GROUPÉ FICHES */}
+      {showFicheModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4 pb-4" onClick={() => setShowFicheModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-[#F5F0E8]">
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-semibold text-[#1A1A1A]">📨 Envoyer toutes les fiches</p>
+                <button onClick={() => setShowFicheModal(false)} className="text-[#AAA] text-sm hover:text-[#666]">✕</button>
+              </div>
+              <p className="text-xs text-[#888]">Envoi WhatsApp via Twilio · max 50 par envoi</p>
+            </div>
+
+            <div className="overflow-y-auto max-h-[50vh] p-4 space-y-2">
+              {/* Sélectionner tous */}
+              <button
+                onClick={() => {
+                  const sansFiche = guests.filter(g => !g.fiche_envoyee)
+                  setFicheSelection(new Set(sansFiche.map(g => g.id)))
+                }}
+                className="text-xs text-[#C9A84C] font-semibold mb-1"
+              >
+                Sélectionner tous sans fiche ({guests.filter(g => !g.fiche_envoyee).length})
+              </button>
+
+              {guests.map(g => (
+                <label key={g.id} className="flex items-center gap-3 py-2 border-b border-[#F5F0E8] last:border-0 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ficheSelection.has(g.id)}
+                    onChange={e => {
+                      const s = new Set(ficheSelection)
+                      e.target.checked ? s.add(g.id) : s.delete(g.id)
+                      setFicheSelection(s)
+                    }}
+                    className="w-4 h-4 accent-[#C9A84C]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[#1A1A1A] truncate">{g.nom}</p>
+                    <p className="text-[10px] text-[#888]">{g.telephone}</p>
+                  </div>
+                  {g.fiche_envoyee && <span className="text-[10px] text-[#7C9A7E] flex-shrink-0">🎫 Envoyée</span>}
+                </label>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-[#F5F0E8]">
+              <button
+                onClick={handleEnvoyerFichesGroupees}
+                disabled={ficheEnvoyLoading || ficheSelection.size === 0}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: '#C9A84C' }}
+              >
+                {ficheEnvoyLoading ? '⏳ Envoi en cours…' : `Envoyer ${ficheSelection.size} fiche(s) via WhatsApp`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="font-serif italic text-2xl text-[#1A1A1A]">Mes Invités</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-2 items-center">
+          {guests.length > 0 && (
+            <button
+              onClick={() => setShowFicheModal(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
+              style={{ background: '#C9A84C' }}
+            >
+              📨 Fiches
+            </button>
+          )}
           <a href="/portail/invites/pdf" className="text-xs text-[#C9A84C] hover:underline">📄 PDF →</a>
           <a href="/portail/invites/analytics" className="text-xs text-[#888] hover:underline">Stats →</a>
         </div>
