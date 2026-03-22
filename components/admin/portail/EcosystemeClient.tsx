@@ -12,10 +12,22 @@ interface RapportResult {
   error?: string
 }
 
+interface SyncDetail {
+  marie_uid: string
+  noms_maries: string
+  nb_commandes: number
+  montant_total: number
+}
+
 interface SyncResult {
+  success?: boolean
   synced?: number
   produits_synced?: number
   commandes_synced?: number
+  commandes_traitees?: number
+  nouveaux_maries_credites?: number
+  montant_total_fcfa?: number
+  details?: SyncDetail[]
   categories?: string[]
   errors?: string[]
   error?: string
@@ -49,7 +61,7 @@ export default function EcosystemeClient() {
     setSyncLoading(true)
     setSyncResult(null)
     try {
-      const res = await fetch('/api/cron/sync-boutique')
+      const res = await fetch('/api/admin/sync-maintenant', { method: 'POST' })
       const data = await res.json()
       setSyncResult(data)
     } catch {
@@ -104,16 +116,29 @@ export default function EcosystemeClient() {
               {syncLoading ? 'Synchronisation…' : '🔄 Synchroniser maintenant'}
             </button>
             {syncResult && (
-              <div className={`mt-2 p-3 rounded-xl text-sm ${syncResult.error || (syncResult.errors?.length ?? 0) > 0 ? 'bg-red-50 text-red-700' : 'bg-teal-50 text-teal-800'}`}>
+              <div className={`mt-2 p-3 rounded-xl text-sm ${syncResult.error ? 'bg-red-50 text-red-700' : 'bg-teal-50 text-teal-800'}`}>
                 {syncResult.error ? (
                   <span>❌ {syncResult.error}</span>
                 ) : (
                   <>
                     <p className="font-semibold">✅ Sync réussie</p>
-                    <p className="text-xs mt-0.5">🛍 {syncResult.produits_synced ?? syncResult.synced ?? 0} produits</p>
-                    <p className="text-xs mt-0.5">📋 {syncResult.commandes_synced ?? 0} nouvelles commandes</p>
-                    {(syncResult.errors?.length ?? 0) > 0 && (
-                      <p className="text-xs mt-1 text-red-600">⚠ {syncResult.errors![0]}</p>
+                    <p className="text-xs mt-0.5">📋 {syncResult.commandes_traitees ?? 0} nouvelles commandes traitées</p>
+                    <p className="text-xs mt-0.5">💍 {syncResult.nouveaux_maries_credites ?? 0} mariés crédités</p>
+                    {(syncResult.montant_total_fcfa ?? 0) > 0 && (
+                      <p className="text-xs mt-0.5 font-semibold">💰 {formatFCFA(syncResult.montant_total_fcfa!)} traités</p>
+                    )}
+                    {(syncResult.details?.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1 border-t border-teal-200 pt-2">
+                        {syncResult.details!.map(d => (
+                          <div key={d.marie_uid} className="flex justify-between text-[11px]">
+                            <span className="truncate flex-1 mr-2">{d.noms_maries}</span>
+                            <span className="flex-shrink-0">{d.nb_commandes} cmd · {formatFCFA(d.montant_total)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(syncResult.commandes_traitees ?? 0) === 0 && (
+                      <p className="text-xs mt-1 text-teal-600">Aucune nouvelle commande (déjà à jour)</p>
                     )}
                   </>
                 )}

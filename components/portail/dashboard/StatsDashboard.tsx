@@ -14,9 +14,11 @@ interface Props {
   todosTotal: number
   walletCash: number
   walletCredits: number
+  nbCommandesInvites?: number
+  derniereCommande?: { date: string; produit: string; montant: number } | null
 }
 
-export default function StatsDashboard({ uid, todosDone, todosTotal, walletCash, walletCredits }: Props) {
+export default function StatsDashboard({ uid, todosDone, todosTotal, walletCash, walletCredits, nbCommandesInvites = 0, derniereCommande = null }: Props) {
   const identity = useClientIdentity()
   const { totaux } = usePanier(uid)
 
@@ -74,16 +76,26 @@ export default function StatsDashboard({ uid, todosDone, todosTotal, walletCash,
       <div className="rounded-2xl p-4" style={{ background: '#1A1A1A' }}>
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-2">Ma Cagnotte</p>
         <p className="text-xl font-bold mb-3" style={{ color: '#C9A84C' }}>{formatFCFA(walletCash + walletCredits)}</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-2">
           <div className="rounded-xl p-2.5" style={{ background: '#222' }}>
-            <p className="text-[10px] text-white/40">Cash (70%)</p>
+            <p className="text-[10px] text-white/40">Cash</p>
             <p className="text-sm font-bold text-white">{formatFCFA(walletCash)}</p>
           </div>
           <div className="rounded-xl p-2.5" style={{ background: '#222' }}>
-            <p className="text-[10px] text-white/40">Crédits (30%)</p>
+            <p className="text-[10px] text-white/40">Crédits services</p>
             <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(walletCredits)}</p>
           </div>
         </div>
+        {nbCommandesInvites > 0 && (
+          <div className="rounded-xl p-2.5 mt-1" style={{ background: '#222' }}>
+            <p className="text-[10px] text-white/40 mb-1">{nbCommandesInvites} commande{nbCommandesInvites > 1 ? 's' : ''} invité{nbCommandesInvites > 1 ? 's' : ''} enregistrée{nbCommandesInvites > 1 ? 's' : ''}</p>
+            {derniereCommande && (
+              <p className="text-[11px] text-white/60 truncate">
+                Dernière : {derniereCommande.produit} · {formatFCFA(derniereCommande.montant)}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* BLOC 9 — Mes Invités (dots) */}
