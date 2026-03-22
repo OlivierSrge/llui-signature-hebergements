@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const response = NextResponse.redirect(new URL('/portail', req.url))
 
     const cookieOpts = {
-      httpOnly: true,
+      httpOnly: false, // portail_uid doit être lisible côté client (document.cookie)
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
