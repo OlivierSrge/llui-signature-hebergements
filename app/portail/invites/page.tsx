@@ -178,7 +178,7 @@ export default function InvitesPage() {
   const ficheUrl = (g: GuestEnrichi) => {
     const prenom = encodeURIComponent(g.nom.split(' ')[0] || g.nom)
     const code = encodeURIComponent(identity.code_promo || '')
-    return `https://llui-signature-hebergements.vercel.app/fiche/${uid}?prenom=${prenom}&code=${code}`
+    return `https://llui-signature-hebergements.vercel.app/invite/${uid}?prenom=${prenom}&code=${code}`
   }
 
   const ficheWaUrlFor = (g: GuestEnrichi) => {

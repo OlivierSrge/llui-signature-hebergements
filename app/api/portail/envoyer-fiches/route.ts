@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
       try {
         const prenomEnc = encodeURIComponent(invite.prenom || '')
         const codeEnc = encodeURIComponent(code)
-        const ficheUrl = `${BASE_URL}/fiche/${uid}?prenom=${prenomEnc}&code=${codeEnc}`
+        // URL fiche : /invite/[marie_uid]?prenom=X&code=Y (géré par app/invite/[slug]/page.tsx)
+        const ficheUrl = `${BASE_URL}/invite/${uid}?prenom=${prenomEnc}&code=${codeEnc}`
 
         const msg = `Bonjour ${invite.prenom || 'vous'} ! 🎉\n${nomsMaries} vous ont préparé une invitation personnalisée pour leur mariage.\n\nDécouvrez votre fiche d'invitation :\n👉 ${ficheUrl}\n\nVotre code privilège : *${code}*\nChaque achat participe à leur cagnotte 💝`
 
@@ -66,9 +67,11 @@ export async function POST(req: NextRequest) {
             })
           envoyes++
         } else {
+          console.error(`[envoyer-fiches] Twilio échec — invite ${invite.id} (${invite.tel}): ${result.error}`)
           echecs.push(invite.id)
         }
-      } catch {
+      } catch (innerErr) {
+        console.error(`[envoyer-fiches] Exception — invite ${invite.id}:`, innerErr)
         echecs.push(invite.id)
       }
     }

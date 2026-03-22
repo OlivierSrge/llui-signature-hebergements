@@ -18,9 +18,11 @@ export async function sendWhatsApp(
     return { success: false, error: 'Config manquante' }
   }
   try {
-    let tel = telephone.replace(/\s|-/g, '')
-    if (tel.startsWith('00')) tel = '+' + tel.slice(2)
-    if (!tel.startsWith('+')) tel = '+237' + tel
+    // Normalisation E.164 : +237XXXXXXXXX
+    let tel = telephone.replace(/[\s\-().]/g, '')
+    if (tel.startsWith('00')) tel = '+' + tel.slice(2)             // 00237... → +237...
+    if (/^237\d{8,9}$/.test(tel)) tel = '+' + tel                 // 237XXXXXXXX → +237XXXXXXXX
+    if (!tel.startsWith('+')) tel = '+237' + tel                   // 6XXXXXXXX → +2376XXXXXXXX
     const client = twilio(accountSid, authToken)
     await client.messages.create({
       from: fromNumber,
