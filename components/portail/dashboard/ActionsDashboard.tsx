@@ -259,7 +259,9 @@ export default function ActionsDashboard({ uid, todos, lieu, versements = [], bu
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold">{formatFCFA(v.montant)}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: sc + '22', color: sc }}>{sl}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: sc + '22', color: sc }}>
+                          {v.statut === 'confirme' ? '✅ Confirmé' : sl}
+                        </span>
                       </div>
                     </div>
                   )

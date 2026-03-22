@@ -38,6 +38,7 @@ interface Marie {
   budget_total: number
   nb_invites_prevus: number
   versements: Versements | null
+  versements_a_confirmer?: number
   actif: boolean
 }
 
@@ -95,6 +96,9 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
   const [onglet, setOnglet] = useState<'parametres' | 'versements'>('parametres')
   const [budget, setBudget] = useState(String(marie.budget_total || 0))
   const [nbInvites, setNbInvites] = useState(String(marie.nb_invites_prevus || 0))
+  const [dateMariage, setDateMariage] = useState(marie.date_mariage || '')
+  const [lieu, setLieu] = useState(marie.lieu || '')
+  const [nomsMaries, setNomsMaries] = useState(marie.noms_maries || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   // Versements libres
@@ -126,11 +130,20 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
           uid: marie.uid,
           budget_total: budgetNum,
           nb_invites_prevus: Number(nbInvites) || 0,
+          date_mariage: dateMariage,
+          lieu,
+          noms_maries: nomsMaries,
         }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
-      onUpdate(marie.uid, { budget_total: budgetNum, nb_invites_prevus: Number(nbInvites) || 0 })
+      onUpdate(marie.uid, {
+        budget_total: budgetNum,
+        nb_invites_prevus: Number(nbInvites) || 0,
+        date_mariage: dateMariage,
+        lieu,
+        noms_maries: nomsMaries,
+      })
     } catch {
       alert('Erreur réseau')
     } finally {
@@ -232,6 +245,41 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
               value={nbInvites}
               onChange={e => setNbInvites(e.target.value)}
               placeholder="0"
+            />
+          </div>
+
+          {/* Noms des mariés */}
+          <div className="mb-3">
+            <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Noms des mariés</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+              value={nomsMaries}
+              onChange={e => setNomsMaries(e.target.value)}
+              placeholder="ex : Marie & Jean"
+            />
+          </div>
+
+          {/* Date du mariage */}
+          <div className="mb-3">
+            <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Date du mariage</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+              value={dateMariage}
+              onChange={e => setDateMariage(e.target.value)}
+            />
+          </div>
+
+          {/* Lieu */}
+          <div className="mb-3">
+            <label className="text-[10px] text-[#888] uppercase tracking-wide block mb-1">Lieu du mariage</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+              value={lieu}
+              onChange={e => setLieu(e.target.value)}
+              placeholder="ex : Kribi, Hôtel Ilomba"
             />
           </div>
 
@@ -445,6 +493,16 @@ export default function EspacesMariesCard() {
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex items-center gap-1.5">
+                          {(m.versements_a_confirmer ?? 0) > 0 && (
+                            <button
+                              onClick={() => setPanelUid(m.uid)}
+                              className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white whitespace-nowrap"
+                              style={{ background: '#C9A84C' }}
+                              title="Versements à confirmer"
+                            >
+                              {m.versements_a_confirmer} à confirmer
+                            </button>
+                          )}
                           <button
                             onClick={() => setPanelUid(panelUid === m.uid ? null : m.uid)}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors"

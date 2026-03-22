@@ -25,6 +25,9 @@ interface Body {
   budget_total?: number
   nb_invites_prevus?: number
   versement_statuts?: VersementStatuts
+  date_mariage?: string
+  lieu?: string
+  noms_maries?: string
 }
 
 export async function POST(req: Request) {
@@ -36,7 +39,7 @@ export async function POST(req: Request) {
 
   try {
     const body: Body = await req.json()
-    const { uid, budget_total, nb_invites_prevus, versement_statuts } = body
+    const { uid, budget_total, nb_invites_prevus, versement_statuts, date_mariage, lieu, noms_maries } = body
 
     if (!uid) return NextResponse.json({ error: 'uid manquant' }, { status: 400 })
 
@@ -84,6 +87,20 @@ export async function POST(req: Request) {
     if (nb_invites_prevus !== undefined) {
       updates['nb_invites_prevus'] = nb_invites_prevus
       updates['projet.nombre_invites_prevu'] = nb_invites_prevus
+    }
+
+    if (date_mariage !== undefined) {
+      updates['date_mariage'] = date_mariage
+      updates['projet.date_mariage'] = date_mariage
+    }
+
+    if (lieu !== undefined) {
+      updates['lieu'] = lieu
+      updates['projet.lieu'] = lieu
+    }
+
+    if (noms_maries !== undefined) {
+      updates['noms_maries'] = noms_maries
     }
 
     if (Object.keys(updates).length === 0) {

@@ -1,5 +1,34 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — Fix Safari iOS impersonation
+Dernière mise à jour : 2026-03-22 — P8-C Admin versements + paramètres mariage + badges
+
+---
+
+## P8-C — ADMIN VERSEMENTS + PARAMÈTRES + BADGES — TERMINÉ (2026-03-22)
+
+RÈGLE ABSOLUE : "L'admin initialise, Firestore stocke, le portail affiche."
+
+### Étapes complétées
+- ✅ **Étape 1** — Onglet versements admin → DÉJÀ EXISTANT dans PanneauGestionRapide
+- ✅ **Étape 2** — Confirmation versements enrichie
+  - `confirmer-versement/route.ts` : calcule total_verse + reste → WhatsApp enrichi avec totaux
+  - Ajoute `confirme_par: 'admin'` sur le versement confirmé
+  - Log dans collection `admin_logs`
+- ✅ **Étape 3** — Paramètres mariage étendus
+  - PanneauGestionRapide onglet Paramètres : champs date_mariage (date picker), lieu (texte), noms_maries (texte)
+  - `update-marie/route.ts` : gère date_mariage, lieu, noms_maries → Firestore
+- ✅ **Étape 4** — Todo list 3 phases → DÉJÀ EXISTANT à `app/portail/taches/page.tsx`
+  - Dashboard ActionsDashboard.tsx : BLOC 8 déjà affiche badge "X urgentes"
+- ✅ **Étape 5** — Badges et portail versements
+  - `liste-maries/route.ts` : calcule `versements_a_confirmer` par marié
+  - EspacesMariesCard.tsx : badge gold "X à confirmer" cliquable sur lignes mariés
+  - ActionsDashboard.tsx BLOC 11 : badge "✅ Confirmé" explicite sur versements confirmés
+
+### Fichiers modifiés
+- `app/api/admin/confirmer-versement/route.ts` — total_verse + reste + confirme_par + admin_logs
+- `app/api/admin/update-marie/route.ts` — date_mariage + lieu + noms_maries
+- `app/api/admin/liste-maries/route.ts` — versements_a_confirmer count
+- `components/admin/portail/EspacesMariesCard.tsx` — champs paramètres + badge à confirmer
+- `components/portail/dashboard/ActionsDashboard.tsx` — badge ✅ Confirmé versements
 
 ---
 
