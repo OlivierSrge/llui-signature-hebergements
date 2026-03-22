@@ -1,5 +1,21 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P8-B fix QR Code URL + format tel WhatsApp (commit a485be4)
+Dernière mise à jour : 2026-03-22 — P8-B fix Application error Digest 398097678 (commit 389bd05)
+
+---
+
+## FIX APPLICATION ERROR — Digest 398097678 — TERMINÉ (2026-03-22)
+
+### Cause racine identifiée (commit `389bd05`)
+Import statique `@/app/fiche/[marie_uid]/FicheClient` dans `app/invite/[slug]/page.tsx`
+→ les crochets `[marie_uid]` dans le chemin sont interprétés par webpack comme
+une expression dynamique (code splitting / glob) au lieu d'un nom de répertoire
+littéral → résolution de module échoue en production Vercel → "Application error".
+
+### Fix
+- `app/fiche/[marie_uid]/FicheClient.tsx` déplacé → `components/fiche/FicheClient.tsx`
+- Imports mis à jour : `@/components/fiche/FicheClient` (chemin sans crochets)
+- Les deux pages (`app/fiche/[marie_uid]/page.tsx` et `app/invite/[slug]/page.tsx`)
+  importent maintenant depuis un chemin sans ambiguïté webpack
 
 ---
 

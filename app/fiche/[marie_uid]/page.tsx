@@ -3,7 +3,7 @@
 // PUBLIQUE — pas d'auth requise
 
 import { getDb } from '@/lib/firebase'
-import FicheClient from './FicheClient'
+import FicheClient from '@/components/fiche/FicheClient'
 
 export const dynamic = 'force-dynamic'
 
