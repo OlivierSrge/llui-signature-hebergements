@@ -1,5 +1,21 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P8-B fix erreur serveur fiche (commit c30ad9a)
+Dernière mise à jour : 2026-03-22 — P8-B fix QR Code URL + format tel WhatsApp (commit a485be4)
+
+---
+
+## FIX QR CODE + WHATSAPP — P8-B — TERMINÉ (2026-03-22)
+
+### Bugs corrigés (commit `a485be4`)
+
+**Bug 1 — QR Code URL invalide** :
+- `/invite/[slug]/page.tsx` : détecte `searchParams.prenom` → slug = marie_uid → rend `FicheClient` (plus de "Ce lien invalide")
+- `FicheClient.tsx` : prop `marie_uid` ajoutée ; QR encode l'URL fiche `https://.../invite/[marie_uid]?prenom=X&code=Y` (pas la boutique externe)
+- `portail/invites/page.tsx` : `ficheUrl()` utilise `/invite/[uid]` (cohérent avec QR)
+- `envoyer-fiches/route.ts` : URL fiche → `/invite/[uid]`
+
+**Bug 2 — Format téléphone WhatsApp** :
+- `lib/whatsappNotif.ts` : fix `237XXXXXXXXX` → `+237XXXXXXXXX` (évitait `+237237...` en double préfixe)
+- `envoyer-fiches/route.ts` : `console.error()` sur Twilio failure + catch interne avec log complet
 
 ---
 
