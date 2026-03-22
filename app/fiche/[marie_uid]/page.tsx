@@ -58,6 +58,7 @@ export default async function FichePage({ params, searchParams }: Props) {
 
   return (
     <FicheClient
+      marie_uid={marie_uid}
       noms_maries={marieData.noms_maries}
       date_mariage={marieData.date_mariage}
       lieu={marieData.lieu}

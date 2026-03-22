@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 
 interface Props {
+  marie_uid: string
   noms_maries: string
   date_mariage: string
   lieu: string
@@ -22,23 +23,29 @@ function formatDate(iso: string): string {
   } catch { return iso }
 }
 
-export default function FicheClient({ noms_maries, date_mariage, lieu, code, prenom }: Props) {
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+
+export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu, code, prenom }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
 
   const boutiqueUrl = `https://l-et-lui-signature.com?code=${code}`
-  const hebergUrl = `https://llui-signature-hebergements.vercel.app/hebergements?code=${code}`
+  const hebergUrl = `${APP_URL}/hebergements?code=${code}`
+  // URL de la fiche elle-même (pour QR code + partage)
+  const ficheUrl = marie_uid
+    ? `${APP_URL}/invite/${marie_uid}?prenom=${encodeURIComponent(prenom)}&code=${encodeURIComponent(code)}`
+    : boutiqueUrl
 
-  // Générer QR code côté client
+  // Générer QR code côté client — encode l'URL de la fiche personnalisée
   useEffect(() => {
-    if (!code) return
+    if (!code && !marie_uid) return
     import('qrcode').then(QRCode => {
-      QRCode.toDataURL(boutiqueUrl, {
+      QRCode.toDataURL(ficheUrl, {
         width: 160, margin: 2,
         color: { dark: '#1A1A1A', light: '#F5F0E8' },
       }).then(setQrDataUrl).catch(() => {})
     })
-  }, [code, boutiqueUrl])
+  }, [ficheUrl])
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
