@@ -1,6 +1,7 @@
 'use client'
 // BLOCS 3, 4, 5, 9, 10 — Stats 2×2 + Budget + Budget catégories + Cagnotte + Invités
 
+import { useState, useEffect } from 'react'
 import { useClientIdentity } from '@/hooks/useClientIdentity'
 import { usePanier } from '@/hooks/usePanier'
 
@@ -61,6 +62,20 @@ export default function StatsDashboard({
 }: Props) {
   const identity = useClientIdentity()
   const { totaux } = usePanier(uid)
+
+  // Stats participation (chargées côté client depuis invites-stats enrichi)
+  const [participationStats, setParticipationStats] = useState<{
+    ayant_commande: number; silencieux: number; total: number
+  } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/portail/invites-stats')
+      .then(r => r.json())
+      .then(d => {
+        if (d.stats) setParticipationStats(d.stats)
+      })
+      .catch(() => {})
+  }, [])
 
   // BLOC 4 — Budget : priorité SSR (prop) > useClientIdentity
   const budgetTotal = budgetTotalProp ?? identity.budget_previsionnel
@@ -180,7 +195,7 @@ export default function StatsDashboard({
         )}
       </div>
 
-      {/* BLOC 9 — Mes Invités (dots) */}
+      {/* BLOC 9 — Mes Invités (dots + récap participation) */}
       {prevus > 0 ? (
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
           <div className="flex justify-between items-center mb-3">
@@ -192,9 +207,34 @@ export default function StatsDashboard({
               <div key={i} className="w-3 h-3 rounded-full" style={{ background: i < dotsConf ? '#C9A84C' : '#E8E0D0' }} />
             ))}
           </div>
+
+          {/* Récap participation boutique */}
+          {participationStats && participationStats.total > 0 && (
+            <div className="border-t border-[#F5F0E8] pt-3 mb-3 space-y-1">
+              {participationStats.ayant_commande > 0 ? (
+                <p className="text-xs text-[#7C9A7E] font-medium">
+                  🎉 {participationStats.ayant_commande} invité{participationStats.ayant_commande > 1 ? 's' : ''} ont déjà commandé
+                </p>
+              ) : (
+                <p className="text-xs text-[#AAA]">Aucun invité n&apos;a encore commandé</p>
+              )}
+              {participationStats.silencieux > 0 && (
+                <p className="text-xs text-[#888]">
+                  {participationStats.silencieux} invité{participationStats.silencieux > 1 ? 's' : ''} n&apos;ont pas encore utilisé votre code
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <a href="/portail/invites" className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white" style={{ background: '#1A1A1A' }}>Gérer →</a>
-            <a href="/portail/invites#envoyer" className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-[#1A1A1A] border border-[#C9A84C]">Envoyer invitations →</a>
+            {participationStats && participationStats.silencieux > 0 ? (
+              <a href="/portail/invites" className="flex-1 py-2 rounded-xl text-xs font-semibold text-center border transition-colors" style={{ borderColor: '#C9A84C', color: '#C9A84C' }}>
+                Relancer {participationStats.silencieux} silencieux →
+              </a>
+            ) : (
+              <a href="/portail/invites#envoyer" className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-[#1A1A1A] border border-[#C9A84C]">Envoyer invitations →</a>
+            )}
           </div>
         </div>
       ) : (

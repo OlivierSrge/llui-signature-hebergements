@@ -8,6 +8,14 @@ import GuestCard, { QrModal } from '@/components/portail/GuestCard'
 import type { Guest } from '@/components/portail/GuestCard'
 import { useClientIdentity } from '@/hooks/useClientIdentity'
 
+type GuestEnrichi = Guest & {
+  invitation_envoyee?: boolean
+  relance_envoyee?: boolean
+  relance_date?: string
+  date_envoi?: string
+  achats?: Array<{ produit: string; montant: number; date: string }>
+}
+
 interface CsvRow { Nom?: string; Telephone?: string; Email?: string }
 
 interface MainInvite {
@@ -45,7 +53,7 @@ function dotLabel(statut?: string): string {
 export default function InvitesPage() {
   const [uid] = useState(() => getUid())
   const identity = useClientIdentity()
-  const [guests, setGuests] = useState<Guest[]>([])
+  const [guests, setGuests] = useState<GuestEnrichi[]>([])
   const [mainInvites, setMainInvites] = useState<MainInvite[]>([])
   const [search, setSearch] = useState('')
   const [filtre, setFiltre] = useState<'tous' | 'non_envoye' | 'envoye' | 'converti'>('tous')
@@ -58,16 +66,30 @@ export default function InvitesPage() {
   const [toast, setToast] = useState(''); const [csvPreview, setCsvPreview] = useState<CsvRow[]>([])
   const [csvErrors, setCsvErrors] = useState<string[]>([]); const [csvLoading, setCsvLoading] = useState(false)
   const [sendAllIdx, setSendAllIdx] = useState(0)
+  const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // invites-stats retourne maintenant : guests (enrichis), invites (dots), stats
+  const load = () =>
+    fetch('/api/portail/invites-stats')
+      .then(r => r.json())
+      .then(d => {
+        setGuests(d.guests ?? [])
+        setMainInvites(d.invites ?? [])
+      })
+      .catch(() => {})
+
+  // Conserver aussi le fetch direct /invites pour les opérations d'écriture (reload après ajout/suppression)
   const loadMainInvites = () =>
     fetch('/api/portail/invites-stats')
       .then(r => r.json())
-      .then(d => setMainInvites(d.invites ?? []))
+      .then(d => {
+        setGuests(d.guests ?? [])
+        setMainInvites(d.invites ?? [])
+      })
       .catch(() => {})
 
-  const load = () => fetch('/api/portail/invites').then(r => r.json()).then(d => setGuests(d.guests ?? []))
-  useEffect(() => { if (uid) { load(); loadMainInvites() } }, [uid])
+  useEffect(() => { if (uid) { load() } }, [uid])
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
   const handleTelChange = (v: string) => { setTelephone(v); setTelError(v && !validateTelephoneCM(v) ? 'Format attendu : +237XXXXXXXXX' : '') }
@@ -124,6 +146,28 @@ export default function InvitesPage() {
     }
     showToast(`${csvPreview.length} invités importés ✓`); setCsvPreview([]); setCsvErrors([])
     if (fileRef.current) fileRef.current.value = ''; setCsvLoading(false); load()
+  }
+
+  const handleRelancer = async (g: GuestEnrichi) => {
+    setRelanceEnCours(g.id)
+    try {
+      const prenom = g.nom.split(' ')[0] || g.nom
+      const res = await fetch('/api/portail/relancer-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_id: g.id, tel: g.telephone, prenom }),
+      })
+      if (res.ok) {
+        showToast(`Relance envoyée à ${prenom} ✓`)
+        load()
+      } else {
+        showToast('Échec envoi — vérifier Twilio')
+      }
+    } catch {
+      showToast('Erreur réseau')
+    } finally {
+      setRelanceEnCours(null)
+    }
   }
 
   const filtered = guests
@@ -252,6 +296,146 @@ export default function InvitesPage() {
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════
+           SECTION PARTICIPATION BOUTIQUE
+          ══════════════════════════════════════════ */}
+      {guests.length > 0 && (() => {
+        const nbTotal = guests.length
+        const nbContactes = guests.filter(g => g.lien_envoye || g.invitation_envoyee).length
+        const nbCommandos = guests.filter(g => g.converted).length
+        const tauxPct = nbTotal > 0 ? Math.round((nbCommandos / nbTotal) * 100) : 0
+        const pctContactes = nbTotal > 0 ? Math.round((nbContactes / nbTotal) * 100) : 0
+        const ayantCommande = guests.filter(g => g.converted)
+        const silencieux = guests.filter(g => !g.converted)
+        return (
+          <>
+            {/* Stats participation */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+              <p className="font-semibold text-sm text-[#1A1A1A] mb-4">Participation boutique</p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-[#F5F0E8] rounded-xl p-3 text-center">
+                  <p className="font-bold text-xl text-[#1A1A1A]">{nbTotal}</p>
+                  <p className="text-[10px] text-[#888] mt-0.5">Total invités</p>
+                </div>
+                <div className="bg-[#C9A84C]/10 rounded-xl p-3 text-center">
+                  <p className="font-bold text-xl text-[#C9A84C]">{nbContactes}</p>
+                  <p className="text-[10px] text-[#888] mt-0.5">Contactés</p>
+                </div>
+                <div className="bg-[#7C9A7E]/10 rounded-xl p-3 text-center">
+                  <p className="font-bold text-xl text-[#7C9A7E]">{nbCommandos}</p>
+                  <p className="text-[10px] text-[#888] mt-0.5">Ont commandé</p>
+                </div>
+                <div className="bg-[#1A1A1A]/5 rounded-xl p-3 text-center">
+                  <p className="font-bold text-xl text-[#1A1A1A]">{tauxPct}%</p>
+                  <p className="text-[10px] text-[#888] mt-0.5">Taux participation</p>
+                </div>
+              </div>
+              {/* Barre de progression */}
+              <div>
+                <div className="flex justify-between text-[10px] text-[#888] mb-1">
+                  <span>Progression des commandes</span>
+                  <span>{nbCommandos}/{nbTotal}</span>
+                </div>
+                <div className="h-3 bg-[#F5F0E8] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${tauxPct}%`, background: tauxPct >= 50 ? '#7C9A7E' : '#C9A84C' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] mt-1">
+                  <span className="text-[#C9A84C]">{pctContactes}% contactés</span>
+                  <span className="text-[#7C9A7E]">{tauxPct}% commandé</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2 colonnes : Ont commandé / Silencieux */}
+            <div className="grid grid-cols-1 gap-3">
+
+              {/* Colonne 1 — Ont commandé */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">✅</span>
+                  <p className="font-semibold text-sm text-[#1A1A1A]">Ont commandé</p>
+                  <span className="ml-auto bg-[#7C9A7E]/15 text-[#7C9A7E] text-xs font-bold px-2 py-0.5 rounded-full">{ayantCommande.length}</span>
+                </div>
+                {ayantCommande.length === 0 ? (
+                  <p className="text-xs text-[#AAA] text-center py-4">
+                    Vos invités n&apos;ont pas encore commandé 🌟<br />
+                    <span className="text-[10px]">Partagez votre code pour les encourager !</span>
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {ayantCommande.map(g => (
+                      <div key={g.id} className="flex items-center gap-3 py-2 border-b border-[#F5F0E8] last:border-0">
+                        <div className="w-8 h-8 rounded-full bg-[#7C9A7E]/15 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[#7C9A7E] text-xs font-bold">{g.nom.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#1A1A1A] truncate">{g.nom}</p>
+                          {g.achats && g.achats.length > 0 ? (
+                            <p className="text-[10px] text-[#888]">
+                              {g.achats[0].produit} · {new Intl.NumberFormat('fr-FR').format(g.achats[0].montant)} FCFA
+                            </p>
+                          ) : g.total_achats > 0 ? (
+                            <p className="text-[10px] text-[#888]">{new Intl.NumberFormat('fr-FR').format(g.total_achats)} FCFA</p>
+                          ) : null}
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#7C9A7E]/15 text-[#7C9A7E] flex-shrink-0">Actif</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Colonne 2 — Silencieux */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">🔕</span>
+                  <p className="font-semibold text-sm text-[#1A1A1A]">Silencieux</p>
+                  <span className="ml-auto bg-[#888]/10 text-[#888] text-xs font-bold px-2 py-0.5 rounded-full">{silencieux.length}</span>
+                </div>
+                {silencieux.length === 0 ? (
+                  <p className="text-xs text-[#7C9A7E] text-center py-4 font-medium">
+                    🎉 Tous vos invités ont commandé !
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {silencieux.map(g => (
+                      <div key={g.id} className="flex items-center gap-3 py-2 border-b border-[#F5F0E8] last:border-0">
+                        <div className="w-8 h-8 rounded-full bg-[#F5F0E8] flex items-center justify-center flex-shrink-0">
+                          <span className="text-[#888] text-xs font-bold">{g.nom.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#1A1A1A] truncate">{g.nom}</p>
+                          <p className="text-[10px] text-[#888]">
+                            {g.relance_envoyee
+                              ? '⚡ Relancé'
+                              : g.lien_envoye || g.invitation_envoyee
+                                ? 'Lien envoyé'
+                                : 'Pas encore contacté'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => !g.relance_envoyee && handleRelancer(g)}
+                          disabled={relanceEnCours === g.id}
+                          className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-colors flex-shrink-0 disabled:opacity-50"
+                          style={g.relance_envoyee
+                            ? { borderColor: '#E8A84C', color: '#E8A84C', background: '#E8A84C10' }
+                            : { borderColor: '#C9A84C', color: '#C9A84C', background: 'transparent' }}
+                        >
+                          {relanceEnCours === g.id ? '…' : g.relance_envoyee ? 'Relancé' : 'Relancer →'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Import manuel */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
