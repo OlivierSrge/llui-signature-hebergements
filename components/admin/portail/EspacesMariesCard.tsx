@@ -356,7 +356,16 @@ export default function EspacesMariesCard() {
       })
       const data = await res.json()
       if (data.error) { alert('Erreur : ' + data.error); return }
-      window.open(data.url, '_blank', 'noopener,noreferrer')
+
+      // Stocker dans localStorage AVANT navigation (compatible Safari iOS)
+      const marie = maries.find(m => m.uid === uid)
+      const noms = marie?.noms_maries ?? uid
+      localStorage.setItem('admin_view', 'true')
+      localStorage.setItem('admin_marie_uid', uid)
+      localStorage.setItem('admin_marie_noms', noms)
+
+      // Navigation directe au lieu de window.open (popup bloqué sur Safari iOS)
+      window.location.href = data.url
     } catch {
       alert('Erreur réseau')
     } finally {
