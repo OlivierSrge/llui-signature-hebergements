@@ -1,7 +1,6 @@
 // app/api/portail/me/route.ts
-// GET — Retourne les données de l'utilisateur connecté via cookie httpOnly portail_uid
-// Permet aux composants client de récupérer l'identité sans lire document.cookie
-// (le cookie portail_uid est httpOnly → inaccessible depuis JS côté client)
+// GET — Retourne les données de l'utilisateur connecté via cookie portail_uid
+// Permet aux composants client de récupérer l'identité sans lire document.cookie directement
 
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
@@ -13,10 +12,10 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const jar = await cookies()
-    // Supporte les deux cookies : portail_uid (utilisateur direct) et admin_view (impersonation)
-    const adminView = jar.get('admin_view')?.value
+    // portail_uid contient toujours l'uid réel (login direct ET impersonation admin)
+    // admin_view contient uniquement le nom affiché dans le bandeau admin — pas l'uid
     const portailUid = jar.get('portail_uid')?.value
-    const uid = adminView ?? portailUid
+    const uid = portailUid
 
     if (!uid) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
