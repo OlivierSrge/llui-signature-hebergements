@@ -1,5 +1,5 @@
 // app/api/admin/liste-maries/route.ts
-// GET — Retourne la liste des mariés (uid + noms + code) depuis codes_promos
+// GET — Retourne la liste complète des mariés depuis portail_users (role=MARIÉ)
 
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
@@ -22,15 +22,29 @@ export async function GET() {
 
   try {
     const db = getDb()
-    const snap = await db.collection('codes_promos').where('actif', '==', true).orderBy('created_at', 'desc').limit(100).get()
+    // Lecture depuis portail_users (source de vérité : noms, code, lieu, cagnotte, date)
+    const snap = await db.collection('portail_users')
+      .where('role', '==', 'MARIÉ')
+      .orderBy('created_at', 'desc')
+      .limit(100)
+      .get()
+
     const maries = snap.docs.map(doc => {
       const d = doc.data()
+      const dateTs = d.projet?.date_evenement
+      const dateISO = dateTs?.toDate ? dateTs.toDate().toISOString().slice(0, 10)
+        : typeof dateTs === 'string' ? dateTs : ''
       return {
-        uid: d.mariage_uid as string,
-        noms_maries: d.noms_maries as string,
-        code: doc.id,
+        uid: doc.id,
+        noms_maries: (d.noms_maries as string) || '',
+        code: (d.code_promo as string) || '',
+        date_mariage: dateISO,
+        lieu: (d.projet?.lieu as string) || '',
+        cagnotte_cash: (d.wallets?.cash as number) || 0,
+        actif: (d.actif as boolean) ?? true,
       }
     })
+
     return NextResponse.json({ maries })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

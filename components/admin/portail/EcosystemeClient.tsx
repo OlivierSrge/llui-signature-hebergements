@@ -5,6 +5,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import GestionMaries from './GestionMaries'
 import ReservationHebergementAdmin from './ReservationHebergementAdmin'
+import EspacesMariesCard from './EspacesMariesCard'
 
 interface RapportResult {
   caSemaine?: number
@@ -218,6 +219,11 @@ export default function EcosystemeClient() {
             </div>
           </div>
 
+        </div>
+
+        {/* Espaces Mariés Actifs — tableau pleine largeur */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <EspacesMariesCard />
         </div>
 
         {/* Exports rapides */}
