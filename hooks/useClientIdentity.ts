@@ -62,8 +62,9 @@ export function useClientIdentity(): ClientIdentity {
           : 0
         const budget_restant = Math.max(0, budget_previsionnel - wallet_credits)
         let jours_avant_mariage: number | null = null
-        if (d.date_evenement) {
-          const diff = new Date(d.date_evenement).getTime() - Date.now()
+        const dateRef = d.date_evenement ?? d.date_mariage
+        if (dateRef) {
+          const diff = new Date(dateRef).getTime() - Date.now()
           jours_avant_mariage = Math.ceil(diff / 86400000) // négatif si passé, 0 = aujourd'hui
         }
         setIdentity({

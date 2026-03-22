@@ -14,14 +14,16 @@ async function getInvitesData() {
     const snap = await db.collection('portail_users').doc(uid).get()
     if (!snap.exists) redirect('/portail/login')
     const d = snap.data()!
-    const prevus = d.projet?.nombre_invites_prevu ?? 0
+    // Compatibilité descendante : nouveau (date_mariage, nb_invites_prevus, noms_maries)
+    // et ancien (projet.date_evenement, projet.nombre_invites_prevu, projet.nom, nom)
+    const prevus = d.nb_invites_prevus ?? d.nombre_invites_prevu ?? d.projet?.nombre_invites_prevu ?? 0
     const confirmes = d.invites_confirmes ?? 0
     const declines = d.invites_declines ?? 0
     const enAttente = Math.max(0, prevus - confirmes - declines)
     const pct = prevus > 0 ? Math.min(100, Math.round((confirmes / prevus) * 100)) : 0
-    const nomEvenement = d.projet?.nom ?? ''
-    const dateTs = d.projet?.date_evenement
-    const dateISO: string | null = dateTs?.toDate ? dateTs.toDate().toISOString() : null
+    const nomEvenement = d.noms_maries ?? d.projet?.nom ?? d.nom ?? ''
+    const dateTs = d.date_mariage ?? d.date_evenement ?? d.projet?.date_evenement
+    const dateISO: string | null = dateTs?.toDate ? dateTs.toDate().toISOString() : (typeof dateTs === 'string' ? dateTs : null)
     return { prevus, confirmes, declines, enAttente, pct, nomEvenement, dateISO, uid }
   } catch {
     redirect('/portail/login')
