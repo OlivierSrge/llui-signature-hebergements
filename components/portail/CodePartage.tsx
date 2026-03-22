@@ -53,7 +53,7 @@ export default function CodePartage({ code, uid }: Props) {
     }).then(setQrDataUrl).catch(console.error)
   }, [showQR, url])
 
-  // Charge les invités à l'ouverture de la modale envoi
+  // Charge les invités (au mount pour les stats + à l'ouverture de la modale)
   const chargerInvites = useCallback(async () => {
     setLoadingInvites(true)
     try {
@@ -66,6 +66,9 @@ export default function CodePartage({ code, uid }: Props) {
       setLoadingInvites(false)
     }
   }, [])
+
+  // Chargement initial pour les stats
+  useEffect(() => { chargerInvites() }, [chargerInvites])
 
   function openInvitesModal() {
     setShowInvites(true)
@@ -130,6 +133,12 @@ export default function CodePartage({ code, uid }: Props) {
 
   const invitesWithPhone = invites.filter(i => i.telephone)
 
+  // Stats de partage
+  const nbInvites = invites.length
+  const nbEnvoyes = invites.filter(i => i.lien_envoye || i.invitation_envoyee).length
+  const nbCommandos = invites.filter(i => i.converted).length
+  const tauxConversion = nbEnvoyes > 0 ? Math.round((nbCommandos / nbEnvoyes) * 100) : 0
+
   return (
     <>
       {/* Boutons ligne 2 : QR Code + Envoyer à mes invités */}
@@ -149,6 +158,24 @@ export default function CodePartage({ code, uid }: Props) {
           <span>Mes invités</span>
         </button>
       </div>
+
+      {/* Stats de partage */}
+      {nbInvites > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="bg-[#F5F0E8]/10 rounded-xl p-2 text-center">
+            <p className="text-white font-bold text-base">{nbEnvoyes}</p>
+            <p className="text-white/50 text-[10px] leading-tight">Invités<br />contactés</p>
+          </div>
+          <div className="bg-[#F5F0E8]/10 rounded-xl p-2 text-center">
+            <p className="text-white font-bold text-base">{nbCommandos}</p>
+            <p className="text-white/50 text-[10px] leading-tight">Invités<br />ayant commandé</p>
+          </div>
+          <div className="bg-[#C9A84C]/10 rounded-xl p-2 text-center">
+            <p className="text-[#C9A84C] font-bold text-base">{tauxConversion}%</p>
+            <p className="text-white/50 text-[10px] leading-tight">Taux de<br />conversion</p>
+          </div>
+        </div>
+      )}
 
       {/* ─── Modale QR Code ─── */}
       {showQR && (
