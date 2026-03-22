@@ -21,8 +21,11 @@ function CountdownRingSvg({ jours, pctPreparation }: { jours: number | null; pct
         <circle cx="65" cy="65" r={r} fill="none" stroke="#C9A84C" strokeWidth="10"
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
           transform="rotate(-90 65 65)" style={{ transition: 'stroke-dashoffset 1s ease' }} />
-        <text x="65" y="60" textAnchor="middle" className="fill-[#1A1A1A]" fontSize="18" fontWeight="bold">{jours ?? '—'}</text>
-        <text x="65" y="76" textAnchor="middle" className="fill-[#888]" fontSize="9">jours</text>
+        {jours !== null && jours <= 0
+          ? <text x="65" y="72" textAnchor="middle" className="fill-[#C9A84C]" fontSize="11" fontWeight="bold">{jours === 0 ? '🎉' : '✨'}</text>
+          : <text x="65" y="60" textAnchor="middle" className="fill-[#1A1A1A]" fontSize="18" fontWeight="bold">{jours ?? '—'}</text>
+        }
+        {(jours === null || jours > 0) && <text x="65" y="76" textAnchor="middle" className="fill-[#888]" fontSize="9">jours</text>}
         <text x="65" y="90" textAnchor="middle" className="fill-[#C9A84C]" fontSize="8">{pctPreparation}% préparé</text>
       </svg>
     </div>
@@ -73,9 +76,22 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
         <div className="flex justify-center my-3">
           <CountdownRingSvg jours={identity.jours_avant_mariage} pctPreparation={pctPrep} />
         </div>
-        {identity.jours_avant_mariage !== null && (
-          <p className="text-xs text-[#888]">Plus que <strong className="text-[#1A1A1A]">{identity.jours_avant_mariage} jours</strong> avant le grand jour</p>
+        {identity.jours_avant_mariage !== null && identity.jours_avant_mariage > 0 && (
+          <p className="text-xs text-[#888]">Plus que <strong className="text-[#1A1A1A]">{identity.jours_avant_mariage} jour{identity.jours_avant_mariage > 1 ? 's' : ''}</strong> avant le grand jour</p>
         )}
+        {identity.jours_avant_mariage === 0 && (
+          <p className="text-xs font-semibold text-[#C9A84C]">C&apos;est aujourd&apos;hui ! Félicitations ! 🎉</p>
+        )}
+        {identity.jours_avant_mariage !== null && identity.jours_avant_mariage < 0 && (
+          <p className="text-xs font-semibold text-[#C9A84C]">Jour J passé — Félicitations ! ✨</p>
+        )}
+      </div>
+
+      {/* Bouton paramètres */}
+      <div className="text-center -mt-2">
+        <a href="/portail/parametres" className="inline-flex items-center gap-1 text-xs text-[#888] hover:text-[#C9A84C] transition-colors">
+          <span>⚙️</span> Paramétrer mon mariage
+        </a>
       </div>
 
       {/* BLOC 2 — CTA Boutique + Hébergements (liens externes) */}

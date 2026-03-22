@@ -1,8 +1,8 @@
 'use client'
 // app/portail/ma-commande/page.tsx
-// Suivi de commande + déclaration de versements
+// Suivi de commande + déclaration de versements libres
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { Commande, Versement } from '@/app/api/portail/commandes/route'
 import type { VersementDeclare } from '@/app/api/portail/versements/route'
 
@@ -37,6 +37,13 @@ const MODES = [
   { key: 'CASH', label: 'Espèces', icon: '💵' },
 ]
 
+const MODES_LIBRE = [
+  { key: 'orange_money', label: 'Orange Money', icon: '🟠' },
+  { key: 'virement', label: 'Virement', icon: '🏦' },
+  { key: 'especes', label: 'Espèces', icon: '💵' },
+  { key: 'carte', label: 'Carte', icon: '💳' },
+]
+
 function VersementCard({ v, index }: { v: Versement; index: number }) {
   const colors = ['#C9A84C', '#0F52BA', '#7C9A7E']
   const color = colors[index] ?? '#888'
@@ -60,19 +67,49 @@ function VersementCard({ v, index }: { v: Versement; index: number }) {
   )
 }
 
+interface VersementLibre { id?: string; montant: number; date?: string; mode?: string; statut: string; note?: string; recu_url?: string }
+
 export default function MaCommandePage() {
   const [uid] = useState(() => getUidFromCookie())
   const [commande, setCommande] = useState<Commande | null>(null)
   const [versementsDeclares, setVersementsDeclares] = useState<VersementDeclare[]>([])
+  const [versementsLibres, setVersementsLibres] = useState<VersementLibre[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Formulaire déclaration
+  // Formulaire déclaration libre
+  const [lMontant, setLMontant] = useState('')
+  const [lDate, setLDate] = useState(new Date().toISOString().split('T')[0])
+  const [lMode, setLMode] = useState('orange_money')
+  const [lNote, setLNote] = useState('')
+  const [lRecuUrl, setLRecuUrl] = useState('')
+  const [lUploading, setLUploading] = useState(false)
+  const [lSaving, setLSaving] = useState(false)
+  const [lSuccess, setLSuccess] = useState(false)
+  const recuFileRef = useRef<HTMLInputElement>(null)
+
+  // Formulaire déclaration commande (ancien système)
   const [montant, setMontant] = useState('')
   const [mode, setMode] = useState('OM')
   const [reference, setReference] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const loadVersementsLibres = () => {
+    if (!uid) return
+    fetch(`/api/portail/user?uid=${encodeURIComponent(uid)}`)
+      .then(r => r.json())
+      .catch(() => null)
+  }
+  useEffect(() => { loadVersementsLibres() }, [uid])
+
+  // Charger les versements libres depuis portail_users
+  useEffect(() => {
+    if (!uid) return
+    fetch(`/api/portail/parametres`)
+      .then(r => r.json())
+      .catch(() => {})
+  }, [uid])
 
   useEffect(() => {
     if (!uid) { setLoading(false); return }
@@ -92,6 +129,50 @@ export default function MaCommandePage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [uid])
+
+  const handleUploadRecu = async (file: File) => {
+    if (!uid) return
+    setLUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('path', `maries/${uid}/recus/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`)
+      const res = await fetch('/api/portail/upload', { method: 'POST', body: formData })
+      const d = await res.json()
+      if (d.url) setLRecuUrl(d.url as string)
+    } catch { /* ignore */ } finally {
+      setLUploading(false)
+    }
+  }
+
+  const declarerVersementLibre = async () => {
+    if (!lMontant || !uid) return
+    setLSaving(true)
+    setLSuccess(false)
+    try {
+      const res = await fetch('/api/portail/declarer-versement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          montant: Number(lMontant),
+          date: lDate,
+          mode: lMode,
+          note: lNote.trim(),
+          recu_url: lRecuUrl,
+        }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setLSuccess(true)
+        setLMontant(''); setLNote(''); setLRecuUrl('')
+        setLDate(new Date().toISOString().split('T')[0])
+        if (d.versement) setVersementsLibres(prev => [d.versement, ...prev])
+        setTimeout(() => setLSuccess(false), 4000)
+      }
+    } finally {
+      setLSaving(false)
+    }
+  }
 
   async function declarerVersement() {
     if (!commande?.id || !montant || !uid) return
@@ -191,6 +272,77 @@ export default function MaCommandePage() {
         {commande.versements.map((v, i) => (
           <VersementCard key={i} v={v} index={i} />
         ))}
+      </div>
+
+      {/* Versements libres */}
+      {versementsLibres.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8] mb-4">
+          <p className="text-xs font-semibold text-[#888] uppercase tracking-wide mb-2">Paiements déclarés (récents)</p>
+          {versementsLibres.map((v, i) => (
+            <div key={v.id ?? i} className="flex items-center justify-between py-2 border-b border-[#F5F0E8] last:border-0">
+              <div>
+                <p className="text-sm text-[#1A1A1A]">{formatFCFA(v.montant)}{v.mode ? ` — ${v.mode}` : ''}</p>
+                {v.note && <p className="text-[10px] text-[#888]">{v.note}</p>}
+                {v.recu_url && <a href={v.recu_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[#C9A84C] underline">📄 Reçu</a>}
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${v.statut === 'confirme' ? 'text-[#7C9A7E] bg-[#7C9A7E22]' : 'text-[#C9A84C] bg-[#C9A84C22]'}`}>
+                {v.statut === 'confirme' ? 'Confirmé' : 'Déclaré'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Formulaire versement libre */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8] mb-4">
+        <p className="text-xs font-semibold text-[#888] uppercase tracking-wide mb-3">Déclarer un versement</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-[#888] block mb-1">Montant (FCFA) *</label>
+              <input type="number" value={lMontant} onChange={e => setLMontant(e.target.value)} placeholder="0"
+                className="w-full text-sm border border-[#E8E0D0] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A84C]" />
+            </div>
+            <div>
+              <label className="text-xs text-[#888] block mb-1">Date</label>
+              <input type="date" value={lDate} onChange={e => setLDate(e.target.value)}
+                className="w-full text-sm border border-[#E8E0D0] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A84C]" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {MODES_LIBRE.map(m => (
+              <button key={m.key} onClick={() => setLMode(m.key)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all"
+                style={{ borderColor: lMode === m.key ? '#C9A84C' : '#E8E0D0', background: lMode === m.key ? '#C9A84C11' : 'white', color: lMode === m.key ? '#C9A84C' : '#1A1A1A' }}>
+                <span>{m.icon}</span><span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+          <input value={lNote} onChange={e => setLNote(e.target.value)} placeholder="Note optionnelle"
+            className="w-full text-sm border border-[#E8E0D0] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9A84C]" />
+          {/* Upload reçu */}
+          <div>
+            {lRecuUrl ? (
+              <div className="flex items-center gap-2 p-3 bg-[#F5F0E8] rounded-xl">
+                <span>📄</span>
+                <a href={lRecuUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#C9A84C] underline flex-1 truncate">Reçu uploadé</a>
+                <button onClick={() => setLRecuUrl('')} className="text-xs text-[#888]">✕</button>
+              </div>
+            ) : (
+              <button onClick={() => recuFileRef.current?.click()} disabled={lUploading}
+                className="w-full py-2.5 rounded-xl text-xs border-2 border-dashed border-[#E8E0D0] text-[#888] hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors">
+                {lUploading ? '⏳ Upload…' : '📎 Joindre le reçu (Orange Money, virement…)'}
+              </button>
+            )}
+            <input ref={recuFileRef} type="file" accept=".pdf,image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadRecu(f) }} />
+          </div>
+        </div>
+        {lSuccess && <div className="mt-3 p-3 bg-green-50 text-green-800 rounded-xl text-sm">✅ Versement déclaré — l&apos;équipe va le confirmer.</div>}
+        <button onClick={declarerVersementLibre} disabled={lSaving || !lMontant}
+          className="w-full mt-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#C9A84C' }}>
+          {lSaving ? 'Envoi…' : '+ Déclarer ce versement'}
+        </button>
       </div>
 
       {/* Versements déclarés */}

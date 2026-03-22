@@ -26,10 +26,7 @@ interface BudgetCategories {
   traiteur: number; decoration: number; hebergement: number
   beaute: number; photographie: number; autres: number
 }
-interface VersementItem { label: string; montant: number; statut: string }
-interface Versements {
-  v1?: VersementItem; v2?: VersementItem; v3?: VersementItem
-}
+interface VersementLibre { id?: string; montant: number; date?: string; mode?: string; statut: string; note?: string }
 
 async function getData() {
   try {
@@ -136,8 +133,16 @@ async function getData() {
     }
     const budgetTotal: number = (d.budget_total as number | undefined) ?? (d.projet?.budget_previsionnel as number | undefined) ?? 0
 
-    // BLOC 12 — Versements 30/40/30
-    const versements: Versements = (d.versements as Versements | undefined) ?? {}
+    // BLOC 12 — Versements libres (historique des paiements)
+    // Compatible ancienne structure objet v1/v2/v3 ET nouveau tableau
+    const versementsRaw = d.versements
+    let versements: VersementLibre[] = []
+    if (Array.isArray(versementsRaw)) {
+      versements = versementsRaw as VersementLibre[]
+    } else if (versementsRaw && typeof versementsRaw === 'object') {
+      // Migration depuis l'ancienne structure v1/v2/v3 — ignorer (format obsolète)
+      versements = []
+    }
 
     // Invités depuis le tableau (pour comptages enrichis)
     const invitesList: Array<{ statut?: string }> = (d.invites as Array<{ statut?: string }> | undefined) ?? []
@@ -181,14 +186,6 @@ async function getData() {
 export default async function PortailPage() {
   const data = await getData()
 
-  // Versements sous forme de tableau pour ActionsDashboard
-  const versementsArray = [
-    data.versements.v1 ? { label: data.versements.v1.label, montant: data.versements.v1.montant, statut: data.versements.v1.statut as 'payé' | 'en_attente' | 'en_retard' | 'à_venir' } : null,
-    data.versements.v2 ? { label: data.versements.v2.label, montant: data.versements.v2.montant, statut: data.versements.v2.statut as 'payé' | 'en_attente' | 'en_retard' | 'à_venir' } : null,
-    data.versements.v3 ? { label: data.versements.v3.label, montant: data.versements.v3.montant, statut: data.versements.v3.statut as 'payé' | 'en_attente' | 'en_retard' | 'à_venir' } : null,
-  ].filter((v): v is NonNullable<typeof v> => v !== null)
-
-  const hasVersements = versementsArray.length > 0 && data.budgetTotal > 0
   // Compteur pour les stats — préfère les todos seedés, sinon tachesDoc
   const displayDone = data.todosDone > 0 ? data.todosDone : data.tachesDoneTpl
   const displayTotal = data.todosTotal > 0 ? data.todosTotal : data.tachesTotalTpl
@@ -230,8 +227,8 @@ export default async function PortailPage() {
         uid={data.uid}
         todos={data.todos}
         lieu={data.lieu}
-        versements={versementsArray}
-        hasCommande={hasVersements}
+        versements={data.versements}
+        budgetTotal={data.budgetTotal}
         prestataires={data.prestataires}
       />
     </div>
