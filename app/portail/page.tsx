@@ -131,7 +131,7 @@ async function getData() {
     const budgetCategories: BudgetCategories = (d.budget_categories as BudgetCategories | undefined) ?? {
       traiteur: 0, decoration: 0, hebergement: 0, beaute: 0, photographie: 0, autres: 0,
     }
-    const budgetTotal: number = (d.budget_total as number | undefined) ?? (d.projet?.budget_previsionnel as number | undefined) ?? 0
+    const budgetTotal: number = (d.budget_total as number | undefined) ?? (d.budget_previsionnel as number | undefined) ?? (d.projet?.budget_previsionnel as number | undefined) ?? 0
 
     // BLOC 12 — Versements libres (historique des paiements)
     // Compatible ancienne structure objet v1/v2/v3 ET nouveau tableau
@@ -147,7 +147,7 @@ async function getData() {
     // Invités depuis le tableau (pour comptages enrichis)
     const invitesList: Array<{ statut?: string }> = (d.invites as Array<{ statut?: string }> | undefined) ?? []
     const invitesConfirmesFirestore = invitesList.filter(i => i.statut === 'confirme').length
-    const nbInvitesPrevus: number = (d.nb_invites_prevus as number | undefined) ?? (d.projet?.nombre_invites_prevu as number | undefined) ?? 0
+    const nbInvitesPrevus: number = (d.nb_invites_prevus as number | undefined) ?? (d.nombre_invites_prevu as number | undefined) ?? (d.nombre_invites_prevus as number | undefined) ?? (d.projet?.nombre_invites_prevu as number | undefined) ?? 0
 
     // Calcul todos
     const todosDone = todos.filter(t => t.done).length
