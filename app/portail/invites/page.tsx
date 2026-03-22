@@ -10,6 +10,15 @@ import { useClientIdentity } from '@/hooks/useClientIdentity'
 
 interface CsvRow { Nom?: string; Telephone?: string; Email?: string }
 
+interface MainInvite {
+  id?: string
+  prenom?: string
+  nom?: string
+  statut?: string
+  hebergement?: boolean
+  table?: string
+}
+
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
@@ -18,12 +27,30 @@ function getUid() {
   return decodeURIComponent(document.cookie.match(/portail_uid=([^;]+)/)?.[1] ?? '')
 }
 
+const STATUT_DOT: Record<string, { bg: string; label: string }> = {
+  confirmé:       { bg: '#7C9A7E', label: 'Confirmé' },
+  confirme:       { bg: '#7C9A7E', label: 'Confirmé' },
+  en_attente:     { bg: '#E8A84C', label: 'En attente' },
+  absent:         { bg: '#C0392B', label: 'Absent' },
+  non_renseigné:  { bg: '#CCCCCC', label: 'Non renseigné' },
+}
+
+function dotColor(statut?: string): string {
+  return STATUT_DOT[statut ?? 'non_renseigné']?.bg ?? '#CCCCCC'
+}
+function dotLabel(statut?: string): string {
+  return STATUT_DOT[statut ?? 'non_renseigné']?.label ?? 'Non renseigné'
+}
+
 export default function InvitesPage() {
   const [uid] = useState(() => getUid())
   const identity = useClientIdentity()
   const [guests, setGuests] = useState<Guest[]>([])
+  const [mainInvites, setMainInvites] = useState<MainInvite[]>([])
   const [search, setSearch] = useState('')
   const [filtre, setFiltre] = useState<'tous' | 'non_envoye' | 'envoye' | 'converti'>('tous')
+  const [filtreStatut, setFiltreStatut] = useState<'tous' | 'confirmé' | 'en_attente' | 'absent'>('tous')
+  const [hoveredDot, setHoveredDot] = useState<string | null>(null)
   const [qrGuest, setQrGuest] = useState<Guest | null>(null)
   const [nom, setNom] = useState(''); const [telephone, setTelephone] = useState(''); const [email, setEmail] = useState('')
   const [table, setTable] = useState(''); const [hebergement, setHebergement] = useState(false)
@@ -33,8 +60,14 @@ export default function InvitesPage() {
   const [sendAllIdx, setSendAllIdx] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const loadMainInvites = () =>
+    fetch('/api/portail/invites-stats')
+      .then(r => r.json())
+      .then(d => setMainInvites(d.invites ?? []))
+      .catch(() => {})
+
   const load = () => fetch('/api/portail/invites').then(r => r.json()).then(d => setGuests(d.guests ?? []))
-  useEffect(() => { if (uid) load() }, [uid])
+  useEffect(() => { if (uid) { load(); loadMainInvites() } }, [uid])
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
   const handleTelChange = (v: string) => { setTelephone(v); setTelError(v && !validateTelephoneCM(v) ? 'Format attendu : +237XXXXXXXXX' : '') }
@@ -48,7 +81,7 @@ export default function InvitesPage() {
     // Aussi écrire dans mariés/[uid].invites[] pour le compteur dashboard
     await fetch('/api/portail/ajouter-invite', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prenom: nomFull.split(' ')[0], nom: nomFull.split(' ').slice(1).join(' '), tel: normalizeTelephone(telephone.trim()), table: table.trim(), hebergement }) }).catch(() => {})
-    setNom(''); setTelephone(''); setEmail(''); setTable(''); setHebergement(false); setAjoutLoading(false); showToast('Invité ajouté ✓'); load()
+    setNom(''); setTelephone(''); setEmail(''); setTable(''); setHebergement(false); setAjoutLoading(false); showToast('Invité ajouté ✓'); load(); loadMainInvites()
   }
 
   const handleDelete = async (g: Guest) => {
@@ -100,6 +133,20 @@ export default function InvitesPage() {
 
   const nonEnvoyes = guests.filter(g => !g.lien_envoye)
 
+  // Compteurs statut depuis mainInvites
+  const nbConfirmes = mainInvites.filter(i => i.statut === 'confirmé' || i.statut === 'confirme').length
+  const nbEnAttente = mainInvites.filter(i => !i.statut || i.statut === 'en_attente').length
+  const nbAbsents = mainInvites.filter(i => i.statut === 'absent').length
+
+  // Liste filtrée par statut (mainInvites)
+  const filteredMain = mainInvites.filter(i => {
+    if (filtreStatut === 'tous') return true
+    if (filtreStatut === 'confirmé') return i.statut === 'confirmé' || i.statut === 'confirme'
+    if (filtreStatut === 'en_attente') return !i.statut || i.statut === 'en_attente'
+    if (filtreStatut === 'absent') return i.statut === 'absent'
+    return true
+  })
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
       {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>}
@@ -125,6 +172,86 @@ export default function InvitesPage() {
             </div>
           ))}
       </div>
+
+      {/* SECTION STATUTS INVITÉS — dots colorés + filtres */}
+      {mainInvites.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+          {/* Compteurs statuts */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-sm text-[#1A1A1A]">Statuts de présence</p>
+            <p className="text-xs text-[#888]">Total : {mainInvites.length}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { key: 'tous',       label: 'Tous',        count: mainInvites.length, color: '#1A1A1A' },
+              { key: 'confirmé',   label: 'Confirmés',   count: nbConfirmes,        color: '#7C9A7E' },
+              { key: 'en_attente', label: 'En attente',  count: nbEnAttente,        color: '#E8A84C' },
+              { key: 'absent',     label: 'Absents',     count: nbAbsents,          color: '#C0392B' },
+            ].map(f => (
+              <button
+                key={f.key}
+                onClick={() => setFiltreStatut(f.key as typeof filtreStatut)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: filtreStatut === f.key ? f.color : '#F5F0E8',
+                  color: filtreStatut === f.key ? 'white' : '#555',
+                }}
+              >
+                <span>{f.label}</span>
+                <span className="font-bold">{f.count}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Grille de dots */}
+          <div className="flex flex-wrap gap-2 relative">
+            {filteredMain.map((inv, idx) => {
+              const key = inv.id ?? `${idx}`
+              const prenom = inv.prenom ?? inv.nom ?? `Invité ${idx + 1}`
+              const statut = inv.statut ?? 'en_attente'
+              return (
+                <div
+                  key={key}
+                  className="relative"
+                  onMouseEnter={() => setHoveredDot(key)}
+                  onMouseLeave={() => setHoveredDot(null)}
+                >
+                  <div
+                    className="w-5 h-5 rounded-full cursor-pointer transition-transform hover:scale-125"
+                    style={{ background: dotColor(statut) }}
+                    title={`${prenom} — ${dotLabel(statut)}`}
+                  />
+                  {hoveredDot === key && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 bg-[#1A1A1A] text-white text-[10px] rounded-lg px-2 py-1 whitespace-nowrap shadow-lg pointer-events-none">
+                      {prenom}
+                      <br />
+                      <span style={{ color: dotColor(statut) }}>{dotLabel(statut)}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {filteredMain.length === 0 && (
+              <p className="text-xs text-[#AAA] py-2">Aucun invité dans cette catégorie</p>
+            )}
+          </div>
+
+          {/* Légende */}
+          <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-[#F5F0E8]">
+            {[
+              { color: '#7C9A7E', label: 'Confirmé' },
+              { color: '#E8A84C', label: 'En attente' },
+              { color: '#C0392B', label: 'Absent' },
+              { color: '#CCCCCC', label: 'Non renseigné' },
+            ].map(l => (
+              <div key={l.label} className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full inline-block" style={{ background: l.color }} />
+                <span className="text-[10px] text-[#888]">{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Import manuel */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
