@@ -13,6 +13,7 @@ import CardCodePromo from '@/components/portail/dashboard/CardCodePromo'
 import ReservationsHebergement from '@/components/portail/dashboard/ReservationsHebergement'
 import AchatsBoutiqueInvites from '@/components/portail/dashboard/AchatsBoutiqueInvites'
 import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsBoutiqueInvites'
+import PrevisionBudget from '@/components/budget/PrevisionBudget'
 
 // Note : le bandeau admin est géré par portail/layout.tsx (AdminBandeau + cookie admin_view)
 
@@ -133,6 +134,12 @@ async function getData() {
     }
     const budgetTotal: number = (d.budget_total as number | undefined) ?? (d.budget_previsionnel as number | undefined) ?? (d.projet?.budget_previsionnel as number | undefined) ?? 0
 
+    // Date mariage (Timestamp ou string ISO)
+    const dateMariageRaw = d.date_mariage ?? d.projet?.date_evenement
+    const dateMariage: string = dateMariageRaw?.toDate
+      ? dateMariageRaw.toDate().toISOString().slice(0, 10)
+      : typeof dateMariageRaw === 'string' ? dateMariageRaw : ''
+
     // BLOC 12 — Versements libres (historique des paiements)
     // Compatible ancienne structure objet v1/v2/v3 ET nouveau tableau
     const versementsRaw = d.versements
@@ -176,6 +183,7 @@ async function getData() {
       tachesTotalTpl,
       budgetCategories,
       budgetTotal,
+      dateMariage,
       versements,
       invitesConfirmesFirestore,
       nbInvitesPrevus,
@@ -221,6 +229,14 @@ export default async function PortailPage() {
       {/* BLOC 6 — Mon Hébergement */}
       <SaisieHebergement uid={data.uid} />
       <ReservationsHebergement reservations={data.reservations} />
+
+      {/* P8-D — Prévision budget finale */}
+      <PrevisionBudget
+        budget_total={data.budgetTotal}
+        versements={data.versements}
+        date_mariage={data.dateMariage}
+        readOnly
+      />
 
       {/* BLOCS 7, 8, 10, 11, 12 — Prestataires + Timeline + Tâches + Météo + Versements + Citation */}
       <ActionsDashboard
