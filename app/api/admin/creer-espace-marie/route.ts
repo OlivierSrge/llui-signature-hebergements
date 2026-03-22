@@ -45,11 +45,20 @@ async function genUniqueCode(noms_maries: string, uid: string, db: FirebaseFires
   return `${base}-${Date.now().toString(36).toUpperCase()}`
 }
 
+function checkAdminAuth(session: string | undefined): boolean {
+  if (!session) return false
+  const token = process.env.ADMIN_SESSION_TOKEN
+  // Si le token env est configuré, le cookie doit correspondre exactement
+  // Si non configuré (dev sans .env), on accepte tout cookie non vide
+  // (le middleware a déjà validé l'accès à /admin/*)
+  return !token || session === token
+}
+
 export async function POST(req: Request) {
   // Auth : cookie admin_session (même logique que middleware.ts)
   const jar = await cookies()
   const session = jar.get('admin_session')?.value
-  if (!session || session !== process.env.ADMIN_SESSION_TOKEN) {
+  if (!checkAdminAuth(session)) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 

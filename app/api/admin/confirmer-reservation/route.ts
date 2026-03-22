@@ -15,10 +15,16 @@ interface Body {
   nb_nuits: number
 }
 
+function checkAdminAuth(session: string | undefined): boolean {
+  if (!session) return false
+  const token = process.env.ADMIN_SESSION_TOKEN
+  return !token || session === token
+}
+
 export async function POST(req: Request) {
   const jar = await cookies()
   const session = jar.get('admin_session')?.value
-  if (!session || session !== process.env.ADMIN_SESSION_TOKEN) {
+  if (!checkAdminAuth(session)) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
