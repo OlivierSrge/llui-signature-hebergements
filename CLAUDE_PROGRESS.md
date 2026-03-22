@@ -1,5 +1,37 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P8-C Admin versements + paramètres mariage + badges
+Dernière mise à jour : 2026-03-22 — P8-B Fiche invitation invité (en cours)
+
+---
+
+## P8-B — FICHE INVITATION PERSONNALISÉE INVITÉ — EN COURS (2026-03-22)
+
+### Étapes complétées
+- ✅ **Étape 1** — Page fiche invité + API publique (commit `709cf2f`)
+  - `app/fiche/[marie_uid]/page.tsx` : design luxe fond #1A1A1A
+    Logo L&Lui, noms mariés en grand doré, date, lieu, code encadré, QR code boutique, 2 boutons (boutique + hébergements), bouton PDF
+  - `app/api/invite/[marie_uid]/route.ts` : API publique (no auth), retourne noms_maries/date_mariage/lieu/code_promo
+  - Export PDF A5 via jsPDF intégré dans la page (fond noir, texte doré, QR code)
+  - Note : URL `/fiche/[marie_uid]` (pas `/invite/[slug]` déjà utilisé pour magic links)
+- ✅ **Étape 2** — Bouton "Envoyer sa fiche →" dans page invités (commit `87b00b1`)
+  - `ficheUrl()` génère URL `/fiche/[marie_uid]?prenom=X&code=Y`
+  - `ficheWaUrlFor()` : message WhatsApp personnalisé avec lien fiche
+  - `handleEnvoyerFiche()` : ouvre wa.me + marque `fiche_envoyee=true` dans Firestore
+  - Bouton "🎫 Fiche →" dans colonnes Silencieux ET Ont commandé
+- ✅ **Étape 3** — Export PDF A5 → inclus dans Étape 1 (page fiche)
+- ✅ **Étape 4** — Modal envoi groupé + API envoyer-fiches (commit `2057591`)
+  - `app/api/portail/envoyer-fiches/route.ts` : envoi Twilio par invité, génère URL `/fiche/[marie_uid]?prenom=X&code=Y`, marque `fiche_envoyee=true`
+  - Modale "📨 Envoyer toutes les fiches" : checklist + "Sélectionner tous sans fiche" + envoi groupé
+  - Bouton "📨 Fiches" dans header page invités
+
+### Fichiers créés / modifiés
+- `app/fiche/[marie_uid]/page.tsx` (créé) — page publique luxe fond #1A1A1A
+- `app/api/invite/[marie_uid]/route.ts` (créé) — API publique noms/date/lieu/code
+- `app/api/portail/envoyer-fiches/route.ts` (créé) — envoi groupé Twilio
+- `app/portail/invites/page.tsx` (modifié) — bouton fiche + modal envoi groupé
+
+### Note architecture
+- `/invite/[slug]` conservé pour les magic links invités existants
+- `/fiche/[marie_uid]` = nouvelle route pour fiches personnalisées par marie_uid + params
 
 ---
 
