@@ -14,6 +14,7 @@ import ReservationsHebergement from '@/components/portail/dashboard/Reservations
 import AchatsBoutiqueInvites from '@/components/portail/dashboard/AchatsBoutiqueInvites'
 import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsBoutiqueInvites'
 import PrevisionBudget from '@/components/budget/PrevisionBudget'
+import JournalActivite from '@/components/portail/dashboard/JournalActivite'
 
 // Note : le bandeau admin est géré par portail/layout.tsx (AdminBandeau + cookie admin_view)
 
@@ -237,6 +238,9 @@ export default async function PortailPage() {
         date_mariage={data.dateMariage}
         readOnly
       />
+
+      {/* #51 — Journal d'activité */}
+      <JournalActivite />
 
       {/* BLOCS 7, 8, 10, 11, 12 — Prestataires + Timeline + Tâches + Météo + Versements + Citation */}
       <ActionsDashboard
