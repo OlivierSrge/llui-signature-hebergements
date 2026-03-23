@@ -1,5 +1,54 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-23 — Sprint 2 terminé (9 modules, commits 6f71961→6db7310)
+Dernière mise à jour : 2026-03-23 — Sprint 3 terminé (10 modules, commits 6460aa0→0d5e4c6)
+
+---
+
+## SPRINT 3 — Partenaires, Diaspora & Services Premium — TERMINÉ (2026-03-23)
+
+### Modules complétés
+
+- ✅ **#121** Rédacteur discours IA — `app/discours/[marie_uid]/page.tsx`
+  - API Anthropic `claude-sonnet-4-20250514`, max_tokens 1500, 3 styles (solennel/émouvant/humoristique)
+  - Questionnaire 6 champs, toggle FR/EN, copie presse-papiers, export PDF jsPDF A4
+  - commit `6460aa0`
+
+- ✅ **#9** Album souvenir post-mariage — `app/album/[marie_uid]/page.tsx`
+  - Upload multi-photos, compression canvas (1200px max, JPEG 0.82), galerie grid
+  - Lightbox, suppression, API Firestore `arrayUnion` — commit `7249d9c`
+
+- ✅ **#176** Livestream cérémonie — `app/live/[marie_uid]/page.tsx`
+  - Embed YouTube Live + VOD, chat en direct local, compteur spectateurs, bouton partage
+  - commit `a4d921e`
+
+- ✅ **#107** Lune de miel Kribi — `app/lune-de-miel/[marie_uid]/page.tsx`
+  - 3 packages (280k / 650k / 1.2M FCFA), accordion activités, booking Firestore
+  - Hébergements partenaires remises -10% à -15% — commit `647d5ca`
+
+- ✅ **#146** EVJF/EVG — `app/evjf-evg/page.tsx`
+  - Toggle EVJF/EVG, 4 packages (65k→130k FCFA/pers), planning accordion
+  - Formulaire groupe 4-12 pers, Firestore `evjf_evg_demandes` — commit `a1c08b8`
+
+- ✅ **#144** Pack diaspora — `app/diaspora/[marie_uid]/page.tsx`
+  - 10 fuseaux horaires live (useEffect interval 1s), grille simultanée, date mariage convertie
+  - Checklist 10 items départ, médias 360° grid, infos pratiques Kribi — commit `3bae25c`
+
+- ✅ **#194** Mariage mixte — `app/mariage-mixte/page.tsx`
+  - 4 étapes légales accordion + docs requis + délais, 3 traducteurs/3 notaires Kribi
+  - 5 FAQ accordion, CTA WhatsApp Olivier — commit `7fae418`
+
+- ✅ **#150** L&Lui Stars étendu DIAMANT — `app/portail/parrainage/page.tsx`
+  - Avantages DIAMANT (6 badges), tableau de bord filleuls, 50 000 FCFA/filleul
+  - Formulaire recommandation directe → Firestore `parrainage_leads` — commit `26787a5`
+
+- ✅ **#152** Réseau couples alumni — `app/alumni/[marie_uid]/page.tsx`
+  - Timeline anniversaire J+365, 6 avantages progressifs, groupe WhatsApp alumni
+  - 3 onglets : Avantages / Communauté / Témoignages — commit `0146023`
+
+- ✅ **#162** Fonds solidarité — `app/admin/fonds-solidarite/page.tsx`
+  - Calcul auto 1% sur montant mariage Firestore, rapport KPIs + tableau contributions
+  - 3 projets solidaires, badge `BadgeSolidaire` portail couple — commit `0d5e4c6`
+
+---
 
 ---
 
