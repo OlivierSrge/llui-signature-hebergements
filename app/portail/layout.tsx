@@ -3,6 +3,7 @@ import { getDb } from '@/lib/firebase'
 import PortailTopBar from '@/components/portail/PortailTopBar'
 import PortailNav from '@/components/portail/PortailNav'
 import AdminBandeau from '@/components/portail/AdminBandeau'
+import ThemeInjector from '@/components/portail/ThemeInjector'
 import type { PortailGrade } from '@/lib/portailGrades'
 
 interface UserPortailData {
@@ -12,6 +13,8 @@ interface UserPortailData {
   wallet_cash: number
   displayName: string
   invitesCount: number
+  couleur_primaire?: string
+  couleur_secondaire?: string
 }
 
 async function getUserData(): Promise<UserPortailData | null> {
@@ -37,6 +40,8 @@ async function getUserData(): Promise<UserPortailData | null> {
       wallet_cash: data.wallets?.cash ?? 0,
       displayName: noms_maries || 'Mon espace mariage',
       invitesCount,
+      couleur_primaire: (data.couleur_primaire as string | undefined) ?? undefined,
+      couleur_secondaire: (data.couleur_secondaire as string | undefined) ?? undefined,
     }
   } catch {
     return null
@@ -55,6 +60,8 @@ export default async function PortailLayout({ children }: { children: React.Reac
   }
   return (
     <div className="min-h-screen bg-[#F5F0E8]">
+      {/* #187 — Thème visuel dynamique */}
+      <ThemeInjector couleur_primaire={user.couleur_primaire} couleur_secondaire={user.couleur_secondaire} />
       {/* Bandeau mode admin — décalage supplémentaire quand actif */}
       {adminView && <AdminBandeau nomsMaries={adminView} />}
       <PortailTopBar

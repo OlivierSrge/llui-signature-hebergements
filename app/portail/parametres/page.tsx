@@ -55,6 +55,9 @@ export default function ParametresPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
+  // #187 Thème visuel
+  const [couleurPrimaire, setCouleurPrimaire] = useState('#C9A84C')
+  const [couleurSecondaire, setCouleurSecondaire] = useState('#F5F0E8')
 
   // Charger les données existantes
   useEffect(() => {
@@ -100,6 +103,8 @@ export default function ParametresPage() {
           nb_invites_prevus: Number(nbInvites) || 0,
           budget_total: Number(budgetGlobal) || 0,
           budget_categories: cats,
+          couleur_primaire: couleurPrimaire,
+          couleur_secondaire: couleurSecondaire,
         }),
       })
       if (res.ok) showToast('Paramètres enregistrés ✓')
@@ -222,6 +227,43 @@ export default function ParametresPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* SECTION #187 — Thème visuel */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+          <p className="font-semibold text-sm text-[#1A1A1A] mb-1">🎨 Thème visuel personnalisé</p>
+          <p className="text-xs text-[#888] mb-4">Choisissez les couleurs de votre espace marié</p>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="text-xs text-[#888] block mb-1.5">Couleur principale</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={couleurPrimaire}
+                  onChange={e => setCouleurPrimaire(e.target.value)}
+                  className="w-10 h-10 rounded-xl border border-[#E8E0D0] cursor-pointer p-0.5"
+                />
+                <span className="text-xs font-mono text-[#888]">{couleurPrimaire}</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-[#888] block mb-1.5">Couleur de fond</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={couleurSecondaire}
+                  onChange={e => setCouleurSecondaire(e.target.value)}
+                  className="w-10 h-10 rounded-xl border border-[#E8E0D0] cursor-pointer p-0.5"
+                />
+                <span className="text-xs font-mono text-[#888]">{couleurSecondaire}</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl p-3 flex items-center gap-3"
+            style={{ background: couleurSecondaire, border: `1px solid ${couleurPrimaire}30` }}>
+            <div className="w-6 h-6 rounded-full" style={{ background: couleurPrimaire }} />
+            <span className="text-xs" style={{ color: couleurPrimaire }}>Aperçu de votre thème</span>
           </div>
         </div>
 

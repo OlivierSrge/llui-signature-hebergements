@@ -23,17 +23,29 @@ export async function sendWhatsApp(
     if (tel.startsWith('00')) tel = '+' + tel.slice(2)             // 00237... → +237...
     if (/^237\d{8,9}$/.test(tel)) tel = '+' + tel                 // 237XXXXXXXX → +237XXXXXXXX
     if (!tel.startsWith('+')) tel = '+237' + tel                   // 6XXXXXXXX → +2376XXXXXXXX
+
+    // Garantir le préfixe whatsapp: des deux côtés
+    const fromWa = fromNumber.startsWith('whatsapp:') ? fromNumber : 'whatsapp:' + fromNumber
+    const toWa   = 'whatsapp:' + tel
+
+    console.log(`[sendWhatsApp] from=${fromWa} to=${toWa}`)
+
     const client = twilio(accountSid, authToken)
-    await client.messages.create({
-      from: fromNumber,
-      to: 'whatsapp:' + tel,
-      body: message
-    })
+    const msg = await client.messages.create({ from: fromWa, to: toWa, body: message })
+
+    console.log(`[sendWhatsApp] OK sid=${msg.sid} status=${msg.status}`)
     return { success: true }
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error)
-    console.error('Twilio erreur:', msg)
-    return { success: false, error: msg }
+    // Twilio errors expose .code et .moreInfo en plus de .message
+    const e = error as Record<string, unknown>
+    const detail = [
+      `message=${e.message ?? String(error)}`,
+      e.code    ? `code=${e.code}`         : null,
+      e.status  ? `httpStatus=${e.status}` : null,
+      e.moreInfo ? `info=${e.moreInfo}`    : null,
+    ].filter(Boolean).join(' | ')
+    console.error(`[sendWhatsApp] Twilio erreur: ${detail}`)
+    return { success: false, error: detail }
   }
 }
 
@@ -90,4 +102,9 @@ export function msgResumeSemaine(data: ResumeSemaine): string {
     `📤 Retraits : ${data.retraitsTraites} traité(s) / ${data.retraitsEnAttente} en attente\n` +
     (data.topTransaction.montant > 0 ? `🏆 Top transaction : ${data.topTransaction.nom} — ${formatFCFA(data.topTransaction.montant)}\n` : '') +
     `\nVoir le dashboard : ${url}/admin/dashboard`
+}
+
+/** #46 Carte cadeau post-mariage J+3 */
+export function msgCarteCadeau(prenom: string, nomsMaries: string, code: string, boutiqueUrl: string): string {
+  return `Bonjour ${prenom} ! 🎁\n\n*${nomsMaries}* vous remercient d'avoir partagé ce moment magique avec eux ! 🥂\n\nPour prolonger la magie de ce beau jour, profitez de votre code exclusif :\n🎀 Code : *${code}*\n👉 ${boutiqueUrl}\n\n💛 Merci d'être dans leur vie !\nL&Lui Signature`
 }

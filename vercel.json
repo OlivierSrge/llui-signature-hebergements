@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/rapport-hebdo",
       "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/cron/relance-invites",
+      "schedule": "0 7 * * *"
     }
   ]
 }

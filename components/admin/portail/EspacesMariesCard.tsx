@@ -3,6 +3,7 @@
 // Card admin — Liste des espaces mariés + accès direct + panneau gestion rapide
 
 import { useState, useEffect } from 'react'
+import PrevisionBudget from '@/components/budget/PrevisionBudget'
 
 interface VersementItem {
   label: string
@@ -357,7 +358,7 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
                 </div>
               ))}
 
-              {/* Résumé */}
+              {/* Résumé rapide */}
               <div className="pt-2 border-t border-[#F5F0E8]">
                 <div className="flex justify-between text-xs">
                   <span className="text-[#888]">Total versé</span>
@@ -367,6 +368,16 @@ function PanneauGestionRapide({ marie, onClose, onUpdate }: {
                   <span className="text-[#888]">Confirmé</span>
                   <span className="font-semibold text-[#7C9A7E]">{formatFCFA(versementsLibres.filter(v => v.statut === 'confirme').reduce((s, v) => s + v.montant, 0))}</span>
                 </div>
+              </div>
+
+              {/* P8-D — Prévision budget finale */}
+              <div className="mt-3">
+                <PrevisionBudget
+                  budget_total={marie.budget_total}
+                  versements={versementsLibres}
+                  date_mariage={marie.date_mariage}
+                  titre="Prévision budget"
+                />
               </div>
             </div>
           )}
