@@ -103,3 +103,8 @@ export function msgResumeSemaine(data: ResumeSemaine): string {
     (data.topTransaction.montant > 0 ? `🏆 Top transaction : ${data.topTransaction.nom} — ${formatFCFA(data.topTransaction.montant)}\n` : '') +
     `\nVoir le dashboard : ${url}/admin/dashboard`
 }
+
+/** #46 Carte cadeau post-mariage J+3 */
+export function msgCarteCadeau(prenom: string, nomsMaries: string, code: string, boutiqueUrl: string): string {
+  return `Bonjour ${prenom} ! 🎁\n\n*${nomsMaries}* vous remercient d'avoir partagé ce moment magique avec eux ! 🥂\n\nPour prolonger la magie de ce beau jour, profitez de votre code exclusif :\n🎀 Code : *${code}*\n👉 ${boutiqueUrl}\n\n💛 Merci d'être dans leur vie !\nL&Lui Signature`
+}
