@@ -1,5 +1,92 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-22 — P8-B fix Application error Digest 398097678 (commit 389bd05)
+Dernière mise à jour : 2026-03-23 — Sprint 2 terminé (9 modules, commits 6f71961→6db7310)
+
+---
+
+## SPRINT 2 — Organisation, Beauté & Gastronomie Kribi — TERMINÉ (2026-03-23)
+
+### Modules complétés
+
+- ✅ **#184** Countdown bien-être mariée — `components/portail/bienetre/BienEtreCountdown.tsx`
+  - Checklist J-90→J-1 (7 milestones, 28 items), progress bar, partenaires beauté Kribi
+  - API `POST /api/portail/rappel-bienetre` — WhatsApp rappel selon milestone actuel
+  - localStorage pour persistance côté client — commit `6f71961`
+
+- ✅ **#185** Espace santé invités — `app/admin/sante-invites/page.tsx`
+  - Champ allergies + toggle PMR ajoutés dans RSVPClient (#42)
+  - Page admin `/admin/sante-invites` : liste allergies par marié, PMR, contacts urgences Kribi
+  - commit `d794f4b`
+
+- ✅ **#64** Mariage coutumier — `app/mariage-traditionnel/[marie_uid]/page.tsx`
+  - 3 onglets : Dot (14 items par catégorie) / Civil (6 étapes) / Religieux (6 étapes)
+  - Espaces famille séparés (vue marié / vue mariée)
+  - API `POST /api/portail/mariage-traditionnel` — sauvegarde Firestore
+  - commit `f7c421a`
+
+- ✅ **#99** Traiteur Kribi — `components/portail/traiteur/TraiteurKribi.tsx`
+  - BDD 20+ plats locaux (crevettes géantes, ndolé, homard, poulet DG…)
+  - Calculateur quantités × nombre d'invités (coût par personne + total)
+  - Planning approvisionnement J-7 → Jour J — commit `7cbf97f`
+
+- ✅ **#7** Carte interactive — `components/CarteKribi.tsx`
+  - Composant réutilisable `<CarteKribi />`, Google Maps embed
+  - Marqueurs : salle, hébergements, restaurants, Chutes de la Lobé
+  - Liens itinéraire Google Maps — commit `b4579ec`
+
+- ✅ **#172** Mode Jour J — `components/portail/jour-j/ModeJourJ.tsx`
+  - Bascule automatique à minuit du jour J (isJourJ())
+  - Programme heure/heure 9h00→2h00, étape courante en temps réel (refresh 1min)
+  - Check-in invités QR : API `/api/portail/jour-j/invites` + `/checkin` + `/urgence`
+  - Bouton urgence → WhatsApp Olivier — commit `93e9f20`
+
+- ✅ **#120** Programme cérémonie auto-généré — `components/portail/programme/ProgrammeCeremonie.tsx`
+  - Appel API Anthropic `claude-sonnet-4-20250514` avec données Firestore
+  - Export PDF jsPDF premium A5 (couverture dark gold + programme + mot des mariés)
+  - Sauvegarde dans `portail_users/[uid].programme_ceremonie`
+  - API `POST /api/portail/generer-programme` — commit `c991bf2`
+
+- ✅ **#122** Analyse prédictive budget — `app/admin/budget-analyse/page.tsx`
+  - Comparaison versements vs historique L&Lui (seuils J-90/J-60/J-30/J-7)
+  - Alertes dépassement précoces (+12% moyen), répartition recommandée par poste
+  - Page dédiée `/admin/budget-analyse` avec liste tous mariés — commit `e182697`
+
+- ✅ **#102** Cartographie hébergements Kribi — `components/portail/cartographie/CartographieHebergements.tsx`
+  - 176 propriétés (hôtels, villas, résidences, auberges, bungalows, campements)
+  - Filtres : type / distance / capacité / prix / mobile money
+  - Tri par distance / prix / catégorie, pagination 12/page — commit `c5323c3`
+
+### Fichiers créés
+- `components/portail/bienetre/BienEtreCountdown.tsx`
+- `components/portail/traiteur/TraiteurKribi.tsx`
+- `components/portail/jour-j/ModeJourJ.tsx`
+- `components/portail/programme/ProgrammeCeremonie.tsx`
+- `components/portail/cartographie/CartographieHebergements.tsx`
+- `components/CarteKribi.tsx`
+- `components/admin/AnalyseBudget.tsx`
+- `components/admin/BudgetAnalyseClient.tsx`
+- `components/admin/SanteInvitesClient.tsx`
+- `components/mariage-traditionnel/MariageTraditionnelClient.tsx`
+- `app/mariage-traditionnel/[marie_uid]/page.tsx`
+- `app/admin/sante-invites/page.tsx`
+- `app/admin/budget-analyse/page.tsx`
+- `app/api/portail/rappel-bienetre/route.ts`
+- `app/api/portail/mariage-traditionnel/route.ts`
+- `app/api/portail/generer-programme/route.ts`
+- `app/api/portail/jour-j/invites/route.ts`
+- `app/api/portail/jour-j/checkin/route.ts`
+- `app/api/portail/jour-j/urgence/route.ts`
+
+### Dépendances ajoutées
+- `@anthropic-ai/sdk` — pour #120 génération programme
+
+### Routes admin ajoutées
+- `/admin/sante-invites` — allergies + PMR + urgences
+- `/admin/budget-analyse` — analyse prédictive tous mariés
+
+### Règle absolue maintenue
+"L'admin initialise, Firestore stocke, le portail affiche."
+
+---
 
 ---
 
