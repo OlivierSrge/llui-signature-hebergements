@@ -32,6 +32,8 @@ export default function RSVPClient({ marie_uid, noms_maries, date_mariage, lieu 
     prenom: '', nom: '', email: '', tel: '',
     nb_adultes: '1', nb_enfants: '0',
     regimes: ['normal'] as string[],
+    allergies: '',
+    pmr: false,
     besoin_hebergement: false,
     message: '',
     presence: 'oui' as 'oui' | 'non' | 'peut_etre',
@@ -199,6 +201,38 @@ export default function RSVPClient({ marie_uid, noms_maries, date_mariage, lieu 
                       {r.emoji} {r.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Santé & Accessibilité */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
+                <p className="text-xs font-semibold text-[#888] uppercase tracking-wide mb-3">🏥 Santé & accessibilité</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] text-[#888] block mb-1">Allergies alimentaires ou médicaments</label>
+                    <input
+                      type="text"
+                      value={form.allergies}
+                      onChange={e => setForm(f => ({ ...f, allergies: e.target.value }))}
+                      placeholder="Ex : arachides, lactose, pénicilline…"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1A1A1A]">Personne à mobilité réduite (PMR)</p>
+                      <p className="text-[10px] text-[#888] mt-0.5">Accès facilité requis (rampe, place réservée…)</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, pmr: !f.pmr }))}
+                      className="w-12 h-6 rounded-full transition-all relative flex-shrink-0"
+                      style={{ background: form.pmr ? '#5B8FBF' : '#E5E7EB' }}
+                    >
+                      <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow"
+                        style={{ left: form.pmr ? '1.5rem' : '0.125rem' }} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
