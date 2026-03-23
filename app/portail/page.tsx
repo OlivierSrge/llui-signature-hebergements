@@ -15,6 +15,12 @@ import AchatsBoutiqueInvites from '@/components/portail/dashboard/AchatsBoutique
 import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsBoutiqueInvites'
 import PrevisionBudget from '@/components/budget/PrevisionBudget'
 import JournalActivite from '@/components/portail/dashboard/JournalActivite'
+import BienEtreCountdown from '@/components/portail/bienetre/BienEtreCountdown'
+import TraiteurKribi from '@/components/portail/traiteur/TraiteurKribi'
+import CarteKribi from '@/components/CarteKribi'
+import ModeJourJ from '@/components/portail/jour-j/ModeJourJ'
+import ProgrammeCeremonie from '@/components/portail/programme/ProgrammeCeremonie'
+import CartographieHebergements from '@/components/portail/cartographie/CartographieHebergements'
 
 // Note : le bandeau admin est géré par portail/layout.tsx (AdminBandeau + cookie admin_view)
 
@@ -188,6 +194,8 @@ async function getData() {
       versements,
       invitesConfirmesFirestore,
       nbInvitesPrevus,
+      nomsMaries: (d.noms_maries as string) || '',
+      programmeCeremonie: (d.programme_ceremonie as Record<string, unknown>) ?? null,
     }
   } catch { redirect('/portail/login') }
 }
@@ -238,6 +246,29 @@ export default async function PortailPage() {
         date_mariage={data.dateMariage}
         readOnly
       />
+
+      {/* #184 — Countdown bien-être mariée */}
+      <BienEtreCountdown marie_uid={data.uid} date_mariage={data.dateMariage} noms_maries={data.nomsMaries} />
+
+      {/* #172 — Mode Jour J */}
+      <ModeJourJ marie_uid={data.uid} date_mariage={data.dateMariage} noms_maries={data.nomsMaries} />
+
+      {/* #120 — Programme cérémonie auto-généré */}
+      <ProgrammeCeremonie
+        marie_uid={data.uid}
+        noms_maries={data.nomsMaries}
+        date_mariage={data.dateMariage}
+        programme_initial={data.programmeCeremonie as unknown as Parameters<typeof ProgrammeCeremonie>[0]['programme_initial']}
+      />
+
+      {/* #99 — Traiteur spécialités Kribi */}
+      <TraiteurKribi />
+
+      {/* #7 — Carte interactive Kribi */}
+      <CarteKribi lieu={data.lieu} />
+
+      {/* #102 — Cartographie hébergements Kribi */}
+      <CartographieHebergements />
 
       {/* #51 — Journal d'activité */}
       <JournalActivite />
