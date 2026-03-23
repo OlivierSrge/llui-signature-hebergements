@@ -22,7 +22,7 @@ const SECTIONS = [
       { label: 'Depuis Yaoundé', detail: '180 km · ~3h30 via Ebolowa · Agences : Touristique du Cameroun, Vatican Express' },
       { label: 'Depuis Douala', detail: '220 km · ~3h via Edéa · Agences : Guaranti Express, Binam Voyages' },
       { label: 'Taxi-brousse', detail: 'Départs réguliers depuis les gares routières de Yaoundé et Douala' },
-      { label: 'Location voiture', detail: 'Recommandé pour plus de liberté — demandez les coordonnées à l'organisateur' },
+      { label: 'Location voiture', detail: "Recommandé pour plus de liberté — demandez les coordonnées à l'organisateur" },
     ],
   },
   {
@@ -55,7 +55,7 @@ const SECTIONS = [
     emoji: '🌴',
     activites: [
       '🌊 Plage de Grand Batanga — sable blanc, eaux calmes',
-      '💧 Chutes de la Lobé — seul endroit où une cascade tombe directement dans l'océan',
+      "💧 Chutes de la Lobé — seul endroit où une cascade tombe directement dans l'océan",
       '🐠 Snorkeling & plongée — récifs coralliens préservés',
       '🛶 Excursion en pirogue sur la Lobé',
       '🌳 Forêt pygmée — rencontre avec les peuples Baka',
