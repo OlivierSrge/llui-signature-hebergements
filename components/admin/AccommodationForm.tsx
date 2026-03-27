@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Loader2, Trash2, Save, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
-import { createAccommodation, updateAccommodation, deleteAccommodation, activateAccommodation } from '@/actions/accommodations'
+import { createAccommodation, updateAccommodation, updateAccommodationInfo, updateAccommodationImages, deleteAccommodation, activateAccommodation } from '@/actions/accommodations'
 import { getAmenityIcon } from '@/lib/amenity-icons'
 import PhotoUploader from '@/components/admin/PhotoUploader'
 import AccommodationTypeSelector from '@/components/admin/AccommodationTypeSelector'
@@ -229,6 +229,7 @@ interface Props {
 export default function AccommodationForm({ accommodation, partners }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isSavingPhotos, setIsSavingPhotos] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(accommodation?.status || 'active')
   const isEdit = !!accommodation
@@ -247,35 +248,52 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
     existingAmenities.filter((a) => !ALL_CATALOG_ITEMS.includes(a)).join('\n')
   )
 
+  // Soumission du formulaire d'infos (ne touche pas aux images)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
 
-    // Type
     formData.set('type', selectedType)
 
-    // Images
-    formData.set('images', imageUrls.join('\n'))
-
-    // Fusionner sélectionnés + personnalisés dans le champ amenities
     const custom = customAmenities.split('\n').map((s) => s.trim()).filter(Boolean)
     const all = Array.from(selectedAmenities).concat(custom)
     formData.set('amenities', all.join('\n'))
 
     startTransition(async () => {
-      const result = isEdit
-        ? await updateAccommodation(accommodation.id, formData)
-        : await createAccommodation(formData)
+      let result
+      if (isEdit) {
+        // Sauvegarder uniquement les infos, sans toucher aux images
+        result = await updateAccommodationInfo(accommodation.id, formData)
+      } else {
+        // Création : inclure les images dans le formulaire complet
+        formData.set('images', imageUrls.join('\n'))
+        result = await createAccommodation(formData)
+      }
 
       if (!result.success) {
         toast.error(result.error)
         return
       }
 
-      toast.success(isEdit ? 'Hébergement mis à jour' : 'Hébergement créé')
-      router.push('/admin/hebergements')
-      router.refresh()
+      toast.success(isEdit ? 'Informations mises à jour' : 'Hébergement créé')
+      if (!isEdit) {
+        router.push('/admin/hebergements')
+        router.refresh()
+      }
     })
+  }
+
+  // Sauvegarde séparée des photos (ne touche pas aux infos)
+  const handleSavePhotos = async () => {
+    if (!isEdit || !accommodation) return
+    setIsSavingPhotos(true)
+    const result = await updateAccommodationImages(accommodation.id, imageUrls)
+    setIsSavingPhotos(false)
+    if (!result.success) {
+      toast.error(result.error)
+    } else {
+      toast.success('Photos mises à jour')
+    }
   }
 
   const handleToggleStatus = async () => {
@@ -396,13 +414,28 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
 
       <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
         <h2 className="font-semibold text-dark border-b border-beige-200 pb-3">
-          Photos
+          Photos (7 max)
         </h2>
         <PhotoUploader
           initialUrls={accommodation?.images || []}
           onChange={setImageUrls}
+          maxPhotos={7}
         />
-        <input type="hidden" name="images" value={imageUrls.join('\n')} />
+        {isEdit && (
+          <button
+            type="button"
+            onClick={handleSavePhotos}
+            disabled={isSavingPhotos}
+            className="flex items-center gap-2 px-4 py-2.5 bg-beige-100 text-dark border border-beige-300 rounded-xl text-sm font-medium hover:bg-beige-200 transition-colors disabled:opacity-50"
+          >
+            {isSavingPhotos ? (
+              <><Loader2 size={14} className="animate-spin" /> Enregistrement...</>
+            ) : (
+              <><Save size={14} /> Sauvegarder les photos</>
+            )}
+          </button>
+        )}
+        {!isEdit && <input type="hidden" name="images" value={imageUrls.join('\n')} />}
       </div>
 
       <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-5">
@@ -462,7 +495,7 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
             ) : (
               <span className="flex items-center gap-2">
                 <Save size={16} />
-                {isEdit ? 'Enregistrer les modifications' : "Créer l'hébergement"}
+                {isEdit ? 'Sauvegarder les infos' : "Créer l'hébergement"}
               </span>
             )}
           </button>
