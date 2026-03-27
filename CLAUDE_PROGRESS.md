@@ -1,5 +1,37 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-27 — Module Hébergements : carrousel 7 images + protection données + fix images manquantes
+Dernière mise à jour : 2026-03-27 — Page accueil multi-public + Calendrier Kribi popup/admin (commits e17d537→c5c59fd)
+
+---
+
+## PAGE ACCUEIL MULTI-PUBLIC + CALENDRIER KRIBI (2026-03-27)
+
+### Modification 1 — Refonte texte page d'accueil ✅
+- ✅ Surtitle "KRIBI — CAMEROUN", sous-titre élargi (famille / romantique / mariage / mer)
+- ✅ Bouton secondaire "Ce weekend à Kribi →" dans hero — `WeekendCTA.tsx`
+- ✅ Navbar : lien "Ce weekend" desktop + mobile, dispatch `openCalendrier`
+- ✅ Élément A : `BarreWeekend.tsx` — barre dynamique (N activités, M hébergements, prochain event)
+- ✅ Élément D : badge "NOUVEAU" sur `AccommodationCard.tsx` si `created_at < 30j`
+- commits `e17d537`
+
+### Modification 2 — Bouton flottant + Popup calendrier ✅
+- ✅ `BoutonCalendrier.tsx` — fixed bas-droite #C9A84C, badge count, dot vert live, masqué si 0
+- ✅ `PopupCalendrier.tsx` — slide-up, filtres 6 catégories, liste events, hébergements réels, share WhatsApp
+- ✅ `GET /api/evenements/weekend` — events weekend + récurrents + jointure hébergements
+- ✅ `POST /api/evenements/abonnement` — inscription WhatsApp → `abonnes_newsletter` Firestore
+- ✅ Intégré dans `app/(main)/layout.tsx`
+- commit `d3a0b6d`
+
+### Modification 3 — Stratégie retour visiteurs ✅
+- ✅ Élément B : section "Prochainement à Kribi" — 3 prochains events (image, catégorie, lieu, prix)
+- ✅ Élément C : `AbonnementWhatsApp.tsx` — formulaire téléphone + dedup + états
+- ✅ `actions/evenements.ts` : createEvenement, updateEvenement, deleteEvenement, toggleActif
+- ✅ `/admin/calendrier` : CRUD événements + formulaire inline + multi-select hébergements
+- ✅ Sidebar admin : menu "🗓 Calendrier Kribi"
+- commit `c5c59fd`
+
+**Structure Firestore `evenements_kribi`** :
+  `titre`, `categorie`, `date_debut/fin`, `heure`, `lieu`, `prix`,
+  `image_url`, `hebergements_associes[]`, `actif`, `recurrent`, `jour_recurrence`
 
 ---
 

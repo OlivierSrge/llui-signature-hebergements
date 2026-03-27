@@ -24,6 +24,10 @@ export default function Navbar() {
     { href: '/espace-client', label: 'Mes réservations' },
   ]
 
+  const openCalendrier = () => {
+    document.dispatchEvent(new CustomEvent('openCalendrier'))
+  }
+
   return (
     <header className={cn(
       'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
@@ -55,6 +59,18 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <button
+              onClick={openCalendrier}
+              className={cn(
+                'text-sm font-medium transition-colors duration-200 flex items-center gap-1.5',
+                scrolled || !isHeroPage
+                  ? 'text-dark/70 hover:text-gold-600'
+                  : 'text-white/90 hover:text-white'
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block" />
+              Ce weekend
+            </button>
           </div>
 
           <button
@@ -81,6 +97,13 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              <button
+                onClick={() => { setIsOpen(false); openCalendrier() }}
+                className="px-3 py-2.5 rounded-lg text-sm font-medium text-dark/70 hover:text-dark hover:bg-beige-100 text-left flex items-center gap-2"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block" />
+                Ce weekend à Kribi
+              </button>
             </div>
           </div>
         )}
