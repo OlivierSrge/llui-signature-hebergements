@@ -1,5 +1,58 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-23 — Sprint 3 terminé (10 modules, commits 6460aa0→0d5e4c6)
+Dernière mise à jour : 2026-03-27 — Sprint 4 terminé (7 modules, commits a3a1bb5→d94d40a)
+
+---
+
+## SPRINT 4 — Infrastructure, Juridique & Croissance — TERMINÉ (2026-03-27)
+
+### Modules complétés
+
+- ✅ **#125** Générateur contrat automatique — `app/admin/contrats/[marie_uid]/page.tsx`
+  - PDF jsPDF 3 pages (parties, prestations, signatures), clauses L&Lui standards pré-remplies
+  - OTP WhatsApp 6 chiffres, validation OTP, archivage PDF Firebase Storage
+  - Route `/admin/contrats` (liste) + `/admin/contrats/[marie_uid]` (1 clic)
+  - commit `a3a1bb5`
+
+- ✅ **#126** Avenants et modifications contrat — `app/admin/contrats/[marie_uid]/avenants/page.tsx`
+  - Détection changement pack, calcul différentiel automatique (+ ou -)
+  - Nouveau PDF avenant, re-signature électronique OTP WhatsApp
+  - MAJ portail_users (pack_nom + montant_total), notification confirmation
+  - commit `103cfca` · dépend de #125
+
+- ✅ **#127** Gestion remboursements/annulations — `app/admin/annulations/[marie_uid]/page.tsx`
+  - Politique formalisée : 100% avant J-90 / 70% J-60→J-90 / 50% J-30→J-60 / 0% après J-7
+  - Calcul automatique simulé + notification WhatsApp au couple
+  - Traçabilité Firestore `annulations_mariage`, workflow demande → traitement
+  - commit `a60ef57` · dépend de #125
+
+- ✅ **#128** Registre légal événements Kribi — `app/admin/registre-legal/page.tsx`
+  - Checklist 10 autorisations (mairie, préfecture, beach party, police, sécurité)
+  - Rappels automatiques J-45 via WhatsApp, toggle par autorisation temps réel
+  - Contacts 5 services locaux Kribi intégrés
+  - commit `3affb16`
+
+- ✅ **#129** Portail prestataires dédié — `app/portail-prestataire/page.tsx`
+  - Nouveau rôle 'prestataire', authentification PIN + email
+  - Dashboard `/portail-prestataire` : dossiers assignés, briefs, confirmations
+  - Annuaire admin `/admin/prestataires-portail` : création, certification, suspension
+  - Badge "Prestataire certifié L&Lui", notifications WhatsApp assignation
+  - commit `1eac180`
+
+- ✅ **#165** Programme influenceurs Cameroun — `app/partenariat-influenceur/page.tsx`
+  - Page candidature publique avec témoignages, FAQ, formulaire
+  - Convention 3-5 influenceurs, code UTM unique par ambassadeur
+  - Calcul commissions automatique Firestore (5% par défaut, paramétrable)
+  - Dashboard admin `/admin/influenceurs` : KPIs, liens UTM, statistiques
+  - commit `4e98184`
+
+- ✅ **#148** White label autres villes — `app/admin/white-label/page.tsx`
+  - Architecture Firestore multi-tenant : agence_id dans portail_users
+  - 4 villes préconfigurées : Kribi (master), Limbe, Bafoussam, Ebolowa
+  - Activation/désactivation par ville, couleur primaire personnalisable
+  - Guide déploiement 4 étapes intégré, isolation données par agence
+  - commit `88a3074`
+
+---
 
 ---
 
