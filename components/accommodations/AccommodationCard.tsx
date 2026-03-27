@@ -9,6 +9,14 @@ interface Props {
   accommodation: Accommodation
 }
 
+function isNew(createdAt?: string): boolean {
+  if (!createdAt) return false
+  const created = new Date(createdAt)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  return created > thirtyDaysAgo
+}
+
 export default function AccommodationCard({ accommodation: acc }: Props) {
   return (
     <Link href={`/hebergements/${acc.slug}`} className="group block">
@@ -33,6 +41,15 @@ export default function AccommodationCard({ accommodation: acc }: Props) {
               <AccommodationTypeBadge typeId={acc.type} variant="compact" />
             </span>
           </div>
+
+          {/* Badge NOUVEAU si ajouté dans les 30 derniers jours */}
+          {isNew(acc.created_at) && !acc.featured && (
+            <div className="absolute top-3 right-3">
+              <span className="px-2.5 py-1 bg-[#1D9E75] text-white text-[10px] font-bold rounded-full tracking-wide uppercase">
+                Nouveau
+              </span>
+            </div>
+          )}
 
           {/* Featured badge */}
           {acc.featured && (
