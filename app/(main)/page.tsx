@@ -11,6 +11,7 @@ import { resolveAccommodationTypeId, getTypeLabelFromId } from '@/lib/accommodat
 import WeekendCTA from '@/components/home/WeekendCTA'
 import BarreWeekend from '@/components/home/BarreWeekend'
 import AbonnementWhatsApp from '@/components/home/AbonnementWhatsApp'
+import SectionWeekend from '@/components/home/SectionWeekend'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 
 interface SearchParams {
@@ -122,6 +123,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="w-0.5 h-8 bg-white/30 rounded-full" />
         </div>
       </section>
+
+      {/* ── Section Ce weekend à Kribi (client, fetches /api/evenements/weekend) ── */}
+      <SectionWeekend />
 
       {/* ── Confiance ── */}
       <section className="bg-beige-100 py-14 px-4">

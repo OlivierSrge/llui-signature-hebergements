@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [eventCount, setEventCount] = useState<number | null>(null)
   const pathname = usePathname()
   const isHeroPage = pathname === '/'
 
@@ -16,6 +17,13 @@ export default function Navbar() {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/evenements/weekend')
+      .then((r) => r.json())
+      .then((d) => setEventCount(d.total ?? 0))
+      .catch(() => {})
   }, [])
 
   const navLinks = [
@@ -68,8 +76,13 @@ export default function Navbar() {
                   : 'text-white/90 hover:text-white'
               )}
             >
-              <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block" />
+              <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block animate-pulse" />
               Ce weekend
+              {eventCount !== null && eventCount > 0 && (
+                <span className="ml-0.5 bg-[#1D9E75] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {eventCount}
+                </span>
+              )}
             </button>
           </div>
 
@@ -101,8 +114,13 @@ export default function Navbar() {
                 onClick={() => { setIsOpen(false); openCalendrier() }}
                 className="px-3 py-2.5 rounded-lg text-sm font-medium text-dark/70 hover:text-dark hover:bg-beige-100 text-left flex items-center gap-2"
               >
-                <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block" />
+                <span className="w-2 h-2 rounded-full bg-[#1D9E75] inline-block animate-pulse" />
                 Ce weekend à Kribi
+                {eventCount !== null && eventCount > 0 && (
+                  <span className="ml-auto bg-[#1D9E75] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    {eventCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
