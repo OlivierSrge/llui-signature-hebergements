@@ -36,6 +36,8 @@ const NAV_ITEMS = [
   { href: '/admin/prestataires-portail', label: '🎬 Portail prestataires', icon: Camera },
   { href: '/admin/influenceurs', label: '📱 Programme influenceurs', icon: TrendingUp },
   { href: '/admin/white-label', label: '🌍 White label villes', icon: Globe },
+  // Dashboard admin enrichi
+  { href: '/admin/mariage', label: '🗂️ Dossiers mariés', icon: Users },
 ]
 
 export default function AdminSidebar() {
@@ -43,11 +45,16 @@ export default function AdminSidebar() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [loyaltyBadge, setLoyaltyBadge] = useState(0)
+  const [invitesBadge, setInvitesBadge] = useState(0)
 
   useEffect(() => {
     fetch('/api/admin/loyalty-badge')
       .then((r) => r.json())
       .then((d) => setLoyaltyBadge(d.count || 0))
+      .catch(() => {})
+    fetch('/api/admin/invites-badge')
+      .then((r) => r.json())
+      .then((d) => setInvitesBadge(d.count || 0))
       .catch(() => {})
   }, [pathname])
 
@@ -87,7 +94,13 @@ export default function AdminSidebar() {
                 {loyaltyBadge > 9 ? '9+' : loyaltyBadge}
               </span>
             )}
-            {isActive(href, exact) && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
+            {href === '/admin/mariage' && invitesBadge > 0 && (
+              <span className="ml-auto w-5 h-5 bg-amber-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                {invitesBadge > 99 ? '99+' : invitesBadge}
+              </span>
+            )}
+            {isActive(href, exact) && loyaltyBadge === 0 && href !== '/admin/mariage' && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && loyaltyBadge === 0 && href === '/admin/mariage' && invitesBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
             {isActive(href, exact) && loyaltyBadge > 0 && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
           </Link>
         ))}
