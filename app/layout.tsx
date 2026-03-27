@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     template: '%s | L&Lui Signature',
   },
   description:
-    "Réservez les plus beaux hébergements de Kribi pour votre mariage ou séjour de luxe. L&Lui Signature sélectionne villas, appartements et chambres d'exception au Cameroun.",
-  keywords: ['hébergement', 'Kribi', 'mariage', 'villa', 'Cameroun', 'luxe', 'L&Lui Signature'],
+    "Découvrez les plus belles adresses de Kribi — villas, appartements et chambres de prestige pour un weekend en famille, une escapade romantique, un mariage inoubliable ou simplement profiter de la mer. L&Lui Signature sélectionne l'exception au Cameroun.",
+  keywords: ['hébergement', 'Kribi', 'mariage', 'villa', 'weekend', 'Cameroun', 'luxe', 'L&Lui Signature', 'séjour', 'romantique'],
   openGraph: {
     siteName: 'L&Lui Signature',
     locale: 'fr_FR',
