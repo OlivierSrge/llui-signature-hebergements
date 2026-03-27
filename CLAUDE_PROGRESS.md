@@ -1,5 +1,47 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-27 — Sprint 4 terminé (7 modules, commits a3a1bb5→d94d40a)
+Dernière mise à jour : 2026-03-27 — Dashboard admin enrichi (commits 704bc00→c321cfb)
+
+---
+
+## DASHBOARD ADMIN ENRICHI — Gestion Invités & Communications (2026-03-27)
+
+### Fonctionnalités ajoutées
+
+- ✅ **API dossier marié admin** — `app/api/admin/dossier-marie/route.ts`
+  - GET : user + invités + journal + stats (avec admin_session, sans portail_uid)
+  - commit `704bc00`
+
+- ✅ **API actions WhatsApp admin** — `app/api/admin/actions-marie/route.ts`
+  - Actions : faire-part | guide | relance | carte-cadeau | message-custom
+  - Variables {prenom}, {noms_maries}, {date}, {lieu} dans les messages
+  - MAJ automatique flags invités (lien_envoye, relance_envoyee)
+  - commit `704bc00`
+
+- ✅ **Badge invités silencieux** — `app/api/admin/invites-badge/route.ts`
+  - Compte total invités sans réponse sur tous les mariages
+  - Affiché dans la sidebar (badge amber)
+  - commit `704bc00`
+
+- ✅ **Dossier marié** — `app/admin/mariage/[marie_uid]/page.tsx`
+  - Onglet Invités : liste RSVP, stats, sélection checkbox, 4 actions groupées
+  - Onglet Communications : message custom + variables, actions rapides, lien templates
+  - Onglet Journal : historique filtrable par type (whatsapp/paiement/contrat/info)
+  - KPIs : total/confirmés/déclinés/silencieux/liens envoyés
+  - commit `53e6cac`
+
+- ✅ **Liste dossiers** — `app/admin/mariage/page.tsx`
+  - Recherche par nom/lieu/code, badges contrat actif, accès invités + dossier
+  - commit `53e6cac`
+
+- ✅ **Tableau invités complet** — `app/admin/invites/[marie_uid]/page.tsx`
+  - Colonnes : Nom / WhatsApp / RSVP / Régime / Hébergement / Relance / Achats
+  - Filtres statut cliquables, recherche, tri nom/statut/date
+  - Actions individuelles (faire-part, relance) et groupées sur la sélection filtrée
+  - Export CSV avec BOM UTF-8 (compatible Excel)
+  - commit `a63a52b`
+
+- ✅ **Sidebar mise à jour** — badge amber invités silencieux + lien Dossiers Mariés
+  - commit `c321cfb`
 
 ---
 
