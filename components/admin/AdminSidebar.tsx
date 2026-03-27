@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/fidelite', label: '⭐ Fidélité L&Lui Stars', icon: Star },
   { href: '/admin/devis', label: '💍 Mariages & Devis', icon: Gem },
+  { href: '/admin/mariage', label: '📋 Dossiers Mariés', icon: Users },
   { href: '/admin/dashboard', label: '🏠 Dashboard Portail', icon: TrendingUp },
   { href: '/admin/utilisateurs', label: '👤 Utilisateurs Portail', icon: UserCircle },
   { href: '/admin/paiements', label: '💳 Paiements centralisés', icon: Banknote },
@@ -36,8 +37,6 @@ const NAV_ITEMS = [
   { href: '/admin/prestataires-portail', label: '🎬 Portail prestataires', icon: Camera },
   { href: '/admin/influenceurs', label: '📱 Programme influenceurs', icon: TrendingUp },
   { href: '/admin/white-label', label: '🌍 White label villes', icon: Globe },
-  // Dashboard admin enrichi
-  { href: '/admin/mariage', label: '🗂️ Dossiers mariés', icon: Users },
 ]
 
 export default function AdminSidebar() {
@@ -46,6 +45,7 @@ export default function AdminSidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const [loyaltyBadge, setLoyaltyBadge] = useState(0)
   const [invitesBadge, setInvitesBadge] = useState(0)
+  const [dossiersBadge, setDossiersBadge] = useState(0)
 
   useEffect(() => {
     fetch('/api/admin/loyalty-badge')
@@ -55,6 +55,10 @@ export default function AdminSidebar() {
     fetch('/api/admin/invites-badge')
       .then((r) => r.json())
       .then((d) => setInvitesBadge(d.count || 0))
+      .catch(() => {})
+    fetch('/api/admin/dossiers-badge')
+      .then((r) => r.json())
+      .then((d) => setDossiersBadge(d.count || 0))
       .catch(() => {})
   }, [pathname])
 
@@ -94,14 +98,19 @@ export default function AdminSidebar() {
                 {loyaltyBadge > 9 ? '9+' : loyaltyBadge}
               </span>
             )}
-            {href === '/admin/mariage' && invitesBadge > 0 && (
+            {href === '/admin/mariage' && dossiersBadge > 0 && (
+              <span className="ml-auto px-1.5 h-5 min-w-[20px] bg-gold-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                {dossiersBadge > 99 ? '99+' : dossiersBadge}
+              </span>
+            )}
+            {href === '/admin/mariage' && invitesBadge > 0 && dossiersBadge === 0 && (
               <span className="ml-auto w-5 h-5 bg-amber-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                 {invitesBadge > 99 ? '99+' : invitesBadge}
               </span>
             )}
-            {isActive(href, exact) && loyaltyBadge === 0 && href !== '/admin/mariage' && <ChevronRight size={14} className="ml-auto" />}
-            {isActive(href, exact) && loyaltyBadge === 0 && href === '/admin/mariage' && invitesBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
-            {isActive(href, exact) && loyaltyBadge > 0 && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && href !== '/admin/mariage' && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && href === '/admin/mariage' && dossiersBadge === 0 && invitesBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && href === '/admin/fidelite' && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
           </Link>
         ))}
       </nav>
