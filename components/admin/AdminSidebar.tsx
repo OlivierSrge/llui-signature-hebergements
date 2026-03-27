@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList, FileText, Ban, Scale, Camera, TrendingDown } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +30,12 @@ const NAV_ITEMS = [
   { href: '/admin/parametres-paiement', label: '⚙️ Paramètres paiement', icon: Wallet },
   { href: '/admin/commandes', label: '💸 Commandes & Versements', icon: ClipboardList },
   { href: '/admin/ecosysteme', label: '🌐 Écosystème', icon: Globe },
+  // Sprint 4
+  { href: '/admin/contrats', label: '📄 Contrats mariages', icon: FileText },
+  { href: '/admin/registre-legal', label: '⚖️ Registre légal Kribi', icon: Scale },
+  { href: '/admin/prestataires-portail', label: '🎬 Portail prestataires', icon: Camera },
+  { href: '/admin/influenceurs', label: '📱 Programme influenceurs', icon: TrendingUp },
+  { href: '/admin/white-label', label: '🌍 White label villes', icon: Globe },
 ]
 
 export default function AdminSidebar() {
