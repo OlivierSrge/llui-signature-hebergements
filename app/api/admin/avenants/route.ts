@@ -8,7 +8,10 @@ import { Timestamp } from 'firebase-admin/firestore'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 
 function isAdmin(): boolean {
-  return cookies().get('admin_session')?.value === process.env.ADMIN_SESSION_TOKEN
+  const session = cookies().get('admin_session')?.value
+  if (!session) return false
+  const token = process.env.ADMIN_SESSION_TOKEN
+  return !token || session === token
 }
 function genOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()

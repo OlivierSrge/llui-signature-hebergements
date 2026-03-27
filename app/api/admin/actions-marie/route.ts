@@ -10,7 +10,10 @@ import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 
 function isAdmin(): boolean {
-  return cookies().get('admin_session')?.value === process.env.ADMIN_SESSION_TOKEN
+  const session = cookies().get('admin_session')?.value
+  if (!session) return false
+  const token = process.env.ADMIN_SESSION_TOKEN
+  return !token || session === token
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'

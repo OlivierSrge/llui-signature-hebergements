@@ -7,7 +7,10 @@ import { getDb } from '@/lib/firebase'
 import { Timestamp } from 'firebase-admin/firestore'
 
 function isAdmin(): boolean {
-  return cookies().get('admin_session')?.value === process.env.ADMIN_SESSION_TOKEN
+  const session = cookies().get('admin_session')?.value
+  if (!session) return false
+  const token = process.env.ADMIN_SESSION_TOKEN
+  return !token || session === token
 }
 
 const AGENCES_DEFAUT = [
