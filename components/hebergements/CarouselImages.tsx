@@ -2,8 +2,21 @@
 
 import { useState, useRef } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react'
 import { resolveImageUrl } from '@/lib/utils'
+
+// SVG placeholder inline — fond #F5F0E8, texte #C9A84C, sans dépendance fichier
+const PLACEHOLDER_SVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400'%3E%3Crect width='800' height='400' fill='%23F5F0E8'/%3E%3C/svg%3E"
+
+// FIX 1 — filtre robuste : rejette null, undefined, "", " ", et toute URL non-http
+function isValidImageUrl(url: unknown): url is string {
+  return (
+    typeof url === 'string' &&
+    url.trim() !== '' &&
+    url.startsWith('http')
+  )
+}
 
 interface Props {
   images: string[]
@@ -11,9 +24,13 @@ interface Props {
 }
 
 export default function CarouselImages({ images, alt = 'Photo' }: Props) {
-  const filtered = images.filter(Boolean)
+  // FIX 1 — filtre appliqué dès la props
+  const filtered = images.filter(isValidImageUrl)
+
   const [current, setCurrent] = useState(0)
   const touchStartX = useRef<number | null>(null)
+  // FIX 2/4 — suivi des images cassées par index
+  const [brokenIndexes, setBrokenIndexes] = useState<Set<number>>(new Set())
 
   if (!filtered.length) return null
 
@@ -31,8 +48,18 @@ export default function CarouselImages({ images, alt = 'Photo' }: Props) {
     touchStartX.current = null
   }
 
+  // FIX 2 — marquer l'index comme cassé → affichage du placeholder
+  const handleImageError = (index: number) => {
+    setBrokenIndexes((prev) => {
+      const next = new Set(prev)
+      next.add(index)
+      return next
+    })
+  }
+
   const showDots = total <= 5
   const showCounter = total > 5
+  const isBroken = brokenIndexes.has(current)
 
   return (
     <div
@@ -41,16 +68,31 @@ export default function CarouselImages({ images, alt = 'Photo' }: Props) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Image active */}
-      <Image
-        src={resolveImageUrl(filtered[current])}
-        alt={`${alt} ${current + 1}`}
-        fill
-        unoptimized
-        className="object-cover transition-opacity duration-300"
-        sizes="(max-width: 768px) 100vw, 80vw"
-        priority={current === 0}
-      />
+      {/* FIX 4 — Indicateur visuel si image cassée */}
+      {isBroken ? (
+        <div
+          className="w-full h-full flex flex-col items-center justify-center gap-3"
+          style={{ background: '#F5F0E8' }}
+        >
+          <ImageOff size={40} style={{ color: '#C9A84C', opacity: 0.6 }} />
+          <p className="text-sm font-medium" style={{ color: '#C9A84C' }}>
+            Photo non disponible
+          </p>
+        </div>
+      ) : (
+        /* FIX 2 — onError déclenche le fallback */
+        <Image
+          key={filtered[current]}
+          src={resolveImageUrl(filtered[current])}
+          alt={`${alt} ${current + 1}`}
+          fill
+          unoptimized
+          className="object-cover transition-opacity duration-300"
+          sizes="(max-width: 768px) 100vw, 80vw"
+          priority={current === 0}
+          onError={() => handleImageError(current)}
+        />
+      )}
 
       {/* Gradient bas pour lisibilité des contrôles */}
       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
@@ -90,7 +132,7 @@ export default function CarouselImages({ images, alt = 'Photo' }: Props) {
                     i === current
                       ? 'w-4 h-2 bg-white'
                       : 'w-2 h-2 bg-white/55 hover:bg-white/80'
-                  }`}
+                  }${brokenIndexes.has(i) ? ' opacity-40' : ''}`}
                 />
               ))}
             </div>
