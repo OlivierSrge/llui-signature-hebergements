@@ -194,6 +194,85 @@ export async function activateAccommodation(id: string): Promise<ActionResult> {
   }
 }
 
+export async function updateAccommodationInfo(id: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const name = formData.get('name') as string
+    const amenities = (formData.get('amenities') as string)
+      .split('\n').map((s) => s.trim()).filter(Boolean)
+    const partner_id = formData.get('partner_id') as string
+
+    let partnerData: Record<string, unknown> = {}
+    if (partner_id) {
+      const partnerDoc = await db.collection('partenaires').doc(partner_id).get()
+      partnerData = partnerDoc.data() || {}
+    }
+
+    const ratingsOverall = parseFloat(formData.get('ratings_overall') as string)
+    const ratings = isNaN(ratingsOverall) ? null : {
+      overall: ratingsOverall,
+      count: parseInt(formData.get('ratings_count') as string) || 0,
+      cleanliness: parseFloat(formData.get('ratings_cleanliness') as string) || ratingsOverall,
+      accuracy: parseFloat(formData.get('ratings_accuracy') as string) || ratingsOverall,
+      checkin: parseFloat(formData.get('ratings_checkin') as string) || ratingsOverall,
+      communication: parseFloat(formData.get('ratings_communication') as string) || ratingsOverall,
+      location: parseFloat(formData.get('ratings_location') as string) || ratingsOverall,
+      value: parseFloat(formData.get('ratings_value') as string) || ratingsOverall,
+    }
+
+    // Ne touche PAS au champ images
+    await db.collection('hebergements').doc(id).update({
+      partner_id,
+      partner: {
+        name: partnerData.name || '',
+        description: partnerData.description || null,
+        address: partnerData.address || null,
+      },
+      name,
+      slug: generateSlug(name),
+      type: formData.get('type'),
+      description: formData.get('description') || null,
+      short_description: formData.get('short_description') || null,
+      capacity: Number(formData.get('capacity')),
+      bedrooms: Number(formData.get('bedrooms')),
+      bathrooms: Number(formData.get('bathrooms')),
+      price_per_night: Number(formData.get('price_per_night')),
+      commission_rate: Number(formData.get('commission_rate')),
+      location: formData.get('location') || null,
+      amenities,
+      ratings,
+      featured: formData.get('featured') === 'true',
+      status: formData.get('status') || 'active',
+      updated_at: new Date().toISOString(),
+    })
+
+    revalidatePath('/admin/hebergements')
+    revalidatePath(`/admin/hebergements/${id}`)
+    revalidatePath('/')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la mise à jour des informations' }
+  }
+}
+
+export async function updateAccommodationImages(id: string, imageUrls: string[]): Promise<ActionResult> {
+  try {
+    // Filtrer les valeurs vides, ne touche PAS aux champs descriptifs
+    const cleanImages = imageUrls.filter((url) => url !== undefined && url !== null && url !== '')
+
+    await db.collection('hebergements').doc(id).update({
+      images: cleanImages,
+      updated_at: new Date().toISOString(),
+    })
+
+    revalidatePath('/admin/hebergements')
+    revalidatePath(`/admin/hebergements/${id}`)
+    revalidatePath('/')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Erreur lors de la mise à jour des photos' }
+  }
+}
+
 export async function updateAvailability(
   accommodationId: string,
   dates: { date: string; is_available: boolean }[]

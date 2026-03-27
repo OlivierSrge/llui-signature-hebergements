@@ -1,5 +1,36 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-27 — Dashboard admin enrichi (commits 704bc00→c321cfb)
+Dernière mise à jour : 2026-03-27 — Module Hébergements : carrousel 7 images + protection données (commits 64dc36e→…)
+
+---
+
+## MODULE HÉBERGEMENTS — Carrousel 7 images + Protection données (2026-03-27)
+
+### Problème 1 — Extension carrousel 5 → 7 images ✅
+
+- ✅ **CarouselImages.tsx** — `components/hebergements/CarouselImages.tsx`
+  - Navigation flèches gauche/droite
+  - Points indicateurs (≤ 5 images) ou compteur "X / N" (> 5 images, badge rgba(0,0,0,0.45))
+  - Swipe mobile (touch events) · fallback `.filter(Boolean)` si image vide
+  - commit `64dc36e`
+
+- ✅ **Page détail hébergement** — `app/(main)/hebergements/[slug]/page.tsx`
+  - Remplace la grille mosaïque 5 photos par le composant CarouselImages
+  - commit `64dc36e`
+
+- ✅ **Formulaire admin** — `components/admin/AccommodationForm.tsx`
+  - Label section photos → "Photos (7 max)" · maxPhotos=7 dans PhotoUploader
+
+### Problème 2 — Protection données lors update images ✅
+
+- ✅ **Actions séparées** — `actions/accommodations.ts`
+  - `updateAccommodationInfo()` : sauvegarde infos (nom, description, prix…) **sans toucher** au champ `images`
+  - `updateAccommodationImages()` : sauvegarde images seules **sans toucher** aux champs descriptifs
+  - Filtre valeurs vides (`filter(Boolean)`) avant update Firestore
+
+- ✅ **Formulaire admin refactoré** — `components/admin/AccommodationForm.tsx`
+  - Bouton "Sauvegarder les infos" → appelle `updateAccommodationInfo` (pas d'images)
+  - Bouton "Sauvegarder les photos" → appelle `updateAccommodationImages` (pas d'infos)
+  - En création : formulaire complet inchangé
 
 ---
 
