@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-27 — Module Hébergements : carrousel 7 images + protection données (commits 64dc36e→…)
+Dernière mise à jour : 2026-03-27 — Module Hébergements : carrousel 7 images + protection données + fix images manquantes
 
 ---
 
@@ -19,6 +19,17 @@ Dernière mise à jour : 2026-03-27 — Module Hébergements : carrousel 7 image
 
 - ✅ **Formulaire admin** — `components/admin/AccommodationForm.tsx`
   - Label section photos → "Photos (7 max)" · maxPhotos=7 dans PhotoUploader
+
+### Problème 3 — Images manquantes dans le carrousel ✅
+
+- ✅ **FIX 1 — Filtre robuste** : `isValidImageUrl()` rejette `null`, `undefined`, `""`, `" "` et toute URL sans préfixe `http`
+  (l'ancien `.filter(Boolean)` laissait passer les strings vides)
+- ✅ **FIX 2 — Fallback onError** : `onError` sur `<Image>` marque l'index comme cassé via état `brokenIndexes`
+- ✅ **FIX 3 — Indicateur visuel** : si image cassée → bloc `#F5F0E8` + icône `ImageOff` dorée + texte "Photo non disponible"
+- ✅ **FIX 4 — Point atténué** : indicateur de point grisé pour les images cassées dans la navigation
+- commit `(voir git log)`
+
+---
 
 ### Problème 2 — Protection données lors update images ✅
 
