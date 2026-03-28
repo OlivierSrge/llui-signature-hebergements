@@ -139,25 +139,6 @@ export async function POST(request: NextRequest) {
   const db = getDb()
 
   try {
-    // Vérifier si des événements existent déjà (éviter les doublons)
-    const existing = await db.collection('evenements_kribi').get()
-    if (existing.size > 0) {
-      return NextResponse.json({
-        skipped: true,
-        message: `${existing.size} événements existent déjà. Seed ignoré pour éviter les doublons.`,
-        tip: 'Utilisez force=true pour forcer la réinsertion.',
-      })
-    }
-
-    const body = await request.json().catch(() => ({}))
-    const force = body.force === true
-
-    if (existing.size > 0 && !force) {
-      return NextResponse.json({
-        skipped: true,
-        message: `${existing.size} événements existent déjà. Envoyez { force: true } pour réinsérer.`,
-      })
-    }
 
     const batch = db.batch()
     const ids: string[] = []

@@ -158,20 +158,21 @@ export default function CalendrierClient({ evenements, hebergements }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {evenements.length === 0 && (
-            <button
-              onClick={async () => {
-                if (!confirm('Insérer les 7 événements récurrents de Kribi dans Firestore ?')) return
-                const res = await fetch('/api/admin/seed-evenements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-                const data = await res.json()
-                if (data.success) { toast.success(`${data.inserted} événements insérés !`); router.refresh() }
-                else toast.error(data.message ?? data.error ?? 'Erreur')
-              }}
-              className="btn-secondary flex items-center gap-2 text-sm"
-            >
-              🌊 Importer événements Kribi
-            </button>
-          )}
+          <button
+            onClick={async () => {
+              const msg = evenements.length > 0
+                ? `Il y a déjà ${evenements.length} événement(s). Importer quand même les 7 événements Kribi ?`
+                : 'Insérer les 7 événements récurrents de Kribi dans Firestore ?'
+              if (!confirm(msg)) return
+              const res = await fetch('/api/admin/seed-evenements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) })
+              const data = await res.json()
+              if (data.success) { toast.success(`${data.inserted} événements insérés !`); router.refresh() }
+              else toast.error(data.message ?? data.error ?? 'Erreur')
+            }}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            🌊 Importer événements Kribi
+          </button>
           <button onClick={openCreate} className="btn-primary flex items-center gap-2">
             <Plus size={15} /> Créer un événement
           </button>
