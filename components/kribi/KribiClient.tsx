@@ -14,6 +14,7 @@ interface Evenement {
   lieu?: string
   prix?: number
   image_url?: string
+  fichier_type?: string | null
   recurrent?: boolean
 }
 
@@ -136,8 +137,8 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
                     className="rounded-2xl overflow-hidden shadow-sm"
                     style={{ background: colors.bg, border: isNightlife ? '1px solid rgba(201,168,76,0.3)' : '1px solid rgba(0,0,0,0.06)' }}
                   >
-                    {/* Image ou fond coloré */}
-                    {ev.image_url && ev.image_url.startsWith('http') && !brokenImages.has(ev.id) ? (
+                    {/* Image, PDF ou fond coloré */}
+                    {ev.image_url && ev.image_url.startsWith('http') && !brokenImages.has(ev.id) && ev.fichier_type !== 'pdf' ? (
                       <div className="relative h-44 w-full">
                         <Image
                           src={resolveImageUrl(ev.image_url)}
@@ -219,6 +220,19 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
                           En savoir plus <ChevronRight size={14} />
                         </button>
                       </div>
+
+                      {/* Bouton PDF si programme disponible */}
+                      {ev.fichier_type === 'pdf' && ev.image_url && (
+                        <a
+                          href={ev.image_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 flex items-center gap-2 w-full justify-center py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+                          style={{ background: '#C9A84C', color: '#1A1A1A' }}
+                        >
+                          📄 Télécharger le programme PDF
+                        </a>
+                      )}
                     </div>
                   </article>
                 )

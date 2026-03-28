@@ -90,6 +90,7 @@ async function getEvenementsWeekend() {
         lieu: ev.lieu ?? '',
         prix: ev.prix ?? null,
         image_url: ev.image_url ?? '',
+        fichier_type: ev.fichier_type ?? null,
         recurrent: ev.recurrent ?? false,
       }))
       .sort((a: any, b: any) => new Date(a.date_debut).getTime() - new Date(b.date_debut).getTime())

@@ -15,6 +15,7 @@ interface EvenementPayload {
   lieu?: string
   prix?: number
   image_url?: string
+  fichier_type?: string
   hebergements_associes?: string[]
   recurrent?: boolean
   jour_recurrence?: string
@@ -33,6 +34,7 @@ export async function createEvenement(data: EvenementPayload): Promise<ActionRes
       lieu: data.lieu || null,
       prix: data.prix ?? 0,
       image_url: data.image_url?.trim() || null,
+      fichier_type: data.fichier_type || null,
       hebergements_associes: data.hebergements_associes ?? [],
       actif: true,
       recurrent: data.recurrent ?? false,
@@ -60,6 +62,7 @@ export async function updateEvenement(id: string, data: EvenementPayload): Promi
       lieu: data.lieu || null,
       prix: data.prix ?? 0,
       image_url: data.image_url?.trim() || null,
+      fichier_type: data.fichier_type || null,
       hebergements_associes: data.hebergements_associes ?? [],
       recurrent: data.recurrent ?? false,
       jour_recurrence: data.recurrent ? (data.jour_recurrence || null) : null,

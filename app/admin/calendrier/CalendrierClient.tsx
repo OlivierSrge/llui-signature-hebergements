@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Loader2, Save, X, Calendar } from 'lucide-react'
 import { createEvenement, updateEvenement, deleteEvenement, toggleEvenementActif } from '@/actions/evenements'
+import UploadFichier from '@/components/ui/UploadFichier'
 
 const CATEGORIES = [
   { id: 'nature', label: '🌿 Nature' },
@@ -26,6 +27,7 @@ interface Evenement {
   lieu?: string
   prix?: number
   image_url?: string
+  fichier_type?: string
   hebergements_associes?: string[]
   actif: boolean
   recurrent?: boolean
@@ -42,7 +44,8 @@ interface Props {
 const EMPTY_FORM = {
   titre: '', description: '', categorie: 'nature',
   date_debut: '', date_fin: '', heure: '', lieu: '',
-  prix: '', image_url: '', hebergements_associes: [] as string[],
+  prix: '', image_url: '', fichier_type: '',
+  hebergements_associes: [] as string[],
   recurrent: false, jour_recurrence: '',
 }
 
@@ -87,6 +90,7 @@ export default function CalendrierClient({ evenements, hebergements }: Props) {
       lieu: ev.lieu ?? '',
       prix: ev.prix !== undefined ? String(ev.prix) : '',
       image_url: ev.image_url ?? '',
+      fichier_type: ev.fichier_type ?? '',
       hebergements_associes: ev.hebergements_associes ?? [],
       recurrent: ev.recurrent ?? false,
       jour_recurrence: ev.jour_recurrence ?? '',
@@ -208,7 +212,14 @@ export default function CalendrierClient({ evenements, hebergements }: Props) {
               <Field label="Lieu" value={form.lieu} onChange={(e: any) => setForm((f) => ({ ...f, lieu: e.target.value }))} placeholder="Plage de Kribi" />
               <Field label="Prix (0 = Gratuit)" type="number" value={form.prix} onChange={(e: any) => setForm((f) => ({ ...f, prix: e.target.value }))} placeholder="0" />
             </div>
-            <Field label="URL image" value={form.image_url} onChange={(e: any) => setForm((f) => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+            <UploadFichier
+              value={form.image_url || null}
+              onChange={(url, type) => setForm((f) => ({ ...f, image_url: url, fichier_type: type }))}
+              folder="evenements_kribi"
+              label="Photo ou programme PDF"
+              acceptImages
+              acceptPDF
+            />
 
             {/* Hébergements associés */}
             {hebergements.length > 0 && (
