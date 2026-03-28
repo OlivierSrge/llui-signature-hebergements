@@ -53,6 +53,7 @@ function formatWeekendDate(iso: string): string {
 
 export default function KribiClient({ evenements, labelSamedi, labelDimanche }: Props) {
   const [activeFilter, setActiveFilter] = useState('tous')
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set())
 
   const filtered =
     activeFilter === 'tous'
@@ -136,7 +137,7 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
                     style={{ background: colors.bg, border: isNightlife ? '1px solid rgba(201,168,76,0.3)' : '1px solid rgba(0,0,0,0.06)' }}
                   >
                     {/* Image ou fond coloré */}
-                    {ev.image_url && ev.image_url.startsWith('http') ? (
+                    {ev.image_url && ev.image_url.startsWith('http') && !brokenImages.has(ev.id) ? (
                       <div className="relative h-44 w-full">
                         <Image
                           src={resolveImageUrl(ev.image_url)}
@@ -145,6 +146,7 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
                           unoptimized
                           className="object-cover"
                           sizes="(max-width: 640px) 100vw, 512px"
+                          onError={() => setBrokenImages((prev) => new Set(prev).add(ev.id))}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       </div>

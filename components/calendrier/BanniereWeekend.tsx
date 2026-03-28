@@ -57,6 +57,8 @@ export default function BanniereWeekend() {
   const [data, setData] = useState<WeekendData | null>(null)
   const [banniereOpen, setBanniereOpen] = useState(false)
   const [popupOpen, setPopupOpen] = useState(false)
+  const [brokenEv, setBrokenEv] = useState<Set<string>>(new Set())
+  const [brokenH, setBrokenH] = useState<Set<string>>(new Set())
 
   // Fetch weekend data
   useEffect(() => {
@@ -151,7 +153,7 @@ export default function BanniereWeekend() {
                     className="flex gap-3 p-3 rounded-xl"
                     style={{ background: 'rgba(255,255,255,0.06)' }}
                   >
-                    {ev.image_url && ev.image_url.startsWith('http') ? (
+                    {ev.image_url && ev.image_url.startsWith('http') && !brokenEv.has(ev.id) ? (
                       <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
                           src={resolveImageUrl(ev.image_url)}
@@ -160,6 +162,7 @@ export default function BanniereWeekend() {
                           unoptimized
                           className="object-cover"
                           sizes="56px"
+                          onError={() => setBrokenEv((prev) => new Set(prev).add(ev.id))}
                         />
                       </div>
                     ) : (
@@ -211,7 +214,7 @@ export default function BanniereWeekend() {
                       className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg"
                       style={{ background: 'rgba(255,255,255,0.06)', minWidth: 140 }}
                     >
-                      {h.image && h.image.startsWith('http') ? (
+                      {h.image && h.image.startsWith('http') && !brokenH.has(h.id) ? (
                         <div className="relative w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
                             src={resolveImageUrl(h.image)}
@@ -220,6 +223,7 @@ export default function BanniereWeekend() {
                             unoptimized
                             className="object-cover"
                             sizes="36px"
+                            onError={() => setBrokenH((prev) => new Set(prev).add(h.id))}
                           />
                         </div>
                       ) : (

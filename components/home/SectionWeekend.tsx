@@ -29,6 +29,7 @@ const CAT_EMOJI: Record<string, string> = {
 
 export default function SectionWeekend() {
   const [data, setData] = useState<WeekendData | null>(null)
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetch('/api/evenements/weekend')
@@ -73,7 +74,7 @@ export default function SectionWeekend() {
               className="text-left rounded-2xl overflow-hidden transition-transform hover:scale-[1.02]"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              {ev.image_url && ev.image_url.startsWith('http') ? (
+              {ev.image_url && ev.image_url.startsWith('http') && !brokenImages.has(ev.id) ? (
                 <div className="relative h-36 w-full">
                   <Image
                     src={resolveImageUrl(ev.image_url)}
@@ -82,6 +83,7 @@ export default function SectionWeekend() {
                     unoptimized
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, 33vw"
+                    onError={() => setBrokenImages((prev) => new Set(prev).add(ev.id))}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
