@@ -3,6 +3,34 @@ Dernière mise à jour : 2026-03-27 — Page accueil multi-public + Calendrier K
 
 ---
 
+## ═══════════════════════════════════════
+## RÈGLE ABSOLUE GIT — TOUJOURS APPLIQUER
+## ═══════════════════════════════════════
+
+À la fin de CHAQUE session de travail, après que npm run build passe ✅ :
+
+**SÉQUENCE OBLIGATOIRE :**
+```
+git add .
+git commit -m "[description]"
+git checkout main
+git pull origin main
+git merge [branche-courante]
+git push origin main
+```
+
+**RÈGLES :**
+- Toujours merger sur main directement
+- Ne jamais laisser le code sur une branche
+- Ne jamais créer de PR — merger direct
+- Confirmer à Olivier : "Mergé sur main ✅ Vercel déploie dans 2 minutes"
+
+Cette règle s'applique à TOUS les travaux sans exception, même les petits fixes.
+
+## ═══════════════════════════════════════
+
+---
+
 ## PAGE ACCUEIL MULTI-PUBLIC + CALENDRIER KRIBI (2026-03-27)
 
 ### Modification 1 — Refonte texte page d'accueil ✅
