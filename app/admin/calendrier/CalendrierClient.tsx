@@ -46,6 +46,22 @@ const EMPTY_FORM = {
   recurrent: false, jour_recurrence: '',
 }
 
+// ⚠️ Défini au niveau MODULE (pas dans un composant) pour éviter la perte de focus
+function Field({ label, name, type = 'text', required, placeholder, value, onChange, rows }: any) {
+  return (
+    <div>
+      <label className="label">{label}{required && <span className="text-red-500 ml-1">*</span>}</label>
+      {rows ? (
+        <textarea rows={rows} value={value} onChange={onChange} placeholder={placeholder}
+          className="input-field resize-none" required={required} />
+      ) : (
+        <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+          className="input-field" required={required} step={type === 'number' ? 'any' : undefined} />
+      )}
+    </div>
+  )
+}
+
 export default function CalendrierClient({ evenements, hebergements }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -128,19 +144,6 @@ export default function CalendrierClient({ evenements, hebergements }: Props) {
       else { toast.success(actif ? 'Événement désactivé' : 'Événement activé'); router.refresh() }
     })
   }
-
-  const Field = ({ label, name, type = 'text', required, placeholder, value, onChange, rows }: any) => (
-    <div>
-      <label className="label">{label}{required && <span className="text-red-500 ml-1">*</span>}</label>
-      {rows ? (
-        <textarea rows={rows} value={value} onChange={onChange} placeholder={placeholder}
-          className="input-field resize-none" required={required} />
-      ) : (
-        <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-          className="input-field" required={required} step={type === 'number' ? 'any' : undefined} />
-      )}
-    </div>
-  )
 
   return (
     <div className="p-6 sm:p-8 mt-14 lg:mt-0">
