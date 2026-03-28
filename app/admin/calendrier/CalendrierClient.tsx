@@ -157,9 +157,25 @@ export default function CalendrierClient({ evenements, hebergements }: Props) {
             <p className="text-dark/50 text-sm">{evenements.length} événement{evenements.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={15} /> Créer un événement
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {evenements.length === 0 && (
+            <button
+              onClick={async () => {
+                if (!confirm('Insérer les 7 événements récurrents de Kribi dans Firestore ?')) return
+                const res = await fetch('/api/admin/seed-evenements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+                const data = await res.json()
+                if (data.success) { toast.success(`${data.inserted} événements insérés !`); router.refresh() }
+                else toast.error(data.message ?? data.error ?? 'Erreur')
+              }}
+              className="btn-secondary flex items-center gap-2 text-sm"
+            >
+              🌊 Importer événements Kribi
+            </button>
+          )}
+          <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <Plus size={15} /> Créer un événement
+          </button>
+        </div>
       </div>
 
       {/* Formulaire */}
