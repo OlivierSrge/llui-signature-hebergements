@@ -7,7 +7,7 @@ import { MapPin, Thermometer, ShoppingBag, Phone } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 import KribiClient from '@/components/kribi/KribiClient'
-import KribiAbonnement from '@/components/kribi/KribiAbonnement'
+import KribiRevenir from '@/components/kribi/KribiRevenir'
 import KribiScanTracker from '@/components/kribi/KribiScanTracker'
 
 export const metadata: Metadata = {
@@ -172,8 +172,14 @@ export default async function KribiPage() {
           </h1>
 
           {/* Date du weekend */}
-          <p className="text-[#C9A84C] text-sm font-medium mb-4">
+          <p className="text-[#C9A84C] text-sm font-medium mb-1">
             {label.charAt(0).toUpperCase() + label.slice(1)}
+          </p>
+          {/* Indicateur fraîcheur */}
+          <p className="text-white/30 text-xs mb-4">
+            Mis à jour le{' '}
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {' '}par L&amp;Lui Signature
           </p>
 
           {/* Météo + compteur */}
@@ -317,10 +323,8 @@ export default async function KribiPage() {
         </div>
       </section>
 
-      {/* ══ SECTION 6 — ABONNEMENT WHATSAPP ══════════════════════════════ */}
-      <div id="abonnement">
-        <KribiAbonnement />
-      </div>
+      {/* ══ SECTION 6 — REVENIR CHAQUE SEMAINE ══════════════════════════ */}
+      <KribiRevenir />
 
       {/* ══ PIED DE PAGE ══════════════════════════════════════════════════ */}
       <footer className="py-10 px-4 border-t border-white/8" style={{ background: '#1A1A1A' }}>

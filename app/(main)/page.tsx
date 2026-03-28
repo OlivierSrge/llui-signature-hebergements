@@ -10,7 +10,6 @@ import { Award, Shield, HeartHandshake, Building2, Star, Crown, ArrowRight, Cale
 import { resolveAccommodationTypeId, getTypeLabelFromId } from '@/lib/accommodationTypes'
 import WeekendCTA from '@/components/home/WeekendCTA'
 import BarreWeekend from '@/components/home/BarreWeekend'
-import AbonnementWhatsApp from '@/components/home/AbonnementWhatsApp'
 import SectionWeekend from '@/components/home/SectionWeekend'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 
@@ -282,9 +281,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           )}
         </div>
       </section>
-
-      {/* ── Élément C — Abonnement WhatsApp ── */}
-      <AbonnementWhatsApp />
 
       {/* ── CTA mariage ── */}
       <section className="py-20 px-4 bg-dark">
