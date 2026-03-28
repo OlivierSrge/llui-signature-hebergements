@@ -6,7 +6,8 @@ import sharp from 'sharp'
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies()
-    if (cookieStore.get('admin_session')?.value !== 'authenticated') {
+    const session = cookieStore.get('admin_session')?.value
+    if (!session || session !== process.env.ADMIN_SESSION_TOKEN) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
