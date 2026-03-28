@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList, FileText, Ban, Scale, Camera, TrendingDown, CalendarRange } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList, FileText, Ban, Scale, Camera, TrendingDown, CalendarRange, QrCode } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/calendrier', label: '🗓 Calendrier Kribi', icon: CalendarRange },
+  { href: '/admin/calendrier/qr-code', label: '📲 QR Code & Diffusion', icon: QrCode },
   { href: '/admin/reservations', label: 'Réservations', icon: CalendarDays },
   { href: '/admin/demandes', label: 'Demandes clients', icon: Bell },
   { href: '/admin/hebergements', label: 'Hébergements', icon: Home },
