@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Calendar, MapPin, Clock, ChevronRight, BellRing } from 'lucide-react'
+import { Calendar, MapPin, Clock, ChevronRight, BellRing, X, FileText } from 'lucide-react'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 
 interface Evenement {
   id: string
   titre: string
+  description?: string
   categorie: string
   date_debut: string
   heure?: string
@@ -55,6 +56,7 @@ function formatWeekendDate(iso: string): string {
 export default function KribiClient({ evenements, labelSamedi, labelDimanche }: Props) {
   const [activeFilter, setActiveFilter] = useState('tous')
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set())
+  const [selectedEvent, setSelectedEvent] = useState<Evenement | null>(null)
 
   const filtered =
     activeFilter === 'tous'
@@ -214,6 +216,7 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
                           <span />
                         )}
                         <button
+                          onClick={() => setSelectedEvent(ev)}
                           className="flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-75"
                           style={{ color: isNightlife ? '#C9A84C' : colors.badge }}
                         >
@@ -241,6 +244,147 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
           )}
         </div>
       </section>
+
+      {/* ── Modal détail événement ── */}
+      {selectedEvent && (() => {
+        const ev = selectedEvent
+        const colors = CAT_COLORS[ev.categorie] ?? { bg: '#F5F0E8', badge: '#1A1A1A', text: '#fff' }
+        const isNightlife = ev.categorie === 'nightlife'
+        return (
+          <div
+            className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center px-0 sm:px-4"
+            style={{ animation: 'fadeIn 0.15s ease' }}
+          >
+            {/* Overlay */}
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSelectedEvent(null)}
+            />
+            {/* Carte */}
+            <div
+              className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden"
+              style={{
+                background: isNightlife ? '#1A1A1A' : '#fff',
+                border: isNightlife ? '1px solid rgba(201,168,76,0.3)' : 'none',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                animation: 'slideUp 0.2s ease',
+              }}
+            >
+              {/* Image ou fond */}
+              {ev.image_url && ev.image_url.startsWith('http') && ev.fichier_type !== 'pdf' ? (
+                <div className="relative h-52 w-full">
+                  <Image
+                    src={resolveImageUrl(ev.image_url)}
+                    alt={ev.titre}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="512px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="h-20 flex items-center justify-end px-4"
+                  style={{ background: colors.bg }}
+                >
+                  <button
+                    onClick={() => setSelectedEvent(null)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:opacity-75"
+                    style={{ background: 'rgba(0,0,0,0.1)' }}
+                  >
+                    <X size={15} style={{ color: isNightlife ? '#fff' : '#1A1A1A' }} />
+                  </button>
+                </div>
+              )}
+
+              <div className="p-5">
+                {/* Badge + titre */}
+                <span
+                  className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-3 uppercase tracking-wide"
+                  style={{ background: colors.badge, color: colors.text }}
+                >
+                  {ev.categorie}
+                </span>
+                <h2
+                  className="font-serif text-xl font-semibold mb-4 leading-snug"
+                  style={{ color: isNightlife ? '#fff' : '#1A1A1A' }}
+                >
+                  {ev.titre}
+                </h2>
+
+                {/* Infos */}
+                <div className="flex flex-col gap-2 mb-4">
+                  <span className="text-sm flex items-center gap-2" style={{ color: isNightlife ? 'rgba(255,255,255,0.6)' : 'rgba(26,26,26,0.6)' }}>
+                    <Calendar size={14} style={{ color: '#C9A84C', flexShrink: 0 }} />
+                    {formatWeekendDate(ev.date_debut)}
+                    {ev.heure && <span>· {ev.heure}</span>}
+                  </span>
+                  {ev.lieu && (
+                    <span className="text-sm flex items-center gap-2" style={{ color: isNightlife ? 'rgba(255,255,255,0.6)' : 'rgba(26,26,26,0.6)' }}>
+                      <MapPin size={14} style={{ color: '#C9A84C', flexShrink: 0 }} />
+                      {ev.lieu}
+                    </span>
+                  )}
+                  {ev.prix === 0 ? (
+                    <span className="text-sm font-semibold text-[#085041] bg-[#E1F5EE] self-start px-3 py-1 rounded-full">
+                      Gratuit
+                    </span>
+                  ) : ev.prix ? (
+                    <span className="text-sm font-semibold" style={{ color: '#C9A84C' }}>
+                      {formatPrice(ev.prix)}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Description */}
+                {ev.description && (
+                  <p
+                    className="text-sm leading-relaxed mb-5"
+                    style={{ color: isNightlife ? 'rgba(255,255,255,0.75)' : 'rgba(26,26,26,0.75)' }}
+                  >
+                    {ev.description}
+                  </p>
+                )}
+
+                {/* Bouton PDF */}
+                {ev.fichier_type === 'pdf' && ev.image_url && (
+                  <a
+                    href={ev.image_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80 mb-3"
+                    style={{ background: '#C9A84C', color: '#1A1A1A' }}
+                  >
+                    <FileText size={15} />
+                    Télécharger le programme PDF
+                  </a>
+                )}
+
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="w-full py-2 text-xs transition-colors rounded-xl"
+                  style={{ color: isNightlife ? 'rgba(255,255,255,0.4)' : 'rgba(26,26,26,0.4)', background: isNightlife ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+      `}</style>
     </div>
   )
 }

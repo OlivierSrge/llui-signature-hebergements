@@ -84,6 +84,7 @@ async function getEvenementsWeekend() {
       .map((ev: any) => ({
         id: ev.id,
         titre: ev.titre ?? '',
+        description: ev.description ?? '',
         categorie: ev.categorie ?? '',
         date_debut: ev.date_debut?.toDate ? ev.date_debut.toDate().toISOString() : ev.date_debut ?? '',
         heure: ev.heure ?? '',
