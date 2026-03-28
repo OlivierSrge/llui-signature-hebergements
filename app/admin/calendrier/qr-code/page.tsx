@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, QrCode, Users, BarChart2, Info } from 'lucide-react'
+import { Download, QrCode, Users, BarChart2, Info, MessageCircle, Send, Eye, EyeOff, Clock, CheckCircle2, FileText, RefreshCw } from 'lucide-react'
 
 const KRIBI_URL = 'https://llui-signature-hebergements.vercel.app/kribi'
 
@@ -19,6 +19,48 @@ export default function QRCodeAdminPage() {
   const [stats, setStats] = useState<{ scans_total: number; scans_ce_mois: number; abonnes: number } | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [newsletter, setNewsletter] = useState<any>(null)
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<any>(null)
+  const [showPreview, setShowPreview] = useState(false)
+
+  const fetchNewsletter = () => {
+    fetch('/api/newsletter/admin')
+      .then((r) => r.json())
+      .then(setNewsletter)
+      .catch(() => {})
+  }
+
+  const handleSendNewsletter = async () => {
+    setSending(true)
+    setSendResult(null)
+    try {
+      const res = await fetch('/api/newsletter/admin', { method: 'POST' })
+      const data = await res.json()
+      setSendResult(data)
+      fetchNewsletter()
+    } catch {
+      setSendResult({ error: 'Erreur réseau' })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const downloadCSV = () => {
+    if (!newsletter?.abonnes_tous?.length) return
+    const rows = [['telephone', 'source', 'actif', 'created_at']]
+    newsletter.abonnes_tous.forEach((a: any) => {
+      rows.push([a.telephone, a.source, a.actif ? 'oui' : 'non', a.created_at])
+    })
+    const csv = rows.map((r) => r.map((v) => `"${v}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `abonnes-kribi-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Generate QR code
   useEffect(() => {
@@ -40,12 +82,17 @@ export default function QRCodeAdminPage() {
     return () => { cancelled = true }
   }, [])
 
-  // Fetch stats
+  // Fetch stats QR
   useEffect(() => {
     fetch('/api/kribi/scan')
       .then((r) => r.json())
       .then(setStats)
       .catch(() => {})
+  }, [])
+
+  // Fetch newsletter stats
+  useEffect(() => {
+    fetchNewsletter()
   }, [])
 
   // ── Download helpers ──────────────────────────────────────────────────
@@ -366,6 +413,144 @@ export default function QRCodeAdminPage() {
             </div>
           </button>
         </div>
+      </div>
+
+      {/* ── Newsletter WhatsApp ──────────────────────────────────────────────── */}
+      <div className="mb-10">
+        <h2 className="font-semibold text-[#1A1A1A] text-lg mb-4 flex items-center gap-2">
+          <MessageCircle size={18} className="text-[#25D366]" />
+          Newsletter WhatsApp abonnés
+        </h2>
+
+        {/* Stats abonnés */}
+        {newsletter && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            <div className="bg-[#F5F0E8] rounded-2xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#1A1A1A]">{newsletter.nb_abonnes_actifs ?? 0}</p>
+              <p className="text-xs text-[#1A1A1A]/50 mt-0.5">Abonnés actifs</p>
+            </div>
+            <div className="bg-[#F5F0E8] rounded-2xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#1A1A1A]">{newsletter.nb_evenements ?? 0}</p>
+              <p className="text-xs text-[#1A1A1A]/50 mt-0.5">Activités ce weekend</p>
+            </div>
+            {newsletter.dernier_envoi && (
+              <div className="bg-[#F5F0E8] rounded-2xl p-4 text-center col-span-2 sm:col-span-1">
+                <p className="text-sm font-bold text-[#1A1A1A]">
+                  {newsletter.dernier_envoi.nb_envoyes ?? 0} envoyés
+                </p>
+                <p className="text-xs text-[#1A1A1A]/50 mt-0.5 flex items-center justify-center gap-1">
+                  <Clock size={10} />
+                  {new Date(newsletter.dernier_envoi.date_envoi).toLocaleDateString('fr-FR', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Prévisualisation message */}
+        {newsletter?.preview && (
+          <div className="mb-5">
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="flex items-center gap-2 text-sm text-[#C9A84C] mb-2"
+            >
+              {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showPreview ? 'Masquer le message' : 'Prévisualiser le message à envoyer'}
+            </button>
+            {showPreview && (
+              <pre className="text-xs bg-[#1A1A1A] text-[#F5F0E8] p-4 rounded-xl whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                {newsletter.preview}
+              </pre>
+            )}
+          </div>
+        )}
+
+        {/* Bouton envoyer */}
+        <div className="flex gap-3 flex-wrap mb-5">
+          <button
+            onClick={handleSendNewsletter}
+            disabled={sending}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-60"
+            style={{ background: '#25D366', color: '#fff' }}
+          >
+            {sending ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
+            {sending ? 'Envoi en cours…' : 'Envoyer la newsletter maintenant'}
+          </button>
+          <button
+            onClick={downloadCSV}
+            disabled={!newsletter?.abonnes_tous?.length}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-[#F5F0E8] disabled:opacity-40 border border-beige-200 bg-white"
+          >
+            <FileText size={15} className="text-[#C9A84C]" />
+            Exporter CSV
+          </button>
+        </div>
+
+        {/* Résultat envoi */}
+        {sendResult && (
+          <div
+            className={`p-4 rounded-xl mb-5 text-sm ${sendResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-800'}`}
+          >
+            {sendResult.error ? (
+              <p>❌ {sendResult.error}</p>
+            ) : (
+              <>
+                <p className="font-semibold mb-1 flex items-center gap-1.5">
+                  <CheckCircle2 size={15} />
+                  {sendResult.message}
+                  {sendResult.dry_run && <span className="text-amber-600 font-normal">(DRY RUN)</span>}
+                </p>
+                {sendResult.evenements?.length > 0 && (
+                  <p className="text-xs opacity-70">Activités : {sendResult.evenements.join(', ')}</p>
+                )}
+                {sendResult.logs?.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs opacity-60">Voir les logs ({sendResult.logs.length})</summary>
+                    <pre className="text-xs mt-1 opacity-60 max-h-32 overflow-y-auto">{sendResult.logs.join('\n')}</pre>
+                  </details>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Liste des 10 derniers abonnés */}
+        {newsletter?.abonnes_recents?.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">10 derniers abonnés</h3>
+            <div className="rounded-2xl overflow-hidden border border-beige-200">
+              {newsletter.abonnes_recents.map((a: any, i: number) => (
+                <div
+                  key={a.id ?? i}
+                  className={`flex items-center gap-3 px-4 py-2.5 bg-white ${i < newsletter.abonnes_recents.length - 1 ? 'border-b border-beige-200' : ''}`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-[#F5F0E8] flex items-center justify-center flex-shrink-0">
+                    <MessageCircle size={12} className={a.actif ? 'text-[#25D366]' : 'text-[#1A1A1A]/30'} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-mono text-[#1A1A1A]">{a.telephone_masque}</p>
+                    <p className="text-xs text-[#1A1A1A]/40">{a.source}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs text-[#1A1A1A]/40">
+                      {a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+                    </p>
+                    {!a.actif && <span className="text-[10px] text-red-400">désabonné</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {newsletter && !newsletter.nb_abonnes_actifs && (
+          <p className="text-sm text-[#1A1A1A]/40 text-center py-6">
+            Aucun abonné pour le moment. Les inscriptions viennent de la page{' '}
+            <a href="/kribi" target="_blank" className="text-[#C9A84C] underline">/kribi</a>.
+          </p>
+        )}
       </div>
 
       {/* Guide de diffusion */}
