@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { Calendar, MapPin, Clock, ChevronRight, BellRing, X, FileText } from 'lucide-react'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
@@ -57,6 +58,27 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
   const [activeFilter, setActiveFilter] = useState('tous')
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set())
   const [selectedEvent, setSelectedEvent] = useState<Evenement | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+
+  // Bloquer le scroll du body quand le modal est ouvert (iOS Safari)
+  useEffect(() => {
+    if (selectedEvent) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+  }, [selectedEvent])
 
   const filtered =
     activeFilter === 'tous'
@@ -245,15 +267,15 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
         </div>
       </section>
 
-      {/* ── Modal détail événement ── */}
-      {selectedEvent && (() => {
+      {/* ── Modal détail événement (portail → body pour iOS Safari) ── */}
+      {mounted && selectedEvent && createPortal((() => {
         const ev = selectedEvent
         const colors = CAT_COLORS[ev.categorie] ?? { bg: '#F5F0E8', badge: '#1A1A1A', text: '#fff' }
         const isNightlife = ev.categorie === 'nightlife'
         return (
           <div
-            className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center px-0 sm:px-4"
-            style={{ animation: 'fadeIn 0.15s ease' }}
+            className="fixed inset-0 flex items-end sm:items-center justify-center px-0 sm:px-4"
+            style={{ zIndex: 9999, animation: 'fadeIn 0.15s ease' }}
           >
             {/* Overlay */}
             <div
@@ -379,7 +401,7 @@ export default function KribiClient({ evenements, labelSamedi, labelDimanche }: 
             </div>
           </div>
         )
-      })()}
+      })(), document.body)}
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
