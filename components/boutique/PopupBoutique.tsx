@@ -16,10 +16,6 @@ export default function PopupBoutique() {
   const [anime, setAnime] = useState(false)
 
   useEffect(() => {
-    const aujourd_hui = new Date().toISOString().split('T')[0]
-    const dejaVu = localStorage.getItem('popup_boutique_vu')
-    if (dejaVu === aujourd_hui) return
-
     const timer = setTimeout(() => {
       setVisible(true)
       setTimeout(() => setAnime(true), 50)
@@ -31,8 +27,6 @@ export default function PopupBoutique() {
   const fermer = () => {
     setAnime(false)
     setTimeout(() => setVisible(false), 300)
-    const aujourd_hui = new Date().toISOString().split('T')[0]
-    localStorage.setItem('popup_boutique_vu', aujourd_hui)
   }
 
   const ouvrirBoutique = () => {
