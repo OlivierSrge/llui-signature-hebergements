@@ -389,6 +389,21 @@ export default function PrestatairesPage() {
         </div>
       )}
 
+      {/* Annuaire L&Lui */}
+      <div className="rounded-2xl p-4 border border-[#C9A84C]/30" style={{ background: 'rgba(201,168,76,0.07)' }}>
+        <p className="text-xs font-semibold text-[#C9A84C] uppercase tracking-wide mb-1">Annuaire certifié L&amp;Lui</p>
+        <p className="text-sm text-[#1A1A1A] mb-3">
+          Découvrez nos prestataires certifiés : photographes, DJ, décorateurs, beauté…
+        </p>
+        <a
+          href="/prestataires"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-[#1A1A1A] transition-opacity hover:opacity-80"
+          style={{ background: '#C9A84C' }}
+        >
+          Voir l&apos;annuaire →
+        </a>
+      </div>
+
       <div className="space-y-3">
         {prestataires.map(p => {
           const sc = STATUT_CONFIG[p.statut] ?? STATUT_CONFIG.a_confirmer

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Thermometer, ShoppingBag, Phone } from 'lucide-react'
+import { MapPin, Thermometer, ShoppingBag, Phone, ShieldCheck } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 import KribiClient from '@/components/kribi/KribiClient'
@@ -100,6 +100,42 @@ async function getEvenementsWeekend() {
   }
 }
 
+async function getPrestatairesWeekend() {
+  try {
+    const snap = await db
+      .collection('prestataires')
+      .where('statut', '==', 'actif')
+      .where('categorie', 'in', ['experiences', 'restauration', 'son_animation'])
+      .get()
+    return snap.docs
+      .map((d) => {
+        const data = d.data()
+        return {
+          id: d.id,
+          nom: data.nom ?? '',
+          slogan: data.slogan ?? '',
+          categorie: data.categorie ?? '',
+          portfolio: data.portfolio ?? [],
+          note_moyenne: data.note_moyenne ?? 0,
+          nb_avis: data.nb_avis ?? 0,
+          certifie: data.certifie ?? false,
+          mis_en_avant: data.mis_en_avant ?? false,
+          services: data.services ?? [],
+        }
+      })
+      .sort((a, b) => {
+        if (a.mis_en_avant && !b.mis_en_avant) return -1
+        if (!a.mis_en_avant && b.mis_en_avant) return 1
+        if (a.certifie && !b.certifie) return -1
+        if (!a.certifie && b.certifie) return 1
+        return 0
+      })
+      .slice(0, 4)
+  } catch {
+    return []
+  }
+}
+
 async function getTopHebergements() {
   try {
     const snap = await db.collection('hebergements').where('status', '==', 'active').get()
@@ -142,9 +178,10 @@ const PRODUITS = [
 
 export default async function KribiPage() {
   const { label } = getWeekendRange()
-  const [evenements, hebergements, weather] = await Promise.all([
+  const [evenements, hebergements, prestataires, weather] = await Promise.all([
     getEvenementsWeekend(),
     getTopHebergements(),
+    getPrestatairesWeekend(),
     getWeatherKribi(),
   ])
 
@@ -279,6 +316,79 @@ export default async function KribiPage() {
           </div>
         </div>
       </section>
+
+      {/* ══ SECTION 4B — PRESTATAIRES WEEKEND ════════════════════════════ */}
+      {prestataires.length > 0 && (
+        <section className="py-12 px-4" style={{ background: '#1A1A1A' }}>
+          <div className="max-w-lg mx-auto">
+            <div className="mb-7">
+              <h2 className="font-serif text-2xl font-semibold text-white">
+                Prestataires disponibles
+              </h2>
+              <p className="text-[#C9A84C] text-sm mt-1">Certifiés L&amp;Lui Signature · Ce weekend</p>
+              <div className="h-px mt-3" style={{ background: 'linear-gradient(to right, #C9A84C55, transparent)' }} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {prestataires.map((p) => {
+                const prixMin = p.services.length > 0 ? Math.min(...p.services.map((s: any) => s.prix)) : null
+                const CAT_LABELS: Record<string, string> = {
+                  restauration: 'Restauration',
+                  photo_video: 'Photo & Vidéo',
+                  decoration: 'Décoration',
+                  son_animation: 'Son & Animation',
+                  beaute_bienetre: 'Beauté & Bien-être',
+                  experiences: 'Expériences',
+                  mariage_evenements: 'Mariage',
+                }
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/prestataires/${p.id}`}
+                    className="flex flex-col p-3 rounded-2xl transition-opacity hover:opacity-90"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    {p.portfolio?.[0]?.url ? (
+                      <div className="relative w-full h-24 rounded-xl overflow-hidden mb-2 flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.portfolio[0].url} alt={p.nom} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-full h-24 rounded-xl flex items-center justify-center text-3xl mb-2"
+                        style={{ background: 'rgba(201,168,76,0.12)' }}>
+                        🎯
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                        {CAT_LABELS[p.categorie] ?? p.categorie}
+                      </span>
+                      {p.certifie && <ShieldCheck size={10} className="text-[#C9A84C]" />}
+                    </div>
+                    <h3 className="text-white font-semibold text-sm leading-snug">{p.nom}</h3>
+                    {prixMin !== null && (
+                      <p className="text-[#C9A84C] text-xs font-medium mt-1">
+                        Dès {prixMin.toLocaleString('fr-FR')} FCFA
+                      </p>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/prestataires"
+                className="inline-flex items-center gap-2 text-sm font-medium px-5 py-2.5 rounded-xl transition-opacity hover:opacity-80"
+                style={{ border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }}
+              >
+                Voir tous les prestataires →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ══ SECTION 5 — BOUTIQUE L&LUI ════════════════════════════════════ */}
       <section className="py-12 px-4" style={{ background: '#F5F0E8' }}>
