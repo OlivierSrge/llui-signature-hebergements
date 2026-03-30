@@ -36,6 +36,8 @@ async function getPrestataire(id: string) {
         ...a,
         date: a.date?.toDate ? a.date.toDate().toISOString() : a.date ?? null,
       })),
+      photo_principale: data.photo_principale ?? '',
+      logo_url: data.logo_url ?? '',
       note_moyenne: data.note_moyenne ?? 0,
       nb_avis: data.nb_avis ?? 0,
       certifie: data.certifie ?? false,
@@ -78,11 +80,22 @@ export default async function FichePrestatairePage({ params }: { params: { id: s
           </div>
 
           {/* Photo principale */}
-          {p.portfolio?.[0]?.url && (
+          {(p.photo_principale || p.portfolio?.[0]?.url) && (
             <div className="relative h-56 sm:h-72 rounded-2xl overflow-hidden mb-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.portfolio[0].url} alt={p.nom} className="w-full h-full object-cover" />
+              <img
+                src={p.photo_principale || p.portfolio[0].url}
+                alt={p.nom}
+                className="w-full h-full object-cover"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              {/* Logo overlay */}
+              {p.logo_url && (
+                <div className="absolute bottom-3 left-3 w-12 h-12 rounded-xl overflow-hidden bg-white/90 shadow-lg border border-white/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.logo_url} alt={`Logo ${p.nom}`} className="w-full h-full object-contain p-1.5" />
+                </div>
+              )}
             </div>
           )}
 

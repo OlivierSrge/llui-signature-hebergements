@@ -13,6 +13,8 @@ export interface Prestataire {
   contact: { localisation?: string }
   services: { prix: number }[]
   portfolio: { url: string }[]
+  photo_principale?: string
+  logo_url?: string
   note_moyenne: number
   nb_avis: number
   certifie: boolean
@@ -97,7 +99,8 @@ export default function PrestatairesClient({ prestataires: initial }: { prestata
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {filtered.map((p) => {
               const prix = prixMin(p)
-              const photo = p.portfolio?.[0]?.url
+              const photo = p.photo_principale || p.portfolio?.[0]?.url
+              const logo = p.logo_url
               return (
                 <Link
                   key={p.id}
@@ -113,10 +116,20 @@ export default function PrestatairesClient({ prestataires: initial }: { prestata
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={photo} alt={p.nom} className="w-full h-full object-cover" />
+                    ) : logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt={p.nom} className="w-16 h-16 object-contain opacity-70" />
                     ) : (
                       <span className="text-4xl opacity-40">
                         {CATEGORIES.find((c) => c.id === p.categorie)?.emoji ?? '🤝'}
                       </span>
+                    )}
+                    {/* Logo overlay (si photo + logo) */}
+                    {photo && logo && (
+                      <div className="absolute bottom-2 left-2 w-9 h-9 rounded-lg overflow-hidden bg-white/90 shadow border border-white/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={logo} alt="" className="w-full h-full object-contain p-1" />
+                      </div>
                     )}
                     {/* Badges */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1">

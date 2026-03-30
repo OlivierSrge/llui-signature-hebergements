@@ -26,6 +26,8 @@ async function getPrestataires() {
           contact: data.contact ?? {},
           services: data.services ?? [],
           portfolio: data.portfolio ?? [],
+          photo_principale: data.photo_principale ?? '',
+          logo_url: data.logo_url ?? '',
           note_moyenne: data.note_moyenne ?? 0,
           nb_avis: data.nb_avis ?? 0,
           certifie: data.certifie ?? false,

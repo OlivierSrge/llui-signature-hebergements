@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import {
   Plus, RefreshCw, CheckCircle2, XCircle, Star, ShieldCheck,
-  Eye, Trash2, UserCheck, Loader2, Download, ExternalLink,
+  Eye, Trash2, UserCheck, Loader2, Download, ExternalLink, Pencil,
 } from 'lucide-react'
 
 type Tab = 'prestataires' | 'candidatures' | 'bookings'
@@ -249,9 +249,16 @@ export default function PrestatairesServicesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <a href={`/prestataires/${p.id}`} target="_blank" className="p-1.5 rounded-lg text-dark/40 hover:text-dark hover:bg-beige-100 transition-colors" title="Voir fiche">
+                            <a href={`/prestataires/${p.id}`} target="_blank" className="p-1.5 rounded-lg text-dark/40 hover:text-dark hover:bg-beige-100 transition-colors" title="Voir fiche publique">
                               <Eye size={14} />
                             </a>
+                            <button
+                              onClick={() => router.push(`/admin/prestataires-services/${p.id}/modifier`)}
+                              className="p-1.5 rounded-lg text-dark/40 hover:text-dark hover:bg-beige-100 transition-colors"
+                              title="Modifier"
+                            >
+                              <Pencil size={14} />
+                            </button>
                             <button onClick={() => handleCertifier(p)} className={`p-1.5 rounded-lg transition-colors ${p.certifie ? 'text-[#085041] bg-[#E1F5EE]' : 'text-dark/40 hover:text-dark hover:bg-beige-100'}`} title={p.certifie ? 'Retirer certification' : 'Certifier'}>
                               <ShieldCheck size={14} />
                             </button>

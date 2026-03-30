@@ -10,11 +10,19 @@ function isAdmin(): boolean {
   return !!(session && session === process.env.ADMIN_SESSION_TOKEN)
 }
 
-// GET — liste tous les prestataires (admin)
-export async function GET() {
+// GET — liste tous les prestataires (admin) ou un seul si ?id=
+export async function GET(request: NextRequest) {
   if (!isAdmin()) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   try {
     const db = getDb()
+    const id = request.nextUrl.searchParams.get('id')
+
+    if (id) {
+      const doc = await db.collection('prestataires').doc(id).get()
+      if (!doc.exists) return NextResponse.json({ error: 'Non trouvé' }, { status: 404 })
+      return NextResponse.json({ prestataire: { id: doc.id, ...doc.data() } })
+    }
+
     const snap = await db.collection('prestataires').orderBy('ordre_affichage').get()
     const prestataires = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     return NextResponse.json({ prestataires })
