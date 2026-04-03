@@ -61,7 +61,7 @@ export default async function PortailLayout({ children }: { children: React.Reac
     return <>{children}</>
   }
   return (
-    <div className="min-h-screen bg-[#F5F0E8]">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #E8C4B8 0%, #DBBAB4 60%, #D4A09A 100%)' }}>
       {/* #187 — Thème visuel dynamique */}
       <ThemeInjector couleur_primaire={user.couleur_primaire} couleur_secondaire={user.couleur_secondaire} />
       {/* Bandeau mode admin — décalage supplémentaire quand actif */}
