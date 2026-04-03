@@ -38,7 +38,7 @@ const CAT_LABELS: Record<keyof BudgetCategories, string> = {
   beaute: 'Beauté', photographie: 'Photographie', autres: 'Autres',
 }
 const CAT_COLORS: Record<keyof BudgetCategories, string> = {
-  traiteur: '#C9A84C', decoration: '#7C9A7E', hebergement: '#3B82F6',
+  traiteur: '#D4AF37', decoration: '#7C9A7E', hebergement: '#3B82F6',
   beaute: '#EC4899', photographie: '#8B5CF6', autres: '#888',
 }
 const CAT_EMOJI: Record<keyof BudgetCategories, string> = {
@@ -77,7 +77,7 @@ export default function StatsDashboard({
   const budgetDepense = totaux.total_ht
   const pctBudget = budgetTotal > 0 ? Math.min(100, Math.round((budgetDepense / budgetTotal) * 100)) : 0
   const budgetRestant = budgetTotal > 0 ? Math.max(0, budgetTotal - budgetDepense) : 0
-  const budgetColor = pctBudget < 70 ? '#7C9A7E' : pctBudget < 90 ? '#C9A84C' : '#C0392B'
+  const budgetColor = pctBudget < 70 ? '#8AAE8A' : pctBudget < 90 ? '#D4AF37' : '#C0392B'
   const budgetDepasse = budgetDepense > budgetTotal && budgetTotal > 0
 
   const hasBudgetCategories = budgetCategories && Object.values(budgetCategories).some(v => v > 0)
@@ -95,19 +95,19 @@ export default function StatsDashboard({
         {/* Invités */}
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
-          <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-2">Invités</p>
+          <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider mb-2">Invités</p>
           <div className="flex items-end gap-1 mb-1">
-            <span className="text-2xl font-bold text-[#C9A84C]">{confirmes}</span>
-            <span className="text-sm text-[#888] mb-0.5">/ {prevus > 0 ? prevus : '—'}</span>
+            <span className="text-2xl font-bold text-[#D4AF37]">{confirmes}</span>
+            <span className="text-sm text-[#6B4F4F] mb-0.5">/ {prevus > 0 ? prevus : '—'}</span>
           </div>
           {prevus > 0 && (
-            <div className="h-1 bg-[#F5F0E8] rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${pctInvites}%`, background: '#C9A84C' }} />
+            <div className="h-1 bg-[#F5E0DA] rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${pctInvites}%`, background: '#D4AF37' }} />
             </div>
           )}
-          <p className="text-[9px] text-[#AAA] mt-1">
+          <p className="text-[9px] text-[#A08878] mt-1">
             {prevus > confirmes ? `${prevus - confirmes} en attente` : prevus === 0 ? 'À définir' : 'Tous confirmés ✅'}
           </p>
         </div>
@@ -115,15 +115,15 @@ export default function StatsDashboard({
         {/* Tâches */}
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
-          <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-2">Tâches</p>
+          <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider mb-2">Tâches</p>
           <div className="flex items-end gap-1 mb-1">
             <span className="text-2xl font-bold text-[#1A1A1A]">{todosDone}</span>
-            <span className="text-sm text-[#888] mb-0.5">/ {todosTotal}</span>
+            <span className="text-sm text-[#6B4F4F] mb-0.5">/ {todosTotal}</span>
           </div>
           {todosTotal > 0 && (
-            <div className="h-1 bg-[#F5F0E8] rounded-full overflow-hidden">
+            <div className="h-1 bg-[#F5E0DA] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -133,7 +133,7 @@ export default function StatsDashboard({
               />
             </div>
           )}
-          <p className="text-[9px] text-[#AAA] mt-1">
+          <p className="text-[9px] text-[#A08878] mt-1">
             {todosTotal === 0 ? 'Aucune tâche' : `${Math.round((todosDone / todosTotal) * 100)}% complétées`}
           </p>
         </div>
@@ -143,10 +143,10 @@ export default function StatsDashboard({
       {budgetTotal > 0 ? (
         <div
           className="rounded-2xl overflow-hidden shadow-sm"
-          style={{ border: '1px solid rgba(201,168,76,0.15)' }}
+          style={{ border: '1px solid rgba(212,175,55,0.15)' }}
         >
-          {/* En-tête sombre */}
-          <div className="px-5 py-4" style={{ background: '#1A1A1A' }}>
+          {/* En-tête sombre chaud */}
+          <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #2C1810 0%, #4A2828 100%)' }}>
             <div className="flex items-center justify-between mb-1">
               <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Budget Mariage</p>
               <span
@@ -165,9 +165,9 @@ export default function StatsDashboard({
           </div>
 
           {/* Corps */}
-          <div className="px-5 py-4 bg-white">
+          <div className="px-5 py-4" style={{ background: '#F9F5F2' }}>
             {/* Barre de progression épaisse */}
-            <div className="h-3 bg-[#F5F0E8] rounded-full overflow-hidden mb-3">
+            <div className="h-3 bg-[#F5E0DA] rounded-full overflow-hidden mb-3">
               <div
                 className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
                 style={{ width: `${pctBudget}%`, background: budgetColor }}
@@ -190,15 +190,15 @@ export default function StatsDashboard({
                 <p className="text-xs font-bold" style={{ color: budgetColor }}>
                   {formatFCFAShort(budgetDepense)}
                 </p>
-                <p className="text-[9px] text-[#888]">Engagé</p>
+                <p className="text-[9px] text-[#6B4F4F]">Engagé</p>
               </div>
-              <div style={{ borderLeft: '1px solid #F5F0E8', borderRight: '1px solid #F5F0E8' }}>
+              <div style={{ borderLeft: '1px solid #EDD5CC', borderRight: '1px solid #EDD5CC' }}>
                 <p className="text-xs font-bold text-[#7C9A7E]">{formatFCFAShort(budgetRestant)}</p>
-                <p className="text-[9px] text-[#888]">Disponible</p>
+                <p className="text-[9px] text-[#6B4F4F]">Disponible</p>
               </div>
               <div>
                 <p className="text-xs font-bold text-[#1A1A1A]">{formatFCFAShort(budgetTotal)}</p>
-                <p className="text-[9px] text-[#888]">Prévu</p>
+                <p className="text-[9px] text-[#6B4F4F]">Prévu</p>
               </div>
             </div>
 
@@ -213,12 +213,12 @@ export default function StatsDashboard({
         /* Budget non défini — invite à le paramétrer */
         <div
           className="rounded-2xl p-4 text-center shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <p className="text-2xl mb-1">💰</p>
           <p className="text-sm font-semibold text-[#1A1A1A] mb-0.5">Budget non défini</p>
-          <p className="text-xs text-[#888] mb-3">Définissez votre budget prévisionnel pour suivre vos dépenses</p>
-          <a href="/portail/parametres" className="inline-block px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#C9A84C' }}>
+          <p className="text-xs text-[#6B4F4F] mb-3">Définissez votre budget prévisionnel pour suivre vos dépenses</p>
+          <a href="/portail/parametres" className="inline-block px-4 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: '#D4AF37' }}>
             Définir mon budget →
           </a>
         </div>
@@ -228,11 +228,11 @@ export default function StatsDashboard({
       {hasBudgetCategories && budgetCategories && budgetCategoriesTotal > 0 && (
         <div
           className="rounded-2xl p-5 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Répartition Budget</p>
-            <p className="text-xs font-semibold text-[#C9A84C]">{formatFCFA(budgetCategoriesTotal)}</p>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Répartition Budget</p>
+            <p className="text-xs font-semibold text-[#D4AF37]">{formatFCFA(budgetCategoriesTotal)}</p>
           </div>
 
           <div className="space-y-3">
@@ -251,11 +251,11 @@ export default function StatsDashboard({
                         <span className="text-xs text-[#555] font-medium">{CAT_LABELS[k]}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#888]">{pct}%</span>
+                        <span className="text-[10px] text-[#6B4F4F]">{pct}%</span>
                         <span className="text-xs font-semibold" style={{ color }}>{formatFCFA(val)}</span>
                       </div>
                     </div>
-                    <div className="h-2 bg-[#F5F0E8] rounded-full overflow-hidden">
+                    <div className="h-2 bg-[#F5E0DA] rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%`, background: color }}
@@ -271,7 +271,7 @@ export default function StatsDashboard({
       {/* ══ BLOC 5 — CAGNOTTE L&LUI SIGNATURE ═══════════════════════════════ */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: '#1A1A1A', border: '1px solid rgba(201,168,76,0.2)' }}
+        style={{ background: 'linear-gradient(160deg, #2C1810 0%, #3D2020 100%)', border: '1px solid rgba(212,175,55,0.25)' }}
       >
         {/* En-tête cagnotte */}
         <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -280,13 +280,13 @@ export default function StatsDashboard({
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1">
                 Ma Cagnotte L&amp;Lui
               </p>
-              <p className="text-3xl font-bold" style={{ color: '#C9A84C' }}>
+              <p className="text-3xl font-bold" style={{ color: '#D4AF37' }}>
                 {formatFCFA(walletCash + walletCredits)}
               </p>
             </div>
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl"
-              style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}
+              style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
             >
               💎
             </div>
@@ -305,10 +305,10 @@ export default function StatsDashboard({
           </div>
           <div
             className="rounded-xl p-3 ml-1"
-            style={{ background: 'rgba(201,168,76,0.06)' }}
+            style={{ background: 'rgba(212,175,55,0.06)' }}
           >
             <p className="text-[9px] text-white/30 uppercase tracking-wide mb-1">Crédits</p>
-            <p className="text-sm font-bold" style={{ color: '#C9A84C' }}>{formatFCFA(walletCredits)}</p>
+            <p className="text-sm font-bold" style={{ color: '#D4AF37' }}>{formatFCFA(walletCredits)}</p>
             <p className="text-[9px] text-white/25">Services L&amp;Lui</p>
           </div>
         </div>
@@ -343,43 +343,43 @@ export default function StatsDashboard({
       {prevus > 0 ? (
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Mes Invités</p>
-            <a href="/portail/invites" className="text-xs font-medium" style={{ color: '#C9A84C' }}>Gérer →</a>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Mes Invités</p>
+            <a href="/portail/invites" className="text-xs font-medium" style={{ color: '#D4AF37' }}>Gérer →</a>
           </div>
 
           {/* Barre de progression invités */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-2xl font-bold text-[#C9A84C]">{confirmes}</span>
-              <span className="text-xs text-[#888]">sur {prevus} invités</span>
+              <span className="text-2xl font-bold text-[#D4AF37]">{confirmes}</span>
+              <span className="text-xs text-[#6B4F4F]">sur {prevus} invités</span>
             </div>
-            <div className="h-2.5 bg-[#F5F0E8] rounded-full overflow-hidden">
+            <div className="h-2.5 bg-[#F5E0DA] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${pctInvites}%`, background: 'linear-gradient(90deg, #C9A84C, #E8C87A)' }}
+                style={{ width: `${pctInvites}%`, background: 'linear-gradient(90deg, #D4AF37, #F0D060)' }}
               />
             </div>
-            <p className="text-[9px] text-[#AAA] mt-1">{pctInvites}% ont confirmé leur présence</p>
+            <p className="text-[9px] text-[#A08878] mt-1">{pctInvites}% ont confirmé leur présence</p>
           </div>
 
           {/* Récap participation */}
           {participationStats && participationStats.total > 0 && (
             <div
               className="p-3 rounded-xl mb-3"
-              style={{ background: '#F5F0E8' }}
+              style={{ background: '#FAEAE6' }}
             >
               {participationStats.ayant_commande > 0 ? (
                 <p className="text-xs font-medium text-[#7C9A7E]">
                   🎉 {participationStats.ayant_commande} invité{participationStats.ayant_commande > 1 ? 's' : ''} ont déjà commandé
                 </p>
               ) : (
-                <p className="text-xs text-[#888]">Aucun invité n&apos;a encore commandé</p>
+                <p className="text-xs text-[#6B4F4F]">Aucun invité n&apos;a encore commandé</p>
               )}
               {participationStats.silencieux > 0 && (
-                <p className="text-[10px] text-[#888] mt-0.5">
+                <p className="text-[10px] text-[#6B4F4F] mt-0.5">
                   {participationStats.silencieux} invité{participationStats.silencieux > 1 ? 's' : ''} n&apos;ont pas encore utilisé votre code
                 </p>
               )}
@@ -390,7 +390,7 @@ export default function StatsDashboard({
             <a
               href="/portail/invites"
               className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white"
-              style={{ background: '#1A1A1A' }}
+              style={{ background: '#2C1810' }}
             >
               Gérer ma liste →
             </a>
@@ -398,7 +398,7 @@ export default function StatsDashboard({
               <a
                 href="/portail/invites"
                 className="flex-1 py-2 rounded-xl text-xs font-semibold text-center border"
-                style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
+                style={{ borderColor: '#D4AF37', color: '#D4AF37' }}
               >
                 Relancer {participationStats.silencieux} →
               </a>
@@ -406,7 +406,7 @@ export default function StatsDashboard({
               <a
                 href="/portail/invites#envoyer"
                 className="flex-1 py-2 rounded-xl text-xs font-semibold text-center border"
-                style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
+                style={{ borderColor: '#D4AF37', color: '#D4AF37' }}
               >
                 Envoyer invitations →
               </a>
@@ -416,17 +416,17 @@ export default function StatsDashboard({
       ) : (
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Mes Invités</p>
-            <a href="/portail/invites" className="text-xs" style={{ color: '#C9A84C' }}>Gérer →</a>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Mes Invités</p>
+            <a href="/portail/invites" className="text-xs" style={{ color: '#D4AF37' }}>Gérer →</a>
           </div>
-          <p className="text-sm text-[#AAA] text-center py-2">Commencez à gérer votre liste d&apos;invités 💌</p>
+          <p className="text-sm text-[#A08878] text-center py-2">Commencez à gérer votre liste d&apos;invités 💌</p>
           <a
             href="/portail/invites"
             className="block w-full py-2 rounded-xl text-xs font-semibold text-center text-white mt-1"
-            style={{ background: '#1A1A1A' }}
+            style={{ background: '#2C1810' }}
           >
             + Ajouter des invités
           </a>
