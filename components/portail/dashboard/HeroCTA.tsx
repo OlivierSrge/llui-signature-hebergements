@@ -1,5 +1,5 @@
 'use client'
-// BLOCS 1 & 2 — Hero countdown + CTA Boutique/Hébergements
+// HERO REDESIGN — Style "Velvet & Vow" — Countdown premium + noms mariés + CTA
 
 import { useEffect, useState } from 'react'
 import { useClientIdentity } from '@/hooks/useClientIdentity'
@@ -10,28 +10,6 @@ function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
-function CountdownRingSvg({ jours, pctPreparation }: { jours: number | null; pctPreparation: number }) {
-  const r = 54; const circ = 2 * Math.PI * r
-  const pct = jours !== null ? Math.min(100, Math.round(((365 - jours) / 365) * 100)) : 0
-  const offset = circ - (pct / 100) * circ
-  return (
-    <div className="flex flex-col items-center">
-      <svg width="130" height="130" viewBox="0 0 130 130">
-        <circle cx="65" cy="65" r={r} fill="none" stroke="#F5F0E8" strokeWidth="10" />
-        <circle cx="65" cy="65" r={r} fill="none" stroke="#C9A84C" strokeWidth="10"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          transform="rotate(-90 65 65)" style={{ transition: 'stroke-dashoffset 1s ease' }} />
-        {jours !== null && jours <= 0
-          ? <text x="65" y="72" textAnchor="middle" className="fill-[#C9A84C]" fontSize="11" fontWeight="bold">{jours === 0 ? '🎉' : '✨'}</text>
-          : <text x="65" y="60" textAnchor="middle" className="fill-[#1A1A1A]" fontSize="18" fontWeight="bold">{jours ?? '—'}</text>
-        }
-        {(jours === null || jours > 0) && <text x="65" y="76" textAnchor="middle" className="fill-[#888]" fontSize="9">jours</text>}
-        <text x="65" y="90" textAnchor="middle" className="fill-[#C9A84C]" fontSize="8">{pctPreparation}% préparé</text>
-      </svg>
-    </div>
-  )
-}
-
 interface Props { uid: string; todosDone: number; todosTotal: number }
 
 export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
@@ -40,10 +18,10 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
   const pctPrep = todosTotal > 0 ? Math.round((todosDone / todosTotal) * 100) : 0
   const [toast, setToast] = useState('')
 
-  // Compte à rebours live (secondes)
-  const [, setSecondes] = useState(0)
+  // Tick secondes pour l'effet "live"
+  const [, setTick] = useState(0)
   useEffect(() => {
-    const t = setInterval(() => setSecondes(s => (s + 1) % 60), 1000)
+    const t = setInterval(() => setTick(s => s + 1), 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -65,59 +43,249 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
     showToast('Site hébergements ouvert ! Revenez ici pour enregistrer votre réservation.')
   }
 
-  return (
-    <div className="space-y-4">
-      {toast && <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-xs px-4 py-2.5 rounded-xl shadow-lg text-center max-w-xs">{toast}</div>}
+  const jours = identity.jours_avant_mariage
+  const noms = identity.noms_maries
+  const lieu = identity.lieu
 
-      {/* BLOC 1 — Hero countdown */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8] text-center">
-        <p className="font-serif italic text-base text-[#C9A84C] mb-0.5">{identity.noms_maries}</p>
-        {identity.lieu && <p className="text-[10px] text-[#888]">{identity.lieu}</p>}
-        <div className="flex justify-center my-3">
-          <CountdownRingSvg jours={identity.jours_avant_mariage} pctPreparation={pctPrep} />
+  // Date approximative du mariage calculée à partir du compte à rebours
+  const dateMariageLabel = jours !== null && jours >= 0
+    ? (() => {
+        const d = new Date()
+        d.setDate(d.getDate() + jours)
+        return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      })()
+    : null
+
+  // Statut du jour J
+  const isJourJ = jours === 0
+  const isApres = jours !== null && jours < 0
+  const isAvant = jours !== null && jours > 0
+
+  return (
+    <div className="space-y-3">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-xs px-4 py-2.5 rounded-xl shadow-lg text-center max-w-xs">
+          {toast}
         </div>
-        {identity.jours_avant_mariage !== null && identity.jours_avant_mariage > 0 && (
-          <p className="text-xs text-[#888]">Plus que <strong className="text-[#1A1A1A]">{identity.jours_avant_mariage} jour{identity.jours_avant_mariage > 1 ? 's' : ''}</strong> avant le grand jour</p>
-        )}
-        {identity.jours_avant_mariage === 0 && (
-          <p className="text-xs font-semibold text-[#C9A84C]">C&apos;est aujourd&apos;hui ! Félicitations ! 🎉</p>
-        )}
-        {identity.jours_avant_mariage !== null && identity.jours_avant_mariage < 0 && (
-          <p className="text-xs font-semibold text-[#C9A84C]">Jour J passé — Félicitations ! ✨</p>
-        )}
+      )}
+
+      {/* ══ HERO COUNTDOWN ══════════════════════════════════════════════════ */}
+      <div
+        className="relative rounded-3xl overflow-hidden"
+        style={{
+          background: 'linear-gradient(160deg, #1A1A1A 0%, #2C1F0E 50%, #1A1A1A 100%)',
+          minHeight: 260,
+        }}
+      >
+        {/* Motif décoratif doré en fond */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute', inset: 0, opacity: 0.06,
+            backgroundImage: `radial-gradient(circle at 20% 50%, #C9A84C 1px, transparent 1px),
+                              radial-gradient(circle at 80% 20%, #C9A84C 1px, transparent 1px),
+                              radial-gradient(circle at 60% 80%, #C9A84C 1px, transparent 1px)`,
+            backgroundSize: '60px 60px, 80px 80px, 50px 50px',
+          }}
+        />
+
+        {/* Dégradé arc doré */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: -80, left: '50%',
+            transform: 'translateX(-50%)',
+            width: 320,
+            height: 320,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)',
+          }}
+        />
+
+        {/* Contenu */}
+        <div className="relative z-10 px-6 py-8 flex flex-col items-center text-center">
+          {/* Badge L&Lui */}
+          <div className="mb-5">
+            <span
+              className="text-[10px] font-semibold tracking-[0.2em] uppercase px-3 py-1 rounded-full"
+              style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}
+            >
+              L&amp;Lui Signature
+            </span>
+          </div>
+
+          {/* Countdown principal */}
+          {isJourJ ? (
+            <div className="mb-4">
+              <p className="text-6xl font-bold mb-1" style={{ color: '#C9A84C' }}>🎉</p>
+              <p className="text-2xl font-serif font-bold text-white">C&apos;est aujourd&apos;hui !</p>
+            </div>
+          ) : isApres ? (
+            <div className="mb-4">
+              <p className="text-5xl font-bold mb-1" style={{ color: '#C9A84C' }}>✨</p>
+              <p className="text-xl font-serif font-bold text-white">Félicitations !</p>
+            </div>
+          ) : (
+            <div className="mb-3">
+              {/* Grand J-X */}
+              <div className="relative inline-flex flex-col items-center">
+                {jours !== null ? (
+                  <>
+                    <span
+                      className="font-serif font-bold leading-none"
+                      style={{ fontSize: 80, color: '#C9A84C', textShadow: '0 0 40px rgba(201,168,76,0.3)' }}
+                    >
+                      J-{jours}
+                    </span>
+                    <p className="text-white/50 text-xs tracking-widest uppercase mt-1">
+                      {jours === 1 ? 'demain' : `${jours} jours`}
+                    </p>
+                  </>
+                ) : (
+                  <span className="font-serif font-bold text-5xl" style={{ color: '#C9A84C' }}>
+                    —
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Séparateur ornemental */}
+          <div className="flex items-center gap-2 mb-3 w-full max-w-[200px]">
+            <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.3)' }} />
+            <span style={{ color: 'rgba(201,168,76,0.6)', fontSize: 10 }}>✦</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.3)' }} />
+          </div>
+
+          {/* Noms des mariés */}
+          {noms ? (
+            <p
+              className="font-serif italic font-semibold text-white mb-1"
+              style={{ fontSize: 20, letterSpacing: '0.02em' }}
+            >
+              {noms}
+            </p>
+          ) : (
+            <p className="font-serif italic text-white/40 mb-1 text-base">
+              Vos prénoms ici
+            </p>
+          )}
+
+          {/* Lieu + Date */}
+          <p className="text-white/40 text-xs mb-5">
+            {lieu || 'Kribi, Cameroun'}
+            {dateMariageLabel && <> · {dateMariageLabel}</>}
+          </p>
+
+          {/* Barre de progression préparation */}
+          <div className="w-full max-w-xs">
+            <div className="flex justify-between text-[10px] mb-1.5">
+              <span className="text-white/40">Préparation</span>
+              <span style={{ color: '#C9A84C' }} className="font-semibold">{pctPrep}%</span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${pctPrep}%`,
+                  background: 'linear-gradient(90deg, #C9A84C, #E8C87A)',
+                }}
+              />
+            </div>
+            <p className="text-white/25 text-[9px] mt-1 text-center">
+              {todosDone}/{todosTotal} tâches complétées
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Bouton paramètres */}
-      <div className="text-center -mt-2">
-        <a href="/portail/parametres" className="inline-flex items-center gap-1 text-xs text-[#888] hover:text-[#C9A84C] transition-colors">
+      {/* Lien paramètres */}
+      <div className="text-center -mt-1">
+        <a
+          href="/portail/parametres"
+          className="inline-flex items-center gap-1 text-xs transition-colors"
+          style={{ color: '#C9A84C' }}
+        >
           <span>⚙️</span> Paramétrer mon mariage
         </a>
       </div>
 
-      {/* BLOC 2 — CTA Boutique + Hébergements (liens externes) */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F5F0E8]">
-        <p className="text-sm font-semibold text-[#1A1A1A] text-center mb-3">Composez votre mariage ✨</p>
+      {/* ══ CTA BOUTIQUE + HÉBERGEMENTS ══════════════════════════════════════ */}
+      <div
+        className="rounded-2xl p-4 shadow-sm"
+        style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.15)' }}
+      >
+        <p
+          className="font-serif text-center text-sm font-semibold mb-3"
+          style={{ color: '#1A1A1A' }}
+        >
+          Composez votre mariage ✨
+        </p>
+
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <button onClick={openBoutique} className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90 w-full" style={{ background: '#1A1A1A' }}>
-            <span style={{ fontSize: 24 }}>🛍️</span>
-            <p className="text-xs font-bold text-[#C9A84C] text-center leading-tight">Boutique L&amp;Lui Signature</p>
-            <p className="text-[10px] text-white/50 text-center">26 prestations disponibles</p>
+          {/* Boutique */}
+          <button
+            onClick={openBoutique}
+            className="rounded-2xl p-4 flex flex-col items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95 w-full relative overflow-hidden"
+            style={{ background: '#1A1A1A' }}
+          >
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute', top: -20, right: -20,
+                width: 80, height: 80, borderRadius: '50%',
+                background: 'rgba(201,168,76,0.08)',
+              }}
+            />
+            <span style={{ fontSize: 22 }}>🛍️</span>
+            <p className="text-xs font-bold text-center leading-tight" style={{ color: '#C9A84C' }}>
+              Boutique<br />L&amp;Lui Signature
+            </p>
+            <p className="text-[9px] text-white/40 text-center">26 prestations</p>
           </button>
-          <button onClick={openHebergements} className="rounded-2xl p-4 flex flex-col items-center gap-1 transition-opacity hover:opacity-90 w-full" style={{ background: '#C9A84C' }}>
-            <span style={{ fontSize: 24 }}>🏡</span>
-            <p className="text-xs font-bold text-[#1A1A1A] text-center leading-tight">Sélection Hébergements</p>
-            <p className="text-[10px] text-[#1A1A1A]/60 text-center">Kribi &amp; environs</p>
+
+          {/* Hébergements */}
+          <button
+            onClick={openHebergements}
+            className="rounded-2xl p-4 flex flex-col items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95 w-full relative overflow-hidden"
+            style={{ background: '#C9A84C' }}
+          >
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute', bottom: -15, left: -15,
+                width: 70, height: 70, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.1)',
+              }}
+            />
+            <span style={{ fontSize: 22 }}>🏡</span>
+            <p className="text-xs font-bold text-[#1A1A1A] text-center leading-tight">
+              Sélection<br />Hébergements
+            </p>
+            <p className="text-[9px] text-[#1A1A1A]/50 text-center">Kribi &amp; environs</p>
           </button>
         </div>
 
-        {/* Bouton panier si articles */}
+        {/* Panier si articles */}
         {totaux.nb_articles > 0 && (
-          <div className="flex items-center justify-between bg-[#F5F0E8] rounded-xl px-3 py-2.5 border border-[#C9A84C]/30">
+          <div
+            className="flex items-center justify-between rounded-xl px-3 py-2.5"
+            style={{ background: '#F5F0E8', border: '1px solid rgba(201,168,76,0.25)' }}
+          >
             <div>
-              <p className="text-xs font-semibold text-[#1A1A1A]">🛒 Mon Panier — {totaux.nb_articles} article{totaux.nb_articles > 1 ? 's' : ''}</p>
+              <p className="text-xs font-semibold text-[#1A1A1A]">
+                🛒 Mon Panier — {totaux.nb_articles} article{totaux.nb_articles > 1 ? 's' : ''}
+              </p>
               <p className="text-[10px] text-[#888]">{formatFCFA(totaux.total_ht)}</p>
             </div>
-            <a href="/portail/panier" className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: '#1A1A1A' }}>Voir →</a>
+            <a
+              href="/portail/panier"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
+              style={{ background: '#1A1A1A' }}
+            >
+              Voir →
+            </a>
           </div>
         )}
       </div>
