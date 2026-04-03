@@ -16,11 +16,9 @@ import type { BoutiqueTransaction } from '@/components/portail/dashboard/AchatsB
 import PrevisionBudget from '@/components/budget/PrevisionBudget'
 import JournalActivite from '@/components/portail/dashboard/JournalActivite'
 import BienEtreCountdown from '@/components/portail/bienetre/BienEtreCountdown'
-import TraiteurKribi from '@/components/portail/traiteur/TraiteurKribi'
 import CarteKribi from '@/components/CarteKribi'
 import ModeJourJ from '@/components/portail/jour-j/ModeJourJ'
 import ProgrammeCeremonie from '@/components/portail/programme/ProgrammeCeremonie'
-import CartographieHebergements from '@/components/portail/cartographie/CartographieHebergements'
 
 // Note : le bandeau admin est géré par portail/layout.tsx (AdminBandeau + cookie admin_view)
 
@@ -261,14 +259,8 @@ export default async function PortailPage() {
         programme_initial={data.programmeCeremonie as unknown as Parameters<typeof ProgrammeCeremonie>[0]['programme_initial']}
       />
 
-      {/* #99 — Traiteur spécialités Kribi */}
-      <TraiteurKribi />
-
       {/* #7 — Carte interactive Kribi */}
       <CarteKribi lieu={data.lieu} />
-
-      {/* #102 — Cartographie hébergements Kribi */}
-      <CartographieHebergements />
 
       {/* #51 — Journal d'activité */}
       <JournalActivite />
