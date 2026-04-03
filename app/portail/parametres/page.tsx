@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useClientIdentity } from '@/hooks/useClientIdentity'
+import UploadPhotoMariage from '@/components/portail/upload/UploadPhotoMariage'
 
 function getUid() {
   if (typeof document === 'undefined') return ''
@@ -143,6 +144,21 @@ export default function ParametresPage() {
         {identity.noms_maries && identity.noms_maries !== 'Mon mariage' && (
           <p className="text-sm text-[#888] mt-0.5">{identity.noms_maries}</p>
         )}
+      </div>
+
+      {/* SECTION 0 — Photo de mariage */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F5F0E8]">
+        <p className="font-semibold text-sm text-[#1A1A1A] mb-1">📸 Photo de mariage</p>
+        <p className="text-xs text-[#888] mb-4">
+          Cette photo s&apos;affichera en arrière-plan de votre hero dashboard et en miniature dans le menu
+        </p>
+        <UploadPhotoMariage
+          currentPhotoUrl={identity.photo_url || undefined}
+          onUploaded={url => {
+            // Forcer une re-lecture de l'identité pour mettre à jour le hero
+            void url
+          }}
+        />
       </div>
 
       <form onSubmit={handleSave} className="space-y-5">

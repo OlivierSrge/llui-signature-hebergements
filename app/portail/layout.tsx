@@ -15,6 +15,7 @@ interface UserPortailData {
   invitesCount: number
   couleur_primaire?: string
   couleur_secondaire?: string
+  photo_url?: string
 }
 
 async function getUserData(): Promise<UserPortailData | null> {
@@ -42,6 +43,7 @@ async function getUserData(): Promise<UserPortailData | null> {
       invitesCount,
       couleur_primaire: (data.couleur_primaire as string | undefined) ?? undefined,
       couleur_secondaire: (data.couleur_secondaire as string | undefined) ?? undefined,
+      photo_url: (data.photo_url as string | undefined) ?? undefined,
     }
   } catch {
     return null
@@ -70,6 +72,7 @@ export default async function PortailLayout({ children }: { children: React.Reac
         revLifetime={user.rev_lifetime}
         walletCash={user.wallet_cash}
         displayName={user.displayName}
+        photoUrl={user.photo_url}
       />
       <PortailNav uid={user.uid} invitesCount={user.invitesCount} />
       {/* pt-16 header mobile / pt-[104px] header+nav desktop — pb-16 bottom nav mobile */}

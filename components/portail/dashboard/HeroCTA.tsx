@@ -46,6 +46,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
   const jours = identity.jours_avant_mariage
   const noms = identity.noms_maries
   const lieu = identity.lieu
+  const photoUrl = identity.photo_url
 
   // Date approximative du mariage calculée à partir du compte à rebours
   const dateMariageLabel = jours !== null && jours >= 0
@@ -77,17 +78,38 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
           minHeight: 260,
         }}
       >
-        {/* Motif décoratif doré en fond */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute', inset: 0, opacity: 0.06,
-            backgroundImage: `radial-gradient(circle at 20% 50%, #C9A84C 1px, transparent 1px),
-                              radial-gradient(circle at 80% 20%, #C9A84C 1px, transparent 1px),
-                              radial-gradient(circle at 60% 80%, #C9A84C 1px, transparent 1px)`,
-            backgroundSize: '60px 60px, 80px 80px, 50px 50px',
-          }}
-        />
+        {/* Photo de mariage en background si disponible */}
+        {photoUrl && (
+          <>
+            <img
+              src={photoUrl}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ opacity: 0.35 }}
+            />
+            {/* Dégradé sombre pour garder le texte lisible */}
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(160deg, rgba(26,26,26,0.85) 0%, rgba(44,31,14,0.75) 50%, rgba(26,26,26,0.85) 100%)' }}
+            />
+          </>
+        )}
+
+        {/* Motif décoratif doré en fond (masqué si photo présente) */}
+        {!photoUrl && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute', inset: 0, opacity: 0.06,
+              backgroundImage: `radial-gradient(circle at 20% 50%, #C9A84C 1px, transparent 1px),
+                                radial-gradient(circle at 80% 20%, #C9A84C 1px, transparent 1px),
+                                radial-gradient(circle at 60% 80%, #C9A84C 1px, transparent 1px)`,
+              backgroundSize: '60px 60px, 80px 80px, 50px 50px',
+            }}
+          />
+        )}
 
         {/* Dégradé arc doré */}
         <div

@@ -10,6 +10,7 @@ interface Props {
   revLifetime: number
   walletCash: number
   displayName: string
+  photoUrl?: string
 }
 
 function getNextGradeInfo(grade: PortailGrade, revLifetime: number) {
@@ -22,7 +23,7 @@ function getNextGradeInfo(grade: PortailGrade, revLifetime: number) {
   return { label: next, pct: Math.max(0, pct), revNext: target - revLifetime }
 }
 
-export default function PortailTopBar({ uid, grade, revLifetime, walletCash, displayName }: Props) {
+export default function PortailTopBar({ uid, grade, revLifetime, walletCash, displayName, photoUrl }: Props) {
   const color = GRADE_COLORS[grade]
   const { label: nextLabel, pct, revNext } = getNextGradeInfo(grade, revLifetime)
 
@@ -70,6 +71,15 @@ export default function PortailTopBar({ uid, grade, revLifetime, walletCash, dis
         <p className="text-[10px] text-white/40">Bonjour</p>
         <p className="text-sm text-white/80 truncate max-w-[120px]">{displayName}</p>
       </div>
+
+      {/* Miniature photo mariage */}
+      {photoUrl && (
+        <a href="/portail/parametres" title="Ma photo de mariage">
+          <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#C9A84C]/60 shrink-0">
+            <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+          </div>
+        </a>
+      )}
 
       {/* Panier */}
       <PanierIndicateur uid={uid} />

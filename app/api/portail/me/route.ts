@@ -60,6 +60,7 @@ export async function GET() {
       budget_previsionnel: d.budget_total ?? d.budget_previsionnel ?? d.projet?.budget_previsionnel ?? 0,
       nombre_invites_prevu: d.nb_invites_prevus ?? d.nombre_invites_prevu ?? d.projet?.nombre_invites_prevu ?? 0,
       code_promo: codePromo,
+      photo_url: d.photo_url ?? '',
     })
   } catch (err) {
     return NextResponse.json(

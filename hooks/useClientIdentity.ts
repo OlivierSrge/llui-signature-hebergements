@@ -22,6 +22,7 @@ export interface ClientIdentity {
   nombre_invites_prevu: number
   lieu: string
   code_promo: string
+  photo_url: string
 }
 
 const DEFAULT: ClientIdentity = {
@@ -40,6 +41,7 @@ const DEFAULT: ClientIdentity = {
   nombre_invites_prevu: 0,
   lieu: 'Kribi',
   code_promo: '',
+  photo_url: '',
 }
 
 export function useClientIdentity(): ClientIdentity {
@@ -83,6 +85,7 @@ export function useClientIdentity(): ClientIdentity {
           nombre_invites_prevu: d.nombre_invites_prevu ?? 0,
           lieu: d.lieu || 'Kribi',
           code_promo: d.code_promo ?? '',
+          photo_url: d.photo_url ?? '',
         })
       })
       .catch(() => {
