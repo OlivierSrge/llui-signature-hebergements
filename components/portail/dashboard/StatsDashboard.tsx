@@ -25,8 +25,6 @@ interface Props {
   todosTotal: number
   walletCash: number
   walletCredits: number
-  nbCommandesInvites?: number
-  derniereCommande?: { date: string; produit: string; montant: number } | null
   budgetTotal?: number
   budgetCategories?: BudgetCategories
   invitesConfirmesFirestore?: number
@@ -52,8 +50,6 @@ export default function StatsDashboard({
   todosTotal,
   walletCash,
   walletCredits,
-  nbCommandesInvites = 0,
-  derniereCommande = null,
   budgetTotal: budgetTotalProp,
   budgetCategories,
   invitesConfirmesFirestore = 0,
@@ -315,26 +311,10 @@ export default function StatsDashboard({
 
         {/* Activité invités */}
         <div className="px-4 pb-4">
-          <div
-            className="rounded-xl p-3"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
-          >
-            {nbCommandesInvites > 0 ? (
-              <>
-                <p className="text-[10px] text-white/40 mb-1">
-                  🎉 {nbCommandesInvites} commande{nbCommandesInvites > 1 ? 's' : ''} d&apos;invités
-                </p>
-                {derniereCommande && (
-                  <p className="text-xs text-white/50 truncate">
-                    Dernière · {derniereCommande.produit} — {formatFCFA(derniereCommande.montant)}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-[10px] text-white/30 leading-relaxed">
-                Partagez votre code privilège avec vos invités pour alimenter votre cagnotte ✨
-              </p>
-            )}
+          <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+            <p className="text-[10px] text-white/30 leading-relaxed">
+              Partagez votre code privilège avec vos invités pour alimenter votre cagnotte ✨
+            </p>
           </div>
         </div>
       </div>
