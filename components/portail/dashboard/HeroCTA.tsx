@@ -74,7 +74,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
       <div
         className="relative rounded-3xl overflow-hidden"
         style={{
-          background: 'linear-gradient(160deg, #1A1A1A 0%, #2C1F0E 50%, #1A1A1A 100%)',
+          background: 'linear-gradient(160deg, #2C1810 0%, #4A2828 40%, #2C1810 100%)',
           minHeight: 260,
         }}
       >
@@ -92,7 +92,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
             <div
               aria-hidden
               className="absolute inset-0"
-              style={{ background: 'linear-gradient(160deg, rgba(26,26,26,0.85) 0%, rgba(44,31,14,0.75) 50%, rgba(26,26,26,0.85) 100%)' }}
+              style={{ background: 'linear-gradient(160deg, rgba(44,24,16,0.82) 0%, rgba(74,40,40,0.70) 50%, rgba(44,24,16,0.82) 100%)' }}
             />
           </>
         )}
@@ -103,9 +103,9 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
             aria-hidden
             style={{
               position: 'absolute', inset: 0, opacity: 0.06,
-              backgroundImage: `radial-gradient(circle at 20% 50%, #C9A84C 1px, transparent 1px),
-                                radial-gradient(circle at 80% 20%, #C9A84C 1px, transparent 1px),
-                                radial-gradient(circle at 60% 80%, #C9A84C 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(circle at 20% 50%, #D4AF37 1px, transparent 1px),
+                                radial-gradient(circle at 80% 20%, #D4AF37 1px, transparent 1px),
+                                radial-gradient(circle at 60% 80%, #D4AF37 1px, transparent 1px)`,
               backgroundSize: '60px 60px, 80px 80px, 50px 50px',
             }}
           />
@@ -121,7 +121,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
             width: 320,
             height: 320,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(232,196,184,0.18) 0%, transparent 70%)',
           }}
         />
 
@@ -131,7 +131,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
           <div className="mb-5">
             <span
               className="text-[10px] font-semibold tracking-[0.2em] uppercase px-3 py-1 rounded-full"
-              style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}
+              style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}
             >
               L&amp;Lui Signature
             </span>
@@ -140,12 +140,12 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
           {/* Countdown principal */}
           {isJourJ ? (
             <div className="mb-4">
-              <p className="text-6xl font-bold mb-1" style={{ color: '#C9A84C' }}>🎉</p>
+              <p className="text-6xl font-bold mb-1" style={{ color: '#D4AF37' }}>🎉</p>
               <p className="text-2xl font-serif font-bold text-white">C&apos;est aujourd&apos;hui !</p>
             </div>
           ) : isApres ? (
             <div className="mb-4">
-              <p className="text-5xl font-bold mb-1" style={{ color: '#C9A84C' }}>✨</p>
+              <p className="text-5xl font-bold mb-1" style={{ color: '#D4AF37' }}>✨</p>
               <p className="text-xl font-serif font-bold text-white">Félicitations !</p>
             </div>
           ) : (
@@ -156,7 +156,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
                   <>
                     <span
                       className="font-serif font-bold leading-none"
-                      style={{ fontSize: 80, color: '#C9A84C', textShadow: '0 0 40px rgba(201,168,76,0.3)' }}
+                      style={{ fontSize: 80, color: '#D4AF37', textShadow: '0 0 40px rgba(212,175,55,0.3)' }}
                     >
                       J-{jours}
                     </span>
@@ -165,7 +165,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
                     </p>
                   </>
                 ) : (
-                  <span className="font-serif font-bold text-5xl" style={{ color: '#C9A84C' }}>
+                  <span className="font-serif font-bold text-5xl" style={{ color: '#D4AF37' }}>
                     —
                   </span>
                 )}
@@ -175,9 +175,9 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
 
           {/* Séparateur ornemental */}
           <div className="flex items-center gap-2 mb-3 w-full max-w-[200px]">
-            <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.3)' }} />
-            <span style={{ color: 'rgba(201,168,76,0.6)', fontSize: 10 }}>✦</span>
-            <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.3)' }} />
+            <div className="flex-1 h-px" style={{ background: 'rgba(212,175,55,0.3)' }} />
+            <span style={{ color: 'rgba(212,175,55,0.6)', fontSize: 10 }}>✦</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(212,175,55,0.3)' }} />
           </div>
 
           {/* Noms des mariés */}
@@ -204,14 +204,14 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
           <div className="w-full max-w-xs">
             <div className="flex justify-between text-[10px] mb-1.5">
               <span className="text-white/40">Préparation</span>
-              <span style={{ color: '#C9A84C' }} className="font-semibold">{pctPrep}%</span>
+              <span style={{ color: '#D4AF37' }} className="font-semibold">{pctPrep}%</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${pctPrep}%`,
-                  background: 'linear-gradient(90deg, #C9A84C, #E8C87A)',
+                  background: 'linear-gradient(90deg, #D4AF37, #E8C87A)',
                 }}
               />
             </div>
@@ -227,7 +227,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
         <a
           href="/portail/parametres"
           className="inline-flex items-center gap-1 text-xs transition-colors"
-          style={{ color: '#C9A84C' }}
+          style={{ color: '#D4AF37' }}
         >
           <span>⚙️</span> Paramétrer mon mariage
         </a>
@@ -236,7 +236,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
       {/* ══ CTA BOUTIQUE + HÉBERGEMENTS ══════════════════════════════════════ */}
       <div
         className="rounded-2xl p-4 shadow-sm"
-        style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.15)' }}
+        style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.25)' }}
       >
         <p
           className="font-serif text-center text-sm font-semibold mb-3"
@@ -257,11 +257,11 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
               style={{
                 position: 'absolute', top: -20, right: -20,
                 width: 80, height: 80, borderRadius: '50%',
-                background: 'rgba(201,168,76,0.08)',
+                background: 'rgba(212,175,55,0.08)',
               }}
             />
             <span style={{ fontSize: 22 }}>🛍️</span>
-            <p className="text-xs font-bold text-center leading-tight" style={{ color: '#C9A84C' }}>
+            <p className="text-xs font-bold text-center leading-tight" style={{ color: '#D4AF37' }}>
               Boutique<br />L&amp;Lui Signature
             </p>
             <p className="text-[9px] text-white/40 text-center">26 prestations</p>
@@ -271,7 +271,7 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
           <button
             onClick={openHebergements}
             className="rounded-2xl p-4 flex flex-col items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95 w-full relative overflow-hidden"
-            style={{ background: '#C9A84C' }}
+            style={{ background: '#D4AF37' }}
           >
             <div
               aria-hidden
@@ -293,13 +293,13 @@ export default function HeroCTA({ uid, todosDone, todosTotal }: Props) {
         {totaux.nb_articles > 0 && (
           <div
             className="flex items-center justify-between rounded-xl px-3 py-2.5"
-            style={{ background: '#F5F0E8', border: '1px solid rgba(201,168,76,0.25)' }}
+            style={{ background: '#F5F0E8', border: '1px solid rgba(212,175,55,0.25)' }}
           >
             <div>
               <p className="text-xs font-semibold text-[#1A1A1A]">
                 🛒 Mon Panier — {totaux.nb_articles} article{totaux.nb_articles > 1 ? 's' : ''}
               </p>
-              <p className="text-[10px] text-[#888]">{formatFCFA(totaux.total_ht)}</p>
+              <p className="text-[10px] text-[#6B4F4F]">{formatFCFA(totaux.total_ht)}</p>
             </div>
             <a
               href="/portail/panier"
