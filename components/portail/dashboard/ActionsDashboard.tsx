@@ -25,11 +25,11 @@ interface Props {
 
 const PRESTATAIRE_STATUT: Record<string, { color: string; bg: string; label: string; dot: string }> = {
   confirme:    { color: '#2D7D57', bg: '#E8F5EE', label: 'Confirmé',     dot: '#7C9A7E' },
-  a_confirmer: { color: '#8B6914', bg: '#FDF4DC', label: 'À confirmer',  dot: '#C9A84C' },
+  a_confirmer: { color: '#8B6914', bg: '#FDF4DC', label: 'À confirmer',  dot: '#D4AF37' },
   devis:       { color: '#1D4ED8', bg: '#EFF6FF', label: 'Devis reçu',   dot: '#3B82F6' },
   annule:      { color: '#B91C1C', bg: '#FEF2F2', label: 'Annulé',       dot: '#C0392B' },
   CONFIRME:    { color: '#2D7D57', bg: '#E8F5EE', label: 'Confirmé',     dot: '#7C9A7E' },
-  A_CONFIRMER: { color: '#8B6914', bg: '#FDF4DC', label: 'À confirmer',  dot: '#C9A84C' },
+  A_CONFIRMER: { color: '#8B6914', bg: '#FDF4DC', label: 'À confirmer',  dot: '#D4AF37' },
   DEVIS_RECU:  { color: '#1D4ED8', bg: '#EFF6FF', label: 'Devis reçu',   dot: '#3B82F6' },
   ANNULE:      { color: '#B91C1C', bg: '#FEF2F2', label: 'Annulé',       dot: '#C0392B' },
 }
@@ -104,7 +104,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
 
   const getDotColor = (dateStr: string) => {
     const j = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
-    return j < 7 ? '#C0392B' : j < 14 ? '#C9A84C' : '#7C9A7E'
+    return j < 7 ? '#C0392B' : j < 14 ? '#D4AF37' : '#7C9A7E'
   }
   const getDelai = (dateStr: string) => {
     const j = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
@@ -127,7 +127,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
   return (
     <div className="space-y-4">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#1A1A1A] text-white text-sm px-4 py-2.5 rounded-xl shadow-lg">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg" style={{ background: '#2C1810' }}>
           {toast}
         </div>
       )}
@@ -135,15 +135,15 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       {/* ══ BLOC 6 — PRESTATAIRES STYLE MAGAZINE ════════════════════════════ */}
       <div
         className="rounded-2xl overflow-hidden shadow-sm"
-        style={{ border: '1px solid rgba(201,168,76,0.12)' }}
+        style={{ border: '1px solid rgba(212,175,55,0.2)' }}
       >
         {/* En-tête */}
         <div
           className="px-4 py-3 flex items-center justify-between"
-          style={{ background: '#F5F0E8', borderBottom: '1px solid rgba(201,168,76,0.15)' }}
+          style={{ background: '#F5E8E4', borderBottom: '1px solid rgba(212,175,55,0.25)' }}
         >
           <div className="flex items-center gap-2">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Mes Prestataires</p>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Mes Prestataires</p>
             {prestataires && prestataires.length > 0 && (
               <span
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white"
@@ -153,13 +153,13 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
               </span>
             )}
           </div>
-          <a href="/portail/prestataires" className="text-xs font-medium" style={{ color: '#C9A84C' }}>
+          <a href="/portail/prestataires" className="text-xs font-medium" style={{ color: '#D4AF37' }}>
             Gérer →
           </a>
         </div>
 
         {/* Cards prestataires */}
-        <div className="bg-white divide-y divide-[#F5F0E8]">
+        <div className="divide-y divide-[#EDD5CC]" style={{ background: '#F9F5F2' }}>
           {prestatairesAffiches.map((p, i) => {
             const s = PRESTATAIRE_STATUT[p.statut] ?? { color: '#888', bg: '#F5F5F5', label: p.statut, dot: '#888' }
             const emoji = TYPE_EMOJI[p.type] ?? TYPE_EMOJI.default
@@ -168,7 +168,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
               <div
                 key={i}
                 className="flex items-center gap-3 px-4 py-3"
-                style={{ borderTop: i === 0 ? 'none' : '1px solid #F5F0E8' }}
+                style={{ borderTop: i === 0 ? 'none' : '1px solid #EDD5CC' }}
               >
                 {/* Avatar emoji */}
                 <div
@@ -181,7 +181,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                 {/* Infos */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1A1A1A] truncate">{p.nom}</p>
-                  <p className="text-[10px] text-[#888] capitalize">{p.type?.replace(/_/g, ' ')}</p>
+                  <p className="text-[10px] text-[#6B4F4F] capitalize">{p.type?.replace(/_/g, ' ')}</p>
                 </div>
 
                 {/* Badge statut */}
@@ -202,11 +202,11 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3" style={{ background: '#FAFAF8', borderTop: '1px solid #F5F0E8' }}>
+        <div className="px-4 py-3" style={{ background: '#F5E8E4', borderTop: '1px solid #EDD5CC' }}>
           <a
             href="/portail/prestataires"
             className="block w-full py-2 rounded-xl text-xs font-semibold text-center border"
-            style={{ borderColor: '#C9A84C', color: '#C9A84C' }}
+            style={{ borderColor: '#D4AF37', color: '#D4AF37' }}
           >
             + Ajouter un prestataire
           </a>
@@ -217,11 +217,11 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       {timeline.length > 0 && (
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Prochaines étapes</p>
-            <a href="/portail/taches" className="text-xs font-medium" style={{ color: '#C9A84C' }}>Planning →</a>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Prochaines étapes</p>
+            <a href="/portail/taches" className="text-xs font-medium" style={{ color: '#D4AF37' }}>Planning →</a>
           </div>
           <div className="space-y-2.5">
             {timeline.map(t => {
@@ -251,18 +251,18 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       {todos.length > 0 ? (
         <div
           className="rounded-2xl overflow-hidden shadow-sm"
-          style={{ border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ border: '1px solid rgba(212,175,55,0.2)' }}
         >
           {/* En-tête avec progression */}
           <div
             className="px-4 py-3"
-            style={{ background: '#F5F0E8', borderBottom: '1px solid rgba(201,168,76,0.15)' }}
+            style={{ background: '#F5E8E4', borderBottom: '1px solid rgba(212,175,55,0.25)' }}
           >
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Ma Checklist</p>
+              <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Ma Checklist</p>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold" style={{ color: '#C9A84C' }}>{pctTodos}%</span>
-                <a href="/portail/taches" className="text-xs font-medium" style={{ color: '#C9A84C' }}>
+                <span className="text-xs font-bold" style={{ color: '#D4AF37' }}>{pctTodos}%</span>
+                <a href="/portail/taches" className="text-xs font-medium" style={{ color: '#D4AF37' }}>
                   Tout voir →
                 </a>
               </div>
@@ -271,14 +271,14 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
             <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${pctTodos}%`, background: 'linear-gradient(90deg, #C9A84C, #E8C87A)' }}
+                style={{ width: `${pctTodos}%`, background: 'linear-gradient(90deg, #D4AF37, #E8C87A)' }}
               />
             </div>
-            <p className="text-[9px] text-[#888] mt-1">{todosDoneCount} / {todos.length} tâches complétées</p>
+            <p className="text-[9px] text-[#6B4F4F] mt-1">{todosDoneCount} / {todos.length} tâches complétées</p>
           </div>
 
           {/* Tâches groupées par catégorie */}
-          <div className="bg-white">
+          <div style={{ background: '#F9F5F2' }}>
             {(() => {
               const cats = Object.entries(todosParCategorie)
               // Trier : priorité haute en premier, puis par catégorie
@@ -310,8 +310,8 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
               return (
                 <>
                   {displayed.map(({ cat, items }, gi) => (
-                    <div key={cat} style={{ borderTop: gi === 0 ? 'none' : '1px solid #F5F0E8' }}>
-                      <p className="text-[9px] font-semibold text-[#AAA] uppercase tracking-wider px-4 pt-3 pb-1.5">
+                    <div key={cat} style={{ borderTop: gi === 0 ? 'none' : '1px solid #EDD5CC' }}>
+                      <p className="text-[9px] font-semibold text-[#A08878] uppercase tracking-wider px-4 pt-3 pb-1.5">
                         {cat}
                       </p>
                       {items.map(t => {
@@ -321,7 +321,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                           <div
                             key={t.id}
                             className="flex items-center gap-3 px-4 py-2.5"
-                            style={{ borderTop: '1px solid #F9F6F0' }}
+                            style={{ borderTop: '1px solid #EDD5CC' }}
                           >
                             {/* Checkbox */}
                             <button
@@ -329,8 +329,8 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                               disabled={isDone}
                               className="flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
                               style={{
-                                borderColor: isDone ? '#C9A84C' : t.priorite === 'haute' ? '#C0392B' : '#E8E0D0',
-                                background: isDone ? '#C9A84C' : 'white',
+                                borderColor: isDone ? '#D4AF37' : t.priorite === 'haute' ? '#C0392B' : '#D4B8B0',
+                                background: isDone ? '#D4AF37' : '#F9F5F2',
                                 transform: isChecking ? 'scale(1.2)' : 'scale(1)',
                               }}
                             >
@@ -356,7 +356,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                               {t.rev && (
                                 <span
                                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                                  style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}
+                                  style={{ background: 'rgba(212,175,55,0.2)', color: '#D4AF37' }}
                                 >
                                   +{t.rev}
                                 </span>
@@ -368,8 +368,8 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                     </div>
                   ))}
                   {reste > 0 && (
-                    <div className="px-4 py-3 text-center" style={{ borderTop: '1px solid #F5F0E8' }}>
-                      <a href="/portail/todo" className="text-xs font-medium" style={{ color: '#C9A84C' }}>
+                    <div className="px-4 py-3 text-center" style={{ borderTop: '1px solid #EDD5CC' }}>
+                      <a href="/portail/todo" className="text-xs font-medium" style={{ color: '#D4AF37' }}>
                         +{reste} autre{reste > 1 ? 's' : ''} tâche{reste > 1 ? 's' : ''} →
                       </a>
                     </div>
@@ -382,17 +382,17 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       ) : (
         <div
           className="rounded-2xl p-4 shadow-sm"
-          style={{ background: '#fff', border: '1px solid rgba(201,168,76,0.12)' }}
+          style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
         >
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Ma Checklist</p>
-            <a href="/portail/taches" className="text-xs" style={{ color: '#C9A84C' }}>Planning →</a>
+            <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Ma Checklist</p>
+            <a href="/portail/taches" className="text-xs" style={{ color: '#D4AF37' }}>Planning →</a>
           </div>
-          <p className="text-sm text-[#AAA] text-center py-2">Votre planning se prépare — votre coordinateur va bientôt le compléter ✨</p>
+          <p className="text-sm text-[#A08878] text-center py-2">Votre planning se prépare — votre coordinateur va bientôt le compléter ✨</p>
           <a
             href="/portail/taches"
             className="block w-full py-2 rounded-xl text-xs font-semibold text-center text-white mt-1"
-            style={{ background: '#C9A84C' }}
+            style={{ background: '#D4AF37' }}
           >
             Voir mon planning →
           </a>
@@ -402,7 +402,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       {/* ══ MÉTÉO ════════════════════════════════════════════════════════════ */}
       <div
         className="rounded-2xl p-4 flex items-center gap-4"
-        style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #2C1810 0%, #3D2030 100%)' }}
       >
         <div className="text-4xl">🌤️</div>
         <div>
@@ -422,59 +422,59 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
         return (
           <div
             className="rounded-2xl overflow-hidden shadow-sm"
-            style={{ border: '1px solid rgba(201,168,76,0.12)' }}
+            style={{ border: '1px solid rgba(212,175,55,0.2)' }}
           >
             {/* En-tête */}
             <div
               className="px-4 py-3 flex items-center justify-between"
-              style={{ background: '#F5F0E8', borderBottom: '1px solid rgba(201,168,76,0.15)' }}
+              style={{ background: '#F5E8E4', borderBottom: '1px solid rgba(212,175,55,0.25)' }}
             >
-              <p className="text-[10px] font-semibold text-[#888] uppercase tracking-wider">Mes Versements</p>
-              <a href="/portail/ma-commande" className="text-xs font-medium" style={{ color: '#C9A84C' }}>
+              <p className="text-[10px] font-semibold text-[#6B4F4F] uppercase tracking-wider">Mes Versements</p>
+              <a href="/portail/ma-commande" className="text-xs font-medium" style={{ color: '#D4AF37' }}>
                 Déclarer →
               </a>
             </div>
 
-            <div className="bg-white px-4 py-4">
+            <div className="px-4 py-4" style={{ background: '#F9F5F2' }}>
               {budgetTotal > 0 && (
                 <div className="mb-4">
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-[#888]">
+                    <span className="text-[#6B4F4F]">
                       Payé : <strong style={{ color: '#7C9A7E' }}>{formatFCFA(totalConfirme)}</strong>
                     </span>
                     {resteAPayer !== null && (
-                      <span className="text-[#888]">
+                      <span className="text-[#6B4F4F]">
                         Reste : <strong className="text-[#1A1A1A]">{formatFCFA(resteAPayer)}</strong>
                       </span>
                     )}
                   </div>
-                  <div className="h-2.5 bg-[#F5F0E8] rounded-full overflow-hidden">
+                  <div className="h-2.5 bg-[#F5E0DA] rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: '#C9A84C' }}
+                      style={{ width: `${pct}%`, background: '#D4AF37' }}
                     />
                   </div>
-                  <p className="text-[9px] text-[#AAA] mt-1">{pct}% du budget réglé</p>
+                  <p className="text-[9px] text-[#A08878] mt-1">{pct}% du budget réglé</p>
                 </div>
               )}
 
               {vArray.length > 0 ? (
                 <div className="space-y-2 mb-3">
                   {vArray.slice(-5).map((v, i) => {
-                    const sc = v.statut === 'confirme' ? '#7C9A7E' : '#C9A84C'
+                    const sc = v.statut === 'confirme' ? '#7C9A7E' : '#D4AF37'
                     const sl = v.statut === 'confirme' ? '✅ Confirmé' : '⏳ Déclaré'
                     return (
                       <div
                         key={v.id ?? i}
                         className="flex items-center justify-between py-2"
-                        style={{ borderBottom: i < vArray.slice(-5).length - 1 ? '1px solid #F5F0E8' : 'none' }}
+                        style={{ borderBottom: i < vArray.slice(-5).length - 1 ? '1px solid #EDD5CC' : 'none' }}
                       >
                         <div>
-                          <p className="text-xs text-[#888]">
+                          <p className="text-xs text-[#6B4F4F]">
                             {v.date ? new Date(v.date).toLocaleDateString('fr-FR') : '—'}
                             {v.mode ? ` · ${MODE_LABELS[v.mode] ?? v.mode}` : ''}
                           </p>
-                          {v.note && <p className="text-[10px] text-[#AAA] truncate max-w-[140px]">{v.note}</p>}
+                          {v.note && <p className="text-[10px] text-[#A08878] truncate max-w-[140px]">{v.note}</p>}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-[#1A1A1A]">{formatFCFA(v.montant)}</span>
@@ -489,13 +489,13 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
                     )
                   })}
                   {totalDeclare > totalConfirme && (
-                    <p className="text-[10px] text-center" style={{ color: '#C9A84C' }}>
+                    <p className="text-[10px] text-center" style={{ color: '#D4AF37' }}>
                       ⏳ {formatFCFA(totalDeclare - totalConfirme)} en attente de confirmation
                     </p>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-[#888] text-center py-2 mb-3">
+                <p className="text-sm text-[#6B4F4F] text-center py-2 mb-3">
                   Aucun versement déclaré pour l&apos;instant
                 </p>
               )}
@@ -503,7 +503,7 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
               <a
                 href="/portail/ma-commande"
                 className="block w-full py-2.5 rounded-xl text-xs font-semibold text-center text-white"
-                style={{ background: '#C9A84C' }}
+                style={{ background: '#D4AF37' }}
               >
                 + Déclarer un versement
               </a>
@@ -516,13 +516,13 @@ export default function ActionsDashboard({ uid: _uid, todos, lieu, versements = 
       <div
         className="rounded-2xl p-5"
         style={{
-          background: 'linear-gradient(135deg, #1A1A1A 0%, #2C1F0E 100%)',
-          border: '1px solid rgba(201,168,76,0.2)',
+          background: 'linear-gradient(135deg, #2C1810 0%, #4A2828 100%)',
+          border: '1px solid rgba(212,175,55,0.25)',
         }}
       >
         <p
           className="text-[10px] font-semibold uppercase tracking-widest mb-3"
-          style={{ color: 'rgba(201,168,76,0.5)' }}
+          style={{ color: 'rgba(212,175,55,0.5)' }}
         >
           ✦ Citation du jour
         </p>
