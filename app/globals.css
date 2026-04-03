@@ -6,9 +6,12 @@
 
 @layer base {
   :root {
-    --color-gold: #C9A84C;
-    --color-beige: #F5F0E8;
+    --color-gold: #D4AF37;
+    --color-beige: #F9F5F2;
     --color-dark: #1A1A1A;
+    --color-rose: #E8C4B8;
+    --color-rose-deep: #D4A09A;
+    --color-brun: #6B4F4F;
   }
 
   html {
