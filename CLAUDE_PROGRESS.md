@@ -1,5 +1,57 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-03-27 — Page accueil multi-public + Calendrier Kribi popup/admin (commits e17d537→c5c59fd)
+Dernière mise à jour : 2026-04-04 — Sprint B Prescripteur complet (commit 892f96d)
+
+---
+
+## MODULE PRESCRIPTEUR MOTO-TAXI — Sprint B (2026-04-04)
+
+### Sprint A (commit a30c1f0 — 21 fichiers) ✅
+- `actions/prescripteurs.ts` : CRUD, PIN SHA-256, QR perso Storage, sessions 2h, scan QR atomique, WhatsApp
+- PWA `/prescripteur` : PIN screen (lockout 5 min), accueil, disponibilités 14j
+- Admin `/admin/prescripteurs` : liste, créer, modifier, détail, QR résidence imprimable
+- `firestore.rules` : prescripteurs, sessions, retraits, types
+- Badge prescripteur dans ReservationsTable + sidebar nav
+
+### Sprint B (commit 892f96d — 14 fichiers, +1579 lignes) ✅
+
+**LIVRABLE 1 — Retrait Mobile Money PWA** ✅
+- `/prescripteur/retrait` — sélecteur MTN/Orange + montant + validation
+- `solde_reserve_fcfa` : solde réservé tant que retrait non traité
+- SMS Twilio prescripteur (confirmation) + admin (alerte avec lien)
+- Min 1 500 FCFA, validation solde disponible
+
+**LIVRABLE 2 — Validation retrait Admin** ✅
+- `RetraitsList.tsx` enrichi : bouton "Payer" + bouton "Refuser"
+- Modal refus avec champ motif obligatoire
+- `refuserRetrait()` : libère solde_reserve + SMS motif au prescripteur
+- `validerRetrait()` : débit solde + total_retire_fcfa + SMS confirmation
+
+**LIVRABLE 3 — Rapport PDF mensuel** ✅
+- `/admin/prescripteurs/[id]/rapport/[mois]` : tableau, résumé, PDF jsPDF + bouton WhatsApp
+- `/prescripteur/rapport` : sélecteur ← mois → + liste transactions + PDF
+- `getRapportMensuel()` : réservations + retraits validés filtrés par mois
+
+**LIVRABLE 4 — Notifications push FCM** ✅
+- `public/sw-prescripteur.js` : service worker Firebase Messaging (CDN)
+- `lib/fcm.ts` : `sendPushNotification()` via firebase-admin
+- `lib/hooks/useFCM.ts` : demande permission + enregistrement token
+- 4 triggers : commission créditée / retrait validé / refusé / nouvelle résidence
+- Fallback SMS Twilio déjà en place
+
+**LIVRABLE 5 — Analytics Dashboard Admin** ✅
+- `AnalyticsDashboard.tsx` dans `/admin/prescripteurs`
+- KPIs : actifs / clients période / commissions dues / retraits en attente
+- BarChart top 5 prescripteurs (Recharts)
+- LineChart évolution commissions 6 mois (Recharts)
+- Filtre période : ce mois / mois dernier / 3 mois / 6 mois
+- Export CSV téléchargeable (avec BOM UTF-8)
+
+**Variables env requises pour Sprint B :**
+- `ADMIN_WHATSAPP_PHONE` : numéro WhatsApp d'Olivier pour alertes retraits
+- `NEXT_PUBLIC_FCM_VAPID_KEY` : clé VAPID Firebase pour Web Push
+- `NEXT_PUBLIC_FIREBASE_*` : config Firebase côté client (pour service worker)
+
+---
 
 ---
 
