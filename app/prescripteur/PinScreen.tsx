@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Delete, Loader2, Check } from 'lucide-react'
 import { verifierPinPrescripteur } from '@/actions/prescripteurs'
 
 // ─── Lockout helpers ──────────────────────────────────────────
@@ -45,16 +44,47 @@ function clearAttempts() {
   localStorage.removeItem(ATTEMPTS_KEY)
 }
 
-// ─── Clavier : 4 rangées × 3 touches ─────────────────────────
-// 'del' = effacer dernier chiffre
-// 'ok'  = valider (bouton fallback)
-// ''    = cellule vide
-const KEYS = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['del', '0', 'ok'],
-] as const
+// ─── Styles partagés ──────────────────────────────────────────
+const BTN_SIZE = 72
+
+const digitStyle: React.CSSProperties = {
+  width: BTN_SIZE,
+  height: BTN_SIZE,
+  borderRadius: '50%',
+  background: 'rgba(255,255,255,0.92)',
+  border: '1.5px solid rgba(255,255,255,0.4)',
+  fontSize: 24,
+  fontWeight: 700,
+  color: '#1A1A1A',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  touchAction: 'manipulation',
+  WebkitTapHighlightColor: 'transparent',
+  userSelect: 'none',
+  transition: 'transform 0.1s ease, opacity 0.1s ease',
+}
+
+const delStyle: React.CSSProperties = {
+  width: BTN_SIZE,
+  height: BTN_SIZE,
+  borderRadius: '50%',
+  background: 'rgba(255,255,255,0.12)',
+  border: '1.5px solid rgba(255,255,255,0.2)',
+  fontSize: 24,
+  color: 'white',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 2,
+  cursor: 'pointer',
+  touchAction: 'manipulation',
+  WebkitTapHighlightColor: 'transparent',
+  userSelect: 'none',
+  transition: 'transform 0.1s ease',
+}
 
 // ─── Composant ────────────────────────────────────────────────
 export default function PinScreen() {
@@ -91,21 +121,19 @@ export default function PinScreen() {
     return () => clearInterval(interval)
   }, [isLocked])
 
-  // ─── Handlers ───────────────────────────────────────────────
-
-  const handleDigit = useCallback((d: string) => {
+  const addDigit = useCallback((d: number) => {
     if (isLocked || isPending) return
     setError('')
-    setPin((prev) => (prev.length < 4 ? prev + d : prev))
+    setPin((prev) => (prev.length < 4 ? prev + String(d) : prev))
   }, [isLocked, isPending])
 
-  const handleDelete = useCallback(() => {
+  const effacer = useCallback(() => {
     if (isLocked || isPending) return
     setPin((prev) => prev.slice(0, -1))
     setError('')
   }, [isLocked, isPending])
 
-  const handleSubmit = useCallback(async () => {
+  const valider = useCallback(async () => {
     if (pin.length !== 4 || isLocked || isPending) return
     setIsPending(true)
     setError('')
@@ -125,19 +153,18 @@ export default function PinScreen() {
         if (locked) {
           setIsLocked(true)
           setLockRemaining(LOCKOUT_DURATION_MS)
-          setError('')
         } else {
           const remaining = MAX_ATTEMPTS - getAttempts()
           setError(
             remaining > 0
               ? `Code incorrect — ${remaining} tentative${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`
-              : 'Code incorrect. Réessayez.'
+              : 'Code incorrect.'
           )
         }
       }
     } catch (e) {
       console.error('[PIN] Erreur vérification:', e)
-      setError('Erreur réseau. Vérifiez votre connexion et réessayez.')
+      setError('Erreur réseau. Réessayez.')
       setPin('')
     } finally {
       setIsPending(false)
@@ -147,194 +174,191 @@ export default function PinScreen() {
   // Auto-submit dès 4 chiffres
   useEffect(() => {
     if (pin.length === 4 && !isPending && !isLocked) {
-      handleSubmit()
+      valider()
     }
-  }, [pin, isPending, isLocked, handleSubmit])
+  }, [pin, isPending, isLocked, valider])
 
   const lockMinutes = Math.ceil(lockRemaining / 60000)
   const lockSeconds = Math.ceil((lockRemaining % 60000) / 1000)
+  const validateReady = pin.length === 4 && !isPending
 
   return (
     <div
-      className="flex flex-col items-center justify-center min-h-screen px-6 py-12 select-none"
-      style={{ background: 'linear-gradient(160deg, #1A1A1A 0%, #2C1810 100%)' }}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 24px',
+        background: 'linear-gradient(160deg, #1A1A1A 0%, #2C1810 100%)',
+        userSelect: 'none',
+      }}
     >
       {/* Logo */}
-      <div className="mb-10 text-center">
-        <h1 className="font-serif text-3xl font-semibold text-white tracking-wide">
+      <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 28, fontWeight: 600, color: 'white', margin: 0 }}>
           L<span style={{ color: '#C9A84C' }}>&</span>Lui
-          <span className="text-white/50 text-2xl font-light ml-1">Signature</span>
+          <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 22, fontWeight: 300, marginLeft: 6 }}>Signature</span>
         </h1>
-        <p className="text-white/40 text-sm mt-2 tracking-widest uppercase text-xs">
+        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 8, letterSpacing: 3, textTransform: 'uppercase' }}>
           Espace prescripteur
         </p>
       </div>
 
       {isLocked ? (
         /* ── Écran de blocage ──────────────────────────────── */
-        <div className="text-center space-y-4">
-          <div className="w-20 h-20 mx-auto rounded-full bg-red-500/20 flex items-center justify-center">
-            <span className="text-4xl">🔒</span>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <span style={{ fontSize: 36 }}>🔒</span>
           </div>
-          <p className="text-red-400 font-semibold text-lg">Accès bloqué</p>
-          <p className="text-white/50 text-sm leading-relaxed">
+          <p style={{ color: '#f87171', fontWeight: 600, fontSize: 18, margin: '0 0 12px' }}>Accès bloqué</p>
+          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, lineHeight: 1.6 }}>
             Trop de tentatives incorrectes.<br />
             Réessayez dans{' '}
-            <span className="text-white font-semibold">
+            <span style={{ color: 'white', fontWeight: 700 }}>
               {lockMinutes}:{String(lockSeconds).padStart(2, '0')}
             </span>
           </p>
         </div>
       ) : (
         <>
-          {/* ── Indicateur de chargement ────────────────────── */}
-          <div className="h-8 mb-4 flex items-center justify-center">
-            {isPending ? (
-              <div className="flex items-center gap-2 text-white/60">
-                <Loader2 size={18} className="animate-spin" style={{ color: '#C9A84C' }} />
-                <span className="text-sm">Vérification en cours…</span>
-              </div>
-            ) : (
-              <p className="text-white/30 text-sm">Entrez votre code PIN à 4 chiffres</p>
-            )}
-          </div>
-
           {/* ── Indicateurs PIN (4 points) ──────────────────── */}
-          <div className={`flex gap-5 mb-6 ${shake ? 'animate-shake' : ''}`}>
+          <div
+            style={{ display: 'flex', gap: 20, marginBottom: 24 }}
+            className={shake ? 'animate-shake' : ''}
+          >
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="transition-all duration-150"
                 style={{
-                  width: 20,
-                  height: 20,
+                  width: 18,
+                  height: 18,
                   borderRadius: '50%',
                   border: `2px solid ${i < pin.length ? '#C9A84C' : 'rgba(255,255,255,0.3)'}`,
                   background: i < pin.length ? '#C9A84C' : 'transparent',
-                  transform: i < pin.length ? 'scale(1.15)' : 'scale(1)',
+                  transform: i < pin.length ? 'scale(1.2)' : 'scale(1)',
+                  transition: 'all 0.15s ease',
                 }}
               />
             ))}
           </div>
 
-          {/* ── Message d'erreur ─────────────────────────────── */}
-          <div className="h-10 flex items-center justify-center mb-4">
-            {error && (
-              <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/40 px-4 py-2 rounded-xl">
-                <span className="text-red-400 text-sm font-medium text-center">{error}</span>
+          {/* ── Message d'état ───────────────────────────────── */}
+          <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+            {isPending ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#C9A84C' }}>
+                <span style={{ fontSize: 20, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
+                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>Vérification…</span>
               </div>
+            ) : error ? (
+              <div style={{
+                background: 'rgba(239,68,68,0.15)',
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: 12,
+                padding: '8px 16px',
+              }}>
+                <span style={{ color: '#f87171', fontSize: 13, fontWeight: 500 }}>{error}</span>
+              </div>
+            ) : (
+              <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>Entrez votre code PIN</p>
             )}
           </div>
 
-          {/* ── Pavé numérique ───────────────────────────────── */}
-          <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
-            {KEYS.flat().map((key, idx) => {
+          {/* ── Pavé numérique ── grille 3 colonnes × 4 lignes ─ */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(3, ${BTN_SIZE}px)`,
+              gap: 16,
+            }}
+          >
+            {/* Ligne 1 : 1 2 3 */}
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+              <button
+                key={n}
+                onPointerDown={(e) => { e.preventDefault(); addDigit(n) }}
+                disabled={isPending}
+                aria-label={String(n)}
+                style={{
+                  ...digitStyle,
+                  opacity: isPending ? 0.5 : 1,
+                }}
+              >
+                {n}
+              </button>
+            ))}
 
-              // Touche Effacer
-              if (key === 'del') return (
-                <button
-                  key="del"
-                  onPointerDown={(e) => { e.preventDefault(); handleDelete() }}
-                  disabled={isPending || pin.length === 0}
-                  aria-label="Effacer"
-                  style={{
-                    height: 64,
-                    borderRadius: 16,
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    opacity: (isPending || pin.length === 0) ? 0.3 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    gap: 2,
-                    cursor: 'pointer',
-                    touchAction: 'manipulation',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                  className="active:scale-90 transition-transform"
-                >
-                  <Delete size={20} color="white" />
-                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>EFFACER</span>
-                </button>
-              )
+            {/* Ligne 4 : ⌫  0  ✓ */}
+            {/* Touche Effacer */}
+            <button
+              onPointerDown={(e) => { e.preventDefault(); effacer() }}
+              disabled={isPending || pin.length === 0}
+              aria-label="Effacer"
+              style={{
+                ...delStyle,
+                opacity: (isPending || pin.length === 0) ? 0.4 : 1,
+              }}
+            >
+              <span style={{ fontSize: 22, lineHeight: 1 }}>⌫</span>
+              <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>EFFACER</span>
+            </button>
 
-              // Touche Valider (fallback manuel)
-              if (key === 'ok') return (
-                <button
-                  key="ok"
-                  onPointerDown={(e) => { e.preventDefault(); handleSubmit() }}
-                  disabled={isPending || pin.length !== 4}
-                  aria-label="Valider"
-                  style={{
-                    height: 64,
-                    borderRadius: 16,
-                    background: pin.length === 4 && !isPending
-                      ? 'linear-gradient(135deg, #C9A84C, #e2a83a)'
-                      : 'rgba(255,255,255,0.08)',
-                    border: `1px solid ${pin.length === 4 && !isPending ? '#C9A84C' : 'rgba(255,255,255,0.12)'}`,
-                    opacity: isPending ? 0.7 : pin.length !== 4 ? 0.25 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    gap: 2,
-                    cursor: pin.length === 4 ? 'pointer' : 'default',
-                    touchAction: 'manipulation',
-                    WebkitTapHighlightColor: 'transparent',
-                    transition: 'all 0.2s ease',
-                  }}
-                  className="active:scale-90"
-                >
-                  {isPending
-                    ? <Loader2 size={20} color="white" className="animate-spin" />
-                    : <Check size={20} color={pin.length === 4 ? '#1A1A1A' : 'white'} />
-                  }
-                  <span style={{
-                    fontSize: 9,
-                    color: pin.length === 4 && !isPending ? '#1A1A1A' : 'rgba(255,255,255,0.4)',
-                    letterSpacing: 1,
-                    fontWeight: 700,
-                  }}>
-                    {isPending ? '…' : 'VALIDER'}
-                  </span>
-                </button>
-              )
+            {/* Touche 0 */}
+            <button
+              onPointerDown={(e) => { e.preventDefault(); addDigit(0) }}
+              disabled={isPending}
+              aria-label="0"
+              style={{
+                ...digitStyle,
+                opacity: isPending ? 0.5 : 1,
+              }}
+            >
+              0
+            </button>
 
-              // Chiffre 0-9
-              return (
-                <button
-                  key={key}
-                  onPointerDown={(e) => { e.preventDefault(); handleDigit(key) }}
-                  disabled={isPending}
-                  aria-label={key}
-                  style={{
-                    height: 64,
-                    borderRadius: 16,
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    opacity: isPending ? 0.5 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                  className="active:scale-90 active:bg-white/20 transition-transform"
-                >
-                  <span style={{ fontSize: 22, fontWeight: 600, color: 'white' }}>{key}</span>
-                </button>
-              )
-            })}
+            {/* Touche Valider — TOUJOURS VISIBLE */}
+            <button
+              onPointerDown={(e) => { e.preventDefault(); valider() }}
+              disabled={!validateReady}
+              aria-label="Valider"
+              style={{
+                width: BTN_SIZE,
+                height: BTN_SIZE,
+                borderRadius: '50%',
+                background: validateReady ? '#C9A84C' : 'rgba(255,255,255,0.15)',
+                border: `2px solid ${validateReady ? '#e2a83a' : 'rgba(255,255,255,0.25)'}`,
+                fontSize: 28,
+                color: validateReady ? '#1A1A1A' : 'rgba(255,255,255,0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                cursor: validateReady ? 'pointer' : 'default',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+                userSelect: 'none',
+                transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ fontSize: 26, lineHeight: 1 }}>✓</span>
+              <span style={{ fontSize: 8, letterSpacing: 1, fontWeight: 700 }}>OK</span>
+            </button>
           </div>
 
-          {/* ── Aide sous le clavier ─────────────────────────── */}
-          <p className="text-white/20 text-xs mt-8 text-center">
-            Problème de connexion ? Contactez le gérant.
+          {/* ── Aide ─────────────────────────────────────────── */}
+          <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 11, marginTop: 32, textAlign: 'center' }}>
+            Problème ? Contactez le gérant.
           </p>
         </>
       )}
+
+      {/* Spin keyframe pour l'indicateur de chargement */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }
