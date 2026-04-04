@@ -1,5 +1,5 @@
 'use client'
-// components/portail/jour-j/ModeJourJ.tsx — #172 Mode Jour J
+// components/portail/jour-j/ModeJourJ.tsx — #172 Mode Jour J — programme paramétrable
 
 import { useState, useEffect } from 'react'
 
@@ -18,26 +18,28 @@ interface Props {
   noms_maries?: string
 }
 
-interface ProgrammeItem {
-  heure: string
-  label: string
-  detail?: string
+interface EtapeProgramme {
+  id: string
   emoji: string
+  titre: string
+  description: string
+  heure: string
+  ordre: number
 }
 
-const PROGRAMME_JOUR_J: ProgrammeItem[] = [
-  { heure: '09:00', label: 'Préparation de la mariée', emoji: '💄', detail: 'Coiffure, maquillage, habillage' },
-  { heure: '10:30', label: 'Préparation du marié', emoji: '🤵', detail: 'Habillage, photographies' },
-  { heure: '11:00', label: 'Cérémonie traditionnelle', emoji: '💍', detail: 'Remise de la dot — famille réunie' },
-  { heure: '13:00', label: 'Cérémonie civile / religieuse', emoji: '⛪', detail: 'Échange des vœux, signature des registres' },
-  { heure: '15:00', label: 'Séance photos officielle', emoji: '📸', detail: 'Couple + famille + témoins' },
-  { heure: '16:00', label: 'Accueil des invités — Cocktail', emoji: '🥂', detail: 'Apéritif et cocktail de bienvenue' },
-  { heure: '17:00', label: 'Entrée des mariés', emoji: '✨', detail: 'Applaudissements, première danse' },
-  { heure: '18:00', label: 'Dîner de mariage', emoji: '🍛', detail: 'Service des plats — spécialités Kribi' },
-  { heure: '20:00', label: 'Discours et témoignages', emoji: '🎤', detail: 'Témoins, familles, surprise' },
-  { heure: '21:00', label: 'Gâteau et première danse', emoji: '🎂', detail: 'Découpe du gâteau, ouverture du bal' },
-  { heure: '22:00', label: 'Soirée dansante', emoji: '🎵', detail: 'DJ / orchestre — piste de danse ouverte' },
-  { heure: '02:00', label: 'Fin de soirée', emoji: '🌙', detail: 'Raccompagnement des invités' },
+const PROGRAMME_DEFAUT: EtapeProgramme[] = [
+  { id: '1', emoji: '💄', titre: 'Préparation de la mariée', description: 'Coiffure, maquillage, habillage', heure: '09:00', ordre: 0 },
+  { id: '2', emoji: '🤵', titre: 'Préparation du marié', description: 'Habillage, photographies', heure: '10:30', ordre: 1 },
+  { id: '3', emoji: '💍', titre: 'Cérémonie traditionnelle', description: 'Remise de la dot — famille réunie', heure: '11:00', ordre: 2 },
+  { id: '4', emoji: '⛪', titre: 'Cérémonie civile / religieuse', description: 'Échange des vœux, signature des registres', heure: '13:00', ordre: 3 },
+  { id: '5', emoji: '📸', titre: 'Séance photos officielle', description: 'Couple + famille + témoins', heure: '15:00', ordre: 4 },
+  { id: '6', emoji: '🥂', titre: 'Accueil des invités — Cocktail', description: 'Apéritif et cocktail de bienvenue', heure: '16:00', ordre: 5 },
+  { id: '7', emoji: '✨', titre: 'Entrée des mariés', description: 'Applaudissements, première danse', heure: '17:00', ordre: 6 },
+  { id: '8', emoji: '🍛', titre: 'Dîner de mariage', description: 'Service des plats — spécialités Kribi', heure: '18:00', ordre: 7 },
+  { id: '9', emoji: '🎤', titre: 'Discours et témoignages', description: 'Témoins, familles, surprise', heure: '20:00', ordre: 8 },
+  { id: '10', emoji: '🎂', titre: 'Gâteau et première danse', description: 'Découpe du gâteau, ouverture du bal', heure: '21:00', ordre: 9 },
+  { id: '11', emoji: '🎵', titre: 'Soirée dansante', description: 'DJ / orchestre — piste de danse ouverte', heure: '22:00', ordre: 10 },
+  { id: '12', emoji: '🌙', titre: 'Fin de soirée', description: 'Raccompagnement des invités', heure: '02:00', ordre: 11 },
 ]
 
 function isJourJ(dateMariage: string): boolean {
@@ -49,12 +51,12 @@ function isJourJ(dateMariage: string): boolean {
     today.getDate() === dm.getDate()
 }
 
-function getCurrentStep(): number {
+function getCurrentStep(programme: EtapeProgramme[]): number {
   const now = new Date()
   const heureCourante = now.getHours() * 60 + now.getMinutes()
   let current = 0
-  for (let i = 0; i < PROGRAMME_JOUR_J.length; i++) {
-    const [h, m] = PROGRAMME_JOUR_J[i].heure.split(':').map(Number)
+  for (let i = 0; i < programme.length; i++) {
+    const [h, m] = programme[i].heure.split(':').map(Number)
     if (heureCourante >= h * 60 + m) current = i
   }
   return current
@@ -62,21 +64,37 @@ function getCurrentStep(): number {
 
 export default function ModeJourJ({ marie_uid, date_mariage, noms_maries }: Props) {
   const [jourJ] = useState(() => isJourJ(date_mariage))
-  const [currentStep, setCurrentStep] = useState(() => getCurrentStep())
+  const [programme, setProgramme] = useState<EtapeProgramme[]>(PROGRAMME_DEFAUT)
+  const [personnalise, setPersonnalise] = useState(false)
+  const [loadingProg, setLoadingProg] = useState(true)
+  const [currentStep, setCurrentStep] = useState(0)
   const [invites, setInvites] = useState<CheckinInvite[]>([])
   const [loadingInvites, setLoadingInvites] = useState(false)
-  const [qrScanResult, setQrScanResult] = useState<string | null>(null)
   const [urgenceEnvoyee, setUrgenceEnvoyee] = useState(false)
   const [showCheckin, setShowCheckin] = useState(false)
 
-  // Refresh current step every minute
+  // Charger le programme personnalisé
+  useEffect(() => {
+    fetch('/api/portail/programme')
+      .then(r => r.json())
+      .then(d => {
+        if (d.programme) {
+          setProgramme(d.programme)
+          setPersonnalise(d.personnalise ?? false)
+          setCurrentStep(getCurrentStep(d.programme))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProg(false))
+  }, [])
+
+  // Refresh current step every minute (jour J seulement)
   useEffect(() => {
     if (!jourJ) return
-    const interval = setInterval(() => setCurrentStep(getCurrentStep()), 60000)
+    const interval = setInterval(() => setCurrentStep(getCurrentStep(programme)), 60000)
     return () => clearInterval(interval)
-  }, [jourJ])
+  }, [jourJ, programme])
 
-  // Charger invités pour check-in
   async function chargerInvites() {
     if (invites.length > 0) { setShowCheckin(true); return }
     setLoadingInvites(true)
@@ -93,7 +111,10 @@ export default function ModeJourJ({ marie_uid, date_mariage, noms_maries }: Prop
     const invite = invites.find(i => i.id === id)
     if (!invite) return
     const newStatus = !invite.checked_in
-    setInvites(prev => prev.map(i => i.id === id ? { ...i, checked_in: newStatus, heure_arrivee: newStatus ? new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : undefined } : i))
+    setInvites(prev => prev.map(i => i.id === id
+      ? { ...i, checked_in: newStatus, heure_arrivee: newStatus ? new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : undefined }
+      : i
+    ))
     await fetch('/api/portail/jour-j/checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -112,48 +133,118 @@ export default function ModeJourJ({ marie_uid, date_mariage, noms_maries }: Prop
   }
 
   const checkInCount = invites.filter(i => i.checked_in).length
+  const affichees = programme.slice(0, 6)
+  const reste = programme.length - 6
 
+  // ── MODE PREVIEW (pas encore le Jour J) ─────────────────────────────────────
   if (!jourJ) {
-    // Mode preview — pas encore le jour J
-    const jours = Math.ceil((new Date(date_mariage).getTime() - Date.now()) / 86400000)
+    const jours = date_mariage
+      ? Math.ceil((new Date(date_mariage).getTime() - Date.now()) / 86400000)
+      : null
+
     return (
-      <div className="rounded-2xl overflow-hidden" style={{ background: '#FDFAF4', border: '1px solid #E8E0D0' }}>
-        <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #1A1A1A, #2D2D2D)' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#AAA' }} />
-            <p className="text-[10px] tracking-[0.3em] uppercase text-[#888]">MODE JOUR J</p>
+      <div
+        className="rounded-2xl overflow-hidden shadow-sm"
+        style={{ background: '#F9F5F2', border: '1px solid rgba(212,175,55,0.2)' }}
+      >
+        {/* Header */}
+        <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #2C1810, #4A2828)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(212,175,55,0.5)' }} />
+                <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'rgba(212,175,55,0.6)' }}>
+                  MODE JOUR J
+                </p>
+              </div>
+              <h3 className="text-lg font-serif text-white">Programme du mariage</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {jours !== null && jours > 0
+                  ? `S'activera dans ${jours} jour${jours > 1 ? 's' : ''}`
+                  : jours === 0 ? "Prêt à s'activer aujourd'hui !"
+                  : 'Aperçu de votre programme'}
+              </p>
+            </div>
+            {/* Bouton modifier */}
+            <a
+              href="/portail/programme"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' }}
+            >
+              ✏️ Modifier
+            </a>
           </div>
-          <h3 className="text-lg font-serif text-white">Programme du mariage</h3>
-          <p className="text-xs text-[#888] mt-1">
-            {jours > 0 ? `S'activera automatiquement dans ${jours} jour${jours > 1 ? 's' : ''}` : "Prêt à s'activer aujourd'hui !"}
-          </p>
+          {personnalise && (
+            <p className="text-[10px] mt-2 font-medium" style={{ color: 'rgba(212,175,55,0.7)' }}>
+              ✦ Programme personnalisé
+            </p>
+          )}
         </div>
 
+        {/* Liste des 6 premières étapes */}
         <div className="p-4">
-          <p className="text-xs text-[#888] mb-3">Aperçu du programme — modifiable dans vos paramètres</p>
-          <div className="space-y-2">
-            {PROGRAMME_JOUR_J.slice(0, 6).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: '#F5F0E8' }}>
-                <span className="text-sm flex-shrink-0">{item.emoji}</span>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-[#1A1A1A]">{item.label}</p>
-                  {item.detail && <p className="text-[10px] text-[#888]">{item.detail}</p>}
+          {loadingProg ? (
+            <div className="flex justify-center py-6">
+              <div className="w-6 h-6 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {affichees.map((item, idx) => (
+                <div
+                  key={item.id ?? idx}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  style={{ background: '#F5E8E4', border: '1px solid #EDD5CC' }}
+                >
+                  <span className="text-sm flex-shrink-0">{item.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-[#1A1A1A] truncate">{item.titre}</p>
+                    {item.description && (
+                      <p className="text-[10px] text-[#6B4F4F] truncate">{item.description}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold flex-shrink-0" style={{ color: '#D4AF37' }}>
+                    {item.heure}
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold text-[#C9A84C]">{item.heure}</span>
-              </div>
-            ))}
-            <p className="text-center text-[10px] text-[#AAA] py-1">+ {PROGRAMME_JOUR_J.length - 6} autres étapes…</p>
-          </div>
+              ))}
+              {reste > 0 && (
+                <a
+                  href="/portail/programme"
+                  className="block text-center text-[11px] font-medium py-1.5"
+                  style={{ color: '#D4AF37' }}
+                >
+                  + {reste} autre{reste > 1 ? 's' : ''} étape{reste > 1 ? 's' : ''}…
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          className="px-4 py-3 flex items-center justify-between"
+          style={{ borderTop: '1px solid #EDD5CC' }}
+        >
+          <p className="text-[10px] text-[#A08878]">
+            {programme.length} étape{programme.length > 1 ? 's' : ''} au programme
+          </p>
+          <a
+            href="/portail/programme"
+            className="text-xs font-semibold"
+            style={{ color: '#D4AF37' }}
+          >
+            ✏️ Modifier le programme →
+          </a>
         </div>
       </div>
     )
   }
 
-  // Mode actif — Jour J !
+  // ── MODE ACTIF — JOUR J ──────────────────────────────────────────────────────
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid #C9A84C' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid #D4AF37' }}>
       {/* Header actif */}
-      <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #C9A84C, #E8C87A)' }}>
+      <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #D4AF37, #F0D060)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-white animate-pulse" />
@@ -170,57 +261,76 @@ export default function ModeJourJ({ marie_uid, date_mariage, noms_maries }: Prop
         </div>
         <h3 className="text-xl font-serif text-[#1A1A1A] mt-2">{noms_maries} 💍</h3>
         <p className="text-xs text-[#1A1A1A] opacity-70 mt-0.5">
-          Étape actuelle : {PROGRAMME_JOUR_J[currentStep]?.emoji} {PROGRAMME_JOUR_J[currentStep]?.label}
+          Étape actuelle : {programme[currentStep]?.emoji} {programme[currentStep]?.titre}
         </p>
       </div>
 
       {/* Programme heure par heure */}
-      <div className="px-4 py-3 space-y-1.5" style={{ background: 'white' }}>
-        <p className="text-xs font-bold text-[#888] uppercase tracking-wide mb-2">Programme du jour</p>
-        {PROGRAMME_JOUR_J.map((item, idx) => {
+      <div className="px-4 py-3 space-y-1.5" style={{ background: '#F9F5F2' }}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-[#6B4F4F] uppercase tracking-wide">Programme du jour</p>
+          <a href="/portail/programme" className="text-[10px] font-medium" style={{ color: '#D4AF37' }}>
+            ✏️ Modifier
+          </a>
+        </div>
+        {programme.map((item, idx) => {
           const isPast = idx < currentStep
           const isCurrent = idx === currentStep
           return (
             <div
-              key={idx}
+              key={item.id ?? idx}
               className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all"
               style={{
-                background: isCurrent ? '#C9A84C15' : isPast ? '#F9F9F9' : 'white',
-                border: isCurrent ? '1px solid #C9A84C40' : '1px solid transparent',
+                background: isCurrent ? 'rgba(212,175,55,0.12)' : isPast ? '#F5E8E4' : '#F9F5F2',
+                border: isCurrent ? '1px solid rgba(212,175,55,0.4)' : '1px solid transparent',
               }}
             >
-              <span className="text-base flex-shrink-0" style={{ opacity: isPast ? 0.4 : 1 }}>{item.emoji}</span>
-              <div className="flex-1">
-                <p className="text-xs font-semibold" style={{ color: isCurrent ? '#1A1A1A' : isPast ? '#AAA' : '#666', textDecoration: isPast ? 'line-through' : 'none' }}>
-                  {item.label}
+              <span className="text-base flex-shrink-0" style={{ opacity: isPast ? 0.4 : 1 }}>
+                {item.emoji}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-xs font-semibold truncate"
+                  style={{
+                    color: isCurrent ? '#1A1A1A' : isPast ? '#A08878' : '#6B4F4F',
+                    textDecoration: isPast ? 'line-through' : 'none',
+                  }}
+                >
+                  {item.titre}
                 </p>
-                {isCurrent && item.detail && <p className="text-[10px] text-[#888] mt-0.5">{item.detail}</p>}
+                {isCurrent && item.description && (
+                  <p className="text-[10px] text-[#6B4F4F] mt-0.5">{item.description}</p>
+                )}
               </div>
-              <span className="text-[10px] font-bold" style={{ color: isCurrent ? '#C9A84C' : '#AAA' }}>{item.heure}</span>
-              {isCurrent && <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#C9A84C', flexShrink: 0 }} />}
+              <span
+                className="text-[10px] font-bold flex-shrink-0"
+                style={{ color: isCurrent ? '#D4AF37' : '#A08878' }}
+              >
+                {item.heure}
+              </span>
+              {isCurrent && (
+                <div
+                  className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+                  style={{ background: '#D4AF37' }}
+                />
+              )}
             </div>
           )
         })}
       </div>
 
       {/* Check-in invités */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid #F5F0E8' }}>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid #EDD5CC', background: '#F9F5F2' }}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold text-[#1A1A1A]">Check-in invités</p>
-          <span className="text-xs font-bold text-[#7C9A7E]">{checkInCount} arrivés</span>
+          <span className="text-xs font-bold" style={{ color: '#7C9A7E' }}>{checkInCount} arrivés</span>
         </div>
-
-        {qrScanResult && (
-          <div className="mb-2 px-3 py-2 rounded-lg text-xs" style={{ background: '#7C9A7E15', color: '#7C9A7E' }}>
-            ✅ QR scanné : {qrScanResult}
-          </div>
-        )}
 
         <button
           onClick={chargerInvites}
           disabled={loadingInvites}
           className="w-full py-2.5 rounded-xl text-xs font-semibold disabled:opacity-50 transition-all"
-          style={{ background: '#7C9A7E15', color: '#7C9A7E', border: '1px solid #7C9A7E30' }}
+          style={{ background: 'rgba(124,154,126,0.12)', color: '#7C9A7E', border: '1px solid rgba(124,154,126,0.3)' }}
         >
           {loadingInvites ? 'Chargement…' : showCheckin ? '▲ Masquer la liste' : '📋 Ouvrir le check-in invités'}
         </button>
@@ -231,20 +341,29 @@ export default function ModeJourJ({ marie_uid, date_mariage, noms_maries }: Prop
               <label
                 key={invite.id}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer"
-                style={{ background: invite.checked_in ? '#7C9A7E10' : '#FAFAFA' }}
+                style={{ background: invite.checked_in ? 'rgba(124,154,126,0.08)' : '#F5E8E4' }}
               >
                 <div
                   className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all"
-                  style={{ borderColor: invite.checked_in ? '#7C9A7E' : '#DDD', background: invite.checked_in ? '#7C9A7E' : 'white' }}
+                  style={{
+                    borderColor: invite.checked_in ? '#7C9A7E' : '#D4B8B0',
+                    background: invite.checked_in ? '#7C9A7E' : '#F9F5F2',
+                  }}
                   onClick={() => toggleCheckin(invite.id)}
                 >
-                  {invite.checked_in && <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {invite.checked_in && (
+                    <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-[#1A1A1A]">{invite.prenom} {invite.nom}</p>
-                  {invite.table && <p className="text-[10px] text-[#888]">Table {invite.table}</p>}
+                  {invite.table && <p className="text-[10px] text-[#6B4F4F]">Table {invite.table}</p>}
                 </div>
-                {invite.heure_arrivee && <span className="text-[10px] text-[#7C9A7E] font-medium">{invite.heure_arrivee}</span>}
+                {invite.heure_arrivee && (
+                  <span className="text-[10px] font-medium" style={{ color: '#7C9A7E' }}>{invite.heure_arrivee}</span>
+                )}
               </label>
             ))}
           </div>
