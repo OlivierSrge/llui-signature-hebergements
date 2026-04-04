@@ -187,9 +187,29 @@ export default function ReservationsTable({ reservations }: Props) {
                         <p className="font-medium text-dark">{res.guest_first_name} {res.guest_last_name}</p>
                         <p className="text-xs text-dark/40">{res.guest_phone}</p>
                       </td>
-                      <td className="px-4 py-4 max-w-[130px]">
+                      <td className="px-4 py-4 max-w-[160px]">
                         <p className="text-dark/70 truncate">{res.accommodation?.name || res.pack_name || '—'}</p>
                         <p className="text-xs text-dark/40 truncate">{res.accommodation?.partner?.name}</p>
+                        {res.prescripteur_id && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">
+                              🏍 Apporté par {res.prescripteur_nom ?? '—'} ({res.prescripteur_type ?? ''})
+                            </span>
+                            <p className="text-[10px] text-dark/40 mt-0.5">
+                              Commission : {res.commission_prescripteur_fcfa != null ? `${res.commission_prescripteur_fcfa.toLocaleString('fr-FR')} FCFA` : '—'}
+                              {' '}&mdash;{' '}
+                              <span className={
+                                res.commission_statut === 'creditee' ? 'text-green-600' :
+                                res.commission_statut === 'annulee'  ? 'text-red-500'  :
+                                'text-amber-600'
+                              }>
+                                {res.commission_statut === 'creditee' ? 'Créditée ✓' :
+                                 res.commission_statut === 'annulee'  ? 'Annulée'      :
+                                 'En attente'}
+                              </span>
+                            </p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-dark/60">
                         <p>{res.check_in ? formatDate(res.check_in, 'dd/MM/yy') : '—'}</p>

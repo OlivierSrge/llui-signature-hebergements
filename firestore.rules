@@ -12,10 +12,11 @@ service cloud.firestore {
     function isOwner(uid) {
       return isAuth() && request.auth.uid == uid;
     }
+    function isPrescripteur(prescripteurId) {
+      return isAuth() && request.auth.uid == prescripteurId;
+    }
 
     // ─── Profils utilisateurs portail ────────────────────
-    // Un utilisateur peut lire uniquement son propre profil
-    // Seul l'admin peut créer/modifier les profils
     match /portail_users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create, update: if isAdmin();
@@ -23,8 +24,6 @@ service cloud.firestore {
     }
 
     // ─── Transactions ────────────────────────────────────
-    // Seul l'admin peut créer des transactions
-    // Un utilisateur peut lire ses propres transactions (acheteur)
     match /transactions/{txId} {
       allow read: if isAdmin()
                   || (isAuth() && resource.data.buyer_id == request.auth.uid);
@@ -34,8 +33,6 @@ service cloud.firestore {
     }
 
     // ─── Commissions ─────────────────────────────────────
-    // Les commissions sont en lecture seule pour les bénéficiaires
-    // Seul l'admin peut les créer/modifier
     match /commissions/{commId} {
       allow read: if isAdmin()
                   || (isAuth() && resource.data.beneficiary_id == request.auth.uid);
@@ -50,8 +47,52 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── Collections existantes (hébergements, réservations) ──
-    // Maintien des règles existantes
+    // ─── Types de prescripteurs ───────────────────────────
+    // Lecture publique (app prescripteur non authentifiée), écriture admin
+    match /prescripteur_types/{typeId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Prescripteurs ───────────────────────────────────
+    // Lecture : prescripteur sur son propre doc + admin
+    // Écriture : admin uniquement (création, modification, suspension)
+    match /prescripteurs/{prescripteurId} {
+      allow read: if isPrescripteur(prescripteurId) || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Sessions prescripteur ────────────────────────────
+    // Le prescripteur peut créer/lire ses propres sessions
+    // L'admin peut tout lire/écrire
+    match /prescripteur_sessions/{sessionId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.prescripteur_id == request.auth.uid);
+      allow create: if isAuth()
+                    && request.resource.data.prescripteur_id == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuth() && resource.data.prescripteur_id == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ─── Retraits ────────────────────────────────────────
+    // Prescripteur peut lire ses propres retraits et en créer (demande)
+    // Seul l'admin peut valider (update statut)
+    match /retraits/{retraitId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.prescripteur_id == request.auth.uid);
+      allow create: if isAuth()
+                    && request.resource.data.prescripteur_id == request.auth.uid
+                    && request.resource.data.statut == "demande";
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Collections existantes (hébergements, réservations, etc.) ──
+    // Règle catch-all : admin only
+    // Note : le champ prescripteur_id sur reservations/ est modifié
+    // exclusivement via les Server Actions Next.js (firebase-admin)
     match /{document=**} {
       allow read, write: if isAdmin();
     }
