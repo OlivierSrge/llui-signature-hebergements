@@ -9,17 +9,19 @@ export const metadata = { title: 'Modifier prescripteur – Admin' }
 
 export default async function ModifierPrescripteurPage({ params }: { params: { id: string } }) {
   const [prescripteur, types, hebergementsSnap] = await Promise.all([
-    getPrescripteur(params.id),
-    getPrescripteurTypes(),
-    db.collection('accommodations').orderBy('name').get(),
+    getPrescripteur(params.id).catch(() => null),
+    getPrescripteurTypes().catch(() => []),
+    db.collection('accommodations').orderBy('name').get().catch(() => null),
   ])
 
   if (!prescripteur) notFound()
 
-  const hebergements = hebergementsSnap.docs.map((d) => ({
-    id: d.id,
-    name: d.data().name as string,
-  }))
+  const hebergements = hebergementsSnap
+    ? hebergementsSnap.docs.map((d) => ({
+        id: d.id,
+        name: d.data().name as string,
+      }))
+    : []
 
   return (
     <div className="p-6 sm:p-8 pt-6 lg:pt-8 mt-14 lg:mt-0">

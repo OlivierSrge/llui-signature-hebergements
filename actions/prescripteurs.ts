@@ -249,25 +249,49 @@ export async function toggleStatutPrescripteur(
 // ─── Historique réservations d'un prescripteur ────────────────
 
 export async function getReservationsPrescripteur(prescripteurId: string) {
-  const snap = await db
-    .collection('reservations')
-    .where('prescripteur_id', '==', prescripteurId)
-    .orderBy('created_at', 'desc')
-    .limit(50)
-    .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  try {
+    // Évite l'index composite where+orderBy sur champs différents
+    const snap = await db
+      .collection('reservations')
+      .where('prescripteur_id', '==', prescripteurId)
+      .limit(50)
+      .get()
+    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+    // Tri côté serveur pour éviter l'index Firestore
+    rows.sort((a, b) => {
+      const ta = a.created_at ?? ''
+      const tb = b.created_at ?? ''
+      return ta < tb ? 1 : ta > tb ? -1 : 0
+    })
+    return rows
+  } catch (err) {
+    console.error('[getReservationsPrescripteur]', err)
+    return []
+  }
 }
 
 // ─── Historique retraits d'un prescripteur ───────────────────
 
 export async function getRetraitsPrescripteur(prescripteurId: string): Promise<Retrait[]> {
-  const snap = await db
-    .collection('retraits')
-    .where('prescripteur_id', '==', prescripteurId)
-    .orderBy('demande_at', 'desc')
-    .limit(50)
-    .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Retrait))
+  try {
+    // Évite l'index composite where+orderBy sur champs différents
+    const snap = await db
+      .collection('retraits')
+      .where('prescripteur_id', '==', prescripteurId)
+      .limit(50)
+      .get()
+    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Retrait))
+    // Tri côté serveur
+    rows.sort((a, b) => {
+      const ta = a.demande_at ?? ''
+      const tb = b.demande_at ?? ''
+      return ta < tb ? 1 : ta > tb ? -1 : 0
+    })
+    return rows
+  } catch (err) {
+    console.error('[getRetraitsPrescripteur]', err)
+    return []
+  }
 }
 
 // ─── Créer une demande de retrait (côté prescripteur) ─────────

@@ -16,8 +16,8 @@ export default async function AdminPrescripeursPage() {
   } catch {}
 
   const [prescripteurs, types] = await Promise.all([
-    getPrescripteurs(),
-    getPrescripteurTypes(),
+    getPrescripteurs().catch(() => []),
+    getPrescripteurTypes().catch(() => []),
   ])
 
   const actifs    = prescripteurs.filter((p) => p.statut === 'actif').length

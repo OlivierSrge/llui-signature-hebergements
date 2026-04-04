@@ -14,9 +14,9 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 
 export default async function PrescripteurDetailPage({ params }: { params: { id: string } }) {
   const [prescripteur, reservations, retraits] = await Promise.all([
-    getPrescripteur(params.id),
-    getReservationsPrescripteur(params.id),
-    getRetraitsPrescripteur(params.id),
+    getPrescripteur(params.id).catch(() => null),
+    getReservationsPrescripteur(params.id).catch(() => []),
+    getRetraitsPrescripteur(params.id).catch(() => []),
   ])
 
   if (!prescripteur) notFound()
