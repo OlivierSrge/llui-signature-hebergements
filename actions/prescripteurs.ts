@@ -478,18 +478,23 @@ export async function refuserRetrait(
 export async function verifierPinPrescripteur(
   pin: string
 ): Promise<{ success: boolean; prescripteur?: Prescripteur; error?: string }> {
-  const pin_hash = hashPin(pin)
-  const snap = await db
-    .collection('prescripteurs')
-    .where('pin_hash', '==', pin_hash)
-    .where('statut', '==', 'actif')
-    .limit(1)
-    .get()
+  try {
+    const pin_hash = hashPin(pin)
+    const snap = await db
+      .collection('prescripteurs')
+      .where('pin_hash', '==', pin_hash)
+      .where('statut', '==', 'actif')
+      .limit(1)
+      .get()
 
-  if (snap.empty) return { success: false, error: 'Code incorrect ou compte suspendu' }
+    if (snap.empty) return { success: false, error: 'Code incorrect ou compte suspendu' }
 
-  const doc = snap.docs[0]
-  return { success: true, prescripteur: { uid: doc.id, ...doc.data() } as Prescripteur }
+    const doc = snap.docs[0]
+    return { success: true, prescripteur: { uid: doc.id, ...doc.data() } as Prescripteur }
+  } catch (err: any) {
+    console.error('[verifierPinPrescripteur]', err)
+    return { success: false, error: err.message ?? 'Erreur serveur' }
+  }
 }
 
 // ─── Sessions résidence ───────────────────────────────────────
