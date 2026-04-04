@@ -195,7 +195,7 @@ export default function FicheClient({ marie_uid, noms_maries, date_mariage, lieu
         <div className="rounded-2xl p-6 mb-6" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)' }}>
 
           <h2 className="text-2xl font-semibold mb-3 text-center" style={{ color: '#C9A84C' }}>
-            Bonjour {prenom}&nbsp;!
+            {prenom ? <>Bonjour {prenom}&nbsp;!</> : <>Bienvenue&nbsp;! 🎉</>}
           </h2>
 
           <p className="text-sm text-center leading-relaxed mb-6" style={{ color: 'rgba(245,240,232,0.8)' }}>
