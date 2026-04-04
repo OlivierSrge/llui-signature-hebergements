@@ -4,6 +4,19 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { verifierPinPrescripteur } from '@/actions/prescripteurs'
 
+// ─── Hash SHA-256 côté client (crypto.subtle, pas de réseau) ──
+// Le hash est calculé LOCALEMENT avant tout appel serveur.
+// Le PIN brut ne transite jamais en clair dans les logs serveur.
+async function hashPinClient(pin: string): Promise<string> {
+  const buffer = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(pin),
+  )
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 // ─── Lockout helpers ──────────────────────────────────────────
 const LOCKOUT_KEY = 'presc_lockout'
 const ATTEMPTS_KEY = 'presc_attempts'
@@ -135,10 +148,14 @@ export default function PinScreen() {
 
   const valider = useCallback(async () => {
     if (pin.length !== 4 || isLocked || isPending) return
+    // Feedback IMMÉDIAT — désactiver le clavier avant tout await
     setIsPending(true)
     setError('')
     try {
-      const result = await verifierPinPrescripteur(pin)
+      // Hash côté client : rapide (< 1ms, local), aucun réseau
+      // Le premier await libère le thread → React peint le spinner
+      const hash = await hashPinClient(pin)
+      const result = await verifierPinPrescripteur(hash)
       if (result.success && result.prescripteur) {
         clearAttempts()
         sessionStorage.setItem('prescripteur_uid', result.prescripteur.uid)

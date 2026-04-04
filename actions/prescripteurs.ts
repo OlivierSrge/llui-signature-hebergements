@@ -475,22 +475,31 @@ export async function refuserRetrait(
 
 // ─── Auth PIN prescripteur ────────────────────────────────────
 
+// Accepte un hash SHA-256 pré-calculé côté client (PinScreen.tsx).
+// Avantages : pas de hashing serveur, une seule clause where (pas besoin
+// d'index composite), le PIN brut n'apparaît jamais dans les logs.
 export async function verifierPinPrescripteur(
-  pin: string
+  pin_hash: string,
 ): Promise<{ success: boolean; prescripteur?: Prescripteur; error?: string }> {
   try {
-    const pin_hash = hashPin(pin)
+    // Requête sur un seul champ : index mono-champ Firestore suffit.
     const snap = await db
       .collection('prescripteurs')
       .where('pin_hash', '==', pin_hash)
-      .where('statut', '==', 'actif')
       .limit(1)
       .get()
 
     if (snap.empty) return { success: false, error: 'Code incorrect ou compte suspendu' }
 
     const doc = snap.docs[0]
-    return { success: true, prescripteur: { uid: doc.id, ...doc.data() } as Prescripteur }
+    const data = doc.data() as Prescripteur
+
+    // Vérification statut côté code (pas besoin d'un index composite)
+    if (data.statut !== 'actif') {
+      return { success: false, error: 'Compte suspendu — contactez le gérant' }
+    }
+
+    return { success: true, prescripteur: { ...data, uid: doc.id } }
   } catch (err: any) {
     console.error('[verifierPinPrescripteur]', err)
     return { success: false, error: err.message ?? 'Erreur serveur' }
