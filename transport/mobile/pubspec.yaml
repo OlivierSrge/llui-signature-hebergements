@@ -1,0 +1,61 @@
+name: llui_transport
+description: L&Lui Logistique — App chauffeur (offline-first)
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Base de données locale SQLite (queue GPS offline)
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+
+  # GPS en arrière-plan
+  geolocator: ^12.0.0
+  flutter_background_geolocation: ^4.14.0
+
+  # HTTP
+  dio: ^5.4.3+1
+  dio_retry_plus: ^1.1.0
+
+  # Gestion de l'état
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Tâches d'arrière-plan (sync GPS quand app fermée)
+  workmanager: ^0.5.2
+
+  # Cartographie
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Stockage sécurisé (tokens JWT)
+  flutter_secure_storage: ^9.2.2
+
+  # UI
+  material_design_icons_flutter: ^7.0.7296
+  cached_network_image: ^3.3.1
+  intl: ^0.19.0
+
+  # Utilitaires
+  uuid: ^4.4.0
+  connectivity_plus: ^6.0.3
+  image_picker: ^1.1.2
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/maps/
+    - assets/icons/
