@@ -154,6 +154,8 @@ export async function creerPrescripteur(data: {
       hebergements_assignes: data.hebergements_assignes,
       commission_fcfa: data.commission_fcfa,
       solde_fcfa: 0,
+      solde_reserve_fcfa: 0,
+      total_retire_fcfa: 0,
       total_clients_amenes: 0,
       statut: data.statut,
       qr_code_url,
