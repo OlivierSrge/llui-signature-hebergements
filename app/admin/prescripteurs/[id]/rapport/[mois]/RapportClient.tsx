@@ -71,7 +71,7 @@ export default function RapportClient({ rapport: r }: Props) {
       ]
       kpis.forEach(([label, val], i) => {
         const bg = i % 2 === 0 ? [250, 247, 240] as const : [255, 255, 255] as const
-        doc.setFillColor(...bg)
+        doc.setFillColor(bg[0], bg[1], bg[2])
         doc.rect(15, y, W - 30, 8, 'F')
         doc.setTextColor(80, 70, 50); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
         doc.text(label, 22, y + 5.5)
@@ -106,7 +106,7 @@ export default function RapportClient({ rapport: r }: Props) {
             y = 20
           }
           const bg = i % 2 === 0 ? [255, 255, 255] as const : [250, 247, 240] as const
-          doc.setFillColor(...bg)
+          doc.setFillColor(bg[0], bg[1], bg[2])
           doc.rect(15, y, W - 30, 7, 'F')
           doc.setTextColor(26, 26, 26); doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
           doc.text(t.date, 20, y + 5)

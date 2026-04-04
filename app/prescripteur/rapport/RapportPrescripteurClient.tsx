@@ -85,7 +85,7 @@ export default function RapportPrescripteurClient() {
 
       kpis.forEach(([label, val], i) => {
         const bg = i % 2 === 0 ? [250, 247, 240] as const : [255, 255, 255] as const
-        doc.setFillColor(...bg); doc.rect(15, y, W - 30, 8, 'F')
+        doc.setFillColor(bg[0], bg[1], bg[2]); doc.rect(15, y, W - 30, 8, 'F')
         doc.setTextColor(80, 70, 50); doc.setFontSize(9); doc.setFont('helvetica', 'bold')
         doc.text(label, 22, y + 5.5)
         doc.setTextColor(26, 26, 26); doc.text(val, W - 20, y + 5.5, { align: 'right' })

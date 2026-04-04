@@ -611,8 +611,6 @@ export async function getDisponibilitesPrescripteur(
   today.setHours(0, 0, 0, 0)
   const endDate = new Date(today)
   endDate.setDate(endDate.getDate() + 14)
-  const todayStr = today.toISOString().split('T')[0]
-  const endStr = endDate.toISOString().split('T')[0]
 
   // Fetch accommodations names
   const hebergSnapPromises = ids.map((id) => db.collection('accommodations').doc(id).get())
@@ -809,18 +807,17 @@ export async function getAnalyticsPrescripteurs(
   // Réservations de la période
   const resaSnap = await db
     .collection('reservations')
-    .where('prescripteur_id', '!=', null)
     .where('created_at', '>=', debutStr)
-    .orderBy('prescripteur_id')
     .orderBy('created_at', 'desc')
     .limit(500)
     .get()
 
-  const clients_ce_mois = resaSnap.size
+  const resaWithPresc = resaSnap.docs.filter((d) => d.data().prescripteur_id)
+  const clients_ce_mois = resaWithPresc.length
 
   // Agréger par prescripteur pour le top 5
   const byPresc: Record<string, { nom: string; type: string; clients: number; commissions: number }> = {}
-  for (const doc of resaSnap.docs) {
+  for (const doc of resaWithPresc) {
     const r = doc.data()
     const id = r.prescripteur_id
     if (!id) continue
@@ -840,19 +837,18 @@ export async function getAnalyticsPrescripteurs(
     const fin = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
     const snap = await db
       .collection('reservations')
-      .where('prescripteur_id', '!=', null)
       .where('created_at', '>=', d.toISOString())
       .where('created_at', '<', fin.toISOString())
-      .orderBy('prescripteur_id')
       .orderBy('created_at')
       .limit(200)
       .get()
-    const commissions = snap.docs.reduce((s, doc) => s + (doc.data().commission_prescripteur_fcfa ?? 0), 0)
-    evolution6mois.push({ mois: MOIS_FR_COURT[d.getMonth()], commissions, clients: snap.size })
+    const snapWithPresc = snap.docs.filter((d) => d.data().prescripteur_id)
+    const commissions = snapWithPresc.reduce((s, doc) => s + (doc.data().commission_prescripteur_fcfa ?? 0), 0)
+    evolution6mois.push({ mois: MOIS_FR_COURT[d.getMonth()], commissions, clients: snapWithPresc.length })
   }
 
   // CSV transactions
-  const transactions_csv = resaSnap.docs.map((doc) => {
+  const transactions_csv = resaWithPresc.map((doc) => {
     const r = doc.data()
     return {
       date: r.created_at ? new Date(r.created_at).toLocaleDateString('fr-FR') : '',

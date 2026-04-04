@@ -27,6 +27,10 @@ export async function sendPushNotification(
   payload: PushPayload
 ): Promise<{ success: boolean; error?: string }> {
   if (!fcmToken) return { success: false, error: 'Token FCM manquant' }
+  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    console.warn('[FCM] Firebase admin non configuré — push désactivé')
+    return { success: false, error: 'FCM non configuré' }
+  }
   try {
     ensureInit()
     const messaging = getMessaging()
