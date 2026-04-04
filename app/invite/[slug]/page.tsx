@@ -16,14 +16,31 @@ interface Props {
   searchParams: { prenom?: string; code?: string }
 }
 
+async function fetchPortailUserDoc(marie_uid: string) {
+  const db = getDb()
+  // 1. Lookup direct par ID de document (cas normal : uid = doc ID)
+  const snap = await db.collection('portail_users').doc(marie_uid).get()
+  if (snap.exists) return snap.data()!
+
+  // 2. Fallback : chercher par champ marie_uid (ancien format ou uid Firebase Auth)
+  console.log(`[invite/fiche] Fallback query: portail_users where marie_uid == ${marie_uid}`)
+  const byField = await db.collection('portail_users')
+    .where('marie_uid', '==', marie_uid).limit(1).get()
+  if (!byField.empty) {
+    console.log(`[invite/fiche] Found via field: doc.id=${byField.docs[0].id}`)
+    return byField.docs[0].data()
+  }
+  return null
+}
+
 async function getMarieDataForFiche(marie_uid: string) {
   try {
     const db = getDb()
     console.log(`[invite/fiche] Lookup portail_users/${marie_uid}`)
-    const snap = await db.collection('portail_users').doc(marie_uid).get()
-    console.log(`[invite/fiche] snap.exists=${snap.exists}`)
-    if (!snap.exists) return null
-    const d = snap.data()!
+
+    const d = await fetchPortailUserDoc(marie_uid)
+    console.log(`[invite/fiche] found=${!!d}`)
+    if (!d) return null
 
     const nomsMaries: string = (d.noms_maries as string) || (d.displayName as string) || ''
     let codePromo: string = (d.code_promo as string) || ''
