@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, Bike, Users, TrendingUp, Wallet } from 'lucide-react'
 import { getPrescripteurs, getPrescripteurTypes, seedPrescripteurTypes } from '@/actions/prescripteurs'
 import PrescripteurListClient from './PrescripteurListClient'
+import AnalyticsDashboard from './AnalyticsDashboard'
 
 export const metadata = { title: 'Prescripteurs – Admin' }
 
@@ -44,13 +45,16 @@ export default async function AdminPrescripeursPage() {
         </Link>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs statiques */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <KpiCard icon={<Users size={20} />} label="Total" value={prescripteurs.length} />
         <KpiCard icon={<Bike size={20} />}       label="Actifs"           value={actifs} color="green" />
         <KpiCard icon={<TrendingUp size={20} />}  label="Clients amenés"  value={totalClients} />
         <KpiCard icon={<Wallet size={20} />}      label="Soldes dus (FCFA)" value={totalSolde.toLocaleString('fr-FR')} color="gold" />
       </div>
+
+      {/* Analytics dynamiques (Client Component avec période filtrée) */}
+      <AnalyticsDashboard />
 
       {/* Table interactive (client component) */}
       <PrescripteurListClient
