@@ -5,6 +5,7 @@ import { Plus, Bike, Users, TrendingUp, Wallet } from 'lucide-react'
 import { getPrescripteurs, getPrescripteurTypes, seedPrescripteurTypes } from '@/actions/prescripteurs'
 import PrescripteurListClient from './PrescripteurListClient'
 import AnalyticsDashboard from './AnalyticsDashboard'
+import ClassementMensuel from './ClassementMensuel'
 
 export const metadata = { title: 'Prescripteurs – Admin' }
 
@@ -55,6 +56,9 @@ export default async function AdminPrescripeursPage() {
 
       {/* Analytics dynamiques (Client Component avec période filtrée) */}
       <AnalyticsDashboard />
+
+      {/* Classement mensuel */}
+      <ClassementMensuel />
 
       {/* Table interactive (client component) */}
       <PrescripteurListClient
