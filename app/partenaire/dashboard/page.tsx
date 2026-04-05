@@ -543,6 +543,12 @@ export default async function PartnerDashboardPage() {
                       <p className="text-xs text-dark/40 mt-0.5">
                         {r.accommodation?.name ?? r.accommodation_id} · {r.check_in} → {r.check_out}
                       </p>
+                      {r.prescripteur_nom && (
+                        <p className="text-xs text-gold-600 mt-0.5 flex items-center gap-1">
+                          🏍 {r.prescripteur_nom}
+                          {r.badge_confiance_prescripteur && <span className="text-amber-500">🏆</span>}
+                        </p>
+                      )}
                       {r.confirmation_code && (
                         <p className="text-xs font-mono text-dark/40 mt-0.5">{r.confirmation_code}</p>
                       )}

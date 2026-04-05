@@ -75,6 +75,7 @@ export default function PrescripteurListClient({ prescripteurs, types }: Props) 
             <tr className="border-b border-dark/10 bg-cream/60">
               <th className="text-left px-4 py-3 font-semibold text-dark/60">Nom</th>
               <th className="text-left px-4 py-3 font-semibold text-dark/60">Type</th>
+              <th className="text-left px-4 py-3 font-semibold text-dark/60">Note</th>
               <th className="text-left px-4 py-3 font-semibold text-dark/60">Clients</th>
               <th className="text-left px-4 py-3 font-semibold text-dark/60">Solde dû</th>
               <th className="text-left px-4 py-3 font-semibold text-dark/60">Statut</th>
@@ -84,7 +85,7 @@ export default function PrescripteurListClient({ prescripteurs, types }: Props) 
           <tbody>
             {filtres.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-dark/40">
+                <td colSpan={7} className="text-center py-12 text-dark/40">
                   Aucun prescripteur trouvé
                 </td>
               </tr>
@@ -94,7 +95,10 @@ export default function PrescripteurListClient({ prescripteurs, types }: Props) 
               return (
                 <tr key={p.uid} className="border-b border-dark/5 hover:bg-cream/30 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-dark">{p.nom_complet}</p>
+                    <p className="font-medium text-dark flex items-center gap-1">
+                      {p.nom_complet}
+                      {(p as any).badge_confiance && <span className="text-amber-500 text-sm" title="Prescripteur de confiance">🏆</span>}
+                    </p>
                     <p className="text-dark/50 text-xs">{p.telephone}</p>
                     <p className="text-dark/40 text-xs font-mono">{p.code_promo}</p>
                   </td>
@@ -108,6 +112,17 @@ export default function PrescripteurListClient({ prescripteurs, types }: Props) 
                       </span>
                     ) : (
                       <span className="text-dark/40 text-xs">{p.type}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(p as any).note_moyenne > 0 ? (
+                      <span className="flex items-center gap-1 text-sm">
+                        <span className="text-[#C9A84C]">★</span>
+                        <span className="font-medium">{((p as any).note_moyenne as number).toFixed(1)}</span>
+                        <span className="text-dark/30 text-xs">({(p as any).total_notes})</span>
+                      </span>
+                    ) : (
+                      <span className="text-dark/20 text-xs">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium">{p.total_clients_amenes ?? 0}</td>

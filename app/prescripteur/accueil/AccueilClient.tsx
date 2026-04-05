@@ -407,7 +407,9 @@ export default function AccueilClient() {
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div>
           <h1 className="font-serif text-lg font-semibold">L<span className="text-gold-400">&</span>Lui</h1>
-          <p className="text-white/50 text-xs">{session.nom}</p>
+          <p className="text-white/50 text-xs flex items-center gap-1">
+            {session.nom}{badgeConfiance && <span className="text-amber-400">🏆</span>}
+          </p>
         </div>
         <button onClick={handleLogout} className="text-white/40 hover:text-white/70 transition-colors p-2">
           <LogOut size={18} />
