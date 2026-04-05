@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff } from 'lucide-react'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, ArrowLeft } from 'lucide-react'
 import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 import {
@@ -34,6 +34,7 @@ export default function AccueilClient() {
   const [sessionPartenaire, setSessionPartenaire] = useState<{ session_id: string; nom_partenaire: string; expire_at: string } | null>(null)
   const [isOffline, setIsOffline] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(10)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -234,6 +235,17 @@ export default function AccueilClient() {
         sessionStorage.setItem('prescripteur_solde', String(res.nouveau_solde))
       }
       setSessionPartenaire(null)
+      // Vibration et son de confirmation
+      try { navigator.vibrate?.([200, 100, 200]) } catch {}
+      try {
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.frequency.value = 880; gain.gain.value = 0.1
+        osc.start(); osc.stop(ctx.currentTime + 0.15)
+      } catch {}
+      setCountdown(10)
       setStep('success')
     } catch {
       setScanResult({ error: 'QR non reconnu. Réessayez.' }); setStep('error')
@@ -244,6 +256,14 @@ export default function AccueilClient() {
     setStep('scan_reservation')
     setTimeout(() => { startCamera(handleScanReservation) }, 300)
   }
+
+  // Compte a rebours écran succès
+  useEffect(() => {
+    if (step !== 'success') return
+    if (countdown <= 0) { setScanResult(null); setStep('accueil'); return }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [step, countdown])
 
   if (!session) return (
     <div className="min-h-screen bg-dark flex items-center justify-center">
@@ -430,40 +450,76 @@ export default function AccueilClient() {
           </div>
         )}
 
-        {/* ── SUCCESS ── */}
+        {/* ── SUCCESS — Écran fort plein écran vert ── */}
         {step === 'success' && scanResult && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center">
-            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
-              <CheckCircle2 size={40} className="text-green-400" />
+          <div className="fixed inset-0 bg-[#1D9E75] flex flex-col items-center justify-center px-6 gap-6 text-center z-50 overflow-y-auto py-10">
+            {/* Check animé */}
+            <div className="w-28 h-28 rounded-full bg-white/20 flex items-center justify-center animate-check-appear">
+              <CheckCircle2 size={64} className="text-white" strokeWidth={2} />
             </div>
-            <div>
-              <p className="text-xl font-semibold text-white">Client enregistre !</p>
-              <p className="text-white/50 text-sm mt-1">{scanResult.client_nom}</p>
-              <p className="text-white/40 text-xs">{scanResult.hebergement_nom}</p>
+
+            {/* Titre */}
+            <div className="animate-fade-in-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
+              <p className="text-white text-2xl font-bold tracking-wide">COMMISSION RECUE !</p>
             </div>
-            <div className="rounded-2xl bg-green-500/10 border border-green-400/30 p-5 w-full max-w-xs">
-              <p className="text-green-300 text-sm">Commission creditee</p>
-              <p className="font-serif text-3xl font-semibold text-green-300 mt-1">
-                +{(scanResult.commission_fcfa ?? 1500).toLocaleString('fr-FR')} FCFA
+
+            {/* Montant */}
+            <div className="animate-fade-in-up" style={{ animationDelay: '0.35s', opacity: 0 }}>
+              <p className="font-serif text-6xl font-bold text-white leading-none">
+                +{(scanResult.commission_fcfa ?? 1500).toLocaleString('fr-FR')}
               </p>
-              {scanResult.nouveau_solde !== undefined && (
-                <p className="text-white/40 text-xs mt-2">
-                  Nouveau solde : {scanResult.nouveau_solde.toLocaleString('fr-FR')} FCFA
-                </p>
-              )}
-              {isOffline && (
-                <p className="text-amber-400/70 text-xs mt-2">
-                  Commission en attente de synchronisation
-                </p>
-              )}
+              <p className="text-white/80 text-2xl font-semibold mt-1">FCFA</p>
             </div>
-            <button
-              onClick={() => { setScanResult(null); setStep('accueil') }}
-              className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all active:scale-95"
-            >
-              <Users size={16} className="inline mr-2" />
-              Enregistrer un autre client
-            </button>
+
+            {/* Détails */}
+            <div className="rounded-2xl bg-white/20 border border-white/30 p-5 w-full max-w-xs text-left animate-fade-in-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
+              {scanResult.nouveau_solde !== undefined && (
+                <div className="flex justify-between mb-3 pb-3 border-b border-white/20">
+                  <span className="text-white/70 text-sm">Nouveau solde</span>
+                  <span className="text-white font-bold text-sm">{scanResult.nouveau_solde.toLocaleString('fr-FR')} FCFA</span>
+                </div>
+              )}
+              {scanResult.client_nom && (
+                <div className="flex justify-between mb-2">
+                  <span className="text-white/70 text-sm">Client</span>
+                  <span className="text-white text-sm font-medium">{scanResult.client_nom}</span>
+                </div>
+              )}
+              {scanResult.hebergement_nom && (
+                <div className="flex justify-between mb-2">
+                  <span className="text-white/70 text-sm">Chez</span>
+                  <span className="text-white text-sm font-medium">{scanResult.hebergement_nom}</span>
+                </div>
+              )}
+              <div className="flex justify-between mt-2">
+                <span className="text-white/70 text-sm">Date</span>
+                <span className="text-white text-sm">{new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+              </div>
+            </div>
+
+            {/* SMS envoyé */}
+            <p className="text-white/80 text-sm animate-fade-in-up" style={{ animationDelay: '0.65s', opacity: 0 }}>
+              SMS de confirmation envoye ✓
+            </p>
+
+            {isOffline && (
+              <p className="text-white/70 text-xs bg-white/10 rounded-xl px-4 py-2">
+                Commission en attente de synchronisation
+              </p>
+            )}
+
+            {/* Bouton retour + compte a rebours */}
+            <div className="w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '0.8s', opacity: 0 }}>
+              <button
+                onClick={() => { setScanResult(null); setStep('accueil') }}
+                className="w-full py-4 rounded-2xl bg-white text-[#1D9E75] font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Users size={18} /> Vous pouvez partir
+              </button>
+              <p className="text-white/60 text-xs mt-3 text-center">
+                Retour accueil dans {countdown}s...
+              </p>
+            </div>
           </div>
         )}
 
