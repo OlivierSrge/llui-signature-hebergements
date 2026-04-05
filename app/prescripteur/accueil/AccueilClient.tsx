@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, ArrowLeft } from 'lucide-react'
-import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation } from '@/actions/prescripteurs'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, Home, Timer } from 'lucide-react'
+import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation, envoyerAlerte15Min } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 import {
   ajouterAlaFile,
@@ -35,6 +35,8 @@ export default function AccueilClient() {
   const [isOffline, setIsOffline] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(10)
+  const [minutesRestantes, setMinutesRestantes] = useState<number | null>(null)
+  const alerteEnvoyeeRef = useRef(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -121,6 +123,46 @@ export default function AccueilClient() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [synchroniserFile])
+
+  // ── Barre session : countdown + alerte 15 min ──────────────
+  useEffect(() => {
+    if (!sessionPartenaire?.expire_at) { setMinutesRestantes(null); return }
+
+    const calculer = () => {
+      const diff = new Date(sessionPartenaire.expire_at).getTime() - Date.now()
+      if (diff <= 0) {
+        setMinutesRestantes(0)
+        setSessionPartenaire(null)
+        alerteEnvoyeeRef.current = false
+        // Notification expiration
+        try {
+          if (Notification.permission === 'granted') {
+            new Notification('Session expiree', { body: 'Rescannez le QR du partenaire si le client est encore la.' })
+          }
+        } catch {}
+        return
+      }
+      const mins = Math.ceil(diff / 60000)
+      setMinutesRestantes(mins)
+      // Alerte 15 min (une seule fois)
+      if (mins <= 15 && !alerteEnvoyeeRef.current) {
+        alerteEnvoyeeRef.current = true
+        try { navigator.vibrate?.([500]) } catch {}
+        try {
+          if (Notification.permission === 'granted') {
+            new Notification("Session expire dans 15 minutes !", { body: "Scannez le QR du client rapidement." })
+          }
+        } catch {}
+        // Push FCM server-side
+        const uid = sessionRef.current?.uid
+        if (uid) envoyerAlerte15Min(uid).catch(() => {})
+      }
+    }
+
+    calculer()
+    const interval = setInterval(calculer, 30000)
+    return () => clearInterval(interval)
+  }, [sessionPartenaire?.expire_at])
 
   const handleLogout = () => { sessionStorage.clear(); router.replace('/prescripteur') }
 
@@ -291,6 +333,34 @@ export default function AccueilClient() {
       {syncMessage && (
         <div className="bg-green-600/90 px-5 py-2 text-white text-sm font-medium text-center">
           {syncMessage}
+        </div>
+      )}
+
+      {/* Barre session active (permanente, visible dans tous les steps) */}
+      {sessionPartenaire && minutesRestantes !== null && minutesRestantes > 0 && step !== 'success' && (
+        <div className={`px-5 py-3 flex items-center justify-between gap-3 transition-colors ${
+          minutesRestantes <= 15
+            ? 'bg-[#E24B4A] border-b border-red-600/50'
+            : 'bg-[#C9A84C] border-b border-[#b8973f]/50'
+        }`}>
+          <div className="flex items-center gap-2">
+            <Home size={16} className="text-white shrink-0" />
+            <div>
+              <p className="text-white font-semibold text-sm leading-tight">{sessionPartenaire.nom_partenaire}</p>
+              <p className="text-white/80 text-xs">
+                {minutesRestantes > 60
+                  ? `Expire dans ${Math.floor(minutesRestantes / 60)}h ${minutesRestantes % 60}min`
+                  : `Expire dans ${minutesRestantes} min`
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-white/80 shrink-0">
+            <Timer size={14} />
+            <span className="text-xs font-medium">
+              {minutesRestantes <= 15 ? 'URGENT' : 'Active'}
+            </span>
+          </div>
         </div>
       )}
 

@@ -1370,3 +1370,24 @@ export async function scannerCodeManuel(
     return { success: false, error: err.message }
   }
 }
+
+// ─── Alerte 15 min avant expiration session ───────────────────
+
+export async function envoyerAlerte15Min(
+  prescripteur_id: string
+): Promise<{ success: boolean }> {
+  try {
+    const prescripteurDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescripteurDoc.exists) return { success: false }
+    const prescripteur = prescripteurDoc.data() as Prescripteur
+    if (prescripteur.fcm_token) {
+      await sendPushNotification(prescripteur.fcm_token, {
+        title: "Votre session expire dans 15 minutes !",
+        body: "Scannez le QR du client rapidement.",
+      })
+    }
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
