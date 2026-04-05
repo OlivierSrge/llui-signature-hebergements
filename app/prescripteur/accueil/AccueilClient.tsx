@@ -184,6 +184,11 @@ export default function AccueilClient() {
                 <div>
                   <p className="text-green-300 text-xs uppercase tracking-widest">Session active</p>
                   <p className="text-white font-medium text-sm">{sessionPartenaire.nom_partenaire}</p>
+                  {sessionPartenaire.expire_at && (
+                    <p className="text-green-400/70 text-xs mt-0.5">
+                      Expire a {new Date(sessionPartenaire.expire_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
                 </div>
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               </div>

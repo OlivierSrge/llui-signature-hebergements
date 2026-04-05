@@ -1049,10 +1049,25 @@ export async function scannerQrReservation(
     if (!resaDoc.exists) return { success: false, error: 'Réservation introuvable' }
     const resa = resaDoc.data()!
 
-    // Vérifications
-    if (resa.prescripteur_id) return { success: false, error: 'Un prescripteur est déjà associé à cette réservation' }
-    if (!['confirmee', 'en_attente'].includes(resa.reservation_status ?? '')) {
-      return { success: false, error: 'Réservation non confirmée ou annulée' }
+    // Vérification statut_prescription
+    const statutPrescription = resa.statut_prescription as string | undefined
+    if (!statutPrescription || statutPrescription === 'sans_prescripteur') {
+      return { success: false, error: "Cette reservation n'a pas de prescripteur lie." }
+    }
+    if (statutPrescription === 'prescripteur_present' || statutPrescription === 'disponibilite_confirmee') {
+      return { success: false, error: "Le partenaire n'a pas encore confirme le paiement. Patientez." }
+    }
+    if (statutPrescription === 'commission_versee') {
+      return { success: false, error: 'Ce QR a deja ete scanne. Commission deja versee.' }
+    }
+    if (resa.qr_utilise === true) {
+      return { success: false, error: 'Ce QR a deja ete utilise.' }
+    }
+    if (resa.qr_expire_at && new Date(resa.qr_expire_at as string) < new Date()) {
+      return { success: false, error: 'Ce QR a expire. Contactez le partenaire.' }
+    }
+    if (statutPrescription !== 'paiement_confirme') {
+      return { success: false, error: 'Statut de reservation invalide pour ce scan.' }
     }
 
     // Vérifier que la réservation appartient bien au partenaire
@@ -1084,6 +1099,8 @@ export async function scannerQrReservation(
         commission_statut: 'creditee',
         prescripteur_session_id: sessionActive.session_id,
         partenaire_id: sessionActive.partenaire_id,
+        statut_prescription: 'commission_versee',
+        qr_utilise: true,
       })
       tx.update(db.collection('prescripteurs').doc(prescripteur_id), {
         solde_fcfa: nouveauSolde,
