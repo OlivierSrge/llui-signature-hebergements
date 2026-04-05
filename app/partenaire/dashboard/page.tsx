@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users, BookOpen } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
+import QrPrescripteurSection from '@/components/partner/QrPrescripteurSection'
 import { getPartnerSubscription } from '@/actions/subscriptions'
 import { getPartnerPendingDemands } from '@/actions/availability-requests'
 import { PLANS } from '@/lib/plans'
@@ -378,6 +379,9 @@ export default async function PartnerDashboardPage() {
             <Settings size={15} /> Paramètres de paiement
           </Link>
         </div>
+
+        {/* ── QR Prescripteur ── */}
+        <QrPrescripteurSection partenaireId={partnerId} partenaireNom={partner.name} />
 
         {/* BLOC 1 — 3 KPI cards */}
         <div className="grid grid-cols-3 gap-4">

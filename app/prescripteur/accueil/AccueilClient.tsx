@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, CalendarDays, FileText } from 'lucide-react'
-import { creerSessionResidence, scannerQrClient, getSessionActiveResidence, getResidencesPrescripteur } from '@/actions/prescripteurs'
-import type { ResidencePrescripteur } from '@/actions/prescripteurs'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, CalendarDays, FileText, Users } from 'lucide-react'
+import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 
-type Step = 'accueil' | 'scan_residence' | 'scan_client' | 'success' | 'error' | 'warn_no_session'
+type Step = 'accueil' | 'scan_partenaire' | 'confirme_partenaire' | 'scan_reservation' | 'success' | 'error'
 
 interface SessionInfo { uid: string; nom: string; type: string }
 interface ScanResult {
@@ -23,12 +22,10 @@ export default function AccueilClient() {
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [solde, setSolde] = useState(0)
   const [step, setStep] = useState<Step>('accueil')
-  const [residenceSessionId, setResidenceSessionId] = useState('')
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [nomResidenceActive, setNomResidenceActive] = useState('')
-  const [residences, setResidences] = useState<ResidencePrescripteur[]>([])
-  const [residencesLoaded, setResidencesLoaded] = useState(false)
+  const [nomPartenaire, setNomPartenaire] = useState('')
+  const [sessionPartenaire, setSessionPartenaire] = useState<{ session_id: string; nom_partenaire: string; expire_at: string } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -46,14 +43,15 @@ export default function AccueilClient() {
   // Enregistrement FCM au premier accès
   useFCM(session?.uid ?? null)
 
-  // Charger les résidences assignées avec disponibilité du jour
+  // Vérifier session partenaire active au chargement
   useEffect(() => {
-    if (!session?.uid || residencesLoaded) return
-    setResidencesLoaded(true)
-    getResidencesPrescripteur(session.uid)
-      .then(setResidences)
+    if (!session?.uid) return
+    getSessionActivePartenaire(session.uid)
+      .then((s) => {
+        if (s) setSessionPartenaire(s)
+      })
       .catch(() => {})
-  }, [session?.uid, residencesLoaded])
+  }, [session?.uid])
 
   const handleLogout = () => { sessionStorage.clear(); router.replace('/prescripteur') }
 
@@ -87,60 +85,24 @@ export default function AccueilClient() {
 
   useEffect(() => () => { stopCamera() }, [stopCamera])
 
-  // Scanner une résidence directement par ID (depuis la liste "Mes résidences")
-  const handleScannerResidenceDirecte = async (residenceId: string, nomResidence: string) => {
-    if (!session) return
-    setIsProcessing(true)
-    try {
-      const res = await creerSessionResidence(session.uid, residenceId)
-      if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
-      setResidenceSessionId(res.session_id!)
-      setNomResidenceActive(res.nom_residence ?? nomResidence)
-      setStep('scan_client')
-      setTimeout(() => { startCamera(handleScanClient) }, 300)
-    } catch {
-      setScanResult({ error: 'Erreur réseau. Réessayez.' }); setStep('error')
-    } finally { setIsProcessing(false) }
-  }
-
-  // Bouton 2 : scanner QR client, vérifie d'abord qu'une session résidence existe
-  const handleScanClientOnly = async () => {
-    if (!session) return
-    setIsProcessing(true)
-    try {
-      const activeSession = await getSessionActiveResidence(session.uid)
-      if (!activeSession) {
-        setStep('warn_no_session')
-        return
-      }
-      setResidenceSessionId(activeSession.session_id)
-      setNomResidenceActive('')
-      setStep('scan_client')
-      setTimeout(() => { startCamera(handleScanClient) }, 300)
-    } catch {
-      setStep('warn_no_session')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleScanResidence = () => {
-    setStep('scan_residence')
+  // SCAN 1 — QR partenaire
+  const handleScanPartenaire = () => {
+    setStep('scan_partenaire')
     setTimeout(() => {
       startCamera(async (data) => {
         setIsProcessing(true)
         try {
           const parsed = JSON.parse(data)
-          if (parsed.type !== 'residence' || !parsed.residence_id) {
-            setScanResult({ error: "QR invalide — ce n'est pas un QR résidence L&Lui." })
+          if (parsed.type !== 'partenaire' || !parsed.partenaire_id) {
+            setScanResult({ error: "QR invalide — ce n'est pas un QR partenaire L&Lui." })
             setStep('error'); return
           }
-          const res = await creerSessionResidence(session!.uid, parsed.residence_id)
+          const res = await creerSessionPartenaire(session!.uid, parsed.partenaire_id, parsed.nom ?? '')
           if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
-          setResidenceSessionId(res.session_id!)
-          setNomResidenceActive(res.nom_residence ?? parsed.nom ?? 'Résidence')
-          setStep('scan_client')
-          setTimeout(() => { startCamera(handleScanClient) }, 300)
+          const nom = res.nom_partenaire ?? parsed.nom ?? 'Partenaire'
+          setNomPartenaire(nom)
+          setSessionPartenaire({ session_id: res.session_id!, nom_partenaire: nom, expire_at: '' })
+          setStep('confirme_partenaire')
         } catch {
           setScanResult({ error: 'QR non reconnu. Réessayez.' }); setStep('error')
         } finally { setIsProcessing(false) }
@@ -148,26 +110,34 @@ export default function AccueilClient() {
     }, 300)
   }
 
-  const handleScanClient = useCallback(async (data: string) => {
+  // SCAN 2 — QR réservation client
+  const handleScanReservation = useCallback(async (data: string) => {
     setIsProcessing(true)
     try {
       const parsed = JSON.parse(data)
       if (parsed.type !== 'reservation' || !parsed.reservation_id) {
-        setScanResult({ error: "QR invalide — ce n'est pas un QR client L&Lui." })
+        setScanResult({ error: "QR invalide — ce n'est pas un QR réservation L&Lui." })
         setStep('error'); return
       }
-      const res = await scannerQrClient(session!.uid, parsed.reservation_id, residenceSessionId)
+      const res = await scannerQrReservation(session!.uid, parsed.reservation_id)
       if (!res.success) { setScanResult({ error: res.error ?? 'Erreur scan' }); setStep('error'); return }
       setScanResult(res)
       if (res.nouveau_solde !== undefined) {
         setSolde(res.nouveau_solde)
         sessionStorage.setItem('prescripteur_solde', String(res.nouveau_solde))
       }
+      // La session partenaire est maintenant "utilisée" → vider le state local
+      setSessionPartenaire(null)
       setStep('success')
     } catch {
       setScanResult({ error: 'QR non reconnu. Réessayez.' }); setStep('error')
     } finally { setIsProcessing(false) }
-  }, [session, residenceSessionId])
+  }, [session])
+
+  const handleDemarrerScanReservation = () => {
+    setStep('scan_reservation')
+    setTimeout(() => { startCamera(handleScanReservation) }, 300)
+  }
 
   if (!session) return (
     <div className="min-h-screen bg-dark flex items-center justify-center">
@@ -205,31 +175,47 @@ export default function AccueilClient() {
           )}
         </div>
 
-        {/* Accueil */}
+        {/* ── ACCUEIL ── */}
         {step === 'accueil' && (
           <div className="flex-1 flex flex-col gap-3">
+            {/* Session partenaire active */}
+            {sessionPartenaire && (
+              <div className="rounded-2xl bg-green-500/10 border border-green-400/30 px-4 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-green-300 text-xs uppercase tracking-widest">Session active</p>
+                  <p className="text-white font-medium text-sm">{sessionPartenaire.nom_partenaire}</p>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              </div>
+            )}
+
             <p className="text-white/60 text-sm text-center mb-1">
-              Scannez d&apos;abord le QR de la résidence, puis le QR du client.
+              {sessionPartenaire
+                ? 'Vous êtes positionné. Scannez le QR réservation du client.'
+                : 'Scannez d\'abord le QR du partenaire, puis le QR réservation du client.'}
             </p>
-            {/* BOUTON 1 : Scanner la résidence */}
+
+            {/* BOUTON 1 : Scanner le QR du partenaire */}
             <button
-              onClick={handleScanResidence}
+              onClick={handleScanPartenaire}
               className="w-full py-5 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-base flex items-center justify-center gap-3 transition-all active:scale-95"
             >
-              <QrCode size={22} /> Scanner une résidence
+              <QrCode size={22} /> {sessionPartenaire ? 'Changer de partenaire' : 'Scanner le QR du partenaire'}
             </button>
-            {/* BOUTON 2 : Scanner le QR du client (requiert session active) */}
+
+            {/* BOUTON 2 : Scanner le QR réservation client */}
             <button
-              onClick={handleScanClientOnly}
-              disabled={isProcessing}
-              className="w-full py-4 rounded-2xl border-2 border-gold-400/60 text-gold-300 hover:border-gold-400 hover:text-gold-200 font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              onClick={handleDemarrerScanReservation}
+              disabled={isProcessing || !sessionPartenaire}
+              className="w-full py-4 rounded-2xl border-2 border-gold-400/60 text-gold-300 hover:border-gold-400 hover:text-gold-200 font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isProcessing
                 ? <Loader2 size={16} className="animate-spin" />
                 : <QrCode size={16} />
               }
-              Scanner le QR du client
+              Scanner le QR réservation client
             </button>
+
             <button
               onClick={() => router.push('/prescripteur/disponibilites')}
               className="w-full py-4 rounded-2xl border border-white/20 text-white/70 hover:text-white hover:border-white/40 font-medium text-sm flex items-center justify-center gap-2 transition-all"
@@ -242,76 +228,46 @@ export default function AccueilClient() {
             >
               <FileText size={16} /> Mon rapport du mois
             </button>
-
-            {/* ── Mes résidences ── */}
-            {residences.length > 0 && (
-              <div className="mt-2 space-y-2">
-                <p className="text-white/40 text-xs uppercase tracking-widest text-center">Mes résidences</p>
-                {residences.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-lg">🏠</span>
-                      <div className="min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{r.nom}</p>
-                        <p className={`text-xs flex items-center gap-1 ${r.disponible ? 'text-green-400' : 'text-red-400'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full inline-block ${r.disponible ? 'bg-green-400' : 'bg-red-400'}`} />
-                          {r.disponible ? 'Disponible aujourd\'hui' : 'Occupée aujourd\'hui'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleScannerResidenceDirecte(r.id, r.nom)}
-                      disabled={isProcessing}
-                      className="shrink-0 px-3 py-1.5 rounded-xl bg-gold-500/80 hover:bg-gold-500 text-dark text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      <QrCode size={12} /> Scanner
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
-        {/* Avertissement : aucune session active */}
-        {step === 'warn_no_session' && (
+        {/* ── CONFIRMATION PARTENAIRE ── */}
+        {step === 'confirme_partenaire' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center">
-            <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center">
-              <span className="text-4xl">⚠️</span>
+            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
+              <CheckCircle2 size={40} className="text-green-400" />
             </div>
             <div>
-              <p className="text-xl font-semibold text-white">Résidence non scannée</p>
-              <p className="text-amber-300 text-sm mt-2 max-w-xs">
-                Scannez d&apos;abord le QR code de la résidence avant de scanner le QR du client.
+              <p className="text-xl font-semibold text-white">Vous êtes positionné !</p>
+              <p className="text-white/50 text-sm mt-1">
+                Chez <span className="text-gold-300 font-medium">{nomPartenaire}</span>
+              </p>
+              <p className="text-white/40 text-xs mt-2">
+                Session valide 2h · Attendez la réservation du client
               </p>
             </div>
             <button
-              onClick={() => { setStep('accueil'); handleScanResidence() }}
-              className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all"
+              onClick={handleDemarrerScanReservation}
+              className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <QrCode size={16} className="inline mr-2" />
-              Scanner une résidence
+              <QrCode size={16} /> Scanner le QR réservation maintenant
             </button>
             <button
               onClick={() => setStep('accueil')}
               className="text-white/40 text-sm underline"
             >
-              Annuler
+              Retour à l'accueil
             </button>
           </div>
         )}
 
-        {/* Scanner camera */}
-        {(step === 'scan_residence' || step === 'scan_client') && (
+        {/* ── CAMÉRA SCAN ── */}
+        {(step === 'scan_partenaire' || step === 'scan_reservation') && (
           <div className="flex-1 flex flex-col gap-4">
             <p className="text-center text-white/60 text-sm">
-              {step === 'scan_residence'
-              ? '📍 Scannez le QR code de la résidence'
-              : `👤 Scannez le QR du client${nomResidenceActive ? ` — ${nomResidenceActive}` : ''}`
-            }
+              {step === 'scan_partenaire'
+                ? '🏨 Scannez le QR code du partenaire hébergeur'
+                : `🎫 Scannez le QR réservation du client${nomPartenaire ? ` — ${nomPartenaire}` : ''}`}
             </p>
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-square max-w-sm mx-auto w-full">
               <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
@@ -326,7 +282,7 @@ export default function AccueilClient() {
               )}
             </div>
             <button
-              onClick={() => { stopCamera(); setStep('accueil') }}
+              onClick={() => { stopCamera(); setStep(sessionPartenaire ? 'confirme_partenaire' : 'accueil') }}
               className="text-white/40 hover:text-white/70 text-sm text-center underline"
             >
               Annuler
@@ -334,7 +290,7 @@ export default function AccueilClient() {
           </div>
         )}
 
-        {/* Success */}
+        {/* ── SUCCESS ── */}
         {step === 'success' && scanResult && (
           <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center">
             <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -355,15 +311,16 @@ export default function AccueilClient() {
               </p>
             </div>
             <button
-              onClick={() => { setScanResult(null); setResidenceSessionId(''); setStep('accueil') }}
+              onClick={() => { setScanResult(null); setStep('accueil') }}
               className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all active:scale-95"
             >
+              <Users size={16} className="inline mr-2" />
               Enregistrer un autre client
             </button>
           </div>
         )}
 
-        {/* Error */}
+        {/* ── ERROR ── */}
         {step === 'error' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center">
             <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -374,7 +331,7 @@ export default function AccueilClient() {
               <p className="text-red-300 text-sm mt-2 max-w-xs">{scanResult?.error}</p>
             </div>
             <button
-              onClick={() => { setScanResult(null); setResidenceSessionId(''); setStep('accueil') }}
+              onClick={() => { setScanResult(null); setStep('accueil') }}
               className="w-full max-w-xs py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-all"
             >
               Réessayer

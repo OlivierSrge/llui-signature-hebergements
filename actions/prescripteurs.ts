@@ -974,3 +974,156 @@ export async function getResidencesPrescripteur(
     return []
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// NOUVEAU FLUX : SESSION PARTENAIRE (scan QR partenaire → scan QR réservation)
+// ═══════════════════════════════════════════════════════════════
+
+export async function creerSessionPartenaire(
+  prescripteur_id: string,
+  partenaire_id: string,
+  nom_partenaire: string
+): Promise<{ success: boolean; session_id?: string; nom_partenaire?: string; error?: string }> {
+  try {
+    const prescDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
+
+    const partDoc = await db.collection('partenaires').doc(partenaire_id).get()
+    if (!partDoc.exists) return { success: false, error: 'Partenaire introuvable' }
+    const partNom = (partDoc.data()?.name ?? nom_partenaire) as string
+
+    const now = new Date()
+    const expire_at = new Date(now.getTime() + 2 * 60 * 60 * 1000) // TTL 2h
+
+    const ref = await db.collection('prescripteur_sessions').add({
+      prescripteur_id,
+      partenaire_id,
+      nom_partenaire: partNom,
+      created_at: now.toISOString(),
+      expire_at: expire_at.toISOString(),
+      statut: 'active',
+      type: 'partenaire',
+    })
+
+    return { success: true, session_id: ref.id, nom_partenaire: partNom }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function getSessionActivePartenaire(
+  prescripteur_id: string
+): Promise<{ session_id: string; partenaire_id: string; nom_partenaire: string; expire_at: string } | null> {
+  const now = new Date().toISOString()
+  const snap = await db
+    .collection('prescripteur_sessions')
+    .where('prescripteur_id', '==', prescripteur_id)
+    .where('type', '==', 'partenaire')
+    .where('statut', '==', 'active')
+    .where('expire_at', '>', now)
+    .orderBy('expire_at', 'desc')
+    .limit(1)
+    .get()
+  if (snap.empty) return null
+  const d = snap.docs[0]
+  const data = d.data()
+  return {
+    session_id: d.id,
+    partenaire_id: data.partenaire_id as string,
+    nom_partenaire: (data.nom_partenaire ?? '') as string,
+    expire_at: data.expire_at as string,
+  }
+}
+
+export async function scannerQrReservation(
+  prescripteur_id: string,
+  reservation_id: string
+): Promise<{ success: boolean; commission_fcfa?: number; nouveau_solde?: number; client_nom?: string; hebergement_nom?: string; error?: string }> {
+  try {
+    // Vérifier qu'une session partenaire active existe
+    const sessionActive = await getSessionActivePartenaire(prescripteur_id)
+    if (!sessionActive) return { success: false, error: 'Aucune session partenaire active. Scannez d\'abord le QR du partenaire.' }
+
+    // Récupérer la réservation
+    const resaDoc = await db.collection('reservations').doc(reservation_id).get()
+    if (!resaDoc.exists) return { success: false, error: 'Réservation introuvable' }
+    const resa = resaDoc.data()!
+
+    // Vérifications
+    if (resa.prescripteur_id) return { success: false, error: 'Un prescripteur est déjà associé à cette réservation' }
+    if (!['confirmee', 'en_attente'].includes(resa.reservation_status ?? '')) {
+      return { success: false, error: 'Réservation non confirmée ou annulée' }
+    }
+
+    // Vérifier que la réservation appartient bien au partenaire
+    const accDoc = await db.collection('hebergements').doc(resa.accommodation_id ?? '').get()
+    const hebergementNom: string = accDoc.exists
+      ? ((accDoc.data()?.name ?? accDoc.data()?.titre ?? 'Hébergement') as string)
+      : 'Hébergement'
+
+    if (accDoc.exists && accDoc.data()?.partner_id !== sessionActive.partenaire_id) {
+      return { success: false, error: 'Cette réservation ne correspond pas au partenaire scanné' }
+    }
+
+    // Récupérer le prescripteur
+    const prescripteurDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescripteurDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
+    const prescripteur = prescripteurDoc.data() as Prescripteur
+
+    const commission = prescripteur.commission_fcfa ?? 1500
+    const nouveauSolde = (prescripteur.solde_fcfa ?? 0) + commission
+
+    // Transaction atomique
+    await db.runTransaction(async (tx) => {
+      tx.update(db.collection('reservations').doc(reservation_id), {
+        prescripteur_id,
+        prescripteur_nom: prescripteur.nom_complet,
+        prescripteur_type: prescripteur.type,
+        prescripteur_code_promo: prescripteur.code_promo,
+        commission_prescripteur_fcfa: commission,
+        commission_statut: 'creditee',
+        prescripteur_session_id: sessionActive.session_id,
+        partenaire_id: sessionActive.partenaire_id,
+      })
+      tx.update(db.collection('prescripteurs').doc(prescripteur_id), {
+        solde_fcfa: nouveauSolde,
+        total_clients_amenes: FieldValue.increment(1),
+      })
+      tx.update(db.collection('prescripteur_sessions').doc(sessionActive.session_id), {
+        statut: 'utilisee',
+      })
+    })
+
+    // SMS + Push
+    const prenom = prescripteur.nom_complet.trim().split(' ')[0]
+    const clientNom = `${resa.guest_first_name ?? ''} ${resa.guest_last_name ?? ''}`.trim() || 'Client'
+    const message = `${prenom}, ${commission.toLocaleString('fr-FR')} FCFA crédités pour ${clientNom}. Nouveau solde : ${nouveauSolde.toLocaleString('fr-FR')} FCFA. — L&Lui Signature`
+    try { await sendWhatsApp(prescripteur.telephone, message) } catch {}
+    if (prescripteur.fcm_token) {
+      try {
+        await sendPushNotification(prescripteur.fcm_token, {
+          title: 'Commission reçue !',
+          body: `+${commission.toLocaleString('fr-FR')} FCFA — Client ${clientNom}. Solde : ${nouveauSolde.toLocaleString('fr-FR')} FCFA`,
+          url: '/prescripteur/accueil',
+        })
+      } catch {}
+    }
+
+    return { success: true, commission_fcfa: commission, nouveau_solde: nouveauSolde, client_nom: clientNom, hebergement_nom: hebergementNom }
+  } catch (err: any) {
+    console.error('[scannerQrReservation]', err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function compterPrescripteursActifsPartenaire(partenaire_id: string): Promise<number> {
+  const now = new Date().toISOString()
+  const snap = await db
+    .collection('prescripteur_sessions')
+    .where('partenaire_id', '==', partenaire_id)
+    .where('type', '==', 'partenaire')
+    .where('statut', '==', 'active')
+    .where('expire_at', '>', now)
+    .get()
+  return snap.size
+}
