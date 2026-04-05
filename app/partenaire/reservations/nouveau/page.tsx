@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import PartnerReservationForm from '@/components/partner/PartnerReservationForm'
 import { getEffectivePermissions } from '@/actions/subscriptions'
+import { getSessionPrescripteurActifPartenaire } from '@/actions/prescripteurs'
 
 async function getPartnerAccommodations(partnerId: string) {
   const snap = await db.collection('hebergements')
@@ -34,6 +35,7 @@ export default async function PartnerNewReservationPage({
   if (!permissions.canCreateReservations) redirect('/partenaire/upgrade')
 
   const accommodations = await getPartnerAccommodations(partnerId)
+  const prescripteurActif = await getSessionPrescripteurActifPartenaire(partnerId).catch(() => null)
   const sp = await searchParams
 
   const initialValues = {
@@ -82,6 +84,7 @@ export default async function PartnerNewReservationPage({
             accommodations={accommodations}
             initialValues={initialValues}
             fromDemandId={fromDemand}
+            prescripteurActif={prescripteurActif}
           />
         )}
       </main>

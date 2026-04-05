@@ -1052,19 +1052,19 @@ export async function scannerQrReservation(
     // Vérification statut_prescription
     const statutPrescription = resa.statut_prescription as string | undefined
     if (!statutPrescription || statutPrescription === 'sans_prescripteur') {
-      return { success: false, error: "Cette reservation n'a pas de prescripteur lie." }
+      return { success: false, error: "Cette réservation n'a pas de prescripteur lié." }
     }
     if (statutPrescription === 'prescripteur_present' || statutPrescription === 'disponibilite_confirmee') {
-      return { success: false, error: "Le partenaire n'a pas encore confirme le paiement. Patientez." }
+      return { success: false, error: "⏳ Le partenaire n'a pas encore confirmé le paiement. Patientez." }
     }
     if (statutPrescription === 'commission_versee') {
-      return { success: false, error: 'Ce QR a deja ete scanne. Commission deja versee.' }
+      return { success: false, error: '❌ Ce QR a déjà été scanné. Commission déjà versée.' }
     }
     if (resa.qr_utilise === true) {
-      return { success: false, error: 'Ce QR a deja ete utilise.' }
+      return { success: false, error: '❌ Ce QR a déjà été utilisé.' }
     }
     if (resa.qr_expire_at && new Date(resa.qr_expire_at as string) < new Date()) {
-      return { success: false, error: 'Ce QR a expire. Contactez le partenaire.' }
+      return { success: false, error: '❌ Ce QR a expiré. Contactez le partenaire.' }
     }
     if (statutPrescription !== 'paiement_confirme') {
       return { success: false, error: 'Statut de reservation invalide pour ce scan.' }

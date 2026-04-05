@@ -28,9 +28,10 @@ interface Props {
   accommodations: Accommodation[]
   initialValues?: InitialValues
   fromDemandId?: string | null
+  prescripteurActif?: { nom_complet: string; expire_at: string } | null
 }
 
-export default function PartnerReservationForm({ accommodations, initialValues, fromDemandId }: Props) {
+export default function PartnerReservationForm({ accommodations, initialValues, fromDemandId, prescripteurActif }: Props) {
   const [isPending, startTransition] = useTransition()
   const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string; qr_reservation_url?: string; guestPhone?: string } | null>(null)
   const [checkIn, setCheckIn] = useState(initialValues?.check_in || '')
@@ -132,6 +133,17 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
   // ─── Form ─────────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Prescripteur present */}
+      {prescripteurActif && (
+        <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 flex items-center gap-2">
+          <span>🏍</span>
+          <div>
+            <strong>Prescripteur présent :</strong> {prescripteurActif.nom_complet}
+            <span className="text-green-600 ml-2">— Commission : 1 500 FCFA</span>
+          </div>
+        </div>
+      )}
+
       {/* Hébergement */}
       <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
         <h2 className="font-semibold text-dark border-b border-beige-100 pb-3">Hébergement</h2>
