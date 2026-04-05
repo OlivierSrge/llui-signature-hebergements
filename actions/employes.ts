@@ -75,11 +75,17 @@ export async function creerEmploye(
 // ─── Lister les employés d'un partenaire ─────────────────────
 
 export async function getEmployes(partenaireId: string): Promise<Employe[]> {
-  const snap = await db.collection('employes_partenaire')
-    .where('partenaire_id', '==', partenaireId)
-    .orderBy('created_at', 'desc')
-    .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Employe))
+  try {
+    const snap = await db.collection('employes_partenaire')
+      .where('partenaire_id', '==', partenaireId)
+      .get()
+    const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Employe))
+    // Tri côté client (évite index Firestore composite)
+    return docs.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+  } catch (err) {
+    console.error('[getEmployes]', err)
+    return []
+  }
 }
 
 // ─── Changer le statut (actif <-> suspendu) ───────────────────
@@ -184,15 +190,16 @@ export async function getReservationsDuJour(
 
     const all: ReservationResumee[] = []
     for (const chunk of chunks) {
+      // Requête simple sans index composite : filtrer côté client
       const snap = await db.collection('reservations')
         .where('accommodation_id', 'in', chunk)
-        .where('check_in', '>=', todayStr)
-        .where('check_in', '<=', todayStr + 'Z')
-        .orderBy('check_in', 'desc')
-        .limit(20)
+        .limit(50)
         .get()
       snap.docs.forEach((d) => {
         const data = d.data()
+        const checkIn = (data.check_in ?? '') as string
+        // Garder seulement les réservations d'aujourd'hui (filtre client)
+        if (!checkIn.startsWith(todayStr)) return
         all.push({
           id: d.id,
           guest_first_name: (data.guest_first_name ?? '') as string,

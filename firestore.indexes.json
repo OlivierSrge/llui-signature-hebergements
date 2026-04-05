@@ -35,6 +35,14 @@
         { "fieldPath": "partner_id", "order": "ASCENDING" },
         { "fieldPath": "statut_prescription", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "employes_partenaire",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

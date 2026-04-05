@@ -191,19 +191,19 @@ export default async function PartnerDashboardPage() {
   if (!partnerId) redirect('/partenaire')
 
   const [partner, accommodations, stats, subscription] = await Promise.all([
-    getPartner(partnerId),
-    getPartnerAccommodations(partnerId),
-    getPartnerStats(partnerId),
-    getPartnerSubscription(partnerId),
+    getPartner(partnerId).catch(() => null),
+    getPartnerAccommodations(partnerId).catch(() => []),
+    getPartnerStats(partnerId).catch(() => ({ revenue_month: 0, arrivals_week: 0, pending_count: 0, monthly_confirmed: 0, level: 'Actif', stars: 1, nextTarget: 11 })),
+    getPartnerSubscription(partnerId).catch(() => null),
   ])
 
   if (!partner) redirect('/partenaire')
 
   const accommodationIds = accommodations.map((a: any) => a.id)
   const [reservations, partnerDemands, employes] = await Promise.all([
-    getPartnerReservations(accommodationIds),
-    getPartnerPendingDemands(accommodationIds),
-    getEmployes(partnerId),
+    getPartnerReservations(accommodationIds).catch(() => []),
+    getPartnerPendingDemands(accommodationIds).catch(() => []),
+    getEmployes(partnerId).catch(() => []),
   ])
 
   const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
@@ -224,9 +224,9 @@ export default async function PartnerDashboardPage() {
   await Promise.all(
     accommodations.map(async (acc: any) => {
       const [unavail, accReservations, demands] = await Promise.all([
-        getUnavailableDates(acc.id),
-        getAccommodationReservations(acc.id),
-        getAccommodationDemands(acc.id),
+        getUnavailableDates(acc.id).catch(() => [] as string[]),
+        getAccommodationReservations(acc.id).catch(() => ({ confirmed: [], pending: [] })),
+        getAccommodationDemands(acc.id).catch(() => [] as { check_in: string; check_out: string; guest_name: string }[]),
       ])
       unavailableMap[acc.id] = unavail
       confirmedReservationsMap[acc.id] = accReservations.confirmed
