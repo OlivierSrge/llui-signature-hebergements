@@ -84,6 +84,9 @@ export async function createPartner(formData: FormData): Promise<ActionResult> {
       billingCycle: (formData.get('billingCycle') as string) || 'monthly',
       commissionRate: Number(formData.get('commissionRate')) || null,
       maxAccommodations: formData.get('maxAccommodations') ? Number(formData.get('maxAccommodations')) : null,
+      latitude: formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : null,
+      longitude: formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : null,
+      adresse_gps: (formData.get('adresse_gps') as string) || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -136,6 +139,9 @@ export async function updatePartner(id: string, formData: FormData): Promise<Act
       updated_at: new Date().toISOString(),
     }
     if (pin) updateData.access_pin = pin
+    if (formData.get('latitude')) updateData.latitude = parseFloat(formData.get('latitude') as string)
+    if (formData.get('longitude')) updateData.longitude = parseFloat(formData.get('longitude') as string)
+    if (formData.get('adresse_gps')) updateData.adresse_gps = formData.get('adresse_gps') as string
 
     await db.collection('partenaires').doc(id).update(updateData)
 
@@ -240,5 +246,31 @@ export async function sauvegarderGpsPartenaire(
   } catch (err: any) {
     console.error('[sauvegarderGpsPartenaire]', err)
     return { success: false, error: err.message }
+  }
+}
+
+export interface PartenaireGps {
+  id: string
+  name: string
+  latitude: number
+  longitude: number
+  address: string
+}
+
+export async function getAllPartenairesAvecGps(): Promise<PartenaireGps[]> {
+  try {
+    const snap = await db.collection('partenaires').where('is_active', '==', true).get()
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as any))
+      .filter((p: any) => typeof p.latitude === 'number' && typeof p.longitude === 'number')
+      .map((p: any) => ({
+        id: p.id as string,
+        name: (p.name ?? 'Partenaire') as string,
+        latitude: p.latitude as number,
+        longitude: p.longitude as number,
+        address: ((p.adresse_gps ?? p.address) ?? '') as string,
+      }))
+  } catch {
+    return []
   }
 }
