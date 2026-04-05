@@ -77,7 +77,7 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
 
   const handleRegenerate = async () => {
     const confirmed = window.confirm(
-      'Regenerer le QR ? Les sessions prescripteurs en cours seront annulees.'
+      'Régénérer le QR ? Les sessions prescripteurs en cours seront annulées.'
     )
     if (!confirmed) return
     setIsSaving(true)
@@ -137,7 +137,7 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
               disabled={!qrDataUrl}
               className="flex items-center gap-2 px-4 py-2 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors disabled:opacity-40"
             >
-              <Maximize2 size={14} /> Plein ecran
+              <Maximize2 size={14} /> Plein écran
             </button>
             <button
               onClick={handleRegenerate}
@@ -145,12 +145,12 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
               className="flex items-center gap-2 px-4 py-2 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors disabled:opacity-40"
             >
               <RefreshCw size={14} className={isGenerating || isSaving ? 'animate-spin' : ''} />
-              Regenerer
+              Régénérer
             </button>
           </div>
 
           <p className="text-xs text-dark/40 text-center max-w-xs">
-            Affichez ce QR a l&apos;entree ou montrez votre telephone au moto-taxi.
+            Affichez ce QR à l&apos;entrée ou montrez votre téléphone au moto-taxi.
             La session est valide <strong>2 heures</strong>.
           </p>
         </div>
@@ -176,7 +176,7 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
             className="flex items-center gap-2 px-5 py-2.5 border border-beige-300 rounded-xl text-sm text-dark/60 hover:bg-beige-50 transition-colors disabled:opacity-40"
           >
             <RefreshCw size={14} className={isGenerating || isSaving ? 'animate-spin' : ''} />
-            Regenerer le QR
+            Régénérer le QR
           </button>
         </div>
       )}

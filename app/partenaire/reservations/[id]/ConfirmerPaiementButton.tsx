@@ -21,7 +21,7 @@ export default function ConfirmerPaiementButton({ reservationId }: Props) {
         toast.error(res.error ?? 'Erreur lors de la confirmation')
       } else {
         setDone(true)
-        toast.success('Paiement confirme — le prescripteur est notifie')
+        toast.success('Paiement confirmé — le prescripteur est notifié')
       }
     } finally {
       setIsLoading(false)
@@ -32,7 +32,7 @@ export default function ConfirmerPaiementButton({ reservationId }: Props) {
     return (
       <div className="flex items-center gap-2 text-green-700 text-sm font-medium py-2">
         <CheckCircle2 size={16} />
-        Paiement confirme — en attente du scan moto-taxi
+        Paiement confirmé — en attente du scan moto-taxi
       </div>
     )
   }
