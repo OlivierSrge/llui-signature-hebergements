@@ -8,8 +8,10 @@ import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, File
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import QrPrescripteurSection from '@/components/partner/QrPrescripteurSection'
+import EmployesSection from '@/components/partner/EmployesSection'
 import { getPartnerSubscription } from '@/actions/subscriptions'
 import { getPartnerPendingDemands } from '@/actions/availability-requests'
+import { getEmployes } from '@/actions/employes'
 import { PLANS } from '@/lib/plans'
 
 async function getPartner(partnerId: string) {
@@ -198,9 +200,10 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect('/partenaire')
 
   const accommodationIds = accommodations.map((a: any) => a.id)
-  const [reservations, partnerDemands] = await Promise.all([
+  const [reservations, partnerDemands, employes] = await Promise.all([
     getPartnerReservations(accommodationIds),
     getPartnerPendingDemands(accommodationIds),
+    getEmployes(partnerId),
   ])
 
   const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
@@ -382,6 +385,9 @@ export default async function PartnerDashboardPage() {
 
         {/* ── QR Prescripteur ── */}
         <QrPrescripteurSection partenaireId={partnerId} partenaireNom={partner.name} />
+
+        {/* ── Mes Employes ── */}
+        <EmployesSection partenaireId={partnerId} employes={employes} />
 
         {/* BLOC 1 — 3 KPI cards */}
         <div className="grid grid-cols-3 gap-4">
