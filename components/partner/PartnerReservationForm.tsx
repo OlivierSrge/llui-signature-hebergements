@@ -78,33 +78,57 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
           )}
         </div>
 
-        <div className="bg-beige-50 rounded-xl px-6 py-4">
-          <p className="text-xs text-dark/40 mb-1">Numéro de réservation</p>
-          <p className="font-mono text-lg font-bold text-dark tracking-widest">{result.confirmationCode}</p>
+        {/* ── QR Arrivée client ── */}
+        <div className="w-full rounded-xl bg-beige-50 border border-beige-200 p-4 text-left">
+          <p className="text-xs font-semibold text-dark/50 uppercase tracking-widest mb-2">
+            QR Arrivee Client
+          </p>
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={result.qrCodeUrl} alt="QR arrivee" width={80} height={80} className="rounded-lg border border-beige-200 shrink-0" />
+            <div>
+              <p className="font-mono text-base font-bold text-dark tracking-widest">{result.confirmationCode}</p>
+              <p className="text-xs text-dark/50 mt-1">A scanner par le partenaire a l&apos;arrivee du client</p>
+              {result.guestPhone && (
+                <p className="text-xs text-green-600 mt-1">Envoye au client par WhatsApp</p>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* ── QR Prescripteur (moto-taxi) ── */}
         {result.qr_reservation_url && (
-          <div className="flex flex-col items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={result.qr_reservation_url}
-              alt="QR reservation"
-              width={200}
-              height={200}
-              className="rounded-xl border border-beige-200"
-            />
-            <p className="text-xs text-dark/40">QR à présenter à l&apos;arrivée</p>
-            {result.code_manuel_prescripteur && (
-              <div className="w-full rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 text-left">
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-1">Code manuel</p>
-                <p className="font-mono text-2xl font-bold text-dark tracking-[0.2em]">
-                  {result.code_manuel_prescripteur.slice(0, 3)} {result.code_manuel_prescripteur.slice(3)}
+          <div className="w-full rounded-xl bg-amber-50 border-2 border-amber-300 p-4 text-left">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-1">
+              🏍 QR Prescripteur
+            </p>
+            <div className="flex items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={result.qr_reservation_url}
+                alt="QR prescripteur"
+                width={100}
+                height={100}
+                className="rounded-xl border border-amber-200 shrink-0"
+              />
+              <div className="flex-1">
+                <p className="text-xs text-amber-800 font-medium mb-2">
+                  A scanner par le moto-taxi APRES confirmation du paiement
                 </p>
-                <p className="text-xs text-amber-600 mt-1">
-                  Dictez ce code au moto-taxi si le scan QR est impossible
-                </p>
+                <p className="text-xs text-amber-600 mb-1">Ce QR est DIFFERENT du QR arrivee ci-dessus.</p>
+                {result.code_manuel_prescripteur && (
+                  <div className="mt-2">
+                    <p className="text-xs text-amber-700 font-semibold">Code manuel :</p>
+                    <p className="font-mono text-xl font-bold text-dark tracking-[0.2em]">
+                      {result.code_manuel_prescripteur.slice(0, 3)} {result.code_manuel_prescripteur.slice(3)}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Dictez ce code si le scan est impossible
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 

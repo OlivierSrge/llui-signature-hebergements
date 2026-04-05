@@ -214,6 +214,52 @@ export default async function PartnerReservationDetailPage({
           </div>
         )}
 
+        {/* ── QR Prescripteur (moto-taxi) — visible si QR généré ── */}
+        {res.qr_reservation_url && res.statut_prescription !== 'commission_versee' && (
+          <div className="rounded-2xl bg-amber-50 border-2 border-amber-300 p-5">
+            <h2 className="font-semibold text-amber-800 mb-3 flex items-center gap-2 text-sm">
+              🏍 QR Code Prescripteur
+              <span className="text-amber-600 font-normal">(A scanner par le moto-taxi)</span>
+            </h2>
+            <div className="flex items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={res.qr_reservation_url}
+                alt="QR prescripteur"
+                width={120}
+                height={120}
+                className="rounded-xl border border-amber-200 shrink-0"
+              />
+              <div className="flex-1 text-sm">
+                <p className="text-amber-700 text-xs mb-2">
+                  Ce QR est distinct du QR d&apos;arrivee client (LLS-XXXX).<br />
+                  Le moto-taxi doit scanner CE QR apres confirmation du paiement.
+                </p>
+                {res.code_manuel_prescripteur && (
+                  <div className="mb-2">
+                    <p className="text-xs text-amber-700 font-semibold">Code manuel :</p>
+                    <p className="font-mono text-xl font-bold text-dark tracking-[0.2em]">
+                      {String(res.code_manuel_prescripteur).slice(0, 3)} {String(res.code_manuel_prescripteur).slice(3)}
+                    </p>
+                    <p className="text-xs text-amber-600">A dicter si scan impossible</p>
+                  </div>
+                )}
+                <div className="mt-2">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    res.statut_prescription === 'paiement_confirme'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {res.statut_prescription === 'paiement_confirme'
+                      ? '✅ Pret — le moto-taxi peut scanner'
+                      : '⏳ En attente de confirmation paiement'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Bandeau prescripteur ── */}
         {(res.statut_prescription === 'disponibilite_confirmee' || res.statut_prescription === 'prescripteur_present') && (
           <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5">

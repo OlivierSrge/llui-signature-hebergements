@@ -290,7 +290,14 @@ export default function AccueilClient() {
       setCountdown(10)
       setStep('success')
     } catch {
-      setScanResult({ error: 'QR non reconnu. Réessayez.' }); setStep('error')
+      // Détecter si c'est le QR arrivée client (LLS- ou URL scanner)
+      const isQrArrivee = data.includes('LLS-') || data.includes('/partenaire/scanner') || data.includes('/scanner?code=')
+      if (isQrArrivee) {
+        setScanResult({ error: "Ce QR est le QR d'arrivee du client (LLS-XXXX). Demandez au partenaire le QR prescripteur affiche separement sur son ecran." })
+      } else {
+        setScanResult({ error: 'QR non reconnu. Reessayez.' })
+      }
+      setStep('error')
     } finally { setIsProcessing(false) }
   }, [session])
 
