@@ -995,10 +995,14 @@ export async function creerSessionPartenaire(
     const now = new Date()
     const expire_at = new Date(now.getTime() + 2 * 60 * 60 * 1000) // TTL 2h
 
+    const prescData = prescDoc.data()!
+    const nom_prescripteur = (prescData.nom_complet ?? '') as string
+
     const ref = await db.collection('prescripteur_sessions').add({
       prescripteur_id,
       partenaire_id,
       nom_partenaire: partNom,
+      nom_prescripteur,
       created_at: now.toISOString(),
       expire_at: expire_at.toISOString(),
       statut: 'active',
@@ -1213,6 +1217,17 @@ export async function sauvegarderQrEtablissement(
   qrData: string,
 ): Promise<{ success: boolean; qr_url?: string; error?: string }> {
   try {
+    // Invalider les sessions prescripteurs actives pour ce partenaire
+    const sessionsActives = await db.collection('prescripteur_sessions')
+      .where('partenaire_id', '==', partenaireId)
+      .where('statut', '==', 'active')
+      .get()
+    const batch = db.batch()
+    sessionsActives.docs.forEach((doc) => {
+      batch.update(doc.ref, { statut: 'annulee' })
+    })
+    if (!sessionsActives.empty) await batch.commit()
+
     const QRCodeLib = (await import('qrcode')).default
     const qrBuffer = await QRCodeLib.toBuffer(qrData, { type: 'png', width: 400, margin: 2 })
     const bucket = getStorageBucket()
