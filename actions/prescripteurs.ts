@@ -511,20 +511,36 @@ export async function verifierPinPrescripteur(
 export async function creerSessionResidence(
   prescripteur_id: string,
   residence_id: string
-): Promise<{ success: boolean; session_id?: string; error?: string }> {
+): Promise<{ success: boolean; session_id?: string; nom_residence?: string; error?: string }> {
   try {
+    // Vérifier que le prescripteur est assigné à cette résidence
+    const prescDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
+    const presc = prescDoc.data() as Prescripteur
+    const assignes: string[] = presc.hebergements_assignes ?? []
+    if (!assignes.includes(residence_id)) {
+      return { success: false, error: "Vous n'êtes pas assigné à cette résidence." }
+    }
+
+    // Récupérer le nom de la résidence
+    const hebergDoc = await db.collection('hebergements').doc(residence_id).get()
+    const nom_residence = hebergDoc.exists
+      ? ((hebergDoc.data()?.name ?? hebergDoc.data()?.titre ?? 'Résidence') as string)
+      : 'Résidence'
+
     const now = new Date()
-    const expire_at = new Date(now.getTime() + 2 * 60 * 60 * 1000) // +2h
+    const expire_at = new Date(now.getTime() + 2 * 60 * 60 * 1000) // TTL 2h
 
     const ref = await db.collection('prescripteur_sessions').add({
       prescripteur_id,
       residence_id,
+      nom_residence,
       created_at: now.toISOString(),
       expire_at: expire_at.toISOString(),
       statut: 'active',
     })
 
-    return { success: true, session_id: ref.id }
+    return { success: true, session_id: ref.id, nom_residence }
   } catch (err: any) {
     return { success: false, error: err.message }
   }

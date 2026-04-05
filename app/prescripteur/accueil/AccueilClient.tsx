@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, CalendarDays, FileText } from 'lucide-react'
-import { creerSessionResidence, scannerQrClient } from '@/actions/prescripteurs'
+import { creerSessionResidence, scannerQrClient, getSessionActiveResidence } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 
-type Step = 'accueil' | 'scan_residence' | 'scan_client' | 'success' | 'error'
+type Step = 'accueil' | 'scan_residence' | 'scan_client' | 'success' | 'error' | 'warn_no_session'
 
 interface SessionInfo { uid: string; nom: string; type: string }
 interface ScanResult {
@@ -25,6 +25,7 @@ export default function AccueilClient() {
   const [residenceSessionId, setResidenceSessionId] = useState('')
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [nomResidenceActive, setNomResidenceActive] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -74,6 +75,27 @@ export default function AccueilClient() {
 
   useEffect(() => () => { stopCamera() }, [stopCamera])
 
+  // Bouton 2 : scanner QR client, vérifie d'abord qu'une session résidence existe
+  const handleScanClientOnly = async () => {
+    if (!session) return
+    setIsProcessing(true)
+    try {
+      const activeSession = await getSessionActiveResidence(session.uid)
+      if (!activeSession) {
+        setStep('warn_no_session')
+        return
+      }
+      setResidenceSessionId(activeSession.session_id)
+      setNomResidenceActive('')
+      setStep('scan_client')
+      setTimeout(() => { startCamera(handleScanClient) }, 300)
+    } catch {
+      setStep('warn_no_session')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleScanResidence = () => {
     setStep('scan_residence')
     setTimeout(() => {
@@ -88,6 +110,7 @@ export default function AccueilClient() {
           const res = await creerSessionResidence(session!.uid, parsed.residence_id)
           if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
           setResidenceSessionId(res.session_id!)
+          setNomResidenceActive(res.nom_residence ?? parsed.nom ?? 'Résidence')
           setStep('scan_client')
           setTimeout(() => { startCamera(handleScanClient) }, 300)
         } catch {
@@ -158,13 +181,26 @@ export default function AccueilClient() {
         {step === 'accueil' && (
           <div className="flex-1 flex flex-col gap-3">
             <p className="text-white/60 text-sm text-center mb-1">
-              Scannez d'abord le QR de la résidence, puis le QR du client.
+              Scannez d&apos;abord le QR de la résidence, puis le QR du client.
             </p>
+            {/* BOUTON 1 : Scanner la résidence */}
             <button
               onClick={handleScanResidence}
               className="w-full py-5 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-base flex items-center justify-center gap-3 transition-all active:scale-95"
             >
               <QrCode size={22} /> Scanner une résidence
+            </button>
+            {/* BOUTON 2 : Scanner le QR du client (requiert session active) */}
+            <button
+              onClick={handleScanClientOnly}
+              disabled={isProcessing}
+              className="w-full py-4 rounded-2xl border-2 border-gold-400/60 text-gold-300 hover:border-gold-400 hover:text-gold-200 font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isProcessing
+                ? <Loader2 size={16} className="animate-spin" />
+                : <QrCode size={16} />
+              }
+              Scanner le QR du client
             </button>
             <button
               onClick={() => router.push('/prescripteur/disponibilites')}
@@ -181,11 +217,42 @@ export default function AccueilClient() {
           </div>
         )}
 
+        {/* Avertissement : aucune session active */}
+        {step === 'warn_no_session' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center">
+            <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <span className="text-4xl">⚠️</span>
+            </div>
+            <div>
+              <p className="text-xl font-semibold text-white">Résidence non scannée</p>
+              <p className="text-amber-300 text-sm mt-2 max-w-xs">
+                Scannez d&apos;abord le QR code de la résidence avant de scanner le QR du client.
+              </p>
+            </div>
+            <button
+              onClick={() => { setStep('accueil'); handleScanResidence() }}
+              className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all"
+            >
+              <QrCode size={16} className="inline mr-2" />
+              Scanner une résidence
+            </button>
+            <button
+              onClick={() => setStep('accueil')}
+              className="text-white/40 text-sm underline"
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+
         {/* Scanner camera */}
         {(step === 'scan_residence' || step === 'scan_client') && (
           <div className="flex-1 flex flex-col gap-4">
             <p className="text-center text-white/60 text-sm">
-              {step === 'scan_residence' ? '📍 Scannez le QR code de la résidence' : '👤 Scannez le QR code du client'}
+              {step === 'scan_residence'
+              ? '📍 Scannez le QR code de la résidence'
+              : `👤 Scannez le QR du client${nomResidenceActive ? ` — ${nomResidenceActive}` : ''}`
+            }
             </p>
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-square max-w-sm mx-auto w-full">
               <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
