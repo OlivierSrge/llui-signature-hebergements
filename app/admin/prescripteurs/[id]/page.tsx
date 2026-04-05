@@ -61,16 +61,11 @@ export default async function PrescripteurDetailPage({ params }: { params: { id:
           >
             <Pencil size={14} /> Modifier
           </Link>
-          {prescripteur.hebergements_assignes?.map((hId) => (
-            <Link
-              key={hId}
-              href={`/admin/prescripteurs/qr-residence/${hId}`}
-              target="_blank"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gold-300 text-sm font-medium text-gold-700 hover:bg-gold-50 transition-colors"
-            >
-              <QrCode size={14} /> QR {hId.slice(-4).toUpperCase()}
-            </Link>
-          ))}
+          {prescripteur.hebergements_assignes?.length > 0 && (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-beige-200 text-sm text-dark/40 bg-beige-50">
+              <QrCode size={14} /> {prescripteur.hebergements_assignes.length} résidence{prescripteur.hebergements_assignes.length > 1 ? 's' : ''} assignée{prescripteur.hebergements_assignes.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 

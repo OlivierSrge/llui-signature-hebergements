@@ -58,16 +58,15 @@ export default function QRResidencePrint({ nom, qrPayload }: Props) {
         {/* Nom de la résidence */}
         <div className="text-center">
           <p className="font-serif text-lg font-semibold text-dark">{nom}</p>
-          <p className="text-dark/40 text-xs mt-1">QR Code Prescripteur</p>
+          <p className="text-dark/40 text-xs mt-1">QR Code Résidence (archivé)</p>
         </div>
 
         {/* Instructions */}
-        <div className="bg-[#F5F0E8] rounded-2xl p-4 w-full text-center">
-          <p className="text-dark/70 text-xs leading-relaxed">
-            <span className="font-semibold text-dark">Mode d'emploi :</span><br />
-            1. Scannez ce QR code avec votre appli prescripteur<br />
-            2. Scannez ensuite le QR code du client<br />
-            3. Votre commission est créditée automatiquement !
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 w-full text-center">
+          <p className="text-amber-800 text-xs leading-relaxed">
+            <span className="font-semibold">Note :</span> Ce QR par résidence est désactivé.<br />
+            Le moto-taxi utilise désormais le <strong>QR partenaire</strong><br />
+            affiché dans le dashboard partenaire.
           </p>
         </div>
 
