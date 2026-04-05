@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, Home, Timer } from 'lucide-react'
 import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation, envoyerAlerte15Min } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
+import PartenairesProches from '@/components/prescripteur/PartenairesProches'
 import {
   ajouterAlaFile,
   getActionsNonSynchronisees,
@@ -312,6 +313,31 @@ export default function AccueilClient() {
     setTimeout(() => { startCamera(handleScanReservation) }, 300)
   }
 
+  // Scan direct depuis la liste géo — crée la session sans passer par la caméra
+  const handleScannerDepuisListe = useCallback(async (partenaireId: string, nomPartenaire: string) => {
+    if (!session) return
+    setIsProcessing(true)
+    try {
+      if (!navigator.onLine) {
+        await ajouterAlaFile({ type: 'scan_partenaire', data: { partenaire_id: partenaireId, nom: nomPartenaire }, timestamp: Date.now(), synced: false })
+        setNomPartenaire(nomPartenaire)
+        setSessionPartenaire({ session_id: 'offline', nom_partenaire: nomPartenaire, expire_at: '' })
+        setStep('confirme_partenaire')
+        setSyncMessage('Scan enregistre hors-ligne. Sera synchronise des reconnexion.')
+        setTimeout(() => setSyncMessage(null), 5000)
+        return
+      }
+      const res = await creerSessionPartenaire(session.uid, partenaireId, nomPartenaire)
+      if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
+      const nom = res.nom_partenaire ?? nomPartenaire
+      setNomPartenaire(nom)
+      setSessionPartenaire({ session_id: res.session_id!, nom_partenaire: nom, expire_at: '' })
+      setStep('confirme_partenaire')
+    } catch {
+      setScanResult({ error: 'Erreur connexion partenaire.' }); setStep('error')
+    } finally { setIsProcessing(false) }
+  }, [session])
+
   // Compte a rebours écran succès
   useEffect(() => {
     if (step !== 'success') return
@@ -480,6 +506,9 @@ export default function AccueilClient() {
             >
               <FileText size={16} /> Mon rapport du mois
             </button>
+
+            {/* Partenaires proches (géolocalisation) */}
+            <PartenairesProches onScannerPartenaire={handleScannerDepuisListe} />
           </div>
         )}
 
