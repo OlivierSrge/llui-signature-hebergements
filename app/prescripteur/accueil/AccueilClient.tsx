@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, CalendarDays, FileText, Users } from 'lucide-react'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users } from 'lucide-react'
 import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 
@@ -221,12 +221,6 @@ export default function AccueilClient() {
               Scanner le QR réservation client
             </button>
 
-            <button
-              onClick={() => router.push('/prescripteur/disponibilites')}
-              className="w-full py-4 rounded-2xl border border-white/20 text-white/70 hover:text-white hover:border-white/40 font-medium text-sm flex items-center justify-center gap-2 transition-all"
-            >
-              <CalendarDays size={16} /> Disponibilités (14 jours)
-            </button>
             <button
               onClick={() => router.push('/prescripteur/rapport')}
               className="w-full py-4 rounded-2xl border border-white/20 text-white/70 hover:text-white hover:border-white/40 font-medium text-sm flex items-center justify-center gap-2 transition-all"
