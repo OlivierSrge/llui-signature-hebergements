@@ -3,13 +3,19 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
+import dynamic from 'next/dynamic'
 import {
   Loader2, Trash2, Save, Copy, Check, Tag, KeyRound, Eye, EyeOff,
-  MessageCircle, Percent, CreditCard, CalendarDays, Zap, Building2,
+  MessageCircle, Percent, CreditCard, CalendarDays, Zap, Building2, MapPin,
 } from 'lucide-react'
 import { createPartner, updatePartner, deletePartner } from '@/actions/partners'
 import type { Partner } from '@/lib/types'
 import { PLANS, PLAN_ORDER, type PlanId, type BillingCycle } from '@/lib/plans'
+
+const MapPickerPartenaire = dynamic(
+  () => import('@/components/admin/MapPickerPartenaire'),
+  { ssr: false, loading: () => <div className="h-[450px] rounded-2xl border border-beige-200 bg-beige-50 flex items-center justify-center text-dark/30 text-sm">Chargement de la carte...</div> }
+)
 
 interface Props {
   partner?: Partner
@@ -91,6 +97,11 @@ export default function PartnerForm({ partner }: Props) {
   const endDate = addMonths(startDate, cycleMonths)
   const trialEnd = addMonths(today, 1)
 
+  // GPS state
+  const [gpsLat, setGpsLat] = useState<number | null>((partner as any)?.latitude ?? null)
+  const [gpsLng, setGpsLng] = useState<number | null>((partner as any)?.longitude ?? null)
+  const [gpsAdresse, setGpsAdresse] = useState<string>((partner as any)?.adresse_gps ?? '')
+
   const [commissionOverride, setCommissionOverride] = useState<string>(
     (partner as any)?.commissionRate?.toString() ?? PLANS[selectedPlan].commissionRate.toString()
   )
@@ -128,6 +139,11 @@ export default function PartnerForm({ partner }: Props) {
     } else if (!formData.get('subscriptionStatus')) {
       formData.set('subscriptionStatus', 'active')
     }
+
+    // Injecter les coordonnées GPS dans le FormData
+    if (gpsLat !== null) formData.set('latitude', String(gpsLat))
+    if (gpsLng !== null) formData.set('longitude', String(gpsLng))
+    if (gpsAdresse) formData.set('adresse_gps', gpsAdresse)
 
     startTransition(async () => {
       const result = isEdit
@@ -350,6 +366,36 @@ export default function PartnerForm({ partner }: Props) {
             <p className="text-xs text-gold-600 mt-0.5">Paiement manuel — aucune facturation automatique.</p>
           </div>
         )}
+      </div>
+
+      {/* ── 6. Position GPS sur la carte ── */}
+      <div className="bg-white rounded-2xl border border-beige-200 p-6 space-y-4">
+        <h2 className="font-semibold text-dark border-b border-beige-200 pb-3 flex items-center gap-2">
+          <MapPin size={16} className="text-gold-500" /> 6. Position sur la carte de Kribi
+        </h2>
+        <p className="text-xs text-dark/50">
+          Cliquez sur la carte pour positionner l&apos;établissement. Vous pouvez aussi rechercher l&apos;adresse ou déplacer le marqueur.
+          Les moto-taxis verront cet établissement dans leur liste de proximité.
+        </p>
+        {gpsLat && gpsLng && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-xs text-green-700">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+            Position enregistrée : {gpsLat.toFixed(5)}, {gpsLng.toFixed(5)}
+            {gpsAdresse && <span className="text-green-600"> — {gpsAdresse}</span>}
+          </div>
+        )}
+        <MapPickerPartenaire
+          partenaireId={(partner as any)?.id}
+          latitudeInitiale={gpsLat ?? undefined}
+          longitudeInitiale={gpsLng ?? undefined}
+          nomPartenaire={partner?.name}
+          onPositionValidee={(lat, lng, adresse) => {
+            setGpsLat(lat)
+            setGpsLng(lng)
+            setGpsAdresse(adresse)
+            toast.success('Position validée — enregistrez le formulaire pour sauvegarder.')
+          }}
+        />
       </div>
 
       {/* Actions */}

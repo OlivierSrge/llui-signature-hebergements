@@ -5,6 +5,8 @@ import { db } from '@/lib/firebase'
 import { Plus, Users, Mail, Phone, MapPin, FileSignature, AlertTriangle } from 'lucide-react'
 import type { Partner } from '@/lib/types'
 import { initializeMissingContracts, getContractStats } from '@/actions/contract'
+import { getAllPartenairesAvecGps } from '@/actions/partners'
+import CarteGlobalePartenaires from '@/components/admin/CarteGlobalePartenaires'
 
 interface PartnerWithContract extends Partner {
   contractStatus?: string
@@ -41,9 +43,10 @@ export default async function AdminPartenairesPage() {
   // Initialiser silencieusement les partenaires sans contrat
   await initializeMissingContracts()
 
-  const [partners, contractStats] = await Promise.all([
+  const [partners, contractStats, partenairesGps] = await Promise.all([
     getPartners(),
     getContractStats(),
+    getAllPartenairesAvecGps().catch(() => []),
   ])
 
   const unsignedCount = contractStats.total - contractStats.signed
@@ -55,9 +58,12 @@ export default async function AdminPartenairesPage() {
           <h1 className="font-serif text-3xl font-semibold text-dark">Partenaires</h1>
           <p className="text-dark/50 text-sm mt-1">{partners.length} partenaire{partners.length > 1 ? 's' : ''} au total</p>
         </div>
-        <Link href="/admin/partenaires/nouveau" className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Nouveau partenaire
-        </Link>
+        <div className="flex items-center gap-3">
+          <CarteGlobalePartenaires partenaires={partenairesGps} />
+          <Link href="/admin/partenaires/nouveau" className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Nouveau partenaire
+          </Link>
+        </div>
       </div>
 
       {/* Alerte contrats non signés */}
