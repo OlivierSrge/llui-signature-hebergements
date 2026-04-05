@@ -1127,3 +1127,117 @@ export async function compterPrescripteursActifsPartenaire(partenaire_id: string
     .get()
   return snap.size
 }
+
+// ─── Confirmer paiement réservation (partenaire) ─────────────
+
+export async function confirmerPaiementReservation(
+  reservation_id: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resaDoc = await db.collection('reservations').doc(reservation_id).get()
+    if (!resaDoc.exists) return { success: false, error: 'Reservation introuvable' }
+    const resa = resaDoc.data()!
+
+    if (!['disponibilite_confirmee', 'prescripteur_present'].includes(resa.statut_prescription ?? '')) {
+      return { success: false, error: 'Statut invalide pour confirmation paiement' }
+    }
+
+    await resaDoc.ref.update({
+      statut_prescription: 'paiement_confirme',
+      paiement_confirme_at: new Date().toISOString(),
+    })
+
+    // Notifier le prescripteur si session active
+    const prescripteurId = resa.prescripteur_id_prevu as string | undefined
+    if (prescripteurId) {
+      const prescDoc = await db.collection('prescripteurs').doc(prescripteurId).get()
+      if (prescDoc.exists) {
+        const presc = prescDoc.data()!
+        const partenaireNom = resa.partner_name ?? 'le partenaire'
+        const clientNom = `${resa.guest_first_name ?? ''} ${resa.guest_last_name ?? ''}`.trim() || 'Client'
+        const msg = `Paiement confirme par ${partenaireNom} ! Vous pouvez maintenant scanner le QR du client ${clientNom} pour recevoir votre commission de 1 500 FCFA. — L&Lui Signature`
+        try { await sendWhatsApp(presc.telephone as string, msg) } catch {}
+        if (presc.fcm_token) {
+          try {
+            await sendPushNotification(presc.fcm_token as string, {
+              title: 'Paiement confirme !',
+              body: `Scannez le QR de ${clientNom} pour recevoir 1 500 FCFA`,
+              url: '/prescripteur/accueil',
+            })
+          } catch {}
+        }
+      }
+    }
+
+    revalidatePath('/partenaire/reservations')
+    revalidatePath('/partenaire/dashboard')
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ─── QR Etablissement partenaire ─────────────────────────────
+
+export async function getQrEtablissement(partenaireId: string): Promise<{ qr_data?: string; qr_url?: string; generated_at?: string } | null> {
+  const doc = await db.collection('partenaires').doc(partenaireId).get()
+  if (!doc.exists) return null
+  const d = doc.data()!
+  if (!d.qr_etablissement_data) return null
+  return {
+    qr_data: d.qr_etablissement_data as string,
+    qr_url: d.qr_etablissement_url as string | undefined,
+    generated_at: d.qr_generated_at as string | undefined,
+  }
+}
+
+export async function sauvegarderQrEtablissement(
+  partenaireId: string,
+  qrData: string,
+): Promise<{ success: boolean; qr_url?: string; error?: string }> {
+  try {
+    const QRCodeLib = (await import('qrcode')).default
+    const qrBuffer = await QRCodeLib.toBuffer(qrData, { type: 'png', width: 400, margin: 2 })
+    const bucket = getStorageBucket()
+    const file = bucket.file(`partenaires/qr/${partenaireId}.png`)
+    await file.save(qrBuffer, { contentType: 'image/png', public: true })
+    const qr_url = `https://storage.googleapis.com/${bucket.name}/partenaires/qr/${partenaireId}.png`
+
+    await db.collection('partenaires').doc(partenaireId).update({
+      qr_etablissement_data: qrData,
+      qr_etablissement_url: qr_url,
+      qr_generated_at: new Date().toISOString(),
+    })
+
+    return { success: true, qr_url }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ─── Session prescripteur actif pour un partenaire ───────────
+
+export async function getSessionPrescripteurActifPartenaire(partenaireId: string): Promise<{
+  prescripteur_id: string;
+  nom_complet: string;
+  session_id: string;
+  expire_at: string;
+} | null> {
+  const now = new Date().toISOString()
+  const snap = await db.collection('prescripteur_sessions')
+    .where('partenaire_id', '==', partenaireId)
+    .where('type', '==', 'partenaire')
+    .where('statut', '==', 'active')
+    .where('expire_at', '>', now)
+    .limit(1).get()
+  if (snap.empty) return null
+  const d = snap.docs[0].data()
+  const prescDoc = await db.collection('prescripteurs').doc(d.prescripteur_id as string).get()
+  const presc = prescDoc.data()
+  return {
+    prescripteur_id: d.prescripteur_id as string,
+    nom_complet: (presc?.nom_complet ?? 'Prescripteur') as string,
+    session_id: snap.docs[0].id,
+    expire_at: d.expire_at as string,
+  }
+}

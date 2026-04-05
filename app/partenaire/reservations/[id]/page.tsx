@@ -9,6 +9,7 @@ import { formatDate, formatPrice, getPaymentMethodLabel } from '@/lib/utils'
 import WhatsAppPipeline from '@/components/admin/WhatsAppPipeline'
 import PartnerQrPipeline from '@/components/partner/PartnerQrPipeline'
 import PartnerNotesForm from '@/components/partner/PartnerNotesForm'
+import ConfirmerPaiementButton from './ConfirmerPaiementButton'
 
 async function getReservation(id: string, partnerId: string) {
   const doc = await db.collection('reservations').doc(id).get()
@@ -210,6 +211,32 @@ export default async function PartnerReservationDetailPage({
                 Arrivée confirmée le {res.check_in_date ? formatDate(res.check_in_date, 'dd/MM/yyyy à HH:mm') : ''}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Bandeau prescripteur ── */}
+        {(res.statut_prescription === 'disponibilite_confirmee' || res.statut_prescription === 'prescripteur_present') && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">⏳</span>
+              <div>
+                <p className="font-semibold text-amber-800">En attente de confirmation paiement</p>
+                <p className="text-amber-700 text-sm">Moto-taxi present — en attente du paiement client</p>
+              </div>
+            </div>
+            <ConfirmerPaiementButton reservationId={res.id} />
+          </div>
+        )}
+        {res.statut_prescription === 'paiement_confirme' && (
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-4 flex items-center gap-3">
+            <CheckCircle2 size={20} className="text-green-500" />
+            <p className="text-green-800 text-sm font-medium">Paiement confirme — En attente scan moto-taxi</p>
+          </div>
+        )}
+        {res.statut_prescription === 'commission_versee' && (
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-4 flex items-center gap-3">
+            <CheckCircle2 size={20} className="text-green-500" />
+            <p className="text-green-800 text-sm font-medium">Commission versee au prescripteur</p>
           </div>
         )}
 
