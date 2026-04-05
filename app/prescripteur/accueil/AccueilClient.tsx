@@ -27,6 +27,9 @@ export default function AccueilClient() {
   const router = useRouter()
   const [session, setSession] = useState<SessionInfo | null>(null)
   const [solde, setSolde] = useState(0)
+  const [noteMoyenne, setNoteMoyenne] = useState(0)
+  const [totalNotes, setTotalNotes] = useState(0)
+  const [badgeConfiance, setBadgeConfiance] = useState(false)
   const [step, setStep] = useState<Step>('accueil')
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -92,6 +95,9 @@ export default function AccueilClient() {
     setSession(info)
     sessionRef.current = info
     setSolde(parseInt(sessionStorage.getItem('prescripteur_solde') ?? '0', 10))
+    setNoteMoyenne(parseFloat(sessionStorage.getItem('prescripteur_note_moyenne') ?? '0'))
+    setTotalNotes(parseInt(sessionStorage.getItem('prescripteur_total_notes') ?? '0', 10))
+    setBadgeConfiance(sessionStorage.getItem('prescripteur_badge_confiance') === '1')
   }, [router])
 
   // Enregistrement FCM au premier accès
@@ -396,6 +402,20 @@ export default function AccueilClient() {
             >
               <Wallet size={14} /> Demander un retrait
             </button>
+          )}
+          {totalNotes > 0 && (
+            <div className="mt-3 pt-3 border-t border-gold-400/20 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[#C9A84C] text-base">⭐</span>
+                <span className="text-gold-200 text-sm font-semibold">{noteMoyenne.toFixed(1)}<span className="text-gold-400/60 font-normal">/5</span></span>
+                <span className="text-gold-400/50 text-xs">({totalNotes} éval{totalNotes > 1 ? 's' : ''})</span>
+              </div>
+              {badgeConfiance && (
+                <span className="text-xs font-semibold text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-full">
+                  🏆 De confiance
+                </span>
+              )}
+            </div>
           )}
         </div>
 

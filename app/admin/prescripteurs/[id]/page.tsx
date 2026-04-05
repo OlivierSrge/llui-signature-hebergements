@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, QrCode, ArrowLeft } from 'lucide-react'
 import { getPrescripteur, getReservationsPrescripteur, getRetraitsPrescripteur } from '@/actions/prescripteurs'
+import { getNotesPrescripteur } from '@/actions/notes-prescripteurs'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import RetraitsList from './RetraitsList'
@@ -14,10 +15,11 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default async function PrescripteurDetailPage({ params }: { params: { id: string } }) {
-  const [prescripteur, reservations, retraits] = await Promise.all([
+  const [prescripteur, reservations, retraits, notes] = await Promise.all([
     getPrescripteur(params.id).catch(() => null),
     getReservationsPrescripteur(params.id).catch(() => []),
     getRetraitsPrescripteur(params.id).catch(() => []),
+    getNotesPrescripteur(params.id).catch(() => []),
   ])
 
   // Résoudre les noms des résidences assignées
@@ -127,6 +129,63 @@ export default async function PrescripteurDetailPage({ params }: { params: { id:
             />
             <p className="text-xs text-dark/40 text-center">À imprimer et accrocher sur la moto/véhicule</p>
           </div>
+        )}
+      </div>
+
+      {/* Réputation */}
+      <div className="bg-white rounded-2xl border border-beige-200 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-semibold text-dark">Réputation</h2>
+          {prescripteur.badge_confiance && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+              🏆 Prescripteur de confiance
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-6 mb-6">
+          {/* Note moyenne */}
+          <div className="text-center">
+            <p className="font-serif text-5xl font-bold text-dark">{prescripteur.note_moyenne?.toFixed(1) ?? '—'}</p>
+            <p className="text-dark/40 text-xs mt-1">/ 5</p>
+          </div>
+          {/* Étoiles + total */}
+          <div>
+            <div className="flex gap-1 mb-1">
+              {[1, 2, 3, 4, 5].map((i) => {
+                const note = prescripteur.note_moyenne ?? 0
+                const filled = i <= Math.floor(note)
+                const half = !filled && i === Math.ceil(note) && note % 1 >= 0.3
+                return (
+                  <span key={i} className={`text-2xl ${filled ? 'text-[#C9A84C]' : half ? 'text-[#C9A84C]/60' : 'text-dark/20'}`}>★</span>
+                )
+              })}
+            </div>
+            <p className="text-dark/50 text-sm">{prescripteur.total_notes ?? 0} évaluation{(prescripteur.total_notes ?? 0) > 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        {/* Dernières évaluations */}
+        {notes.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs text-dark/40 uppercase tracking-widest font-semibold mb-2">Dernières évaluations</p>
+            {notes.slice(0, 5).map((n) => (
+              <div key={n.id} className="flex items-start gap-3 p-3 rounded-xl bg-beige-50 border border-beige-200">
+                <div className="flex gap-0.5 mt-0.5 shrink-0">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <span key={i} className={`text-sm ${i <= n.note ? 'text-[#C9A84C]' : 'text-dark/20'}`}>★</span>
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-dark font-medium">{n.partenaire_nom || n.hebergement_nom || 'Partenaire'}</p>
+                  {n.commentaire && <p className="text-dark/60 text-xs mt-0.5 line-clamp-2">{n.commentaire}</p>}
+                  <p className="text-dark/30 text-xs mt-1">{formatDate(n.created_at, 'dd/MM/yyyy')}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-dark/30 text-sm text-center py-4">Aucune évaluation pour le moment</p>
         )}
       </div>
 

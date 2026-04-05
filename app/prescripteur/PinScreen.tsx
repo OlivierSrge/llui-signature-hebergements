@@ -158,6 +158,9 @@ export default function PinScreen() {
         sessionStorage.setItem('prescripteur_uid', result.prescripteur.uid)
         sessionStorage.setItem('prescripteur_nom', result.prescripteur.nom_complet)
         sessionStorage.setItem('prescripteur_type', result.prescripteur.type)
+        sessionStorage.setItem('prescripteur_note_moyenne', String(result.prescripteur.note_moyenne ?? 0))
+        sessionStorage.setItem('prescripteur_total_notes', String(result.prescripteur.total_notes ?? 0))
+        sessionStorage.setItem('prescripteur_badge_confiance', result.prescripteur.badge_confiance ? '1' : '0')
         router.push('/prescripteur/accueil')
         return
       } else {
