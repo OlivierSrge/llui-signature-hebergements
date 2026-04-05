@@ -1,12 +1,14 @@
 'use server'
 
-import { db } from '@/lib/firebase'
+import { db, getStorageBucket } from '@/lib/firebase'
 import { cookies } from 'next/headers'
 import { calculateReservation } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { buildSourceFields } from '@/actions/reservation-source'
+import QRCode from 'qrcode'
+import { sendWhatsApp } from '@/lib/whatsappNotif'
 
-type ActionResult = { success: true; reservationId: string; confirmationCode: string } | { success: false; error: string }
+type ActionResult = { success: true; reservationId: string; confirmationCode: string; qr_reservation_url?: string } | { success: false; error: string }
 
 function generateConfirmationCode(): string {
   const year = new Date().getFullYear()
@@ -185,10 +187,66 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
     // Mettre à jour le score de fiabilité du partenaire
     await updateReliabilityScore(partnerId)
 
+    // ── Détection session prescripteur active + génération QR réservation ──
+    let qr_reservation_url: string | undefined
+    try {
+      const now = new Date().toISOString()
+      const sessSnap = await db.collection('prescripteur_sessions')
+        .where('partenaire_id', '==', partnerId)
+        .where('type', '==', 'partenaire')
+        .where('statut', '==', 'active')
+        .where('expire_at', '>', now)
+        .limit(1).get()
+      const sessionPrescripteur = sessSnap.empty ? null : { ...(sessSnap.docs[0].data() as Record<string, unknown>), session_id: sessSnap.docs[0].id }
+
+      // Générer le payload QR
+      const qrPayload = JSON.stringify({
+        type: 'reservation',
+        reservation_id: docRef.id,
+        partenaire_id: partnerId,
+        client_nom: `${guestFirstName} ${guestLastName}`,
+        montant_paye: subtotal,
+        commission: 1500,
+        expire_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+
+      // Générer le buffer PNG QR
+      const qrBuffer = await QRCode.toBuffer(qrPayload, { type: 'png', width: 400, margin: 2 })
+
+      // Upload dans Firebase Storage
+      const bucket = getStorageBucket()
+      const file = bucket.file(`reservations/qr/${docRef.id}.png`)
+      await file.save(qrBuffer, { contentType: 'image/png', public: true })
+      qr_reservation_url = `https://storage.googleapis.com/${bucket.name}/reservations/qr/${docRef.id}.png`
+
+      // Mettre à jour la réservation avec les données QR et prescripteur
+      await docRef.update({
+        qr_reservation_data: qrPayload,
+        qr_reservation_url,
+        qr_expire_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        qr_utilise: false,
+        statut_prescription: 'disponibilite_confirmee',
+        ...(sessionPrescripteur ? {
+          prescripteur_id_prevu: (sessionPrescripteur as any).prescripteur_id,
+          prescripteur_session_id: sessionPrescripteur.session_id,
+        } : {}),
+      })
+
+      // Envoyer WhatsApp au client si téléphone fourni
+      if (guestPhone) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+        const msg = `Bonjour ${guestFirstName} ! Votre reservation chez ${partnerData.name} est confirmee. Voici votre QR code : ${qr_reservation_url} Presentez-le a votre arrivee. — L&Lui Signature`
+        try { await sendWhatsApp(guestPhone, msg) } catch {}
+      }
+    } catch (qrErr) {
+      console.error('[createPartnerReservation] QR generation error:', qrErr)
+      // Ne pas bloquer la création si la génération QR échoue
+    }
+
     revalidatePath('/partenaire/dashboard')
     revalidatePath('/admin/reservations')
 
-    return { success: true, reservationId: docRef.id, confirmationCode }
+    return { success: true, reservationId: docRef.id, confirmationCode, qr_reservation_url }
   } catch (e: any) {
     return { success: false, error: e.message || 'Une erreur est survenue' }
   }

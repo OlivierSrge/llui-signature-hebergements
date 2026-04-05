@@ -32,7 +32,7 @@ interface Props {
 
 export default function PartnerReservationForm({ accommodations, initialValues, fromDemandId }: Props) {
   const [isPending, startTransition] = useTransition()
-  const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string } | null>(null)
+  const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string; qr_reservation_url?: string; guestPhone?: string } | null>(null)
   const [checkIn, setCheckIn] = useState(initialValues?.check_in || '')
   const [checkOut, setCheckOut] = useState(initialValues?.check_out || '')
   const [guestPhone, setGuestPhone] = useState(initialValues?.guest_phone || '')
@@ -53,27 +53,61 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
       const qrData = encodeURIComponent(`${baseUrl}/partenaire/scanner?code=${res.confirmationCode}`)
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrData}&bgcolor=FFFFFF&color=1A1A1A&margin=10`
 
-      setResult({ reservationId: res.reservationId, confirmationCode: res.confirmationCode, qrCodeUrl })
-      toast.success('Réservation soumise, en attente de confirmation.')
+      setResult({
+        reservationId: res.reservationId,
+        confirmationCode: res.confirmationCode,
+        qrCodeUrl,
+        qr_reservation_url: res.qr_reservation_url,
+        guestPhone: guestPhone || undefined,
+      })
+      toast.success('Disponibilite confirmee — QR genere !')
     })
   }
 
-  // ─── Écran post-création : en attente de confirmation ────────────────────
+  // ─── Écran post-création : disponibilité confirmée ───────────────────────
   if (result) {
     return (
       <div className="bg-white rounded-2xl border border-beige-200 p-8 text-center space-y-6">
         <div className="flex flex-col items-center gap-2">
-          <CheckCircle2 size={48} className="text-amber-400" />
-          <h2 className="font-serif text-2xl font-semibold text-dark">Réservation soumise</h2>
-          <p className="text-dark/50 text-sm max-w-xs">
-            La réservation est <strong>en attente de confirmation</strong> par l&apos;équipe L&amp;Lui Signature.
-            Le QR code sera disponible une fois la réservation confirmée.
-          </p>
+          <CheckCircle2 size={48} className="text-green-500" />
+          <h2 className="font-serif text-2xl font-semibold text-dark">Disponibilite confirmee !</h2>
+          {result.guestPhone && (
+            <p className="text-dark/50 text-sm">QR envoye a {result.guestPhone}</p>
+          )}
         </div>
 
         <div className="bg-beige-50 rounded-xl px-6 py-4">
-          <p className="text-xs text-dark/40 mb-1">Numéro de réservation</p>
+          <p className="text-xs text-dark/40 mb-1">Numero de reservation</p>
           <p className="font-mono text-lg font-bold text-dark tracking-widest">{result.confirmationCode}</p>
+        </div>
+
+        {result.qr_reservation_url && (
+          <div className="flex flex-col items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={result.qr_reservation_url}
+              alt="QR reservation"
+              width={200}
+              height={200}
+              className="rounded-xl border border-beige-200"
+            />
+            <p className="text-xs text-dark/40">QR a presenter a l&apos;arrivee</p>
+          </div>
+        )}
+
+        {/* ETAPE SUIVANTE */}
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-left">
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-3">ETAPE SUIVANTE</p>
+          <button
+            type="button"
+            disabled
+            className="w-full py-3 rounded-xl bg-amber-200 text-amber-700 text-sm font-medium cursor-not-allowed opacity-70"
+          >
+            En attente du paiement client...
+          </button>
+          <p className="text-xs text-amber-600 mt-2 text-center">
+            Confirmez le paiement depuis la page de reservation
+          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -81,14 +115,14 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
             href={`/partenaire/reservations/${result.reservationId}`}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors"
           >
-            Voir la réservation
+            Voir la reservation
           </a>
           <button
             type="button"
             onClick={() => setResult(null)}
             className="px-4 py-2.5 border border-beige-200 text-dark/60 rounded-xl text-sm hover:bg-beige-50 transition-colors"
           >
-            Nouvelle réservation
+            Nouvelle reservation
           </button>
         </div>
       </div>
@@ -207,7 +241,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
           {isPending ? (
             <><Loader2 size={16} className="animate-spin" /> Création en cours...</>
           ) : (
-            <><QrCode size={16} /> Créer la réservation & générer le QR</>
+            <><QrCode size={16} /> Confirmer disponibilite + Envoyer QR client</>
           )}
         </button>
       </div>
