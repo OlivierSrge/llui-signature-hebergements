@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { QrCode, RefreshCw, Maximize2, X, Users } from 'lucide-react'
-import { compterPrescripteursActifsPartenaire } from '@/actions/prescripteurs'
+import { compterPrescripteursActifsPartenaire, getQrEtablissement, sauvegarderQrEtablissement } from '@/actions/prescripteurs'
 
 interface Props {
   partenaireId: string
@@ -11,37 +11,62 @@ interface Props {
 
 export default function QrPrescripteurSection({ partenaireId, partenaireNom }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [qrStorageUrl, setQrStorageUrl] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [prescripteursActifs, setPrescripteursActifs] = useState<number | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
 
-  const generateQr = async () => {
-    setIsGenerating(true)
-    try {
-      const QRCode = (await import('qrcode')).default
-      const payload = JSON.stringify({
-        type: 'partenaire',
-        partenaire_id: partenaireId,
-        nom: partenaireNom,
-        ts: Date.now(),
-      })
-      const url = await QRCode.toDataURL(payload, {
-        width: 400,
-        margin: 2,
-        color: { dark: '#1a1a1a', light: '#ffffff' },
-        errorCorrectionLevel: 'M',
-      })
-      setQrDataUrl(url)
-    } catch (err) {
-      console.error('[QrPrescripteur] Erreur génération', err)
-    } finally {
-      setIsGenerating(false)
-    }
+  const generateLocalQr = async (payload: string) => {
+    const QRCode = (await import('qrcode')).default
+    const url = await QRCode.toDataURL(payload, {
+      width: 400,
+      margin: 2,
+      color: { dark: '#1a1a1a', light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    })
+    return url
   }
 
+  const buildPayload = () => JSON.stringify({
+    type: 'partenaire',
+    partenaire_id: partenaireId,
+    nom: partenaireNom,
+    generated_at: Date.now(),
+  })
+
+  // On mount: load existing QR from Firestore or generate new one
   useEffect(() => {
-    generateQr()
+    let cancelled = false
+    async function load() {
+      setIsGenerating(true)
+      try {
+        const existing = await getQrEtablissement(partenaireId)
+        if (existing?.qr_data && !cancelled) {
+          const url = await generateLocalQr(existing.qr_data)
+          if (!cancelled) {
+            setQrDataUrl(url)
+            setQrStorageUrl(existing.qr_url ?? null)
+          }
+        } else if (!cancelled) {
+          const payload = buildPayload()
+          const url = await generateLocalQr(payload)
+          if (!cancelled) {
+            setQrDataUrl(url)
+            sauvegarderQrEtablissement(partenaireId, payload)
+              .then((res) => { if (res.qr_url && !cancelled) setQrStorageUrl(res.qr_url) })
+              .catch(() => {})
+          }
+        }
+      } catch (err) {
+        console.error('[QrPrescripteur] Erreur chargement', err)
+      } finally {
+        if (!cancelled) setIsGenerating(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partenaireId])
 
   useEffect(() => {
@@ -49,6 +74,27 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
       .then(setPrescripteursActifs)
       .catch(() => {})
   }, [partenaireId])
+
+  const handleRegenerate = async () => {
+    const confirmed = window.confirm(
+      'Regenerer le QR ? Les sessions prescripteurs en cours seront annulees.'
+    )
+    if (!confirmed) return
+    setIsSaving(true)
+    setIsGenerating(true)
+    try {
+      const payload = buildPayload()
+      const url = await generateLocalQr(payload)
+      setQrDataUrl(url)
+      const res = await sauvegarderQrEtablissement(partenaireId, payload)
+      if (res.qr_url) setQrStorageUrl(res.qr_url)
+    } catch (err) {
+      console.error('[QrPrescripteur] Erreur regeneration', err)
+    } finally {
+      setIsGenerating(false)
+      setIsSaving(false)
+    }
+  }
 
   return (
     <>
@@ -91,20 +137,20 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
               disabled={!qrDataUrl}
               className="flex items-center gap-2 px-4 py-2 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors disabled:opacity-40"
             >
-              <Maximize2 size={14} /> Plein écran
+              <Maximize2 size={14} /> Plein ecran
             </button>
             <button
-              onClick={generateQr}
-              disabled={isGenerating}
+              onClick={handleRegenerate}
+              disabled={isGenerating || isSaving}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors disabled:opacity-40"
             >
-              <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-              Régénérer
+              <RefreshCw size={14} className={isGenerating || isSaving ? 'animate-spin' : ''} />
+              Regenerer
             </button>
           </div>
 
           <p className="text-xs text-dark/40 text-center max-w-xs">
-            Affichez ce QR à l&apos;entrée ou montrez votre téléphone au moto-taxi.
+            Affichez ce QR a l&apos;entree ou montrez votre telephone au moto-taxi.
             La session est valide <strong>2 heures</strong>.
           </p>
         </div>
@@ -125,10 +171,12 @@ export default function QrPrescripteurSection({ partenaireId, partenaireNom }: P
             Le moto-taxi scanne ce QR pour se positionner chez vous
           </p>
           <button
-            onClick={generateQr}
-            className="flex items-center gap-2 px-5 py-2.5 border border-beige-300 rounded-xl text-sm text-dark/60 hover:bg-beige-50 transition-colors"
+            onClick={handleRegenerate}
+            disabled={isGenerating || isSaving}
+            className="flex items-center gap-2 px-5 py-2.5 border border-beige-300 rounded-xl text-sm text-dark/60 hover:bg-beige-50 transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={14} /> Régénérer le QR
+            <RefreshCw size={14} className={isGenerating || isSaving ? 'animate-spin' : ''} />
+            Regenerer le QR
           </button>
         </div>
       )}
