@@ -2,9 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users } from 'lucide-react'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff } from 'lucide-react'
 import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
+import {
+  ajouterAlaFile,
+  getActionsNonSynchronisees,
+  marquerCommeSynchronise,
+  viderFileSynchronisee,
+} from '@/lib/offlineQueue'
 
 type Step = 'accueil' | 'scan_partenaire' | 'confirme_partenaire' | 'scan_reservation' | 'success' | 'error'
 
@@ -26,17 +32,62 @@ export default function AccueilClient() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [nomPartenaire, setNomPartenaire] = useState('')
   const [sessionPartenaire, setSessionPartenaire] = useState<{ session_id: string; nom_partenaire: string; expire_at: string } | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const sessionRef = useRef<SessionInfo | null>(null)
+
+  // Synchronise les actions en attente dès le retour réseau
+  const synchroniserFile = useCallback(async (uid: string) => {
+    const actions = await getActionsNonSynchronisees()
+    if (actions.length === 0) return
+    setSyncMessage('Synchronisation en cours...')
+    let synced = 0
+    for (const action of actions) {
+      try {
+        if (action.type === 'scan_partenaire') {
+          const d = action.data as { partenaire_id: string; nom: string }
+          const res = await creerSessionPartenaire(uid, d.partenaire_id, d.nom ?? '')
+          if (res.success) {
+            await marquerCommeSynchronise(action.id!)
+            synced++
+          }
+        } else if (action.type === 'scan_reservation') {
+          const d = action.data as { reservation_id: string }
+          const res = await scannerQrReservation(uid, d.reservation_id)
+          if (res.success) {
+            await marquerCommeSynchronise(action.id!)
+            synced++
+            if (res.nouveau_solde !== undefined) {
+              setSolde(res.nouveau_solde)
+              sessionStorage.setItem('prescripteur_solde', String(res.nouveau_solde))
+            }
+          }
+        }
+      } catch {
+        // On réessaie la prochaine fois
+      }
+    }
+    await viderFileSynchronisee()
+    if (synced > 0) {
+      setSyncMessage(`${synced} scan${synced > 1 ? 's' : ''} synchronisé${synced > 1 ? 's' : ''} !`)
+      setTimeout(() => setSyncMessage(null), 4000)
+    } else {
+      setSyncMessage(null)
+    }
+  }, [])
 
   useEffect(() => {
     const uid = sessionStorage.getItem('prescripteur_uid')
     const nom = sessionStorage.getItem('prescripteur_nom')
     const type = sessionStorage.getItem('prescripteur_type')
     if (!uid || !nom) { router.replace('/prescripteur'); return }
-    setSession({ uid, nom, type: type ?? '' })
+    const info = { uid, nom, type: type ?? '' }
+    setSession(info)
+    sessionRef.current = info
     setSolde(parseInt(sessionStorage.getItem('prescripteur_solde') ?? '0', 10))
   }, [router])
 
@@ -47,11 +98,28 @@ export default function AccueilClient() {
   useEffect(() => {
     if (!session?.uid) return
     getSessionActivePartenaire(session.uid)
-      .then((s) => {
-        if (s) setSessionPartenaire(s)
-      })
+      .then((s) => { if (s) setSessionPartenaire(s) })
       .catch(() => {})
   }, [session?.uid])
+
+  // Détection réseau + sync auto
+  useEffect(() => {
+    setIsOffline(!navigator.onLine)
+
+    const handleOnline = () => {
+      setIsOffline(false)
+      const uid = sessionRef.current?.uid
+      if (uid) synchroniserFile(uid)
+    }
+    const handleOffline = () => setIsOffline(true)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [synchroniserFile])
 
   const handleLogout = () => { sessionStorage.clear(); router.replace('/prescripteur') }
 
@@ -97,6 +165,25 @@ export default function AccueilClient() {
             setScanResult({ error: "QR invalide — ce n'est pas un QR partenaire L&Lui." })
             setStep('error'); return
           }
+
+          // Hors-ligne : stocker en file d'attente
+          if (!navigator.onLine) {
+            await ajouterAlaFile({
+              type: 'scan_partenaire',
+              data: { partenaire_id: parsed.partenaire_id, nom: parsed.nom ?? '' },
+              timestamp: Date.now(),
+              synced: false,
+            })
+            const nom = parsed.nom ?? 'Partenaire'
+            setNomPartenaire(nom)
+            setSessionPartenaire({ session_id: 'offline', nom_partenaire: nom, expire_at: '' })
+            setScanResult({ error: '' })
+            setStep('confirme_partenaire')
+            setSyncMessage("Scan enregistre hors-ligne. Sera synchronise des reconnexion.")
+            setTimeout(() => setSyncMessage(null), 5000)
+            return
+          }
+
           const res = await creerSessionPartenaire(session!.uid, parsed.partenaire_id, parsed.nom ?? '')
           if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
           const nom = res.nom_partenaire ?? parsed.nom ?? 'Partenaire'
@@ -119,6 +206,26 @@ export default function AccueilClient() {
         setScanResult({ error: "QR invalide — ce n'est pas un QR réservation L&Lui." })
         setStep('error'); return
       }
+
+      // Hors-ligne : stocker en file d'attente
+      if (!navigator.onLine) {
+        await ajouterAlaFile({
+          type: 'scan_reservation',
+          data: { reservation_id: parsed.reservation_id },
+          timestamp: Date.now(),
+          synced: false,
+        })
+        setScanResult({
+          commission_fcfa: parsed.commission ?? 1500,
+          client_nom: parsed.client_nom ?? '',
+          hebergement_nom: parsed.hebergement_nom ?? '',
+        })
+        setSyncMessage("Commission en attente de sync. Vous recevrez votre SMS des reconnexion.")
+        setSessionPartenaire(null)
+        setStep('success')
+        return
+      }
+
       const res = await scannerQrReservation(session!.uid, parsed.reservation_id)
       if (!res.success) { setScanResult({ error: res.error ?? 'Erreur scan' }); setStep('error'); return }
       setScanResult(res)
@@ -126,7 +233,6 @@ export default function AccueilClient() {
         setSolde(res.nouveau_solde)
         sessionStorage.setItem('prescripteur_solde', String(res.nouveau_solde))
       }
-      // La session partenaire est maintenant "utilisée" → vider le state local
       setSessionPartenaire(null)
       setStep('success')
     } catch {
@@ -147,6 +253,27 @@ export default function AccueilClient() {
 
   return (
     <div className="min-h-screen bg-dark text-white flex flex-col">
+
+      {/* Bandeau hors-ligne */}
+      {isOffline && (
+        <div className="bg-[#1A1A1A] border-b border-white/10 px-5 py-3 flex items-start gap-3">
+          <WifiOff size={18} className="text-white/70 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-white font-medium text-sm">Mode hors-ligne</p>
+            <p className="text-white/60 text-xs mt-0.5">
+              Vos scans seront synchronises des le retour du reseau
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau sync */}
+      {syncMessage && (
+        <div className="bg-green-600/90 px-5 py-2 text-white text-sm font-medium text-center">
+          {syncMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div>
@@ -186,7 +313,7 @@ export default function AccueilClient() {
                   <p className="text-white font-medium text-sm">{sessionPartenaire.nom_partenaire}</p>
                   {sessionPartenaire.expire_at && (
                     <p className="text-green-400/70 text-xs mt-0.5">
-                      Expire à {new Date(sessionPartenaire.expire_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      Expire a {new Date(sessionPartenaire.expire_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
                 </div>
@@ -196,8 +323,8 @@ export default function AccueilClient() {
 
             <p className="text-white/60 text-sm text-center mb-1">
               {sessionPartenaire
-                ? 'Vous êtes positionné. Scannez le QR réservation du client.'
-                : 'Scannez d\'abord le QR du partenaire, puis le QR réservation du client.'}
+                ? "Vous etes positionne. Scannez le QR reservation du client."
+                : "Scannez d'abord le QR du partenaire, puis le QR reservation du client."}
             </p>
 
             {/* BOUTON 1 : Scanner le QR du partenaire */}
@@ -218,7 +345,16 @@ export default function AccueilClient() {
                 ? <Loader2 size={16} className="animate-spin" />
                 : <QrCode size={16} />
               }
-              Scanner le QR réservation client
+              Scanner le QR reservation client
+            </button>
+
+            {/* Saisie manuelle (Livrable 2) */}
+            <button
+              onClick={() => router.push('/prescripteur/saisie-manuelle')}
+              disabled={!sessionPartenaire}
+              className="text-white/40 text-xs text-center underline disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              Pas de camera ? Saisir le code manuellement
             </button>
 
             <button
@@ -237,25 +373,30 @@ export default function AccueilClient() {
               <CheckCircle2 size={40} className="text-green-400" />
             </div>
             <div>
-              <p className="text-xl font-semibold text-white">Vous êtes positionné !</p>
+              <p className="text-xl font-semibold text-white">Vous etes positionne !</p>
               <p className="text-white/50 text-sm mt-1">
                 Chez <span className="text-gold-300 font-medium">{nomPartenaire}</span>
               </p>
               <p className="text-white/40 text-xs mt-2">
-                Session valide 2h · Attendez la réservation du client
+                Session valide 2h · Attendez la reservation du client
               </p>
+              {isOffline && (
+                <p className="text-amber-400/80 text-xs mt-2">
+                  Scan enregistre hors-ligne — sera synchronise
+                </p>
+              )}
             </div>
             <button
               onClick={handleDemarrerScanReservation}
               className="w-full max-w-xs py-4 rounded-2xl bg-gold-500 hover:bg-gold-400 text-dark font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <QrCode size={16} /> Scanner le QR réservation maintenant
+              <QrCode size={16} /> Scanner le QR reservation maintenant
             </button>
             <button
               onClick={() => setStep('accueil')}
               className="text-white/40 text-sm underline"
             >
-              Retour à l'accueil
+              Retour a l'accueil
             </button>
           </div>
         )}
@@ -265,8 +406,8 @@ export default function AccueilClient() {
           <div className="flex-1 flex flex-col gap-4">
             <p className="text-center text-white/60 text-sm">
               {step === 'scan_partenaire'
-                ? '🏨 Scannez le QR code du partenaire hébergeur'
-                : `🎫 Scannez le QR réservation du client${nomPartenaire ? ` — ${nomPartenaire}` : ''}`}
+                ? "Scannez le QR code du partenaire hebergeur"
+                : `Scannez le QR reservation du client${nomPartenaire ? ` — ${nomPartenaire}` : ''}`}
             </p>
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-square max-w-sm mx-auto w-full">
               <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
@@ -296,18 +437,25 @@ export default function AccueilClient() {
               <CheckCircle2 size={40} className="text-green-400" />
             </div>
             <div>
-              <p className="text-xl font-semibold text-white">Client enregistré !</p>
+              <p className="text-xl font-semibold text-white">Client enregistre !</p>
               <p className="text-white/50 text-sm mt-1">{scanResult.client_nom}</p>
               <p className="text-white/40 text-xs">{scanResult.hebergement_nom}</p>
             </div>
             <div className="rounded-2xl bg-green-500/10 border border-green-400/30 p-5 w-full max-w-xs">
-              <p className="text-green-300 text-sm">Commission créditée</p>
+              <p className="text-green-300 text-sm">Commission creditee</p>
               <p className="font-serif text-3xl font-semibold text-green-300 mt-1">
-                +{scanResult.commission_fcfa?.toLocaleString('fr-FR')} FCFA
+                +{(scanResult.commission_fcfa ?? 1500).toLocaleString('fr-FR')} FCFA
               </p>
-              <p className="text-white/40 text-xs mt-2">
-                Nouveau solde : {scanResult.nouveau_solde?.toLocaleString('fr-FR')} FCFA
-              </p>
+              {scanResult.nouveau_solde !== undefined && (
+                <p className="text-white/40 text-xs mt-2">
+                  Nouveau solde : {scanResult.nouveau_solde.toLocaleString('fr-FR')} FCFA
+                </p>
+              )}
+              {isOffline && (
+                <p className="text-amber-400/70 text-xs mt-2">
+                  Commission en attente de synchronisation
+                </p>
+              )}
             </div>
             <button
               onClick={() => { setScanResult(null); setStep('accueil') }}
@@ -333,7 +481,7 @@ export default function AccueilClient() {
               onClick={() => { setScanResult(null); setStep('accueil') }}
               className="w-full max-w-xs py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-all"
             >
-              Réessayer
+              Reessayer
             </button>
           </div>
         )}
