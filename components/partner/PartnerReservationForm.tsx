@@ -60,7 +60,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
         qr_reservation_url: res.qr_reservation_url,
         guestPhone: guestPhone || undefined,
       })
-      toast.success('Disponibilite confirmee — QR genere !')
+      toast.success('Disponibilité confirmée — QR généré !')
     })
   }
 
@@ -70,14 +70,14 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
       <div className="bg-white rounded-2xl border border-beige-200 p-8 text-center space-y-6">
         <div className="flex flex-col items-center gap-2">
           <CheckCircle2 size={48} className="text-green-500" />
-          <h2 className="font-serif text-2xl font-semibold text-dark">Disponibilite confirmee !</h2>
+          <h2 className="font-serif text-2xl font-semibold text-dark">Disponibilité confirmée !</h2>
           {result.guestPhone && (
-            <p className="text-dark/50 text-sm">QR envoye a {result.guestPhone}</p>
+            <p className="text-dark/50 text-sm">QR envoyé à {result.guestPhone}</p>
           )}
         </div>
 
         <div className="bg-beige-50 rounded-xl px-6 py-4">
-          <p className="text-xs text-dark/40 mb-1">Numero de reservation</p>
+          <p className="text-xs text-dark/40 mb-1">Numéro de réservation</p>
           <p className="font-mono text-lg font-bold text-dark tracking-widest">{result.confirmationCode}</p>
         </div>
 
@@ -91,13 +91,13 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
               height={200}
               className="rounded-xl border border-beige-200"
             />
-            <p className="text-xs text-dark/40">QR a presenter a l&apos;arrivee</p>
+            <p className="text-xs text-dark/40">QR à présenter à l&apos;arrivée</p>
           </div>
         )}
 
         {/* ETAPE SUIVANTE */}
         <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-left">
-          <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-3">ETAPE SUIVANTE</p>
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-3">ÉTAPE SUIVANTE</p>
           <button
             type="button"
             disabled
@@ -106,7 +106,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
             En attente du paiement client...
           </button>
           <p className="text-xs text-amber-600 mt-2 text-center">
-            Confirmez le paiement depuis la page de reservation
+            Confirmez le paiement depuis la page de réservation
           </p>
         </div>
 
@@ -115,14 +115,14 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
             href={`/partenaire/reservations/${result.reservationId}`}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors"
           >
-            Voir la reservation
+            Voir la réservation
           </a>
           <button
             type="button"
             onClick={() => setResult(null)}
             className="px-4 py-2.5 border border-beige-200 text-dark/60 rounded-xl text-sm hover:bg-beige-50 transition-colors"
           >
-            Nouvelle reservation
+            Nouvelle réservation
           </button>
         </div>
       </div>
@@ -241,7 +241,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
           {isPending ? (
             <><Loader2 size={16} className="animate-spin" /> Création en cours...</>
           ) : (
-            <><QrCode size={16} /> Confirmer disponibilite + Envoyer QR client</>
+            <><QrCode size={16} /> Confirmer disponibilité + Envoyer QR client</>
           )}
         </button>
       </div>
