@@ -148,12 +148,9 @@ export default function PinScreen() {
 
   const valider = useCallback(async () => {
     if (pin.length !== 4 || isLocked || isPending) return
-    // Feedback IMMÉDIAT — désactiver le clavier avant tout await
     setIsPending(true)
     setError('')
     try {
-      // Hash côté client : rapide (< 1ms, local), aucun réseau
-      // Le premier await libère le thread → React peint le spinner
       const hash = await hashPinClient(pin)
       const result = await verifierPinPrescripteur(hash)
       if (result.success && result.prescripteur) {
@@ -162,9 +159,9 @@ export default function PinScreen() {
         sessionStorage.setItem('prescripteur_nom', result.prescripteur.nom_complet)
         sessionStorage.setItem('prescripteur_type', result.prescripteur.type)
         router.push('/prescripteur/accueil')
+        return
       } else {
         const { locked } = recordFailedAttempt()
-        setPin('')
         setShake(true)
         setTimeout(() => setShake(false), 600)
         if (locked) {
@@ -182,9 +179,9 @@ export default function PinScreen() {
     } catch (e) {
       console.error('[PIN] Erreur vérification:', e)
       setError('Erreur réseau. Réessayez.')
-      setPin('')
     } finally {
       setIsPending(false)
+      setPin('')
     }
   }, [pin, isLocked, isPending, router])
 
