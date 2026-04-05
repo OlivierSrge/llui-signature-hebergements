@@ -7,7 +7,7 @@ import QRResidencePrint from './QRResidencePrint'
 export const metadata = { title: 'QR Résidence – Impression' }
 
 export default async function QrResidencePage({ params }: { params: { residence_id: string } }) {
-  const doc = await db.collection('accommodations').doc(params.residence_id).get()
+  const doc = await db.collection('hebergements').doc(params.residence_id).get()
   if (!doc.exists) notFound()
 
   const data = doc.data()!

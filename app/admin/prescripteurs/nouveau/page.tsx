@@ -9,13 +9,15 @@ export const metadata = { title: 'Nouveau prescripteur – Admin' }
 export default async function NouveauPrescripteurPage() {
   const [types, hebergementsSnap] = await Promise.all([
     getPrescripteurTypes(),
-    db.collection('accommodations').orderBy('name').get(),
+    db.collection('hebergements').orderBy('name').get().catch(() => null),
   ])
 
-  const hebergements = hebergementsSnap.docs.map((d) => ({
-    id: d.id,
-    name: d.data().name as string,
-  }))
+  const hebergements = hebergementsSnap
+    ? hebergementsSnap.docs.map((d) => ({
+        id: d.id,
+        name: (d.data().name ?? d.data().titre ?? d.id) as string,
+      }))
+    : []
 
   return (
     <div className="p-6 sm:p-8 pt-6 lg:pt-8 mt-14 lg:mt-0">

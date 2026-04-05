@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Pencil, QrCode, ArrowLeft } from 'lucide-react'
 import { getPrescripteur, getReservationsPrescripteur, getRetraitsPrescripteur } from '@/actions/prescripteurs'
 import { formatDate, formatPrice } from '@/lib/utils'
+import { db } from '@/lib/firebase'
 import RetraitsList from './RetraitsList'
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
@@ -18,6 +19,22 @@ export default async function PrescripteurDetailPage({ params }: { params: { id:
     getReservationsPrescripteur(params.id).catch(() => []),
     getRetraitsPrescripteur(params.id).catch(() => []),
   ])
+
+  // Résoudre les noms des résidences assignées
+  let residenceNames: Record<string, string> = {}
+  if (prescripteur?.hebergements_assignes?.length) {
+    const docs = await Promise.all(
+      prescripteur.hebergements_assignes.map((id) =>
+        db.collection('hebergements').doc(id).get().catch(() => null)
+      )
+    )
+    docs.forEach((doc) => {
+      if (doc?.exists) {
+        const d = doc.data()!
+        residenceNames[doc.id] = (d.name ?? d.titre ?? doc.id) as string
+      }
+    })
+  }
 
   if (!prescripteur) notFound()
 
@@ -81,13 +98,28 @@ export default async function PrescripteurDetailPage({ params }: { params: { id:
             { label: 'Commission', value: `${prescripteur.commission_fcfa} FCFA / client` },
             { label: 'Code promo', value: prescripteur.code_promo },
             { label: 'Créé le', value: formatDate(prescripteur.created_at, 'dd/MM/yyyy') },
-            { label: 'Résidences', value: prescripteur.hebergements_assignes?.length ? `${prescripteur.hebergements_assignes.length} résidence(s)` : 'Aucune' },
           ].map((item) => (
             <div key={item.label} className="flex justify-between text-sm">
               <span className="text-dark/50">{item.label}</span>
               <span className="font-medium text-dark">{item.value}</span>
             </div>
           ))}
+          {/* Résidences assignées avec noms résolus */}
+          <div className="text-sm">
+            <span className="text-dark/50">Résidences</span>
+            {prescripteur.hebergements_assignes?.length ? (
+              <ul className="mt-1 space-y-0.5">
+                {prescripteur.hebergements_assignes.map((id) => (
+                  <li key={id} className="flex items-center gap-1.5 text-dark font-medium justify-end">
+                    <span className="text-xs text-gold-500">🏠</span>
+                    {residenceNames[id] ?? id}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="font-medium text-dark float-right">Aucune</span>
+            )}
+          </div>
         </div>
 
         {prescripteur.qr_code_url && (

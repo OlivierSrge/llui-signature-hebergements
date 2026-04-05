@@ -11,7 +11,7 @@ export default async function ModifierPrescripteurPage({ params }: { params: { i
   const [prescripteur, types, hebergementsSnap] = await Promise.all([
     getPrescripteur(params.id).catch(() => null),
     getPrescripteurTypes().catch(() => []),
-    db.collection('accommodations').orderBy('name').get().catch(() => null),
+    db.collection('hebergements').orderBy('name').get().catch(() => null),
   ])
 
   if (!prescripteur) notFound()
