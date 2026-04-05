@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, CalendarDays, FileText } from 'lucide-react'
-import { creerSessionResidence, scannerQrClient, getSessionActiveResidence } from '@/actions/prescripteurs'
+import { creerSessionResidence, scannerQrClient, getSessionActiveResidence, getResidencesPrescripteur } from '@/actions/prescripteurs'
+import type { ResidencePrescripteur } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 
 type Step = 'accueil' | 'scan_residence' | 'scan_client' | 'success' | 'error' | 'warn_no_session'
@@ -26,6 +27,8 @@ export default function AccueilClient() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [nomResidenceActive, setNomResidenceActive] = useState('')
+  const [residences, setResidences] = useState<ResidencePrescripteur[]>([])
+  const [residencesLoaded, setResidencesLoaded] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scannerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -42,6 +45,15 @@ export default function AccueilClient() {
 
   // Enregistrement FCM au premier accès
   useFCM(session?.uid ?? null)
+
+  // Charger les résidences assignées avec disponibilité du jour
+  useEffect(() => {
+    if (!session?.uid || residencesLoaded) return
+    setResidencesLoaded(true)
+    getResidencesPrescripteur(session.uid)
+      .then(setResidences)
+      .catch(() => {})
+  }, [session?.uid, residencesLoaded])
 
   const handleLogout = () => { sessionStorage.clear(); router.replace('/prescripteur') }
 
@@ -74,6 +86,22 @@ export default function AccueilClient() {
   }, [stopCamera])
 
   useEffect(() => () => { stopCamera() }, [stopCamera])
+
+  // Scanner une résidence directement par ID (depuis la liste "Mes résidences")
+  const handleScannerResidenceDirecte = async (residenceId: string, nomResidence: string) => {
+    if (!session) return
+    setIsProcessing(true)
+    try {
+      const res = await creerSessionResidence(session.uid, residenceId)
+      if (!res.success) { setScanResult({ error: res.error ?? 'Erreur session' }); setStep('error'); return }
+      setResidenceSessionId(res.session_id!)
+      setNomResidenceActive(res.nom_residence ?? nomResidence)
+      setStep('scan_client')
+      setTimeout(() => { startCamera(handleScanClient) }, 300)
+    } catch {
+      setScanResult({ error: 'Erreur réseau. Réessayez.' }); setStep('error')
+    } finally { setIsProcessing(false) }
+  }
 
   // Bouton 2 : scanner QR client, vérifie d'abord qu'une session résidence existe
   const handleScanClientOnly = async () => {
@@ -214,6 +242,37 @@ export default function AccueilClient() {
             >
               <FileText size={16} /> Mon rapport du mois
             </button>
+
+            {/* ── Mes résidences ── */}
+            {residences.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <p className="text-white/40 text-xs uppercase tracking-widest text-center">Mes résidences</p>
+                {residences.map((r) => (
+                  <div
+                    key={r.id}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-lg">🏠</span>
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{r.nom}</p>
+                        <p className={`text-xs flex items-center gap-1 ${r.disponible ? 'text-green-400' : 'text-red-400'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full inline-block ${r.disponible ? 'bg-green-400' : 'bg-red-400'}`} />
+                          {r.disponible ? 'Disponible aujourd\'hui' : 'Occupée aujourd\'hui'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleScannerResidenceDirecte(r.id, r.nom)}
+                      disabled={isProcessing}
+                      className="shrink-0 px-3 py-1.5 rounded-xl bg-gold-500/80 hover:bg-gold-500 text-dark text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <QrCode size={12} /> Scanner
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

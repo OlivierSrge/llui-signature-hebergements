@@ -215,7 +215,7 @@ export async function modifierPrescripteur(
     if (data.hebergements_assignes && prev?.fcm_token) {
       const nouvelles = data.hebergements_assignes.filter((id) => !prevResidences.has(id))
       for (const residenceId of nouvelles) {
-        const residenceDoc = await db.collection('accommodations').doc(residenceId).get()
+        const residenceDoc = await db.collection('hebergements').doc(residenceId).get()
         const nom = residenceDoc.data()?.name ?? residenceId
         try {
           await sendPushNotification(prev.fcm_token, {
@@ -669,7 +669,7 @@ export async function getDisponibilitesPrescripteur(
   endDate.setDate(endDate.getDate() + 14)
 
   // Fetch accommodations names
-  const hebergSnapPromises = ids.map((id) => db.collection('accommodations').doc(id).get())
+  const hebergSnapPromises = ids.map((id) => db.collection('hebergements').doc(id).get())
   const hebergSnaps = await Promise.all(hebergSnapPromises)
 
   // Fetch reservations for these accommodations in the window
@@ -918,4 +918,59 @@ export async function getAnalyticsPrescripteurs(
   })
 
   return { total_actifs, clients_ce_mois, commissions_dues, retraits_en_attente, top5, evolution6mois, transactions_csv }
+}
+
+// ─── Résidences assignées avec statut disponibilité aujourd'hui ───────────────
+export interface ResidencePrescripteur {
+  id: string
+  nom: string
+  disponible: boolean // true = libre aujourd'hui
+}
+
+export async function getResidencesPrescripteur(
+  prescripteur_id: string,
+): Promise<ResidencePrescripteur[]> {
+  try {
+    const prescDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescDoc.exists) return []
+    const presc = prescDoc.data() as Prescripteur
+    const ids: string[] = presc.hebergements_assignes ?? []
+    if (ids.length === 0) return []
+
+    // Résoudre les noms
+    const hebergDocs = await Promise.all(
+      ids.map((id) => db.collection('hebergements').doc(id).get().catch(() => null))
+    )
+
+    // Vérifier disponibilité aujourd'hui (pas de réservation confirmée couvrant aujourd'hui)
+    const todayStr = new Date().toISOString().slice(0, 10)
+    let occupesAujourdhui = new Set<string>()
+    try {
+      const reservSnap = await db
+        .collection('reservations')
+        .where('accommodation_id', 'in', ids.slice(0, 10))
+        .where('reservation_status', 'in', ['confirmee', 'en_attente'])
+        .get()
+      for (const doc of reservSnap.docs) {
+        const r = doc.data()
+        if (!r.check_in || !r.check_out) continue
+        const ci = (r.check_in as string).slice(0, 10)
+        const co = (r.check_out as string).slice(0, 10)
+        if (ci <= todayStr && todayStr < co) {
+          occupesAujourdhui.add(r.accommodation_id as string)
+        }
+      }
+    } catch { /* index manquant → on ignore, toutes dispo */ }
+
+    return ids.map((id, i) => {
+      const doc = hebergDocs[i]
+      const nom = doc?.exists
+        ? ((doc.data()?.name ?? doc.data()?.titre ?? id) as string)
+        : id
+      return { id, nom, disponible: !occupesAujourdhui.has(id) }
+    })
+  } catch (err) {
+    console.error('[getResidencesPrescripteur]', err)
+    return []
+  }
 }
