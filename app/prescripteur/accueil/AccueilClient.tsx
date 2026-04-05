@@ -186,7 +186,7 @@ export default function AccueilClient() {
                   <p className="text-white font-medium text-sm">{sessionPartenaire.nom_partenaire}</p>
                   {sessionPartenaire.expire_at && (
                     <p className="text-green-400/70 text-xs mt-0.5">
-                      Expire a {new Date(sessionPartenaire.expire_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      Expire à {new Date(sessionPartenaire.expire_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
                 </div>
