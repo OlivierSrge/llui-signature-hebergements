@@ -189,6 +189,7 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
 
     // ── Détection session prescripteur active + génération QR réservation ──
     let qr_reservation_url: string | undefined
+    let code_manuel_prescripteur: string | undefined
     try {
       const now = new Date().toISOString()
       const sessSnap = await db.collection('prescripteur_sessions')
@@ -198,6 +199,10 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
         .where('expire_at', '>', now)
         .limit(1).get()
       const sessionPrescripteur = sessSnap.empty ? null : { ...(sessSnap.docs[0].data() as Record<string, unknown>), session_id: sessSnap.docs[0].id }
+
+      // Générer le code manuel 6 chiffres (fallback caméra)
+      const codeManuel = Math.floor(100000 + Math.random() * 900000).toString()
+      code_manuel_prescripteur = codeManuel
 
       // Générer le payload QR
       const qrPayload = JSON.stringify({
@@ -225,6 +230,7 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
         qr_reservation_url,
         qr_expire_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         qr_utilise: false,
+        code_manuel_prescripteur: codeManuel,
         statut_prescription: 'disponibilite_confirmee',
         ...(sessionPrescripteur ? {
           prescripteur_id_prevu: (sessionPrescripteur as any).prescripteur_id,
@@ -246,7 +252,7 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
     revalidatePath('/partenaire/dashboard')
     revalidatePath('/admin/reservations')
 
-    return { success: true, reservationId: docRef.id, confirmationCode, qr_reservation_url }
+    return { success: true, reservationId: docRef.id, confirmationCode, qr_reservation_url, code_manuel_prescripteur }
   } catch (e: any) {
     return { success: false, error: e.message || 'Une erreur est survenue' }
   }

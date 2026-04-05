@@ -1273,3 +1273,100 @@ export async function getSessionPrescripteurActifPartenaire(partenaireId: string
     expire_at: d.expire_at as string,
   }
 }
+
+// ─── Scanner via code manuel 6 chiffres ──────────────────────
+
+export async function scannerCodeManuel(
+  prescripteur_id: string,
+  code: string
+): Promise<{ success: boolean; commission_fcfa?: number; nouveau_solde?: number; client_nom?: string; hebergement_nom?: string; error?: string }> {
+  try {
+    // Vérifier session partenaire active
+    const sessionActive = await getSessionActivePartenaire(prescripteur_id)
+    if (!sessionActive) {
+      return { success: false, error: "Aucune session partenaire active. Scannez d'abord le QR du partenaire." }
+    }
+
+    // Chercher la réservation par code manuel
+    const snap = await db.collection('reservations')
+      .where('code_manuel_prescripteur', '==', code)
+      .where('statut_prescription', '==', 'paiement_confirme')
+      .limit(1)
+      .get()
+
+    if (snap.empty) {
+      return { success: false, error: 'Code incorrect ou expiré. Vérifiez avec le partenaire.' }
+    }
+
+    const resaDoc = snap.docs[0]
+    const resa = resaDoc.data()
+    const reservation_id = resaDoc.id
+
+    // Vérifier expiration
+    if (resa.qr_expire_at && new Date(resa.qr_expire_at as string) < new Date()) {
+      return { success: false, error: 'Ce code a expiré (valable 24h). Contactez le partenaire.' }
+    }
+    if (resa.qr_utilise === true) {
+      return { success: false, error: 'Ce code a déjà été utilisé. Commission déjà versée.' }
+    }
+
+    // Vérifier que la réservation appartient au partenaire de la session active
+    const accDoc = await db.collection('hebergements').doc(resa.accommodation_id ?? '').get()
+    const hebergementNom: string = accDoc.exists
+      ? ((accDoc.data()?.name ?? accDoc.data()?.titre ?? 'Hébergement') as string)
+      : 'Hébergement'
+
+    if (accDoc.exists && accDoc.data()?.partner_id !== sessionActive.partenaire_id) {
+      return { success: false, error: 'Ce code ne correspond pas au partenaire scanné.' }
+    }
+
+    // Récupérer le prescripteur
+    const prescripteurDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
+    if (!prescripteurDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
+    const prescripteur = prescripteurDoc.data() as Prescripteur
+
+    const commission = prescripteur.commission_fcfa ?? 1500
+    const nouveauSolde = (prescripteur.solde_fcfa ?? 0) + commission
+    const clientNom = `${resa.guest_first_name ?? ''} ${resa.guest_last_name ?? ''}`.trim()
+
+    // Transaction atomique (même logique que scannerQrReservation)
+    await db.runTransaction(async (tx) => {
+      tx.update(db.collection('reservations').doc(reservation_id), {
+        prescripteur_id,
+        prescripteur_nom: prescripteur.nom_complet,
+        prescripteur_type: prescripteur.type,
+        qr_utilise: true,
+        statut_prescription: 'commission_versee',
+        commission_versee_at: new Date().toISOString(),
+        commission_fcfa: commission,
+      })
+      tx.update(db.collection('prescripteurs').doc(prescripteur_id), {
+        solde_fcfa: nouveauSolde,
+        total_clients_amenes: FieldValue.increment(1),
+      })
+    })
+
+    // Notification WhatsApp prescripteur
+    try {
+      if (prescripteur.telephone) {
+        const msg = `Bravo ${prescripteur.nom_complet} ! Vous avez gagne ${commission} FCFA de commission. Client : ${clientNom}. Nouveau solde : ${nouveauSolde} FCFA. — L&Lui Signature`
+        await sendWhatsApp(prescripteur.telephone, msg)
+      }
+    } catch {}
+
+    // Push FCM prescripteur
+    try {
+      if (prescripteur.fcm_token) {
+        await sendPushNotification(prescripteur.fcm_token, {
+          title: 'Commission recue !',
+          body: `+${commission} FCFA — ${clientNom}`,
+        })
+      }
+    } catch {}
+
+    return { success: true, commission_fcfa: commission, nouveau_solde: nouveauSolde, client_nom: clientNom, hebergement_nom: hebergementNom }
+  } catch (err: any) {
+    console.error('[scannerCodeManuel]', err)
+    return { success: false, error: err.message }
+  }
+}

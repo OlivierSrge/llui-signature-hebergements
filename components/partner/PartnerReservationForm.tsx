@@ -33,7 +33,7 @@ interface Props {
 
 export default function PartnerReservationForm({ accommodations, initialValues, fromDemandId, prescripteurActif }: Props) {
   const [isPending, startTransition] = useTransition()
-  const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string; qr_reservation_url?: string; guestPhone?: string } | null>(null)
+  const [result, setResult] = useState<{ reservationId: string; confirmationCode: string; qrCodeUrl: string; qr_reservation_url?: string; code_manuel_prescripteur?: string; guestPhone?: string } | null>(null)
   const [checkIn, setCheckIn] = useState(initialValues?.check_in || '')
   const [checkOut, setCheckOut] = useState(initialValues?.check_out || '')
   const [guestPhone, setGuestPhone] = useState(initialValues?.guest_phone || '')
@@ -59,6 +59,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
         confirmationCode: res.confirmationCode,
         qrCodeUrl,
         qr_reservation_url: res.qr_reservation_url,
+        code_manuel_prescripteur: res.code_manuel_prescripteur,
         guestPhone: guestPhone || undefined,
       })
       toast.success('Disponibilité confirmée — QR généré !')
@@ -83,7 +84,7 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
         </div>
 
         {result.qr_reservation_url && (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={result.qr_reservation_url}
@@ -93,6 +94,17 @@ export default function PartnerReservationForm({ accommodations, initialValues, 
               className="rounded-xl border border-beige-200"
             />
             <p className="text-xs text-dark/40">QR à présenter à l&apos;arrivée</p>
+            {result.code_manuel_prescripteur && (
+              <div className="w-full rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 text-left">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-1">Code manuel</p>
+                <p className="font-mono text-2xl font-bold text-dark tracking-[0.2em]">
+                  {result.code_manuel_prescripteur.slice(0, 3)} {result.code_manuel_prescripteur.slice(3)}
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Dictez ce code au moto-taxi si le scan QR est impossible
+                </p>
+              </div>
+            )}
           </div>
         )}
 
