@@ -1,5 +1,60 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-04 — Sprint B Prescripteur complet (commit 892f96d)
+Dernière mise à jour : 2026-04-05 — Sprint C Prescripteur complet (commit e9ea004)
+
+---
+
+## MODULE PRESCRIPTEUR MOTO-TAXI — Sprint C (2026-04-05)
+
+### Nouveau flux en 2 scans ✅
+
+**LIVRABLE 1 — QR généré à disponibilité confirmée** ✅
+- `createPartnerReservation` génère QR PNG à la création (Firebase Storage `reservations/qr/[id].png`)
+- Champs Firestore ajoutés : `qr_reservation_data`, `qr_reservation_url`, `qr_expire_at`, `qr_utilise`, `statut_prescription`
+- Détection session prescripteur active au moment de la création → `prescripteur_id_prevu` stocké
+- WhatsApp envoyé au client avec URL du QR
+- Bouton renommé "Confirmer disponibilité + Envoyer QR client"
+- Écran post-création : QR en grand + bandeau "ÉTAPE SUIVANTE"
+
+**LIVRABLE 2 — Bouton "Confirmer paiement"** ✅
+- `confirmerPaiementReservation(reservation_id)` → `statut_prescription: 'paiement_confirme'`
+- SMS WhatsApp + push FCM envoyés au prescripteur
+- `ConfirmerPaiementButton.tsx` : composant client intégré dans fiche réservation partenaire
+- Bandeaux amber/vert selon statut : en_attente → confirmé → commission_versee
+
+**LIVRABLE 3 — QR Établissement plein écran dashboard partenaire** ✅
+- `getQrEtablissement` / `sauvegarderQrEtablissement` : persistance Firestore + Storage
+- Champs partenaire : `qr_etablissement_data`, `qr_etablissement_url`, `qr_generated_at`
+- Régénération invalide toutes les sessions actives (`statut → "annulee"`)
+- Confirmation dialog avant régénération
+- Overlay plein écran blanc, QR 288px centré
+- Compteur prescripteurs actifs temps réel
+
+**LIVRABLE 4 — PWA flux corrigé** ✅
+- `scannerQrReservation` vérifie `statut_prescription == 'paiement_confirme'`
+  Messages explicites : ⏳ attente paiement / ❌ déjà scanné / ❌ QR expiré
+- Session active affiche "Expire à HH:MM"
+
+**LIVRABLE 5 — Intégration réservation existante** ✅
+- `getSessionPrescripteurActifPartenaire(partenaireId)` retourne prescripteur actif
+- `creerSessionPartenaire` stocke `nom_prescripteur` (évite lookup supplémentaire)
+- Formulaire réservation détecte prescripteur actif → bandeau vert "🏍 Prescripteur présent"
+
+**ENUM statut_prescription** :
+- `sans_prescripteur` → réservation directe
+- `prescripteur_present` → session active détectée (legacy, non utilisé dans nouveau flux)
+- `disponibilite_confirmee` → QR généré, attente paiement
+- `paiement_confirme` → moto peut scanner
+- `commission_versee` → flux terminé ✅
+
+**Indexes Firestore requis** (`firestore.indexes.json`) :
+- `prescripteur_sessions`: `(prescripteur_id, type, statut, expire_at)`
+- `prescripteur_sessions`: `(partenaire_id, type, statut, expire_at)`
+- `prescripteur_sessions`: `(partenaire_id, statut)`
+- `reservations`: `(partner_id, statut_prescription)`
+
+**Variables env requises pour Sprint C :**
+- Même que Sprint A/B (Twilio, FCM, Firebase Admin)
+- `FIREBASE_STORAGE_BUCKET` : bucket pour QR PNG
 
 ---
 

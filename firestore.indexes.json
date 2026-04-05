@@ -1,0 +1,41 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "prescripteur_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "prescripteur_id", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "statut", "order": "ASCENDING" },
+        { "fieldPath": "expire_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prescripteur_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "statut", "order": "ASCENDING" },
+        { "fieldPath": "expire_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "prescripteur_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
+        { "fieldPath": "statut", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "partner_id", "order": "ASCENDING" },
+        { "fieldPath": "statut_prescription", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
