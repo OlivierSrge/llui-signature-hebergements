@@ -223,3 +223,22 @@ export async function getPartnerFromSession(): Promise<{ id: string; name: strin
 
   return { id: doc.id, name: data.name, access_code: data.access_code }
 }
+
+export async function sauvegarderGpsPartenaire(
+  partnerId: string,
+  latitude: number,
+  longitude: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('partenaires').doc(partnerId).update({
+      latitude,
+      longitude,
+      gps_updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/partenaire/dashboard')
+    return { success: true }
+  } catch (err: any) {
+    console.error('[sauvegarderGpsPartenaire]', err)
+    return { success: false, error: err.message }
+  }
+}

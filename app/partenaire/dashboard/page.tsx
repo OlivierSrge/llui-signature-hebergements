@@ -10,6 +10,7 @@ import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import QrPrescripteurSection from '@/components/partner/QrPrescripteurSection'
 import EmployesSection from '@/components/partner/EmployesSection'
 import NotationSection from '@/components/partner/NotationSection'
+import GpsSection from '@/components/partner/GpsSection'
 import { getPartnerSubscription } from '@/actions/subscriptions'
 import { getPartnerPendingDemands } from '@/actions/availability-requests'
 import { getEmployes } from '@/actions/employes'
@@ -26,6 +27,8 @@ async function getPartner(partnerId: string) {
     access_code: d.access_code as string,
     reliability_score: (d.reliability_score as number | null) ?? null,
     contractStatus: (d.contract?.status as string) || 'not_sent',
+    latitude: (d.latitude as number | null) ?? null,
+    longitude: (d.longitude as number | null) ?? null,
   }
 }
 
@@ -400,6 +403,13 @@ export default async function PartnerDashboardPage() {
             reservations={reservationsANoter}
           />
         )}
+
+        {/* ── Position GPS ── */}
+        <GpsSection
+          partnerId={partnerId}
+          latitudeInitiale={partner.latitude}
+          longitudeInitiale={partner.longitude}
+        />
 
         {/* BLOC 1 — 3 KPI cards */}
         <div className="grid grid-cols-3 gap-4">
