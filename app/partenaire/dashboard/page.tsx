@@ -9,9 +9,11 @@ import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import QrPrescripteurSection from '@/components/partner/QrPrescripteurSection'
 import EmployesSection from '@/components/partner/EmployesSection'
+import NotationSection from '@/components/partner/NotationSection'
 import { getPartnerSubscription } from '@/actions/subscriptions'
 import { getPartnerPendingDemands } from '@/actions/availability-requests'
 import { getEmployes } from '@/actions/employes'
+import { getReservationsANoter } from '@/actions/notes-prescripteurs'
 import { PLANS } from '@/lib/plans'
 
 async function getPartner(partnerId: string) {
@@ -200,10 +202,11 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect('/partenaire')
 
   const accommodationIds = accommodations.map((a: any) => a.id)
-  const [reservations, partnerDemands, employes] = await Promise.all([
+  const [reservations, partnerDemands, employes, reservationsANoter] = await Promise.all([
     getPartnerReservations(accommodationIds).catch(() => []),
     getPartnerPendingDemands(accommodationIds).catch(() => []),
     getEmployes(partnerId).catch(() => []),
+    getReservationsANoter(partnerId).catch(() => []),
   ])
 
   const currentPlan = subscription ? PLANS[subscription.subscriptionPlan] : null
@@ -388,6 +391,15 @@ export default async function PartnerDashboardPage() {
 
         {/* ── Mes Employes ── */}
         <EmployesSection partenaireId={partnerId} employes={employes} />
+
+        {/* ── Notation prescripteur ── */}
+        {reservationsANoter.length > 0 && (
+          <NotationSection
+            partenaireId={partnerId}
+            partenaireNom={partner.name}
+            reservations={reservationsANoter}
+          />
+        )}
 
         {/* BLOC 1 — 3 KPI cards */}
         <div className="grid grid-cols-3 gap-4">
