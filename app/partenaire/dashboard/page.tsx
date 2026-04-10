@@ -4,16 +4,19 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users, BookOpen } from 'lucide-react'
+import { LogOut, Calendar, Home, Plus, QrCode, Star, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users, BookOpen } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
 import PartnerCalendar from '@/components/partner/PartnerCalendar'
 import QrPrescripteurSection from '@/components/partner/QrPrescripteurSection'
 import EmployesSection from '@/components/partner/EmployesSection'
+import CommerciauxSection from '@/components/partner/CommerciauxSection'
 import NotationSection from '@/components/partner/NotationSection'
 import GpsSection from '@/components/partner/GpsSection'
+import ReservationsRecentes from '@/components/partner/ReservationsRecentes'
 import { getPartnerSubscription } from '@/actions/subscriptions'
 import { getPartnerPendingDemands } from '@/actions/availability-requests'
 import { getEmployes } from '@/actions/employes'
+import { getCommerciaux } from '@/actions/commerciaux'
 import { getReservationsANoter } from '@/actions/notes-prescripteurs'
 import { PLANS } from '@/lib/plans'
 
@@ -173,16 +176,7 @@ async function getPartnerStats(partnerId: string) {
   return { revenue_month, arrivals_week, pending_count, monthly_confirmed, level, stars, nextTarget }
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  en_attente: 'En attente',
-  confirmee: 'Confirmée',
-  annulee: 'Annulée',
-}
-const STATUS_COLOR: Record<string, string> = {
-  en_attente: 'bg-yellow-100 text-yellow-800',
-  confirmee: 'bg-green-100 text-green-800',
-  annulee: 'bg-red-100 text-red-800',
-}
+
 
 async function handleLogout() {
   'use server'
@@ -205,10 +199,11 @@ export default async function PartnerDashboardPage() {
   if (!partner) redirect('/partenaire')
 
   const accommodationIds = accommodations.map((a: any) => a.id)
-  const [reservations, partnerDemands, employes, reservationsANoter] = await Promise.all([
+  const [reservations, partnerDemands, employes, commerciaux, reservationsANoter] = await Promise.all([
     getPartnerReservations(accommodationIds).catch(() => []),
     getPartnerPendingDemands(accommodationIds).catch(() => []),
     getEmployes(partnerId).catch(() => []),
+    getCommerciaux(partnerId).catch(() => []),
     getReservationsANoter(partnerId).catch(() => []),
   ])
 
@@ -395,6 +390,9 @@ export default async function PartnerDashboardPage() {
         {/* ── Mes Employes ── */}
         <EmployesSection partenaireId={partnerId} employes={employes} />
 
+        {/* ── Mes Commerciaux ── */}
+        <CommerciauxSection partenaireId={partnerId} commerciaux={commerciaux} />
+
         {/* ── Notation prescripteur ── */}
         {reservationsANoter.length > 0 && (
           <NotationSection
@@ -515,75 +513,8 @@ export default async function PartnerDashboardPage() {
           </div>
         )}
 
-        {/* Recent reservations */}
-        {reservations.length > 0 && (
-          <div>
-            <h2 className="font-semibold text-dark text-lg mb-4">Mes réservations récentes</h2>
-            <div className="bg-white rounded-2xl border border-beige-200 overflow-hidden">
-              <div className="divide-y divide-beige-100">
-                {reservations.map((r: any) => {
-                  const isPaid = r.payment_status === 'paye'
-                  const isConfirmed = r.reservation_status === 'confirmee'
-                  // Pour les réservations partenaires, les étapes WhatsApp peuvent être implicites
-                  const step1 = !!r.whatsapp_proposal_sent_at || r.source === 'partenaire' || isPaid || isConfirmed
-                  const step2 = !!r.whatsapp_payment_request_sent_at || isPaid || isConfirmed
-                  const step3 = isPaid
-                  const step4 = !!r.whatsapp_confirmation_sent_at || isConfirmed
-
-                  return (
-                  <Link
-                    key={r.id}
-                    href={`/partenaire/reservations/${r.id}`}
-                    className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-beige-50 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-dark text-sm truncate">
-                        {r.guest_first_name} {r.guest_last_name}
-                      </p>
-                      <p className="text-xs text-dark/40 mt-0.5">
-                        {r.accommodation?.name ?? r.accommodation_id} · {r.check_in} → {r.check_out}
-                      </p>
-                      {r.prescripteur_nom && (
-                        <p className="text-xs text-gold-600 mt-0.5 flex items-center gap-1">
-                          🏍 {r.prescripteur_nom}
-                          {r.badge_confiance_prescripteur && <span className="text-amber-500">🏆</span>}
-                        </p>
-                      )}
-                      {r.confirmation_code && (
-                        <p className="text-xs font-mono text-dark/40 mt-0.5">{r.confirmation_code}</p>
-                      )}
-                    </div>
-                    {/* Pipeline steps */}
-                    <div className="flex items-center gap-1 flex-shrink-0 self-center">
-                      {[step1, step2, step3, step4].map((done, i) => (
-                        <div
-                          key={i}
-                          title={['Proposition envoyée', 'Paiement demandé', 'Paiement confirmé', 'Fiche envoyée'][i]}
-                          className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center
-                            ${done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          {done ? '✓' : i + 1}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[r.reservation_status] ?? 'bg-beige-100 text-dark/60'}`}>
-                        {STATUS_LABEL[r.reservation_status] ?? r.reservation_status}
-                      </span>
-                      {r.check_in_confirmed && (
-                        <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                          Arrivée ✓
-                        </span>
-                      )}
-                      <ArrowRight size={13} className="text-dark/20 mt-1" />
-                    </div>
-                  </Link>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Réservations récentes avec filtres et badges source */}
+        <ReservationsRecentes reservations={reservations} />
 
         {/* Calendars */}
         <div>

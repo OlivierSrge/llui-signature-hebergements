@@ -163,6 +163,8 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
       check_in_date: null,
       checked_in_by: null,
       usage_commission_amount: usageCommissionAmount,
+      // Traçabilité source
+      apporte_par_type: 'direct',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -235,6 +237,7 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
         ...(sessionPrescripteur ? {
           prescripteur_id_prevu: (sessionPrescripteur as any).prescripteur_id,
           prescripteur_session_id: sessionPrescripteur.session_id,
+          apporte_par_type: 'prescripteur',
         } : {}),
       })
 
