@@ -50,7 +50,7 @@ export function useFCM(prescripteurId: string | null) {
         })
 
         if (token) {
-          await saveFcmToken(prescripteurId, token)
+          await saveFcmToken(prescripteurId as string, token)
           console.log('[FCM] Token enregistre')
         }
       } catch (err) {

@@ -8,7 +8,7 @@ import { buildSourceFields } from '@/actions/reservation-source'
 import QRCode from 'qrcode'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 
-type ActionResult = { success: true; reservationId: string; confirmationCode: string; qr_reservation_url?: string } | { success: false; error: string }
+type ActionResult = { success: true; reservationId: string; confirmationCode: string; qr_reservation_url?: string; code_manuel_prescripteur?: string } | { success: false; error: string }
 
 function generateConfirmationCode(): string {
   const year = new Date().getFullYear()

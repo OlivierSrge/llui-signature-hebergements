@@ -110,10 +110,10 @@ export default function AnalyticsDashboard() {
                   <XAxis dataKey="nom" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={(v) => v.split(' ')[0]} />
                   <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} width={30} />
                   <Tooltip
-                    formatter={(val: number, name: string) => [
-                      name === 'clients' ? `${val} clients` : formatFCFA(val),
+                    formatter={(val: number | undefined, name: string | undefined) => [
+                      name === 'clients' ? `${val ?? 0} clients` : formatFCFA(val ?? 0),
                       name === 'clients' ? 'Clients' : 'Commissions',
-                    ]}
+                    ] as [string, string]}
                     contentStyle={{ borderRadius: '12px', border: '1px solid #f0ede4', fontSize: 12 }}
                   />
                   <Bar dataKey="clients" fill="#C9A84C" radius={[4, 4, 0, 0]} name="clients" />
@@ -131,7 +131,7 @@ export default function AnalyticsDashboard() {
                 <XAxis dataKey="mois" tick={{ fontSize: 11, fill: '#6b7280' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} width={40} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
                 <Tooltip
-                  formatter={(val: number) => [formatFCFA(val), 'Commissions']}
+                  formatter={(val: number | undefined) => [formatFCFA(val ?? 0), 'Commissions']}
                   contentStyle={{ borderRadius: '12px', border: '1px solid #f0ede4', fontSize: 12 }}
                 />
                 <Line type="monotone" dataKey="commissions" stroke="#C9A84C" strokeWidth={2.5} dot={{ r: 4, fill: '#C9A84C' }} activeDot={{ r: 6 }} />

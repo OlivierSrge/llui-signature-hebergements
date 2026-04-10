@@ -36,6 +36,10 @@ export interface Prescripteur {
   fcm_token?: string
   created_at: string
   created_by: string
+  // Sprint E — notation et badge confiance
+  note_moyenne?: number
+  total_notes?: number
+  badge_confiance?: string
 }
 
 export interface Retrait {
