@@ -115,8 +115,13 @@ export async function creerAffilie({
     console.log('[creerAffilie] ✅ success — code_promo:', code_promo)
     return { success: true, code_promo }
   } catch (error) {
-    console.error('[creerAffilie] ❌ error:', error instanceof Error ? error.message : error)
-    return { success: false, code_promo: '' }
+    console.error('[creerAffilie] ERREUR COMPLETE:', error)
+    return {
+      success: false,
+      code_promo: '',
+      error_message: (error as Error).message,
+      error_stack: (error as Error).stack?.slice(0, 500),
+    }
   }
 }
 

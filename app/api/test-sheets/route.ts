@@ -14,8 +14,9 @@ export async function GET() {
       commission_pct: 8,
     })
     return Response.json({
-      success: true,
+      success: result.success,
       result,
+      error_detail: (result as Record<string, unknown>).error_message ?? null,
       env: {
         hasSheetId: !!process.env.GOOGLE_SHEETS_CANAL2_ID,
         hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
