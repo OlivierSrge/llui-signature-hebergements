@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList, FileText, Ban, Scale, Camera, TrendingDown, CalendarRange, QrCode, Briefcase, Bike } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Home, LogOut, Menu, X, ChevronRight, Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature, FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle, Banknote, TrendingUp, Globe, ClipboardList, FileText, Ban, Scale, Camera, TrendingDown, CalendarRange, QrCode, Briefcase, Bike, Settings } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +41,7 @@ const NAV_ITEMS = [
   { href: '/admin/white-label', label: '🌍 White label villes', icon: Globe },
   { href: '/admin/prestataires-services', label: '🤝 Prestataires Services', icon: Briefcase },
   { href: '/admin/prescripteurs', label: '🏍 Prescripteurs', icon: Bike },
+  { href: '/admin/parametres', label: '⚙️ Paramètres', icon: Settings },
 ]
 
 export default function AdminSidebar() {
