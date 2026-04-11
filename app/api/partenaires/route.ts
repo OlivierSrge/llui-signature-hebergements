@@ -53,6 +53,17 @@ export async function POST(req: NextRequest) {
     ? ((body.remise_description as string) ?? '')
     : null
 
+  console.log('[POST /api/partenaires] création:', {
+    nom,
+    type,
+    telephone,
+    remise_type,
+    remise_valeur_pct,
+    HAS_SHEETS_ID: !!process.env.GOOGLE_SHEETS_CANAL2_ID,
+    HAS_GOOGLE_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    HAS_GOOGLE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+  })
+
   const res = await creerPrescripteurPartenaire({
     nom_etablissement: nom,
     email: (body.email as string) ?? '',
@@ -65,6 +76,8 @@ export async function POST(req: NextRequest) {
     forfait_type: body.forfait_type === 'annuel' ? 'annuel' : 'mensuel',
     created_by: 'api',
   })
+
+  console.log('[POST /api/partenaires] résultat:', res)
 
   if (!res.success) {
     return NextResponse.json({ error: res.error ?? 'Erreur création' }, { status: 500 })

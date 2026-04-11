@@ -154,13 +154,18 @@ export async function creerPrescripteurPartenaire(data: {
       created_by: data.created_by ?? 'admin',
     })
 
-    // Insérer dans Affiliés_Codes (fire-and-forget)
-    creerAffilie({
-      nom_etablissement: data.nom_etablissement,
-      email: data.email ?? '',
-      reduction_pct: data.remise_valeur_pct ?? 0,
-      commission_pct: params.commission_partenaire_pct,
-    }).catch((e) => console.warn('[creerPrescripteurPartenaire] creerAffilie failed:', e))
+    // Insérer dans Affiliés_Codes (awaited — Vercel Lambda sinon kill la promise)
+    try {
+      const affilieResult = await creerAffilie({
+        nom_etablissement: data.nom_etablissement,
+        email: data.email ?? '',
+        reduction_pct: data.remise_valeur_pct ?? 0,
+        commission_pct: params.commission_partenaire_pct,
+      })
+      console.log('[creerPrescripteurPartenaire] creerAffilie result:', affilieResult)
+    } catch (e) {
+      console.warn('[creerPrescripteurPartenaire] creerAffilie failed:', e)
+    }
 
     revalidatePath('/admin/prescripteurs-partenaires')
     return { success: true, uid: ref.id, code_promo: code_promo_affilie }

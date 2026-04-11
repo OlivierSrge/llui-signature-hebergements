@@ -73,8 +73,17 @@ export async function creerAffilie({
   commission_pct: number
 }): Promise<{ success: boolean; code_promo: string }> {
   const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+
+  // Logs diagnostic — visibles dans Vercel Function Logs
+  console.log('[creerAffilie] called:', {
+    nom_etablissement,
+    SHEET_ID: SHEET_ID ?? '⚠️ MANQUANT',
+    HAS_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    HAS_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+  })
+
   if (!SHEET_ID) {
-    console.warn('[sheetsCanal2] GOOGLE_SHEETS_CANAL2_ID non configuré — skip creerAffilie')
+    console.warn('[creerAffilie] GOOGLE_SHEETS_CANAL2_ID non configuré — skip')
     return { success: false, code_promo: '' }
   }
 
@@ -82,6 +91,8 @@ export async function creerAffilie({
 
   try {
     const sheets = await getSheetsClient()
+    console.log('[creerAffilie] sheets client OK, appending to:', SHEET_AFFILIES)
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_AFFILIES}!A:I`,
@@ -100,9 +111,11 @@ export async function creerAffilie({
         ]],
       },
     })
+
+    console.log('[creerAffilie] ✅ success — code_promo:', code_promo)
     return { success: true, code_promo }
   } catch (error) {
-    console.error('[sheetsCanal2] creerAffilie error:', error instanceof Error ? error.message : error)
+    console.error('[creerAffilie] ❌ error:', error instanceof Error ? error.message : error)
     return { success: false, code_promo: '' }
   }
 }
