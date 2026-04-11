@@ -3,30 +3,53 @@
 import { useState, useEffect } from 'react'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 
-function formatFCFA(n: number) {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
+function formatFCFA(n: number | undefined | null) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n ?? 0)) + ' FCFA'
 }
 
-function countdown(expireAt: string): string {
-  const ms = Math.max(0, new Date(expireAt).getTime() - Date.now())
+function safeDate(val: unknown): Date | null {
+  if (!val) return null
+  if (typeof val === 'string') {
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d
+  }
+  // Firestore Timestamp object
+  if (typeof val === 'object' && val !== null && 'toDate' in val) {
+    try { return (val as { toDate: () => Date }).toDate() } catch { return null }
+  }
+  return null
+}
+
+function countdown(expireAt: unknown): string {
+  const d = safeDate(expireAt)
+  if (!d) return '—'
+  const ms = Math.max(0, d.getTime() - Date.now())
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
   return `${h}h ${String(m).padStart(2, '0')}min`
 }
 
-function jours(expireAt: string): number {
-  return Math.max(0, Math.ceil((new Date(expireAt).getTime() - Date.now()) / 86400000))
+function jours(expireAt: unknown): number {
+  const d = safeDate(expireAt)
+  if (!d) return 0
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000))
+}
+
+function formatLocalDate(val: unknown): string {
+  const d = safeDate(val)
+  if (!d) return '—'
+  return d.toLocaleDateString('fr-FR')
 }
 
 interface Transaction {
   id: string
-  code: string
-  canal: string
-  montant_transaction_fcfa: number
-  commission_fcfa: number
-  statut: string
-  created_at: string
-  versee_at?: string
+  code?: string
+  canal?: string
+  montant_transaction_fcfa?: number
+  commission_fcfa?: number
+  statut?: string
+  created_at?: unknown
+  versee_at?: unknown
 }
 
 interface Props {
@@ -44,8 +67,11 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
     return () => clearInterval(t)
   }, [])
 
+  // Supprime l'avertissement ESLint de tick non utilisé
+  void tick
+
   const forfaitExpire = jours(partenaire.forfait_expire_at)
-  const totalCa = partenaire.total_ca_hebergements_fcfa + partenaire.total_ca_boutique_fcfa
+  const totalCa = (partenaire.total_ca_hebergements_fcfa ?? 0) + (partenaire.total_ca_boutique_fcfa ?? 0)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
   const qrUrl = `${appUrl}/promo/${partenaire.uid}`
 
@@ -59,16 +85,18 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
       <div className="bg-white rounded-2xl p-5 shadow-sm">
         <p className="text-xs text-[#C9A84C] font-semibold uppercase tracking-widest mb-1">Prescripteur L&Lui Signature</p>
         <h1 className="text-xl font-serif font-bold text-[#1A1A1A]">{partenaire.nom_etablissement}</h1>
-        <p className="text-sm text-[#1A1A1A]/60">{partenaire.type} · {partenaire.adresse}</p>
-        <div className="mt-3 flex items-center gap-2">
+        <p className="text-sm text-[#1A1A1A]/60">{partenaire.type}{partenaire.adresse ? ` · ${partenaire.adresse}` : ''}</p>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
             partenaire.forfait_statut === 'actif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
           }`}>
             {partenaire.forfait_statut === 'actif' ? '✅ Forfait actif' : '🔴 Forfait expiré'}
           </span>
-          <span className="text-xs text-[#1A1A1A]/50">
-            expire {new Date(partenaire.forfait_expire_at).toLocaleDateString('fr-FR')} · renouvellement dans {forfaitExpire} jours
-          </span>
+          {partenaire.forfait_expire_at && (
+            <span className="text-xs text-[#1A1A1A]/50">
+              expire {formatLocalDate(partenaire.forfait_expire_at)} · dans {forfaitExpire} jours
+            </span>
+          )}
         </div>
       </div>
 
@@ -77,10 +105,10 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
         <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📊 Statistiques globales</p>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Scans QR', val: partenaire.total_scans },
-            { label: 'Codes générés', val: partenaire.total_codes_generes },
-            { label: 'Utilisations', val: partenaire.total_utilisations },
-            { label: 'Clients uniques', val: partenaire.total_clients_uniques },
+            { label: 'Scans QR', val: partenaire.total_scans ?? 0 },
+            { label: 'Codes générés', val: partenaire.total_codes_generes ?? 0 },
+            { label: 'Utilisations', val: partenaire.total_utilisations ?? 0 },
+            { label: 'Clients uniques', val: partenaire.total_clients_uniques ?? 0 },
           ].map(({ label, val }) => (
             <div key={label} className="bg-[#F5F0E8]/60 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-[#C9A84C]">{val}</p>
@@ -144,15 +172,15 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📋 Codes actifs en ce moment</p>
           <div className="space-y-2">
             {codesActifs.map((c) => {
-              const code = c.code as string
+              const code = (c.code as string) ?? '——'
               const nb = (c.nb_utilisations as number) ?? 0
               const max = (c.max_utilisations as number) ?? 5
-              const exp = c.expire_at as string
+              const exp = c.expire_at
               return (
                 <div key={code} className="flex items-center justify-between bg-[#F5F0E8]/60 rounded-xl px-4 py-3">
                   <div>
                     <p className="font-mono font-bold text-[#C9A84C] text-lg tracking-widest">
-                      {code.slice(0, 3)} {code.slice(3)}
+                      {code.length >= 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code}
                     </p>
                     <p className="text-xs text-[#1A1A1A]/50">⏱ Expire dans {countdown(exp)}</p>
                   </div>
@@ -175,9 +203,13 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
             {txList.slice(0, 10).map((t) => (
               <div key={t.id} className="bg-[#F5F0E8]/40 rounded-xl px-4 py-3">
                 <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-xs font-mono text-[#1A1A1A]/60">Code {t.code} — {t.canal === 'hebergement' ? 'Hébergement' : 'Boutique'}</p>
+                  <p className="text-xs font-mono text-[#1A1A1A]/60">
+                    {t.code ? `Code ${t.code}` : '—'} — {t.canal === 'hebergement' ? 'Hébergement' : 'Boutique'}
+                  </p>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.statut === 'versee' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {t.statut === 'versee' ? `✅ Versée ${t.versee_at ? new Date(t.versee_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}` : '⏳ En attente'}
+                    {t.statut === 'versee'
+                      ? `✅ Versée ${t.versee_at ? formatLocalDate(t.versee_at) : ''}`
+                      : '⏳ En attente'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
