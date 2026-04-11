@@ -16,6 +16,19 @@ interface ClientPrefill {
   phone: string
 }
 
+interface SejourValidation {
+  valide: boolean
+  nom_partenaire?: string
+  remise_type?: string
+  remise_valeur_pct?: number | null
+  remise_description?: string | null
+  reduction_fcfa?: number
+  montant_final_fcfa?: number
+  utilisations_restantes?: number
+  raison?: string
+  message?: string
+}
+
 interface Props {
   accommodationId: string
   accommodationSlug: string
@@ -26,6 +39,7 @@ interface Props {
   nights: number
   totalPrice: number
   prefill?: ClientPrefill | null
+  codeSejour?: string
 }
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; desc: string; icon: string }[] = [
@@ -59,6 +73,7 @@ export default function ReservationForm({
   nights,
   totalPrice,
   prefill,
+  codeSejour = '',
 }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -78,7 +93,41 @@ export default function ReservationForm({
   const [promoLoading, setPromoLoading] = useState(false)
   const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null)
 
-  const finalPrice = promoResult?.valid ? totalPrice - promoResult.discount_amount : totalPrice
+  // Canal 2 — code séjour 6 chiffres
+  const [sejourInput, setSejourInput] = useState(codeSejour)
+  const [sejourLoading, setSejourLoading] = useState(false)
+  const [sejourResult, setSejourResult] = useState<SejourValidation | null>(null)
+
+  const sejourReduction = sejourResult?.valide ? (sejourResult.reduction_fcfa ?? 0) : 0
+  const finalPrice = sejourResult?.valide
+    ? totalPrice - sejourReduction
+    : promoResult?.valid
+      ? totalPrice - promoResult.discount_amount
+      : totalPrice
+
+  const handleApplySejour = async () => {
+    if (!sejourInput.trim() || !/^\d{6}$/.test(sejourInput.trim())) {
+      toast.error('Le code séjour doit contenir exactement 6 chiffres')
+      return
+    }
+    setSejourLoading(true)
+    try {
+      const res = await fetch('/api/valider-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: sejourInput.trim(), montant_fcfa: totalPrice, canal: 'hebergement' }),
+      })
+      const data = await res.json() as SejourValidation
+      setSejourResult(data)
+      if (data.valide) toast.success('Code séjour appliqué !')
+      else toast.error(data.message ?? 'Code invalide')
+    } catch {
+      toast.error('Erreur lors de la validation du code')
+    }
+    setSejourLoading(false)
+  }
+
+  const handleRemoveSejour = () => { setSejourInput(''); setSejourResult(null) }
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) return
@@ -123,6 +172,20 @@ export default function ReservationForm({
       if (!result.success) {
         toast.error(result.error)
         return
+      }
+
+      // Confirmer utilisation Canal 2 si code séjour actif
+      if (sejourResult?.valide && sejourInput && result.reservationId) {
+        fetch('/api/confirmer-utilisation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: sejourInput.trim(),
+            canal: 'hebergement',
+            montant_fcfa: finalPrice,
+            reservation_id: result.reservationId,
+          }),
+        }).catch(() => {})
       }
 
       const paymentLabel = PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label || paymentMethod
@@ -326,6 +389,76 @@ export default function ReservationForm({
             className="input-field pl-10 resize-none"
           />
         </div>
+      </div>
+
+      {/* Code séjour Canal 2 */}
+      <div>
+        <label className="label">Code séjour <span className="text-dark/40 font-normal">(optionnel)</span></label>
+        {sejourResult?.valide ? (
+          <div className="rounded-xl border border-[#C9A84C] bg-[#F5F0E8]/60 p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={16} className="text-[#C9A84C] flex-shrink-0" />
+                <p className="text-sm font-semibold text-[#1A1A1A]">Code valide !</p>
+              </div>
+              <button type="button" onClick={handleRemoveSejour} className="text-dark/40 hover:text-dark/70">
+                <XCircle size={18} />
+              </button>
+            </div>
+            {sejourResult.remise_type === 'reduction_pct' && sejourResult.remise_valeur_pct ? (
+              <p className="text-sm text-[#C9A84C] font-medium">🎁 {sejourResult.remise_valeur_pct}% de réduction appliquée</p>
+            ) : (
+              <p className="text-sm text-[#C9A84C]">🎁 {sejourResult.remise_description ?? 'Avantage partenaire appliqué'}</p>
+            )}
+            <p className="text-xs text-dark/60 mt-1">Partenaire : {sejourResult.nom_partenaire}</p>
+            <p className="text-xs text-dark/60">Utilisations restantes : {sejourResult.utilisations_restantes}/5</p>
+            {sejourReduction > 0 && (
+              <div className="mt-3 pt-3 border-t border-[#C9A84C]/30 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-dark/60">Montant original</span>
+                  <span className="text-dark">{new Intl.NumberFormat('fr-FR').format(totalPrice)} FCFA</span>
+                </div>
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Réduction</span>
+                  <span>- {new Intl.NumberFormat('fr-FR').format(sejourReduction)} FCFA</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-[#C9A84C]">
+                  <span>Total à payer</span>
+                  <span>{new Intl.NumberFormat('fr-FR').format(finalPrice)} FCFA</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={sejourInput}
+              onChange={(e) => {
+                setSejourInput(e.target.value.replace(/\D/g, ''))
+                if (sejourResult) setSejourResult(null)
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplySejour())}
+              placeholder="123456"
+              className="input-field flex-1 font-mono tracking-widest"
+            />
+            <button
+              type="button"
+              onClick={handleApplySejour}
+              disabled={!sejourInput.trim() || sejourLoading}
+              className="px-4 py-2.5 bg-[#C9A84C] text-white text-sm font-medium rounded-xl hover:bg-[#b8963e] disabled:opacity-40 transition-colors flex-shrink-0"
+            >
+              {sejourLoading ? <Loader2 size={15} className="animate-spin" /> : 'Valider'}
+            </button>
+          </div>
+        )}
+        {sejourResult && !sejourResult.valide && (
+          <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+            <XCircle size={13} /> {sejourResult.message}
+          </p>
+        )}
       </div>
 
       {/* Promo code */}

@@ -39,7 +39,7 @@ export default async function ReservationPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ check_in?: string; check_out?: string; guests?: string }>
+  searchParams: Promise<{ check_in?: string; check_out?: string; guests?: string; code?: string }>
 }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams])
   const [accommodation, prefill] = await Promise.all([getAccommodation(slug), getClientPrefill()])
@@ -50,6 +50,7 @@ export default async function ReservationPage({
   const guests = sp.guests ? Number(sp.guests) : 2
   const nights = checkIn && checkOut ? countNights(checkIn, checkOut) : 0
   const subtotal = nights * accommodation.price_per_night
+  const codeSejour = sp.code || ''
 
   return (
     <div className="pt-20 pb-16">
@@ -108,7 +109,7 @@ export default async function ReservationPage({
                 <a href="/mon-compte" className="ml-auto text-gold-600 hover:underline font-medium whitespace-nowrap">Mon compte</a>
               </div>
             )}
-            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} accommodationName={accommodation.name} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} prefill={prefill} />
+            <ReservationForm accommodationId={accommodation.id} accommodationSlug={slug} accommodationName={accommodation.name} checkIn={checkIn} checkOut={checkOut} guests={guests} nights={nights} totalPrice={subtotal} prefill={prefill} codeSejour={codeSejour} />
           </div>
         </div>
       </div>
