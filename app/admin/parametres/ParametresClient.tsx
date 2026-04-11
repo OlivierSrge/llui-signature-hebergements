@@ -25,6 +25,7 @@ export default function ParametresClient({ params, historique }: Props) {
     commission_partenaire_pct: params.commission_partenaire_pct,
     forfait_prescripteur_mensuel_fcfa: params.forfait_prescripteur_mensuel_fcfa,
     forfait_prescripteur_annuel_fcfa: params.forfait_prescripteur_annuel_fcfa,
+    forfait_hotel_reservation_fcfa: params.forfait_hotel_reservation_fcfa ?? 2000,
     commission_mototaxi_fcfa: params.commission_mototaxi_fcfa,
     commission_commerciaux_pct: params.commission_commerciaux_pct,
     partage_llui_pct: params.partage_llui_pct,
@@ -110,6 +111,15 @@ export default function ParametresClient({ params, historique }: Props) {
         </InputRow>
         <Apercu label="Rapport annuel / mensuel"
           lines={[`→ Forfait annuel = ${moisAnnuel} mois — économie de ${economieMois} mois`]} />
+
+        <div className="border-t border-[#F5F0E8] mt-4 pt-4">
+          <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-3">― Hôtels &amp; Résidences partenaires ―</p>
+          <Label>Commission si client réserve un hébergement L&amp;Lui</Label>
+          <InputRow>
+            <Input value={form.forfait_hotel_reservation_fcfa} onChange={(v) => set('forfait_hotel_reservation_fcfa', v)} suffix="FCFA par réservation confirmée" />
+          </InputRow>
+          <p className="text-xs text-[#1A1A1A]/40 -mt-1">Le client a scanné le QR de l&apos;hôtel et réserve ensuite un hébergement L&amp;Lui.</p>
+        </div>
       </Section>
 
       {/* Canal 3 */}

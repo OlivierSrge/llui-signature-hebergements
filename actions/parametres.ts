@@ -14,6 +14,9 @@ export interface ParametresPlateforme {
   forfait_prescripteur_mensuel_fcfa: number
   forfait_prescripteur_annuel_fcfa: number
 
+  // Canal 2 — Hôtels & Résidences partenaires
+  forfait_hotel_reservation_fcfa: number
+
   // Canal 3 — Moto-taxis prescripteurs
   commission_mototaxi_fcfa: number
 
@@ -32,6 +35,7 @@ const DEFAULTS: ParametresPlateforme = {
   commission_partenaire_pct: 10,
   forfait_prescripteur_mensuel_fcfa: 25000,
   forfait_prescripteur_annuel_fcfa: 250000,
+  forfait_hotel_reservation_fcfa: 2000,
   commission_mototaxi_fcfa: 1500,
   commission_commerciaux_pct: 10,
   partage_llui_pct: 50,
@@ -55,6 +59,7 @@ export async function getParametresPlateforme(): Promise<ParametresPlateforme> {
     commission_partenaire_pct: d.commission_partenaire_pct ?? DEFAULTS.commission_partenaire_pct,
     forfait_prescripteur_mensuel_fcfa: d.forfait_prescripteur_mensuel_fcfa ?? DEFAULTS.forfait_prescripteur_mensuel_fcfa,
     forfait_prescripteur_annuel_fcfa: d.forfait_prescripteur_annuel_fcfa ?? DEFAULTS.forfait_prescripteur_annuel_fcfa,
+    forfait_hotel_reservation_fcfa: d.forfait_hotel_reservation_fcfa ?? DEFAULTS.forfait_hotel_reservation_fcfa,
     commission_mototaxi_fcfa: d.commission_mototaxi_fcfa ?? DEFAULTS.commission_mototaxi_fcfa,
     commission_commerciaux_pct: d.commission_commerciaux_pct ?? DEFAULTS.commission_commerciaux_pct,
     partage_llui_pct: d.partage_llui_pct ?? DEFAULTS.partage_llui_pct,

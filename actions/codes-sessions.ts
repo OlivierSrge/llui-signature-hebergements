@@ -371,8 +371,34 @@ export async function confirmerUtilisation(data: {
     else updateStats.total_ca_boutique_fcfa = FieldValue.increment(data.montant_fcfa)
     await db.collection('prescripteurs_partenaires').doc(session.prescripteur_partenaire_id).update(updateStats)
 
-    // SMS WhatsApp partenaire
+    // Commission spéciale hôtel/résidence si réservation hébergement
     const partenaire = await getPrescripteurPartenaire(session.prescripteur_partenaire_id)
+    if (data.canal === 'hebergement' &&
+        (session.type_partenaire === 'hotel' || session.type_partenaire === 'residence')) {
+      const forfaitHotel = params.forfait_hotel_reservation_fcfa ?? 2000
+      await db.collection('commissions_canal2').add({
+        prescripteur_partenaire_id: session.prescripteur_partenaire_id,
+        code: data.code,
+        canal: 'hebergement_via_hotel',
+        montant_transaction_fcfa: data.montant_fcfa,
+        commission_fcfa: forfaitHotel,
+        statut: 'en_attente',
+        created_at: now,
+        confirmee_at: null,
+        versee_at: null,
+        versee_par: null,
+      })
+      if (partenaire) {
+        const commHotelFmt = new Intl.NumberFormat('fr-FR').format(forfaitHotel) + ' FCFA'
+        try {
+          await sendWhatsApp(partenaire.telephone,
+            `🏠 Un client ayant scanné votre QR vient de réserver un hébergement L&Lui !\nCommission : ${commHotelFmt}\n— L&Lui Signature`
+          )
+        } catch {}
+      }
+    }
+
+    // SMS WhatsApp partenaire
     if (partenaire) {
       const restantes = session.max_utilisations - nouvellesUtilistations
       const canalLabel = data.canal === 'hebergement' ? 'Hébergement' : 'Boutique'
