@@ -19,9 +19,9 @@ export async function GET() {
       error_detail: (result as Record<string, unknown>).error_message ?? null,
       env: {
         hasSheetId: !!process.env.GOOGLE_SHEETS_CANAL2_ID,
+        sheetIdComplet: process.env.GOOGLE_SHEETS_CANAL2_ID,
         hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
         hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
-        sheetIdPreview: process.env.GOOGLE_SHEETS_CANAL2_ID?.slice(0, 8) + '...',
       },
     })
   } catch (error) {
@@ -30,6 +30,7 @@ export async function GET() {
       error: (error as Error).message,
       env: {
         hasSheetId: !!process.env.GOOGLE_SHEETS_CANAL2_ID,
+        sheetIdComplet: process.env.GOOGLE_SHEETS_CANAL2_ID,
         hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
         hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
       },
