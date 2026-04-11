@@ -5,6 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { revalidatePath } from 'next/cache'
+import { appendCodeToSheets } from '@/lib/sheetsCanal2'
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -215,6 +216,17 @@ export async function genererCodeSession(
       )
     } catch {}
 
+    // Écriture Google Sheets — fire-and-forget (n'affecte pas le flux principal)
+    appendCodeToSheets({
+      code,
+      nom_partenaire: partenaire.nom_etablissement,
+      type_partenaire: partenaire.type,
+      remise_valeur_pct: partenaire.remise_valeur_pct,
+      canal: partenaire.redirection_prioritaire,
+      statut: 'actif',
+      expire_at: expireAt.toISOString(),
+    }).catch((e) => console.error('[genererCodeSession] sheets:', e))
+
     return { success: true, code, redirection: partenaire.redirection_prioritaire }
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
@@ -407,6 +419,48 @@ export async function getStatsCanalDeux() {
     top_partenaires: top,
     commissions_par_partenaire: commissionsParPartenaire,
     tous_partenaires: partenaires,
+  }
+}
+
+/** Modifier un prescripteur partenaire existant */
+export async function modifierPrescripteurPartenaire(
+  id: string,
+  data: {
+    nom_etablissement?: string
+    type?: TypePartenaire
+    telephone?: string
+    adresse?: string
+    remise_type?: RemiseType
+    remise_valeur_pct?: number | null
+    remise_description?: string | null
+    statut?: StatutPartenaire
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    const snap = await db.collection('prescripteurs_partenaires').doc(id).get()
+    if (!snap.exists) return { success: false, error: 'Partenaire introuvable' }
+
+    const update: Record<string, unknown> = {}
+    if (data.nom_etablissement !== undefined) update.nom_etablissement = data.nom_etablissement
+    if (data.type !== undefined) {
+      update.type = data.type
+      update.redirection_prioritaire = getRedirectionParDefaut(data.type)
+    }
+    if (data.telephone !== undefined) update.telephone = data.telephone
+    if (data.adresse !== undefined) update.adresse = data.adresse
+    if (data.remise_type !== undefined) update.remise_type = data.remise_type
+    if (data.remise_valeur_pct !== undefined) update.remise_valeur_pct = data.remise_valeur_pct
+    if (data.remise_description !== undefined) update.remise_description = data.remise_description
+    if (data.statut !== undefined) update.statut = data.statut
+    update.updated_at = new Date().toISOString()
+
+    await db.collection('prescripteurs_partenaires').doc(id).update(update)
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
   }
 }
 
