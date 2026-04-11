@@ -41,6 +41,7 @@ const NAV_ITEMS = [
   { href: '/admin/white-label', label: '🌍 White label villes', icon: Globe },
   { href: '/admin/prestataires-services', label: '🤝 Prestataires Services', icon: Briefcase },
   { href: '/admin/prescripteurs', label: '🏍 Prescripteurs', icon: Bike },
+  { href: '/admin/prescripteurs-partenaires', label: '🏨 Canal 2 Partenaires', icon: Briefcase },
   { href: '/admin/parametres', label: '⚙️ Paramètres', icon: Settings },
 ]
 
