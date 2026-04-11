@@ -3,6 +3,7 @@
 import { db, getStorageBucket } from '@/lib/firebase'
 import { revalidatePath } from 'next/cache'
 import { createHash } from 'crypto'
+import { getParametresPlateforme } from '@/actions/parametres'
 import QRCode from 'qrcode'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { sendPushNotification } from '@/lib/fcm'
@@ -600,7 +601,8 @@ export async function scannerQrClient(
     const prescripteurDoc = await db.collection('prescripteurs').doc(prescripteur_id).get()
     const prescripteur = prescripteurDoc.data() as Prescripteur
 
-    const commission = prescripteur.commission_fcfa ?? 1500
+    const paramsMoto = await getParametresPlateforme()
+    const commission = prescripteur.commission_fcfa ?? paramsMoto.commission_mototaxi_fcfa
     const nouveauSolde = (prescripteur.solde_fcfa ?? 0) + commission
 
     // Transaction atomique
@@ -1093,7 +1095,8 @@ export async function scannerQrReservation(
     if (!prescripteurDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
     const prescripteur = prescripteurDoc.data() as Prescripteur
 
-    const commission = prescripteur.commission_fcfa ?? 1500
+    const paramsMotoQr = await getParametresPlateforme()
+    const commission = prescripteur.commission_fcfa ?? paramsMotoQr.commission_mototaxi_fcfa
     const nouveauSolde = (prescripteur.solde_fcfa ?? 0) + commission
 
     // Transaction atomique
@@ -1329,7 +1332,8 @@ export async function scannerCodeManuel(
     if (!prescripteurDoc.exists) return { success: false, error: 'Prescripteur introuvable' }
     const prescripteur = prescripteurDoc.data() as Prescripteur
 
-    const commission = prescripteur.commission_fcfa ?? 1500
+    const paramsMotoScan = await getParametresPlateforme()
+    const commission = prescripteur.commission_fcfa ?? paramsMotoScan.commission_mototaxi_fcfa
     const nouveauSolde = (prescripteur.solde_fcfa ?? 0) + commission
     const clientNom = `${resa.guest_first_name ?? ''} ${resa.guest_last_name ?? ''}`.trim()
 

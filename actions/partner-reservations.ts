@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { buildSourceFields } from '@/actions/reservation-source'
 import QRCode from 'qrcode'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
+import { getParametresPlateforme } from '@/actions/parametres'
 
 type ActionResult = { success: true; reservationId: string; confirmationCode: string; qr_reservation_url?: string; code_manuel_prescripteur?: string } | { success: false; error: string }
 
@@ -205,13 +206,14 @@ export async function createPartnerReservation(formData: FormData): Promise<Acti
       code_manuel_prescripteur = codeManuel
 
       // Générer le payload QR
+      const paramsQr = await getParametresPlateforme()
       const qrPayload = JSON.stringify({
         type: 'reservation',
         reservation_id: docRef.id,
         partenaire_id: partnerId,
         client_nom: `${guestFirstName} ${guestLastName}`,
         montant_paye: subtotal,
-        commission: 1500,
+        commission: paramsQr.commission_mototaxi_fcfa,
         expire_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
 
