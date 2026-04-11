@@ -5,7 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { revalidatePath } from 'next/cache'
-import { appendCommandeCanal2, creerAffilie, genererCodePromo } from '@/lib/sheetsCanal2'
+import { appendCodeSessionAffilie, appendCommandeCanal2, creerAffilie, genererCodePromo } from '@/lib/sheetsCanal2'
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -240,7 +240,16 @@ export async function genererCodeSession(
       code,
       nom_partenaire: partenaire.nom_etablissement,
       reduction_pct: partenaire.remise_valeur_pct ?? 0,
-    }).catch((e) => console.warn('[genererCodeSession] sheets:', e))
+    }).catch((e) => console.warn('[genererCodeSession] appendCommandeCanal2:', e))
+
+    // Insérer aussi dans Affiliés_Codes pour validation boutique Netlify
+    appendCodeSessionAffilie({
+      code,
+      nom_partenaire: partenaire.nom_etablissement,
+      email_partenaire: partenaire.email ?? '',
+      reduction_pct: partenaire.remise_valeur_pct ?? 0,
+      commission_pct: 8,
+    }).catch((e) => console.warn('[genererCodeSession] appendCodeSessionAffilie:', e))
 
     return { success: true, code, redirection: partenaire.redirection_prioritaire }
   } catch (e: unknown) {

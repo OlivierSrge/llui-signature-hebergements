@@ -167,6 +167,54 @@ export async function updateStatsAffilie(
 
 // ─── Commandes ───────────────────────────────────────────────────
 
+/** Insère le code 6 chiffres dans Affiliés_Codes pour validation boutique Netlify */
+export async function appendCodeSessionAffilie({
+  code,
+  nom_partenaire,
+  email_partenaire,
+  reduction_pct,
+  commission_pct,
+}: {
+  code: string
+  nom_partenaire: string
+  email_partenaire: string
+  reduction_pct: number
+  commission_pct: number
+}): Promise<{ success: boolean }> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) {
+    console.warn('[sheetsCanal2] GOOGLE_SHEETS_CANAL2_ID non configuré — skip appendCodeSessionAffilie')
+    return { success: false }
+  }
+
+  try {
+    const sheets = await getSheetsClient()
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_AFFILIES}!A:I`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[
+          code,             // A: Code_Promo = 954449
+          nom_partenaire,   // B: Nom_Affilié
+          email_partenaire, // C: Email_Affilié
+          reduction_pct,    // D: Réduction_%
+          commission_pct,   // E: Commission_%
+          'OUI',            // F: Actif
+          0,                // G: Nb_Commandes
+          0,                // H: Montant_Généré
+          0,                // I: Commission_À_Payer
+        ]],
+      },
+    })
+    console.log('[sheetsCanal2] appendCodeSessionAffilie ✅ code:', code)
+    return { success: true }
+  } catch (error) {
+    console.error('[sheetsCanal2] appendCodeSessionAffilie error:', error instanceof Error ? error.message : error)
+    return { success: false }
+  }
+}
+
 /** Appende une ligne dans l'onglet "Commandes" lors de la génération d'un code 6 chiffres */
 export async function appendCommandeCanal2({
   code,
