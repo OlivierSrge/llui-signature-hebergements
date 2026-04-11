@@ -1,0 +1,233 @@
+'use client'
+
+import { useState } from 'react'
+import { updateParametresPlateforme, type ParametresPlateforme } from '@/actions/parametres'
+import { toast } from 'react-hot-toast'
+
+function formatFCFA(n: number) {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
+}
+
+function fmt(d: string) {
+  const dt = new Date(d)
+  return dt.toLocaleDateString('fr-FR') + ' à ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
+type Historique = { id: string; modifie_par: string; modifie_at: string; differences: string[] }
+
+interface Props {
+  params: ParametresPlateforme
+  historique: Historique[]
+}
+
+export default function ParametresClient({ params, historique }: Props) {
+  const [form, setForm] = useState({
+    commission_partenaire_pct: params.commission_partenaire_pct,
+    forfait_prescripteur_mensuel_fcfa: params.forfait_prescripteur_mensuel_fcfa,
+    forfait_prescripteur_annuel_fcfa: params.forfait_prescripteur_annuel_fcfa,
+    commission_mototaxi_fcfa: params.commission_mototaxi_fcfa,
+    commission_commerciaux_pct: params.commission_commerciaux_pct,
+    partage_llui_pct: params.partage_llui_pct,
+    partage_commercial_pct: params.partage_commercial_pct,
+  })
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<string[]>([])
+
+  function set(k: keyof typeof form, v: string) {
+    const n = parseFloat(v) || 0
+    setForm((f) => ({ ...f, [k]: n }))
+  }
+
+  function validate(): string[] {
+    const e: string[] = []
+    if (form.commission_partenaire_pct < 1 || form.commission_partenaire_pct > 30)
+      e.push('Commission partenaire doit être entre 1 et 30 %')
+    if (form.commission_mototaxi_fcfa <= 0)
+      e.push('Commission moto-taxi doit être > 0 FCFA')
+    if (form.forfait_prescripteur_mensuel_fcfa <= 0)
+      e.push('Forfait mensuel doit être > 0 FCFA')
+    if (form.forfait_prescripteur_annuel_fcfa <= 0)
+      e.push('Forfait annuel doit être > 0 FCFA')
+    if (form.commission_commerciaux_pct < 1 || form.commission_commerciaux_pct > 30)
+      e.push('Commission commerciaux doit être entre 1 et 30 %')
+    if (form.partage_llui_pct + form.partage_commercial_pct !== 100)
+      e.push(`Part L&Lui (${form.partage_llui_pct}%) + Part commercial (${form.partage_commercial_pct}%) doit égaler 100%`)
+    return e
+  }
+
+  async function handleSave() {
+    const errs = validate()
+    if (errs.length > 0) { setErrors(errs); return }
+    setErrors([])
+    setSaving(true)
+    const res = await updateParametresPlateforme(form)
+    setSaving(false)
+    if (res.success) toast.success('✅ Paramètres enregistrés avec succès')
+    else toast.error(res.error ?? 'Erreur lors de la sauvegarde')
+  }
+
+  const APERCU = 45000
+  const moisAnnuel = form.forfait_prescripteur_mensuel_fcfa > 0
+    ? (form.forfait_prescripteur_annuel_fcfa / form.forfait_prescripteur_mensuel_fcfa).toFixed(1)
+    : '0'
+  const economieMois = form.forfait_prescripteur_mensuel_fcfa > 0
+    ? Math.round(12 - form.forfait_prescripteur_annuel_fcfa / form.forfait_prescripteur_mensuel_fcfa)
+    : 0
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      {/* Entête */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
+        <h1 className="text-2xl font-serif font-semibold text-[#1A1A1A]">⚙️ Paramètres Globaux</h1>
+        <p className="text-sm text-[#1A1A1A]/50 mt-1">L&Lui Signature Hébergements</p>
+        {params.modifie_at && (
+          <p className="text-xs text-[#1A1A1A]/40 mt-2">
+            Dernière modification : {fmt(params.modifie_at)} — par {params.modifie_par}
+          </p>
+        )}
+      </div>
+
+      {/* Canal 1 */}
+      <Section title="Canal 1 — Partenaires Hébergeurs">
+        <Label>Commission sur chaque réservation</Label>
+        <InputRow>
+          <Input value={form.commission_partenaire_pct} onChange={(v) => set('commission_partenaire_pct', v)} suffix="%" />
+        </InputRow>
+        <Apercu label={`Aperçu sur séjour ${formatFCFA(APERCU)}`}
+          lines={[`→ L&Lui reçoit : ${formatFCFA(APERCU * form.commission_partenaire_pct / 100)}`]} />
+      </Section>
+
+      {/* Canal 2 */}
+      <Section title="Canal 2 — Prescripteurs Partenaires">
+        <p className="text-xs text-[#1A1A1A]/50 -mt-1 mb-3">Hôtels, restaurants, lieux publics</p>
+        <Label>Forfait mensuel</Label>
+        <InputRow>
+          <Input value={form.forfait_prescripteur_mensuel_fcfa} onChange={(v) => set('forfait_prescripteur_mensuel_fcfa', v)} suffix="FCFA/mois" />
+        </InputRow>
+        <Label>Forfait annuel</Label>
+        <InputRow>
+          <Input value={form.forfait_prescripteur_annuel_fcfa} onChange={(v) => set('forfait_prescripteur_annuel_fcfa', v)} suffix="FCFA/an" />
+        </InputRow>
+        <Apercu label="Rapport annuel / mensuel"
+          lines={[`→ Forfait annuel = ${moisAnnuel} mois — économie de ${economieMois} mois`]} />
+      </Section>
+
+      {/* Canal 3 */}
+      <Section title="Canal 3 — Moto-taxis Prescripteurs">
+        <Label>Commission par course confirmée</Label>
+        <InputRow>
+          <Input value={form.commission_mototaxi_fcfa} onChange={(v) => set('commission_mototaxi_fcfa', v)} suffix="FCFA/client" />
+        </InputRow>
+        <Apercu label="Aperçu sur 10 courses"
+          lines={[`→ Moto-taxi reçoit : ${formatFCFA(form.commission_mototaxi_fcfa * 10)}`]} />
+      </Section>
+
+      {/* Canal 4 */}
+      <Section title="Canal 4 — Commerciaux Partenaires">
+        <Label>Commission sur séjour apporté</Label>
+        <InputRow>
+          <Input value={form.commission_commerciaux_pct} onChange={(v) => set('commission_commerciaux_pct', v)} suffix="%" />
+        </InputRow>
+        <Label>Répartition de cette commission</Label>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          <div>
+            <p className="text-xs text-[#1A1A1A]/60 mb-1">Part L&Lui Signature</p>
+            <Input value={form.partage_llui_pct} onChange={(v) => {
+              const n = parseFloat(v) || 0
+              setForm((f) => ({ ...f, partage_llui_pct: n, partage_commercial_pct: 100 - n }))
+            }} suffix="%" />
+          </div>
+          <div>
+            <p className="text-xs text-[#1A1A1A]/60 mb-1">Part Commercial</p>
+            <Input value={form.partage_commercial_pct} onChange={(v) => {
+              const n = parseFloat(v) || 0
+              setForm((f) => ({ ...f, partage_commercial_pct: n, partage_llui_pct: 100 - n }))
+            }} suffix="%" />
+          </div>
+        </div>
+        <p className={`text-xs mt-2 font-medium ${form.partage_llui_pct + form.partage_commercial_pct === 100 ? 'text-green-600' : 'text-red-500'}`}>
+          Total : {form.partage_llui_pct + form.partage_commercial_pct}%
+          {form.partage_llui_pct + form.partage_commercial_pct === 100 ? ' ✅' : ' ❌ — doit égaler 100%'}
+        </p>
+        <Apercu label={`Aperçu sur séjour ${formatFCFA(APERCU)}`} lines={[
+          `Commission totale  : ${formatFCFA(APERCU * form.commission_commerciaux_pct / 100)}`,
+          `→ L&Lui reçoit     : ${formatFCFA(APERCU * form.commission_commerciaux_pct / 100 * form.partage_llui_pct / 100)}`,
+          `→ Commercial reçoit: ${formatFCFA(APERCU * form.commission_commerciaux_pct / 100 * form.partage_commercial_pct / 100)}`,
+        ]} />
+      </Section>
+
+      {/* Erreurs */}
+      {errors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-1">
+          {errors.map((e, i) => <p key={i} className="text-sm text-red-600">• {e}</p>)}
+        </div>
+      )}
+
+      {/* Bouton save */}
+      <button onClick={handleSave} disabled={saving}
+        className="w-full py-4 bg-[#C9A84C] text-white font-semibold rounded-xl hover:bg-[#b8963e] transition-colors disabled:opacity-60 text-base">
+        {saving ? 'Enregistrement...' : '💾 Enregistrer tous les paramètres'}
+      </button>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-xs text-amber-700">
+          ⚠️ Ces taux s'appliquent immédiatement à toutes les nouvelles transactions.
+          Les transactions passées ne sont pas affectées.
+        </p>
+      </div>
+
+      {/* Historique */}
+      {historique.length > 0 && (
+        <Section title="📋 Historique des modifications">
+          <div className="space-y-3">
+            {historique.map((h) => (
+              <div key={h.id} className="border-l-2 border-[#C9A84C] pl-3 py-1">
+                <p className="text-xs font-medium text-[#1A1A1A]">{fmt(h.modifie_at)} — {h.modifie_par}</p>
+                {h.differences.map((d, i) => (
+                  <p key={i} className="text-xs text-[#1A1A1A]/60">• {d}</p>
+                ))}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
+      <h2 className="text-sm font-semibold text-[#1A1A1A] mb-4 pb-2 border-b border-[#F5F0E8]">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-[#1A1A1A]/70 mb-1">{children}</p>
+}
+
+function InputRow({ children }: { children: React.ReactNode }) {
+  return <div className="mb-3">{children}</div>
+}
+
+function Input({ value, onChange, suffix }: { value: number; onChange: (v: string) => void; suffix: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input type="number" value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-32 border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30" />
+      <span className="text-sm text-[#1A1A1A]/60">{suffix}</span>
+    </div>
+  )
+}
+
+function Apercu({ label, lines }: { label: string; lines: string[] }) {
+  return (
+    <div className="bg-[#F5F0E8]/50 rounded-lg p-3 mt-2">
+      <p className="text-xs text-[#1A1A1A]/50 mb-1">{label} :</p>
+      {lines.map((l, i) => <p key={i} className="text-sm font-medium text-[#C9A84C]">{l}</p>)}
+      <p className="text-[10px] text-[#1A1A1A]/30 mt-1">(mis à jour en temps réel)</p>
+    </div>
+  )
+}
