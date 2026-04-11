@@ -75,7 +75,7 @@ export interface CodeSession {
 
 // ─── Helpers ───────────────────────────────────────────────────
 
-export function getRedirectionParDefaut(type: TypePartenaire): RedirectionPrioritaire {
+function getRedirectionParDefaut(type: TypePartenaire): RedirectionPrioritaire {
   return type === 'hotel' ? 'boutique' : 'hebergements'
 }
 
