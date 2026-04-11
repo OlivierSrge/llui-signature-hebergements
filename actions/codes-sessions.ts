@@ -5,7 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { revalidatePath } from 'next/cache'
-import { appendCodeToSheets } from '@/lib/sheetsCanal2'
+import { appendCommandeCanal2, creerAffilie, genererCodePromo } from '@/lib/sheetsCanal2'
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -99,12 +99,13 @@ export async function creerPrescripteurPartenaire(data: {
   type: TypePartenaire
   telephone: string
   adresse: string
+  email?: string
   remise_type: RemiseType
   remise_valeur_pct: number | null
   remise_description: string | null
   forfait_type: 'mensuel' | 'annuel'
   created_by?: string
-}): Promise<{ success: boolean; uid?: string; error?: string }> {
+}): Promise<{ success: boolean; uid?: string; code_promo?: string; error?: string }> {
   try {
     const params = await getParametresPlateforme()
     const maintenant = new Date()
@@ -118,12 +119,16 @@ export async function creerPrescripteurPartenaire(data: {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
     const qrData = `${appUrl}/promo/${ref.id}`
 
+    // Générer le code promo affilié (stable, basé sur le nom)
+    const code_promo_affilie = genererCodePromo(data.nom_etablissement)
+
     await ref.set({
       uid: ref.id,
       nom_etablissement: data.nom_etablissement,
       type: data.type,
       telephone: data.telephone,
       adresse: data.adresse,
+      email: data.email ?? '',
       statut: 'actif',
       remise_type: data.remise_type,
       remise_valeur_pct: data.remise_valeur_pct,
@@ -137,6 +142,7 @@ export async function creerPrescripteurPartenaire(data: {
       qr_code_url: '',
       qr_code_data: qrData,
       qr_genere_le: maintenant.toISOString(),
+      code_promo_affilie,
       total_scans: 0,
       total_codes_generes: 0,
       total_utilisations: 0,
@@ -148,8 +154,16 @@ export async function creerPrescripteurPartenaire(data: {
       created_by: data.created_by ?? 'admin',
     })
 
+    // Insérer dans Affiliés_Codes (fire-and-forget)
+    creerAffilie({
+      nom_etablissement: data.nom_etablissement,
+      email: data.email ?? '',
+      reduction_pct: data.remise_valeur_pct ?? 0,
+      commission_pct: params.commission_partenaire_pct,
+    }).catch((e) => console.warn('[creerPrescripteurPartenaire] creerAffilie failed:', e))
+
     revalidatePath('/admin/prescripteurs-partenaires')
-    return { success: true, uid: ref.id }
+    return { success: true, uid: ref.id, code_promo: code_promo_affilie }
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
   }
@@ -216,16 +230,12 @@ export async function genererCodeSession(
       )
     } catch {}
 
-    // Écriture Google Sheets — fire-and-forget (n'affecte pas le flux principal)
-    appendCodeToSheets({
+    // Écriture Google Sheets — fire-and-forget (ne bloque jamais le client)
+    appendCommandeCanal2({
       code,
       nom_partenaire: partenaire.nom_etablissement,
-      type_partenaire: partenaire.type,
-      remise_valeur_pct: partenaire.remise_valeur_pct,
-      canal: partenaire.redirection_prioritaire,
-      statut: 'actif',
-      expire_at: expireAt.toISOString(),
-    }).catch((e) => console.error('[genererCodeSession] sheets:', e))
+      reduction_pct: partenaire.remise_valeur_pct ?? 0,
+    }).catch((e) => console.warn('[genererCodeSession] sheets:', e))
 
     return { success: true, code, redirection: partenaire.redirection_prioritaire }
   } catch (e: unknown) {
