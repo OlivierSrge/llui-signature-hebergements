@@ -13,6 +13,7 @@ import BarreWeekend from '@/components/home/BarreWeekend'
 import SectionWeekend from '@/components/home/SectionWeekend'
 import { resolveImageUrl, formatPrice } from '@/lib/utils'
 import PopupBoutique from '@/components/boutique/PopupBoutique'
+import PopupEvenements from '@/components/PopupEvenements'
 
 interface SearchParams {
   type?: string
@@ -85,6 +86,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <div>
       <PopupBoutique />
+      <PopupEvenements />
       {/* ── Barre weekend dynamique (Élément A) ── */}
       <BarreWeekend />
 
