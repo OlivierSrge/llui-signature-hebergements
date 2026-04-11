@@ -99,6 +99,7 @@ export default function SejourClient({ session }: Props) {
 
   // Écran — code actif
   const prioriteBoutique = session.redirection_prioritaire === 'boutique'
+  const estHotelOuResidence = session.type_partenaire === 'hotel' || session.type_partenaire === 'residence'
 
   const BoutonHebergement = ({ prioritaire }: { prioritaire: boolean }) => (
     <Link href={urlHebergements}
@@ -186,7 +187,10 @@ export default function SejourClient({ session }: Props) {
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-3">Que souhaitez-vous faire ?</p>
           <div className="space-y-3">
-            {prioriteBoutique ? (
+            {estHotelOuResidence ? (
+              // Hôtel/résidence : boutique uniquement
+              <BoutonBoutique prioritaire={true} />
+            ) : prioriteBoutique ? (
               <>
                 <BoutonBoutique prioritaire={true} />
                 <BoutonHebergement prioritaire={false} />
