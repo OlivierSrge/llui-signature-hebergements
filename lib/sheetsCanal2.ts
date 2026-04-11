@@ -1,142 +1,251 @@
 // lib/sheetsCanal2.ts
-// Écriture Google Sheets — onglet "Commandes" du Canal 2
-// Utilise le service account Firebase (FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY)
-// Le compte de service doit être ajouté comme éditeur du Google Sheet Canal 2.
+// Google Sheets Canal 2 — mapping colonnes vérifié sur Sheet réel
 //
 // Env vars requises :
-//   GOOGLE_SHEETS_CANAL2_ID   — ID du Google Sheet (dans l'URL /d/XXXXXXX/edit)
-//   FIREBASE_CLIENT_EMAIL     — email du service account (déjà utilisé par Firebase Admin)
-//   FIREBASE_PRIVATE_KEY      — clé privée du service account (déjà utilisée par Firebase)
+//   GOOGLE_SHEETS_CANAL2_ID   — ID du Sheet dans l'URL /d/[ID]/edit
+//   GOOGLE_CLIENT_EMAIL       — email service account (éditeur du Sheet)
+//   GOOGLE_PRIVATE_KEY        — clé privée service account
+//
+// Onglet "Commandes" — colonnes A(0) à O(14) :
+//   A(0)  Date          B(1)  Client_Nom       C(2)  Client_Tel
+//   D(3)  Client_Email  E(4)  Produit          F(5)  Prix_Original
+//   G(6)  Code_U_Affilié ← 6 chiffres
+//   H(7)  Réduction_%   I(8)  Montant_Final    J(9)  Lien_Orange_Money
+//   K(10) Statut ← "Payé"/"Confirmé"           L(11) Notes
+//   M(12) (vide)        N(13) Source           O(14) Sync_Firebase
+//
+// Onglet "Affiliés_Codes" — colonnes A(0) à I(8) :
+//   A Code_Promo  B Nom_Affilié  C Email_Affilié  D Réduction_%
+//   E Commission_%  F Actif  G Nb_Commandes  H Montant_Généré  I Commission_À_Payer
 
 import { google } from 'googleapis'
 
-const SHEET_TAB = 'Commandes'
+const SHEET_COMMANDES = 'Commandes'
+const SHEET_AFFILIES = 'Affiliés_Codes'
 
-// En-têtes attendues (ligne 1 du Google Sheet)
-// Date | Code | Partenaire | Type | Remise% | Canal | Statut | Expire_at | Sync_Firebase
-export const CANAL2_HEADERS = [
-  'Date',
-  'Code',
-  'Partenaire',
-  'Type',
-  'Remise%',
-  'Canal',
-  'Statut',
-  'Expire_at',
-  'Sync_Firebase',
-]
+async function getSheetsClient() {
+  const email = process.env.GOOGLE_CLIENT_EMAIL
+  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  if (!email || !key) throw new Error('Credentials manquants (GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY)')
 
-function getAuth() {
-  const email = process.env.FIREBASE_CLIENT_EMAIL
-  const key = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  if (!email || !key) throw new Error('Service account manquant (FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY)')
-
-  return new google.auth.GoogleAuth({
+  const auth = new google.auth.GoogleAuth({
     credentials: { client_email: email, private_key: key },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   })
+  return google.sheets({ version: 'v4', auth })
 }
 
-/** Ajoute une ligne dans l'onglet "Commandes" du Sheet Canal 2 */
-export async function appendCodeToSheets(data: {
-  code: string
-  nom_partenaire: string
-  type_partenaire: string
-  remise_valeur_pct: number | null
-  canal: string
-  statut: string
-  expire_at: string
-}): Promise<void> {
-  const sheetId = process.env.GOOGLE_SHEETS_CANAL2_ID
-  if (!sheetId) {
-    console.warn('[sheetsCanal2] GOOGLE_SHEETS_CANAL2_ID non configuré — skip')
-    return
+function sheetId(): string {
+  const id = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!id) throw new Error('GOOGLE_SHEETS_CANAL2_ID non configuré')
+  return id
+}
+
+// ─── Affiliés_Codes ──────────────────────────────────────────────
+
+/** Génère un code promo à partir du nom d'établissement.
+ *  Ex: "Hôtel Beauséjour" → "BEAUSEJOUR-2026"
+ *      "Bar Le Cocotier"   → "LECOCOTIER-2026"
+ */
+function genererCodePromo(nom_etablissement: string): string {
+  const annee = new Date().getFullYear()
+  const nomNettoye = nom_etablissement
+    .toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '')       // retirer espaces
+    .replace(/[^A-Z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 20)
+  return `${nomNettoye}-${annee}`
+}
+
+/** Insère une ligne dans Affiliés_Codes à la création d'un partenaire */
+export async function creerAffilie({
+  nom_etablissement,
+  email,
+  reduction_pct,
+  commission_pct,
+}: {
+  nom_etablissement: string
+  email: string
+  reduction_pct: number
+  commission_pct: number
+}): Promise<{ success: boolean; code_promo: string }> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) {
+    console.warn('[sheetsCanal2] GOOGLE_SHEETS_CANAL2_ID non configuré — skip creerAffilie')
+    return { success: false, code_promo: '' }
   }
 
+  const code_promo = genererCodePromo(nom_etablissement)
+
   try {
-    const auth = getAuth()
-    const sheets = google.sheets({ version: 'v4', auth })
-
-    // S'assurer que l'en-tête existe (idempotent)
-    await ensureHeader(sheets, sheetId)
-
-    const row = [
-      new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Douala' }),
-      data.code,
-      data.nom_partenaire,
-      data.type_partenaire,
-      data.remise_valeur_pct !== null ? `${data.remise_valeur_pct}%` : 'non_financier',
-      data.canal || 'multi',
-      data.statut,
-      new Date(data.expire_at).toLocaleString('fr-FR', { timeZone: 'Africa/Douala' }),
-      '✅ Sync auto',
-    ]
-
+    const sheets = await getSheetsClient()
     await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: `${SHEET_TAB}!A:I`,
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_AFFILIES}!A:I`,
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: { values: [row] },
+      requestBody: {
+        values: [[
+          code_promo,        // A: Code_Promo
+          nom_etablissement, // B: Nom_Affilié
+          email,             // C: Email_Affilié
+          reduction_pct,     // D: Réduction_%
+          commission_pct,    // E: Commission_%
+          'OUI',             // F: Actif
+          0,                 // G: Nb_Commandes
+          0,                 // H: Montant_Généré
+          0,                 // I: Commission_À_Payer
+        ]],
+      },
     })
-  } catch (e) {
-    // Fire-and-forget : on log mais on ne bloque pas le flux principal
-    console.error('[sheetsCanal2] appendCodeToSheets error:', e instanceof Error ? e.message : e)
+    return { success: true, code_promo }
+  } catch (error) {
+    console.error('[sheetsCanal2] creerAffilie error:', error instanceof Error ? error.message : error)
+    return { success: false, code_promo: '' }
   }
 }
 
-/** Met à jour la colonne Sync_Firebase d'une ligne identifiée par le Code */
-export async function updateSyncStatus(
-  code: string,
-  status: string
+/** Incrémente G (Nb_Commandes) H (Montant_Généré) I (Commission_À_Payer) dans Affiliés_Codes */
+export async function updateStatsAffilie(
+  code_promo: string,
+  montant_fcfa: number,
+  commission_fcfa: number
 ): Promise<void> {
-  const sheetId = process.env.GOOGLE_SHEETS_CANAL2_ID
-  if (!sheetId) return
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID || !code_promo) return
 
   try {
-    const auth = getAuth()
-    const sheets = google.sheets({ version: 'v4', auth })
+    const sheets = await getSheetsClient()
 
-    // Chercher la ligne du code
     const resp = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${SHEET_TAB}!B:B`,
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_AFFILIES}!A:I`,
     })
     const rows = resp.data.values ?? []
-    const rowIndex = rows.findIndex((r) => r[0] === code)
-    if (rowIndex < 0) return // code non trouvé dans le sheet
-
-    const sheetRow = rowIndex + 1 // 1-indexed
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId,
-      range: `${SHEET_TAB}!I${sheetRow}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[status]] },
-    })
-  } catch (e) {
-    console.error('[sheetsCanal2] updateSyncStatus error:', e instanceof Error ? e.message : e)
-  }
-}
-
-async function ensureHeader(
-  sheets: ReturnType<typeof google.sheets>,
-  sheetId: string
-): Promise<void> {
-  try {
-    const resp = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${SHEET_TAB}!A1:I1`,
-    })
-    const firstRow = resp.data.values?.[0] ?? []
-    if (firstRow.length === 0) {
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `${SHEET_TAB}!A1:I1`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [CANAL2_HEADERS] },
-      })
+    const rowIndex = rows.findIndex((r) => r[0]?.toString().trim() === code_promo.trim())
+    if (rowIndex === -1) {
+      console.warn(`[sheetsCanal2] updateStatsAffilie: ${code_promo} non trouvé`)
+      return
     }
-  } catch {
-    // Onglet peut ne pas exister — on tente quand même l'append
+
+    const realRow = rowIndex + 1
+    const current = rows[rowIndex]
+    const nb         = parseInt(current[6] ?? '0') + 1
+    const montant    = parseFloat(current[7] ?? '0') + montant_fcfa
+    const commission = parseFloat(current[8] ?? '0') + commission_fcfa
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_AFFILIES}!G${realRow}:I${realRow}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[nb, montant, commission]] },
+    })
+  } catch (error) {
+    console.error('[sheetsCanal2] updateStatsAffilie error:', error instanceof Error ? error.message : error)
   }
 }
+
+// ─── Commandes ───────────────────────────────────────────────────
+
+/** Appende une ligne dans l'onglet "Commandes" lors de la génération d'un code 6 chiffres */
+export async function appendCommandeCanal2({
+  code,
+  nom_partenaire,
+  reduction_pct,
+}: {
+  code: string
+  nom_partenaire: string
+  reduction_pct: number
+}): Promise<{ success: boolean }> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) {
+    console.warn('[sheetsCanal2] GOOGLE_SHEETS_CANAL2_ID non configuré — skip appendCommandeCanal2')
+    return { success: false }
+  }
+
+  try {
+    const sheets = await getSheetsClient()
+    const date = new Date().toLocaleString('fr-FR', {
+      timeZone: 'Africa/Douala',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    })
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_COMMANDES}!A:O`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[
+          date,                 // A (0)  Date
+          '',                   // B (1)  Client_Nom
+          '',                   // C (2)  Client_Tel
+          '',                   // D (3)  Client_Email
+          '',                   // E (4)  Produit
+          '',                   // F (5)  Prix_Original
+          code,                 // G (6)  Code_U_Affilié ←
+          `${reduction_pct}%`,  // H (7)  Réduction_%
+          '',                   // I (8)  Montant_Final
+          '',                   // J (9)  Lien_Orange_Money
+          'En attente',         // K (10) Statut ←
+          '',                   // L (11) Notes
+          '',                   // M (12) (vide)
+          nom_partenaire,       // N (13) Source ←
+          '⏳ En attente',     // O (14) Sync_Firebase ←
+        ]],
+      },
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('[sheetsCanal2] appendCommandeCanal2 error:', error instanceof Error ? error.message : error)
+    return { success: false }
+  }
+}
+
+/** Met à jour la colonne O (Sync_Firebase) de la ligne identifiée par col G (Code_U_Affilié) */
+export async function updateSyncStatus(
+  code: string,
+  status: 'success' | 'error',
+  message?: string
+): Promise<void> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) return
+
+  try {
+    const sheets = await getSheetsClient()
+    const time = new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Douala' })
+
+    // Chercher la ligne dans la colonne G (Code_U_Affilié)
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_COMMANDES}!G:G`,
+    })
+    const rows = resp.data.values ?? []
+    const rowIndex = rows.findIndex((r) => r[0]?.toString().trim() === code.toString().trim())
+    if (rowIndex === -1) {
+      console.warn(`[sheetsCanal2] updateSyncStatus: code ${code} non trouvé dans col G`)
+      return
+    }
+
+    const realRow = rowIndex + 1  // 1-indexed
+    const logValue = status === 'success'
+      ? `✅ Synced ${time}`
+      : `❌ Erreur: ${message ?? 'inconnue'} ${time}`
+
+    // Colonne O = 15ème colonne
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_COMMANDES}!O${realRow}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[logValue]] },
+    })
+  } catch (error) {
+    console.error('[sheetsCanal2] updateSyncStatus error:', error instanceof Error ? error.message : error)
+  }
+}
+
+// ─── Export utilitaire ───────────────────────────────────────────
+
+export { genererCodePromo }
