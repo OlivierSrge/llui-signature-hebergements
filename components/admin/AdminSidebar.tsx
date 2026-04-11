@@ -42,6 +42,7 @@ const NAV_ITEMS = [
   { href: '/admin/prestataires-services', label: '🤝 Prestataires Services', icon: Briefcase },
   { href: '/admin/prescripteurs', label: '🏍 Prescripteurs', icon: Bike },
   { href: '/admin/prescripteurs-partenaires', label: '🏨 Canal 2 Partenaires', icon: Briefcase },
+  { href: '/admin/evenements', label: '📅 Événements', icon: CalendarDays },
   { href: '/admin/parametres', label: '⚙️ Paramètres', icon: Settings },
 ]
 

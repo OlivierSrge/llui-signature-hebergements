@@ -5,6 +5,153 @@ import { revalidatePath } from 'next/cache'
 
 type ActionResult = { success: true; id?: string } | { success: false; error: string }
 
+export type TypeEvenement = 'mariage' | 'festival' | 'sport' | 'culturel' | 'gastronomie' | 'autre'
+
+export interface EvenementCanal2 {
+  uid: string
+  titre: string
+  description: string
+  date_debut: string
+  date_fin: string | null
+  lieu: string
+  type: TypeEvenement
+  emoji: string
+  actif: boolean
+  date_formatee?: string
+  created_at: string
+  created_by: string
+}
+
+function formaterDate(isoStr: string): string {
+  try {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  } catch {
+    return isoStr
+  }
+}
+
+/** Retourne les 3 prochains événements actifs (pour popup + home) */
+export async function getEvenementsActifs(): Promise<EvenementCanal2[]> {
+  try {
+    const now = new Date()
+    const snap = await db.collection('evenements_kribi')
+      .where('actif', '==', true)
+      .orderBy('date_debut', 'asc')
+      .limit(10)
+      .get()
+    return snap.docs
+      .map((d) => {
+        const data = d.data()
+        const dateDebut = data.date_debut?.toDate
+          ? data.date_debut.toDate().toISOString()
+          : (data.date_debut ?? '')
+        return {
+          uid: d.id,
+          titre: data.titre ?? '',
+          description: data.description ?? '',
+          date_debut: dateDebut,
+          date_fin: data.date_fin?.toDate ? data.date_fin.toDate().toISOString() : (data.date_fin ?? null),
+          lieu: data.lieu ?? '',
+          type: (data.type ?? 'autre') as TypeEvenement,
+          emoji: data.emoji ?? '🗓',
+          actif: data.actif ?? true,
+          created_at: data.created_at ?? '',
+          created_by: data.created_by ?? '',
+          date_formatee: formaterDate(dateDebut),
+        }
+      })
+      .filter((ev) => ev.date_debut && new Date(ev.date_debut) >= now)
+      .slice(0, 3)
+  } catch {
+    return []
+  }
+}
+
+/** Liste tous les événements pour l'admin */
+export async function listerEvenementsAdmin(): Promise<EvenementCanal2[]> {
+  const snap = await db.collection('evenements_kribi')
+    .orderBy('date_debut', 'asc')
+    .get()
+  return snap.docs.map((d) => {
+    const data = d.data()
+    const dateDebut = data.date_debut?.toDate
+      ? data.date_debut.toDate().toISOString()
+      : (data.date_debut ?? '')
+    return {
+      uid: d.id,
+      titre: data.titre ?? '',
+      description: data.description ?? '',
+      date_debut: dateDebut,
+      date_fin: data.date_fin?.toDate ? data.date_fin.toDate().toISOString() : (data.date_fin ?? null),
+      lieu: data.lieu ?? '',
+      type: (data.type ?? 'autre') as TypeEvenement,
+      emoji: data.emoji ?? '🗓',
+      actif: data.actif ?? true,
+      created_at: data.created_at ?? '',
+      created_by: data.created_by ?? '',
+      date_formatee: formaterDate(dateDebut),
+    }
+  })
+}
+
+/** Crée un événement Canal 2 */
+export async function creerEvenementCanal2(data: {
+  titre: string
+  description: string
+  date_debut: string
+  date_fin: string | null
+  lieu: string
+  type: TypeEvenement
+  emoji: string
+  actif: boolean
+}): Promise<{ success: boolean; uid?: string; error?: string }> {
+  try {
+    const ref = db.collection('evenements_kribi').doc()
+    await ref.set({
+      uid: ref.id,
+      ...data,
+      created_at: new Date().toISOString(),
+      created_by: 'admin',
+    })
+    revalidatePath('/admin/evenements')
+    revalidatePath('/')
+    return { success: true, uid: ref.id }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
+/** Modifie un événement Canal 2 */
+export async function modifierEvenementCanal2(
+  uid: string,
+  data: Partial<Omit<EvenementCanal2, 'uid' | 'created_at' | 'created_by' | 'date_formatee'>>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('evenements_kribi').doc(uid).update({
+      ...data,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/evenements')
+    revalidatePath('/')
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
+/** Supprime un événement Canal 2 */
+export async function supprimerEvenementCanal2(uid: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection('evenements_kribi').doc(uid).delete()
+    revalidatePath('/admin/evenements')
+    revalidatePath('/')
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
 interface EvenementPayload {
   titre: string
   description?: string
