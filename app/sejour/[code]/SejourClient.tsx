@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { CodeSession } from '@/actions/codes-sessions'
 import Link from 'next/link'
+import PopupEvenements from '@/components/PopupEvenements'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -125,6 +126,7 @@ export default function SejourClient({ session }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] px-4 py-8">
+      <PopupEvenements nomPartenaire={session.nom_partenaire} />
       <div className="max-w-sm mx-auto space-y-4">
         {/* Entête */}
         <div className="text-center">
