@@ -117,6 +117,74 @@ const formDefault = {
   forfait_type: 'mensuel' as 'mensuel' | 'annuel',
 }
 
+// ── Composant défini AU NIVEAU MODULE pour éviter la perte de focus ──
+// (jamais à l'intérieur d'une fonction composant)
+interface PartenaireFormValues {
+  nom_etablissement: string
+  type: TypePartenaire
+  telephone: string
+  adresse: string
+  remise_type: RemiseType
+  remise_valeur_pct: number
+  remise_description: string
+}
+
+function PartenaireFormFields({
+  vals,
+  onChange,
+}: {
+  vals: PartenaireFormValues
+  onChange: <K extends keyof PartenaireFormValues>(key: K, value: PartenaireFormValues[K]) => void
+}) {
+  const cls = 'w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]'
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Nom de l&apos;établissement *</label>
+        <input value={vals.nom_etablissement} onChange={(e) => onChange('nom_etablissement', e.target.value)}
+          className={cls} placeholder="Hôtel Le Lagon" />
+      </div>
+      <div>
+        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Type</label>
+        <select value={vals.type} onChange={(e) => onChange('type', e.target.value as TypePartenaire)} className={cls}>
+          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Téléphone *</label>
+        <input value={vals.telephone} onChange={(e) => onChange('telephone', e.target.value)}
+          className={cls} placeholder="237 6XX XXX XXX" />
+      </div>
+      <div>
+        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Adresse</label>
+        <input value={vals.adresse} onChange={(e) => onChange('adresse', e.target.value)}
+          className={cls} placeholder="Kribi Centre" />
+      </div>
+      <div>
+        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Type remise</label>
+        <select value={vals.remise_type} onChange={(e) => onChange('remise_type', e.target.value as RemiseType)} className={cls}>
+          <option value="reduction_pct">Réduction % sur réservation</option>
+          <option value="non_financier">Avantage non financier</option>
+        </select>
+      </div>
+      {vals.remise_type === 'reduction_pct' ? (
+        <div>
+          <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Taux de réduction</label>
+          <input type="number" min={1} max={50} value={vals.remise_valeur_pct}
+            onChange={(e) => onChange('remise_valeur_pct', Number(e.target.value))}
+            className={cls} />
+        </div>
+      ) : (
+        <div>
+          <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Description avantage</label>
+          <input value={vals.remise_description} onChange={(e) => onChange('remise_description', e.target.value)}
+            className={cls} placeholder="Cocktail de bienvenue offert" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
@@ -222,60 +290,13 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
     })
   }
 
-  const FormFields = ({
-    vals,
-    set,
-  }: {
-    vals: typeof editForm
-    set: (fn: (f: typeof editForm) => typeof editForm) => void
-  }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Nom de l&apos;établissement *</label>
-        <input value={vals.nom_etablissement} onChange={(e) => set((f) => ({ ...f, nom_etablissement: e.target.value }))}
-          className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]" placeholder="Hôtel Le Lagon" />
-      </div>
-      <div>
-        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Type</label>
-        <select value={vals.type} onChange={(e) => set((f) => ({ ...f, type: e.target.value as TypePartenaire }))}
-          className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]">
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Téléphone *</label>
-        <input value={vals.telephone} onChange={(e) => set((f) => ({ ...f, telephone: e.target.value }))}
-          className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]" placeholder="237 6XX XXX XXX" />
-      </div>
-      <div>
-        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Adresse</label>
-        <input value={vals.adresse} onChange={(e) => set((f) => ({ ...f, adresse: e.target.value }))}
-          className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]" placeholder="Kribi Centre" />
-      </div>
-      <div>
-        <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Type remise</label>
-        <select value={vals.remise_type} onChange={(e) => set((f) => ({ ...f, remise_type: e.target.value as RemiseType }))}
-          className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]">
-          <option value="reduction_pct">Réduction % sur réservation</option>
-          <option value="non_financier">Avantage non financier</option>
-        </select>
-      </div>
-      {vals.remise_type === 'reduction_pct' ? (
-        <div>
-          <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Taux de réduction</label>
-          <input type="number" min={1} max={50} value={vals.remise_valeur_pct}
-            onChange={(e) => set((f) => ({ ...f, remise_valeur_pct: Number(e.target.value) }))}
-            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]" />
-        </div>
-      ) : (
-        <div>
-          <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Description avantage</label>
-          <input value={vals.remise_description} onChange={(e) => set((f) => ({ ...f, remise_description: e.target.value }))}
-            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]" placeholder="Cocktail de bienvenue offert" />
-        </div>
-      )}
-    </div>
-  )
+  // Helper onChange pour les deux formulaires (création + édition)
+  function onChangeForm<K extends keyof PartenaireFormValues>(key: K, value: PartenaireFormValues[K]) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+  function onChangeEditForm<K extends keyof PartenaireFormValues>(key: K, value: PartenaireFormValues[K]) {
+    setEditForm((f) => ({ ...f, [key]: value }))
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -312,7 +333,7 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
               </select>
             </div>
           </div>
-          <FormFields vals={editForm} set={setEditForm} />
+          <PartenaireFormFields vals={editForm} onChange={onChangeEditForm} />
           <div className="flex gap-3 mt-4">
             <button onClick={handleModifier} disabled={editSaving}
               className="px-6 py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-60 hover:bg-[#b8963e] transition-colors">
@@ -330,13 +351,7 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
       {showForm && !editId && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
           <h2 className="text-sm font-semibold mb-4 text-[#1A1A1A]">Nouveau prescripteur partenaire</h2>
-          <FormFields
-            vals={{ ...form, statut: 'actif' as const }}
-            set={(fn) => setForm((f) => {
-              const next = fn({ ...f, statut: 'actif' as const })
-              return { ...next }
-            })}
-          />
+          <PartenaireFormFields vals={form} onChange={onChangeForm} />
           <div className="mt-4">
             <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Forfait</label>
             <select value={form.forfait_type} onChange={(e) => setForm((f) => ({ ...f, forfait_type: e.target.value as 'mensuel' | 'annuel' }))}
