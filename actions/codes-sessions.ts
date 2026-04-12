@@ -5,7 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { revalidatePath } from 'next/cache'
-import { appendCodeSessionAffilie, appendCommandeCanal2, creerAffilie, genererCodePromo } from '@/lib/sheetsCanal2'
+import { appendCodeSessionAffilie, creerAffilie, genererCodePromo } from '@/lib/sheetsCanal2'
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -235,14 +235,7 @@ export async function genererCodeSession(
       )
     } catch {}
 
-    // Écriture Google Sheets — fire-and-forget (ne bloque jamais le client)
-    appendCommandeCanal2({
-      code,
-      nom_partenaire: partenaire.nom_etablissement,
-      reduction_pct: partenaire.remise_valeur_pct ?? 0,
-    }).catch((e) => console.warn('[genererCodeSession] appendCommandeCanal2:', e))
-
-    // Insérer aussi dans Affiliés_Codes pour validation boutique Netlify
+    // Insérer dans Affiliés_Codes pour validation boutique Netlify
     appendCodeSessionAffilie({
       code,
       nom_partenaire: partenaire.nom_etablissement,
