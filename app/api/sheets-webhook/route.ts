@@ -28,6 +28,15 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  // ── Logs diagnostic ──────────────────────────────────────────
+  const bodyText = await req.clone().text()
+  console.log('[sheets-webhook] REÇU:', {
+    authorization: req.headers.get('authorization'),
+    contentType: req.headers.get('content-type'),
+    body: bodyText.slice(0, 500),
+    HAS_SECRET: !!process.env.SHEETS_WEBHOOK_SECRET,
+  })
+
   // ── Auth Bearer token ─────────────────────────────────────────
   const authHeader = req.headers.get('authorization')
   const expectedToken = `Bearer ${process.env.SHEETS_WEBHOOK_SECRET}`
@@ -79,14 +88,24 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ── 1. Lire codes_sessions/[code] ─────────────────────────
+    // ── 1. Lire codes_sessions/[code] dans Firestore (source principale) ──
+    console.log(`[sheets-webhook] recherche code ${codeStr} dans codes_sessions Firestore`)
     const sessionSnap = await db.collection('codes_sessions').doc(codeStr).get()
+
     if (!sessionSnap.exists) {
+      console.error(`[sheets-webhook] code ${codeStr} non trouvé dans codes_sessions Firestore`)
+      console.error('[sheets-webhook] Ce code aurait dû être écrit dans Affiliés_Codes au scan QR')
       await updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
-      return NextResponse.json({ error: 'Code introuvable' }, { status: 404 })
+      return NextResponse.json({
+        error: 'Code introuvable',
+        detail: `${codeStr} absent de codes_sessions Firestore`,
+      }, { status: 404 })
     }
+
+    console.log(`[sheets-webhook] code ${codeStr} trouvé dans Firestore ✅`)
     const session = sessionSnap.data()!
     const prescripteurId = session.prescripteur_partenaire_id as string
+    console.log(`[sheets-webhook] prescripteurId: ${prescripteurId}`)
 
     // ── 2. Lire prescripteur partenaire ───────────────────────
     const prescSnap = await db.collection('prescripteurs_partenaires').doc(prescripteurId).get()
