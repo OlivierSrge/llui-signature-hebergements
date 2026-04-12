@@ -1,36 +1,48 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { EvenementCanal2 } from '@/actions/evenements'
 
-interface Props {
+interface Evenement {
+  uid: string
+  emoji: string
+  titre: string
+  lieu: string
+  date_formatee?: string
+}
+
+interface PopupEvenementsProps {
   nomPartenaire?: string
 }
 
-export default function PopupEvenements({ nomPartenaire }: Props) {
+export default function PopupEvenements({ nomPartenaire }: PopupEvenementsProps) {
   const [visible, setVisible] = useState(false)
-  const [evenements, setEvenements] = useState<EvenementCanal2[]>([])
+  const [evenements, setEvenements] = useState<Evenement[]>([])
 
   useEffect(() => {
-    const chargerEvenements = async () => {
+    let timer: ReturnType<typeof setTimeout>
+
+    const charger = async () => {
       try {
         const { getEvenementsActifs } = await import('@/actions/evenements')
         const data = await getEvenementsActifs()
+        setEvenements(data)
         if (data.length > 0) {
-          setEvenements(data)
-          setTimeout(() => setVisible(true), 5000)
+          timer = setTimeout(() => setVisible(true), 5000)
         }
-      } catch {
-        // silencieux
+      } catch (err) {
+        console.error('PopupEvenements:', err)
       }
     }
-    chargerEvenements()
+
+    charger()
+    return () => { if (timer) clearTimeout(timer) }
   }, [])
 
   if (!visible || evenements.length === 0) return null
 
-  const titre = nomPartenaire ? `Bienvenue depuis ${nomPartenaire} !` : 'Kribi vous attend !'
-  const sousTitre = nomPartenaire ? 'Événements à Kribi' : 'Événements à ne pas manquer'
+  const titre = nomPartenaire
+    ? `Bienvenue depuis ${nomPartenaire} !`
+    : 'Kribi vous attend !'
 
   return (
     <div style={{
@@ -38,37 +50,35 @@ export default function PopupEvenements({ nomPartenaire }: Props) {
       bottom: 0,
       left: 0,
       right: 0,
-      background: '#F5F0E8',
+      background: '#F9F5F2',
       borderTop: '2px solid #C9A84C',
-      padding: '16px',
-      zIndex: 1000,
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
+      padding: '16px 20px',
+      zIndex: 9999,
+      boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
     }}>
       <div style={{
+        maxWidth: '600px',
+        margin: '0 auto',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        maxWidth: '600px',
-        margin: '0 auto',
-        gap: '12px',
+        gap: '16px',
       }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ fontWeight: 600, color: '#C9A84C', marginBottom: '2px', fontSize: '14px' }}>
-            {titre}
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 600, color: '#C9A84C', marginBottom: '10px', fontSize: '15px' }}>
+            📅 {titre}
           </p>
-          <p style={{ fontSize: '11px', color: '#1A1A1A', opacity: 0.5, marginBottom: '10px' }}>
-            📅 {sousTitre}
-          </p>
-          {evenements.map((ev) => (
-            <div key={ev.uid} style={{ marginBottom: '8px' }}>
-              <span>{ev.emoji} </span>
-              <strong style={{ fontSize: '13px', color: '#1A1A1A' }}>{ev.titre}</strong>
-              <span style={{ color: '#1A1A1A', opacity: 0.5, fontSize: '12px' }}>
-                {' '}— {ev.date_formatee}
+          {evenements.map((evt) => (
+            <div key={evt.uid} style={{ marginBottom: '8px' }}>
+              <span style={{ fontSize: '16px' }}>{evt.emoji}</span>
+              {' '}
+              <strong style={{ fontSize: '13px', color: '#1A1A1A' }}>{evt.titre}</strong>
+              <span style={{ fontSize: '12px', color: '#888', marginLeft: '6px' }}>
+                — {evt.date_formatee}
               </span>
               <br />
-              <span style={{ fontSize: '11px', color: '#1A1A1A', opacity: 0.4 }}>
-                {ev.lieu}
+              <span style={{ fontSize: '11px', color: '#888', marginLeft: '22px' }}>
+                {evt.lieu}
               </span>
             </div>
           ))}
@@ -77,17 +87,17 @@ export default function PopupEvenements({ nomPartenaire }: Props) {
           onClick={() => setVisible(false)}
           style={{
             background: 'none',
-            border: 'none',
-            fontSize: '18px',
+            border: '1px solid #C9A84C',
+            borderRadius: '6px',
+            padding: '6px 12px',
             cursor: 'pointer',
-            color: '#999',
-            padding: '4px 8px',
-            lineHeight: 1,
+            color: '#C9A84C',
+            fontSize: '13px',
+            whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
-          aria-label="Fermer"
         >
-          ✕
+          Fermer ✕
         </button>
       </div>
     </div>

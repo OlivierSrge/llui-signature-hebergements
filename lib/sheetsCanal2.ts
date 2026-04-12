@@ -125,6 +125,33 @@ export async function creerAffilie({
   }
 }
 
+/** Cherche un code (6 chiffres ou promo) dans Affiliés_Codes col A
+ *  Retourne { nom, email, reduction_pct } si trouvé, null sinon */
+export async function getNomPartenairePourCode(
+  code: string
+): Promise<{ nom: string; email: string; reduction_pct: number } | null> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) return null
+  try {
+    const sheets = await getSheetsClient()
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_AFFILIES}!A:I`,
+    })
+    const rows = resp.data.values ?? []
+    const row = rows.find((r) => r[0]?.toString().trim() === code.trim())
+    if (!row) return null
+    return {
+      nom: row[1]?.toString() ?? '',
+      email: row[2]?.toString() ?? '',
+      reduction_pct: parseFloat(row[3] ?? '0') || 0,
+    }
+  } catch (error) {
+    console.error('[sheetsCanal2] getNomPartenairePourCode error:', error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
 /** Incrémente G (Nb_Commandes) H (Montant_Généré) I (Commission_À_Payer) dans Affiliés_Codes */
 export async function updateStatsAffilie(
   code_promo: string,
