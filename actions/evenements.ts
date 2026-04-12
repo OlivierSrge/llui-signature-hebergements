@@ -34,36 +34,33 @@ function formaterDate(isoStr: string): string {
 /** Retourne les 3 prochains événements actifs (pour popup + home) */
 export async function getEvenementsActifs(): Promise<EvenementCanal2[]> {
   try {
-    const now = new Date()
     const snap = await db.collection('evenements_kribi')
       .where('actif', '==', true)
-      .orderBy('date_debut', 'asc')
-      .limit(10)
+      .limit(3)
       .get()
-    return snap.docs
-      .map((d) => {
-        const data = d.data()
-        const dateDebut = data.date_debut?.toDate
-          ? data.date_debut.toDate().toISOString()
-          : (data.date_debut ?? '')
-        return {
-          uid: d.id,
-          titre: data.titre ?? '',
-          description: data.description ?? '',
-          date_debut: dateDebut,
-          date_fin: data.date_fin?.toDate ? data.date_fin.toDate().toISOString() : (data.date_fin ?? null),
-          lieu: data.lieu ?? '',
-          type: (data.type ?? 'autre') as TypeEvenement,
-          emoji: data.emoji ?? '🗓',
-          actif: data.actif ?? true,
-          created_at: data.created_at ?? '',
-          created_by: data.created_by ?? '',
-          date_formatee: formaterDate(dateDebut),
-        }
-      })
-      .filter((ev) => ev.date_debut && new Date(ev.date_debut) >= now)
-      .slice(0, 3)
-  } catch {
+
+    return snap.docs.map((d) => {
+      const data = d.data()
+      const dateDebut = data.date_debut?.toDate
+        ? data.date_debut.toDate().toISOString()
+        : (data.date_debut ?? '')
+      return {
+        uid: d.id,
+        titre: data.titre ?? '',
+        description: data.description ?? '',
+        date_debut: dateDebut,
+        date_fin: data.date_fin?.toDate ? data.date_fin.toDate().toISOString() : (data.date_fin ?? null),
+        lieu: data.lieu ?? '',
+        type: (data.type ?? 'autre') as TypeEvenement,
+        emoji: data.emoji ?? '🗓',
+        actif: data.actif ?? true,
+        created_at: data.created_at ?? '',
+        created_by: data.created_by ?? '',
+        date_formatee: formaterDate(dateDebut),
+      }
+    })
+  } catch (error) {
+    console.error('getEvenementsActifs:', error)
     return []
   }
 }

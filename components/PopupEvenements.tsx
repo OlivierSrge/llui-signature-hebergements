@@ -19,18 +19,23 @@ export default function PopupEvenements({ nomPartenaire }: PopupEvenementsProps)
   const [evenements, setEvenements] = useState<Evenement[]>([])
 
   useEffect(() => {
+    console.log('PopupEvenements monté')
     let timer: ReturnType<typeof setTimeout>
 
     const charger = async () => {
       try {
         const { getEvenementsActifs } = await import('@/actions/evenements')
         const data = await getEvenementsActifs()
+        console.log('Événements chargés:', data)
         setEvenements(data)
         if (data.length > 0) {
-          timer = setTimeout(() => setVisible(true), 5000)
+          timer = setTimeout(() => {
+            console.log('Popup visible!')
+            setVisible(true)
+          }, 2000)
         }
       } catch (err) {
-        console.error('PopupEvenements:', err)
+        console.error('PopupEvenements err:', err)
       }
     }
 
