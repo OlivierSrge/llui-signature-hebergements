@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Déduplication : commission déjà créée pour ce code ? ────
+  // Exception : si l'existante a commission_fcfa === 0 (ancien bug), on la supprime et on re-traite
   try {
     const existing = await db.collection('commissions_canal2')
       .where('code', '==', codeStr)
@@ -85,8 +86,15 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .get()
     if (!existing.empty) {
-      console.log(`[sheets-webhook] commission déjà enregistrée pour ${codeStr}`)
-      return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
+      const existingDoc = existing.docs[0]
+      const existingCommission = existingDoc.data().commission_fcfa as number ?? 0
+      if (existingCommission > 0) {
+        console.log(`[sheets-webhook] commission déjà enregistrée pour ${codeStr} (${existingCommission} FCFA)`)
+        return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
+      }
+      // Ancienne commission à 0 FCFA — supprimer et re-traiter
+      console.log(`[sheets-webhook] commission existante à 0 FCFA pour ${codeStr} — suppression et re-traitement`)
+      await existingDoc.ref.delete()
     }
   } catch (err) {
     console.error('[sheets-webhook] déduplication error:', err)

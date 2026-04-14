@@ -1,5 +1,20 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-14 — Fix liaison boutique → partenaire (commit 1752def)
+Dernière mise à jour : 2026-04-14 — LocalStorage formulaire + déduplication 0 FCFA (commit e037d2f)
+
+---
+
+## EXPÉRIENCE CLIENT + DASHBOARD (2026-04-14) ✅
+
+### LocalStorage formulaire réservation
+- `components/reservations/ReservationForm.tsx` — `useEffect` lit `llui_client_info` depuis localStorage au mount
+- Priorité : cookie L&Lui Stars (serveur) > localStorage > vide
+- Sauvegarde Nom/Prénom/Email/Tel après submit réussi
+- Banner doré "Vos coordonnées ont été retrouvées sur cet appareil" avec bouton "Effacer"
+- Effacer = reset formulaire + suppression localStorage
+
+### Fix déduplication webhook — commandes test 0 FCFA
+- `app/api/sheets-webhook/route.ts` — déduplication améliorée : si commission existante a `commission_fcfa === 0` (bug avant fix), elle est supprimée et le code est re-traité
+- Permet de renvoyer les anciennes commandes de test depuis Apps Script pour obtenir la bonne commission
 
 ---
 
