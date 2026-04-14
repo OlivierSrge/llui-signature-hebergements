@@ -58,9 +58,10 @@ interface Props {
   transactions: Record<string, unknown>[]
   commissionsDues: number
   commissionsVersees: number
+  ventesEnCours?: number
 }
 
-export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees }: Props) {
+export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0 }: Props) {
   const [tick, setTick] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 60000)
@@ -129,13 +130,19 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
             <span>CA Total</span>
             <span className="text-[#C9A84C]">{formatFCFA(totalCa)}</span>
           </div>
+          {ventesEnCours > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-[#1A1A1A]/60">Ventes en cours</span>
+              <span className="font-medium text-[#1A1A1A]/50">{formatFCFA(ventesEnCours)} ⏳</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-[#1A1A1A]/60">Commissions dues</span>
-            <span className="font-medium text-amber-600">{formatFCFA(commissionsDues)} ⏳</span>
+            <span className="font-medium text-[#C9A84C]">{formatFCFA(commissionsDues)} ✅</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-[#1A1A1A]/60">Versées</span>
-            <span className="font-medium text-green-600">{formatFCFA(commissionsVersees)} ✅</span>
+            <span className="font-medium text-green-600">{formatFCFA(commissionsVersees)} 💰</span>
           </div>
         </div>
       </div>
@@ -206,10 +213,18 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
                   <p className="text-xs font-mono text-[#1A1A1A]/60">
                     {t.code ? `Code ${t.code}` : '—'} — {t.canal === 'hebergement' ? 'Hébergement' : 'Boutique'}
                   </p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.statut === 'versee' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                    t.statut === 'versee'
+                      ? 'bg-green-100 text-green-700'
+                      : t.statut === 'en_attente'
+                        ? 'bg-[#F5F0E8] text-[#8B6914]'
+                        : 'bg-gray-100 text-gray-500'
+                  }`}>
                     {t.statut === 'versee'
-                      ? `✅ Versée ${t.versee_at ? formatLocalDate(t.versee_at) : ''}`
-                      : '⏳ En attente'}
+                      ? `💰 Versée ${t.versee_at ? formatLocalDate(t.versee_at) : ''}`
+                      : t.statut === 'en_attente'
+                        ? '✅ Commission validée'
+                        : '⏳ Vente en cours'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

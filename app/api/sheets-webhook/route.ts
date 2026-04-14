@@ -5,35 +5,41 @@
 // Payload envoyé par Apps Script :
 // {
 //   "action":  "update_statut",
-//   "code":    data[6],   // col G = Code_U_Affilié (6 chiffres)
-//   "amount":  data[8],   // col I = Montant_Final (FCFA) ← CORRECT
-//   "statut":  data[10]   // col K = Statut ("Payé" ou "Confirmé")
+//   "code":    data[6],    // col G = Code_U_Affilié (6 chiffres)
+//   "amount":  data[8],    // col I = Montant_Final (FCFA)
+//   "statut":  data[10]    // col K = "En attente" | "Payé" | "Confirmé"
 // }
 //
-// NOTE : ancienne version du Apps Script envoyait data[9] (col J = Lien_Orange_Money)
-// au lieu de data[8] (col I = Montant_Final). Le webhook lit Montant_Final
-// directement depuis Sheets en fallback si amount vaut 0.
+// Mapping statut Sheets → statut Firestore (commissions_canal2) :
+//   "En attente"          → "vente_en_cours"   (⏳ vente enregistrée, paiement client en attente)
+//   "Payé" | "Confirmé"   → "en_attente"       (✅ paiement client reçu, commission due au partenaire)
 //
-// Déclenché uniquement si statut === "Payé" || "Confirmé"
+// Note : la mise à jour de l'onglet Affiliés_Codes (col G H I) est gérée
+// UNIQUEMENT par Apps Script côté Sheets pour éviter les double-comptages.
+// Le webhook gère uniquement la synchronisation Firestore.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
-import { updateSyncStatus, updateStatsAffilie, getMontantFinalParCode } from '@/lib/sheetsCanal2'
+import { updateSyncStatus, getMontantFinalParCode } from '@/lib/sheetsCanal2'
 
 export const dynamic = 'force-dynamic'
 
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' },
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
   })
 }
 
 export async function POST(req: NextRequest) {
-  // ── Logs diagnostic ──────────────────────────────────────────
+  // ── Log diagnostic ────────────────────────────────────────────
   const bodyText = await req.clone().text()
   console.log('[sheets-webhook] REÇU:', {
     authorization: req.headers.get('authorization'),
@@ -67,7 +73,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Validation statut ────────────────────────────────────────
-  if (statut !== 'Payé' && statut !== 'Confirmé') {
+  const statutsValides = ['En attente', 'Payé', 'Confirmé']
+  if (!statut || !statutsValides.includes(statut)) {
     return NextResponse.json({ ignored: true, reason: 'statut_non_actionnable' })
   }
 
@@ -77,24 +84,59 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Code manquant' }, { status: 400 })
   }
 
-  // ── Déduplication : commission déjà créée pour ce code ? ────
-  // Exception : si l'existante a commission_fcfa === 0 (ancien bug), on la supprime et on re-traite
+  // ── Déterminer l'action Firestore selon le statut ────────────
+  const estConfirme = statut === 'Payé' || statut === 'Confirmé'
+  const statutFirestore = estConfirme ? 'en_attente' : 'vente_en_cours'
+
+  // ── Déduplication & logique de mise à jour ───────────────────
+  // Stratégie selon le statut reçu :
+  //
+  // "En attente" (vente_en_cours) :
+  //   - Si commission existante avec statut en_attente/versee et commission_fcfa > 0 → ignoré (déjà confirmée)
+  //   - Si commission existante vente_en_cours → ignoré (déjà enregistrée)
+  //   - Si commission à 0 FCFA (bug ancien) → supprimer + recréer
+  //   - Sinon → créer vente_en_cours
+  //
+  // "Payé"/"Confirmé" (en_attente) :
+  //   - Si commission existante vente_en_cours → UPDATE vers en_attente avec bon montant
+  //   - Si commission existante en_attente/versee avec commission_fcfa > 0 → ignoré
+  //   - Si commission à 0 FCFA (bug ancien) → supprimer + recréer en_attente
+  //   - Sinon → créer en_attente
+
+  let existingDocId: string | null = null
+  let existingStatut: string | null = null
+  let existingCommission: number = 0
+
   try {
-    const existing = await db.collection('commissions_canal2')
+    const existingSnap = await db.collection('commissions_canal2')
       .where('code', '==', codeStr)
       .where('canal', '==', 'boutique')
       .limit(1)
       .get()
-    if (!existing.empty) {
-      const existingDoc = existing.docs[0]
-      const existingCommission = existingDoc.data().commission_fcfa as number ?? 0
-      if (existingCommission > 0) {
-        console.log(`[sheets-webhook] commission déjà enregistrée pour ${codeStr} (${existingCommission} FCFA)`)
+
+    if (!existingSnap.empty) {
+      const doc = existingSnap.docs[0]
+      existingDocId = doc.id
+      existingStatut = doc.data().statut as string ?? ''
+      existingCommission = doc.data().commission_fcfa as number ?? 0
+
+      // Commission à 0 FCFA (créée avant le fix bug 1) → nettoyer et re-traiter
+      if (existingCommission === 0) {
+        console.log(`[sheets-webhook] commission 0 FCFA trouvée pour ${codeStr} — suppression`)
+        await doc.ref.delete()
+        existingDocId = null
+        existingStatut = null
+      } else if (estConfirme && existingStatut === 'vente_en_cours') {
+        // Le client vient de payer : on va mettre à jour ce document plus bas
+        console.log(`[sheets-webhook] vente_en_cours → en_attente pour ${codeStr}`)
+        // On continue, existingDocId est conservé pour la mise à jour
+      } else if (!estConfirme && existingStatut === 'vente_en_cours') {
+        console.log(`[sheets-webhook] vente_en_cours déjà enregistrée pour ${codeStr} — ignoré`)
+        return NextResponse.json({ ignored: true, reason: 'vente_en_cours_deja_enregistree' })
+      } else if (['en_attente', 'versee'].includes(existingStatut ?? '')) {
+        console.log(`[sheets-webhook] commission ${existingStatut} déjà enregistrée pour ${codeStr} — ignoré`)
         return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
       }
-      // Ancienne commission à 0 FCFA — supprimer et re-traiter
-      console.log(`[sheets-webhook] commission existante à 0 FCFA pour ${codeStr} — suppression et re-traitement`)
-      await existingDoc.ref.delete()
     }
   } catch (err) {
     console.error('[sheets-webhook] déduplication error:', err)
@@ -103,7 +145,7 @@ export async function POST(req: NextRequest) {
   try {
     // ── 1. Résoudre le prescripteurId depuis Firestore ─────────────────
     // Stratégie A : codes_sessions (code 6 chiffres généré par scan QR)
-    // Stratégie B : prescripteurs_partenaires.code_promo_affilie (code stable type BEAUSEJOUR-2026)
+    // Stratégie B : prescripteurs_partenaires.code_promo_affilie (code stable ex: BEAUSEJOUR-2026)
     console.log(`[sheets-webhook] recherche code ${codeStr} dans codes_sessions Firestore`)
     const sessionSnap = await db.collection('codes_sessions').doc(codeStr).get()
 
@@ -111,15 +153,12 @@ export async function POST(req: NextRequest) {
     let prescData: Record<string, unknown> = {}
 
     if (sessionSnap.exists) {
-      // Stratégie A — code de session 6 chiffres
       console.log(`[sheets-webhook] code ${codeStr} trouvé dans codes_sessions ✅`)
       const session = sessionSnap.data()!
       prescripteurId = session.prescripteur_partenaire_id as string
-
       const prescSnap = await db.collection('prescripteurs_partenaires').doc(prescripteurId).get()
       prescData = prescSnap.exists ? prescSnap.data()! : {}
     } else {
-      // Stratégie B — code promo stable (ex: BEAUSEJOUR-2026)
       console.log(`[sheets-webhook] code ${codeStr} absent de codes_sessions — fallback code_promo_affilie`)
       const fallbackSnap = await db.collection('prescripteurs_partenaires')
         .where('code_promo_affilie', '==', codeStr)
@@ -141,80 +180,98 @@ export async function POST(req: NextRequest) {
       console.log(`[sheets-webhook] prescripteurId trouvé via code_promo_affilie: ${prescripteurId} ✅`)
     }
 
-    // ── 2. Montant final — FIX BUG : Apps Script envoyait data[9] (Lien_Orange_Money) ──
-    // Le champ correct est data[8] = col I = Montant_Final.
-    // Si amount vaut 0 (ancienne version du Apps Script), on relit depuis Sheets.
+    // ── 2. Montant final ──────────────────────────────────────────
+    // Fallback Sheets si Apps Script envoie amount=0 (ancienne version)
     let montantFcfa = parseFloat(amount?.toString() ?? '0') || 0
     if (montantFcfa === 0) {
-      console.warn(`[sheets-webhook] amount=0 reçu pour ${codeStr} — lecture Montant_Final depuis Sheets`)
+      console.warn(`[sheets-webhook] amount=0 pour ${codeStr} — lecture Montant_Final depuis Sheets`)
       montantFcfa = await getMontantFinalParCode(codeStr)
       console.log(`[sheets-webhook] Montant_Final depuis Sheets: ${montantFcfa} FCFA`)
     }
-
     if (montantFcfa === 0) {
       console.warn(`[sheets-webhook] Montant toujours 0 après fallback Sheets pour ${codeStr}`)
     }
 
-    // ── 3. Taux commission depuis Paramètres ──────────────────
+    // ── 3. Taux commission ────────────────────────────────────────
     const params = await getParametresPlateforme()
     const tauxCommission = params.commission_partenaire_pct ?? 10
     const commissionFcfa = Math.round(montantFcfa * tauxCommission / 100)
 
     const now = new Date().toISOString()
 
-    // ── 4. Créer commission Firestore ─────────────────────────
-    await db.collection('commissions_canal2').add({
-      prescripteur_partenaire_id: prescripteurId,
-      code: codeStr,
-      canal: 'boutique',
-      montant_transaction_fcfa: montantFcfa,
-      taux_commission_pct: tauxCommission,
-      commission_fcfa: commissionFcfa,
-      statut: 'en_attente',
-      created_at: now,
-      confirmee_at: now,
-      versee_at: null,
-      versee_par: null,
-      source: 'sheets_webhook',
-    })
+    // ── 4. Créer ou mettre à jour la commission Firestore ─────────
+    if (estConfirme && existingDocId && existingStatut === 'vente_en_cours') {
+      // Mise à jour : vente_en_cours → en_attente (paiement client reçu)
+      await db.collection('commissions_canal2').doc(existingDocId).update({
+        statut: 'en_attente',
+        montant_transaction_fcfa: montantFcfa,
+        taux_commission_pct: tauxCommission,
+        commission_fcfa: commissionFcfa,
+        confirmee_at: now,
+      })
+      console.log(`[sheets-webhook] ✅ commission ${existingDocId} mise à jour vente_en_cours → en_attente`)
+    } else {
+      // Création
+      await db.collection('commissions_canal2').add({
+        prescripteur_partenaire_id: prescripteurId,
+        code: codeStr,
+        canal: 'boutique',
+        montant_transaction_fcfa: montantFcfa,
+        taux_commission_pct: tauxCommission,
+        commission_fcfa: commissionFcfa,
+        statut: statutFirestore,
+        created_at: now,
+        confirmee_at: estConfirme ? now : null,
+        versee_at: null,
+        versee_par: null,
+        source: 'sheets_webhook',
+      })
+      console.log(`[sheets-webhook] ✅ commission créée statut=${statutFirestore}`)
+    }
 
-    // ── 5. Incrémenter stats prescripteur ─────────────────────
-    await db.collection('prescripteurs_partenaires').doc(prescripteurId).update({
-      total_ca_boutique_fcfa: FieldValue.increment(montantFcfa),
-      total_commissions_fcfa: FieldValue.increment(commissionFcfa),
-      total_utilisations: FieldValue.increment(1),
-    })
+    // ── 5. Stats prescripteur (uniquement si vente confirmée) ─────
+    // Pour "En attente", on n'incrémente pas encore les stats financières
+    // car le client n'a pas encore payé
+    if (estConfirme) {
+      await db.collection('prescripteurs_partenaires').doc(prescripteurId).update({
+        total_ca_boutique_fcfa: FieldValue.increment(montantFcfa),
+        total_commissions_fcfa: FieldValue.increment(commissionFcfa),
+        total_utilisations: FieldValue.increment(1),
+      })
+    }
 
-    // ── 6. Mettre à jour Affiliés_Codes stats G H I ───────────
-    // FIX BUG : utiliser codeStr (le code réel de col G) et non code_promo_affilie
-    // pour incrémenter la bonne ligne dans Affiliés_Codes.
-    updateStatsAffilie(codeStr, montantFcfa, commissionFcfa)
-      .catch((e) => console.warn('[sheets-webhook] updateStatsAffilie failed:', e))
-
-    // ── 7. Logging colonne O (Sync_Firebase) ──────────────────
-    updateSyncStatus(codeStr, 'success')
+    // ── 6. Logging colonne O (Sync_Firebase) ─────────────────────
+    const syncMsg = estConfirme
+      ? `✅ Synced Firebase (Payé)`
+      : `⏳ Enregistré Firebase (En attente)`
+    updateSyncStatus(codeStr, 'success', syncMsg)
       .catch((e) => console.warn('[sheets-webhook] updateSyncStatus failed:', e))
 
-    // ── 8. WhatsApp partenaire ─────────────────────────────────
+    // ── 7. WhatsApp partenaire (uniquement si vente confirmée) ────
     const nomPartenaire = (prescData.nom_etablissement as string) ?? 'Partenaire'
     const telPartenaire = (prescData.telephone as string) ?? ''
-    if (telPartenaire) {
+    if (estConfirme && telPartenaire) {
       sendWhatsApp(
         telPartenaire,
         `🎉 Vente boutique confirmée !\nCode : ${codeStr}\nMontant : ${montantFcfa.toLocaleString('fr-FR')} FCFA\nVotre commission : ${commissionFcfa.toLocaleString('fr-FR')} FCFA\n— L&Lui Signature`
       ).catch(() => {})
     }
 
-    // ── 9. WhatsApp admin ─────────────────────────────────────
+    // ── 8. WhatsApp admin (uniquement si vente confirmée) ─────────
     const adminPhone = process.env.ADMIN_WHATSAPP_PHONE ?? ''
-    if (adminPhone) {
+    if (estConfirme && adminPhone) {
       sendWhatsApp(
         adminPhone,
-        `💰 Vente Canal 2 boutique !\nPartenaire : ${nomPartenaire}\nCode : ${codeStr}\nMontant : ${montantFcfa.toLocaleString('fr-FR')} FCFA\nCommission : ${commissionFcfa.toLocaleString('fr-FR')} FCFA\n— L&Lui Signature`
+        `💰 Vente Canal 2 boutique confirmée !\nPartenaire : ${nomPartenaire}\nCode : ${codeStr}\nMontant : ${montantFcfa.toLocaleString('fr-FR')} FCFA\nCommission : ${commissionFcfa.toLocaleString('fr-FR')} FCFA\n— L&Lui Signature`
       ).catch(() => {})
     }
 
-    return NextResponse.json({ success: true, logged: true, commission_fcfa: commissionFcfa, montant_fcfa: montantFcfa })
+    return NextResponse.json({
+      success: true,
+      statut_firestore: statutFirestore,
+      commission_fcfa: estConfirme ? commissionFcfa : 0,
+      montant_fcfa: montantFcfa,
+    })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[sheets-webhook] error:', msg)

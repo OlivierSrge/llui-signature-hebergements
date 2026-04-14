@@ -1,5 +1,35 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-14 — LocalStorage formulaire + déduplication 0 FCFA (commit e037d2f)
+Dernière mise à jour : 2026-04-14 — Sync double-état Sheets→Firestore + Apps Script (commit pending)
+
+---
+
+## SYNC DOUBLE-ÉTAT SHEETS → FIRESTORE + DASHBOARD (2026-04-14) ✅
+
+### Mapping statut Sheets → Firestore
+| Sheets (col K)   | Firestore `statut`  | Dashboard badge        | Financier |
+|------------------|---------------------|------------------------|-----------|
+| En attente       | `vente_en_cours`    | ⏳ Vente en cours      | non comptabilisé |
+| Payé / Confirmé  | `en_attente`        | ✅ Commission validée  | commissions dues |
+| (admin)          | `versee`            | 💰 Versée              | versé au partenaire |
+
+### Webhook refactorisé (`app/api/sheets-webhook/route.ts`)
+- Accepte maintenant les 3 statuts : "En attente", "Payé", "Confirmé"
+- `En attente` → crée commission `vente_en_cours` (paiement client pas encore reçu)
+- `Payé`/`Confirmé` → crée ou met à jour (`vente_en_cours` → `en_attente`) avec bon montant
+- Stats partenaire (`total_ca_boutique_fcfa`, `total_commissions_fcfa`) incrémentées **uniquement** sur "Payé"
+- `updateStatsAffilie` (Affiliés_Codes) retiré du webhook — géré désormais par Apps Script côté Sheets
+
+### Dashboard (`DashboardPartenaireClient.tsx` + `page.tsx`)
+- Nouveau compteur "Ventes en cours" (montant total des `vente_en_cours`) — visible si > 0
+- "Commissions dues" = `en_attente` seulement (ventes confirmées)
+- Badges transactions : ⏳ Vente en cours / ✅ Commission validée / 💰 Versée
+
+### Apps Script (`scripts/google-apps-script-commandes.gs`)
+- Déclencheur `onEditCommandes` sur modification col K
+- `En attente` → envoie webhook uniquement
+- `Payé`/`Confirmé` → envoie webhook + met à jour Affiliés_Codes (G Nb_Commandes, H Montant_Généré, I Commission_À_Payer)
+- Fonction `testManuel()` pour tests sans modifier la feuille
+- Log dans col O (Sync_Firebase) ✅ ou ❌
 
 ---
 

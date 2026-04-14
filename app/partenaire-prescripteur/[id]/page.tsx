@@ -11,6 +11,7 @@ interface CommissionDoc {
   id: string
   statut: string
   commission_fcfa: number
+  montant_transaction_fcfa?: number
   [key: string]: unknown
 }
 
@@ -64,9 +65,14 @@ export default async function DashboardPartenairePage({ params }: Props) {
     getTransactions(params.id),
   ])
 
+  // Commissions dues = ventes confirmées (client a payé), pas encore versées au partenaire
   const commissionsDues = transactions
     .filter((t) => t.statut === 'en_attente')
     .reduce((s, t) => s + (typeof t.commission_fcfa === 'number' ? t.commission_fcfa : 0), 0)
+  // Ventes en cours = commandes enregistrées, paiement client encore en attente
+  const ventesEnCours = transactions
+    .filter((t) => t.statut === 'vente_en_cours')
+    .reduce((s, t) => s + (typeof t.montant_transaction_fcfa === 'number' ? t.montant_transaction_fcfa : 0), 0)
   const commissionsVersees = transactions
     .filter((t) => t.statut === 'versee')
     .reduce((s, t) => s + (typeof t.commission_fcfa === 'number' ? t.commission_fcfa : 0), 0)
@@ -78,6 +84,7 @@ export default async function DashboardPartenairePage({ params }: Props) {
       transactions={transactions}
       commissionsDues={commissionsDues}
       commissionsVersees={commissionsVersees}
+      ventesEnCours={ventesEnCours}
     />
   )
 }
