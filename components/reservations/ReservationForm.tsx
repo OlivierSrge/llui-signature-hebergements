@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { User, Mail, Phone, CreditCard, MessageSquare, Loader2, Tag, CheckCircle, XCircle, MessageCircle } from 'lucide-react'
@@ -88,6 +88,31 @@ export default function ReservationForm({
   })
 
   const [successData, setSuccessData] = useState<{ reservationId: string; waText: string } | null>(null)
+  const [fromStorage, setFromStorage] = useState(false)
+
+  // Pré-remplissage depuis localStorage si pas de prefill serveur
+  useEffect(() => {
+    if (prefill?.firstName || prefill?.phone) return // cookie L&Lui Stars prioritaire
+    try {
+      const saved = localStorage.getItem('llui_client_info')
+      if (!saved) return
+      const { first_name, last_name, email, phone } = JSON.parse(saved) as {
+        first_name?: string; last_name?: string; email?: string; phone?: string
+      }
+      if (first_name || last_name || phone) {
+        setForm((prev) => ({
+          ...prev,
+          guest_first_name: first_name || prev.guest_first_name,
+          guest_last_name: last_name || prev.guest_last_name,
+          guest_email: email || prev.guest_email,
+          guest_phone: phone || prev.guest_phone,
+        }))
+        setFromStorage(true)
+      }
+    } catch {
+      // localStorage inaccessible (navigateur privé, erreur parse) — silencieux
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [promoInput, setPromoInput] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
@@ -188,6 +213,16 @@ export default function ReservationForm({
         }).catch(() => {})
       }
 
+      // Mémoriser les coordonnées pour les prochaines visites
+      try {
+        localStorage.setItem('llui_client_info', JSON.stringify({
+          first_name: form.guest_first_name,
+          last_name: form.guest_last_name,
+          email: form.guest_email,
+          phone: form.guest_phone,
+        }))
+      } catch { /* localStorage indisponible */ }
+
       const paymentLabel = PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label || paymentMethod
       const waText =
         `🏡 Nouvelle réservation — ${accommodationName}\n\n` +
@@ -238,6 +273,24 @@ export default function ReservationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {fromStorage && (
+        <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#F5F0E8] border border-[#C9A84C]/40 rounded-xl">
+          <p className="text-xs text-[#8B6914] leading-relaxed">
+            Vos coordonnées ont été retrouvées sur cet appareil.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setFromStorage(false)
+              setForm({ guest_first_name: '', guest_last_name: '', guest_email: '', guest_phone: '', notes: '' })
+              try { localStorage.removeItem('llui_client_info') } catch { /* noop */ }
+            }}
+            className="text-[#8B6914]/60 hover:text-[#8B6914] text-xs underline flex-shrink-0"
+          >
+            Effacer
+          </button>
+        </div>
+      )}
       <div>
         <h2 className="font-serif text-2xl font-semibold text-dark mb-1">
           Vos coordonnées
