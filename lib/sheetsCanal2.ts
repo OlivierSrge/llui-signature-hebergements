@@ -339,6 +339,37 @@ export async function updateSyncStatus(
   }
 }
 
+// ─── Lecture Montant_Final depuis Commandes ──────────────────────
+
+/**
+ * Lit le Montant_Final (col I, index 8) dans l'onglet Commandes
+ * en cherchant la ligne où col G (index 6) == code.
+ *
+ * Utilisé en fallback quand le Apps Script envoie data[9] (Lien_Orange_Money)
+ * au lieu de data[8] (Montant_Final) — erreur d'index dans le Apps Script.
+ */
+export async function getMontantFinalParCode(code: string): Promise<number> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID || !code) return 0
+  try {
+    const sheets = await getSheetsClient()
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_COMMANDES}!A:O`,
+    })
+    const rows = resp.data.values ?? []
+    // Chercher la dernière ligne avec ce code (cas de code réutilisé)
+    const row = [...rows].reverse().find((r) => r[6]?.toString().trim() === code.trim())
+    if (!row) return 0
+    const raw = row[8]?.toString().replace(/\s/g, '').replace(',', '.') ?? '0'
+    const montant = parseFloat(raw)
+    return isNaN(montant) ? 0 : montant
+  } catch (error) {
+    console.error('[sheetsCanal2] getMontantFinalParCode error:', error instanceof Error ? error.message : error)
+    return 0
+  }
+}
+
 // ─── Export utilitaire ───────────────────────────────────────────
 
 export { genererCodePromo }

@@ -6,9 +6,14 @@
 // {
 //   "action":  "update_statut",
 //   "code":    data[6],   // col G = Code_U_Affilié (6 chiffres)
-//   "amount":  data[9],   // col J = Lien_Orange_Money (montant final FCFA)
+//   "amount":  data[8],   // col I = Montant_Final (FCFA) ← CORRECT
 //   "statut":  data[10]   // col K = Statut ("Payé" ou "Confirmé")
 // }
+//
+// NOTE : ancienne version du Apps Script envoyait data[9] (col J = Lien_Orange_Money)
+// au lieu de data[8] (col I = Montant_Final). Le webhook lit Montant_Final
+// directement depuis Sheets en fallback si amount vaut 0.
+//
 // Déclenché uniquement si statut === "Payé" || "Confirmé"
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -16,7 +21,7 @@ import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
-import { updateSyncStatus, updateStatsAffilie } from '@/lib/sheetsCanal2'
+import { updateSyncStatus, updateStatsAffilie, getMontantFinalParCode } from '@/lib/sheetsCanal2'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,40 +93,68 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ── 1. Lire codes_sessions/[code] dans Firestore (source principale) ──
+    // ── 1. Résoudre le prescripteurId depuis Firestore ─────────────────
+    // Stratégie A : codes_sessions (code 6 chiffres généré par scan QR)
+    // Stratégie B : prescripteurs_partenaires.code_promo_affilie (code stable type BEAUSEJOUR-2026)
     console.log(`[sheets-webhook] recherche code ${codeStr} dans codes_sessions Firestore`)
     const sessionSnap = await db.collection('codes_sessions').doc(codeStr).get()
 
-    if (!sessionSnap.exists) {
-      console.error(`[sheets-webhook] code ${codeStr} non trouvé dans codes_sessions Firestore`)
-      console.error('[sheets-webhook] Ce code aurait dû être écrit dans Affiliés_Codes au scan QR')
-      await updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
-      return NextResponse.json({
-        error: 'Code introuvable',
-        detail: `${codeStr} absent de codes_sessions Firestore`,
-      }, { status: 404 })
+    let prescripteurId: string
+    let prescData: Record<string, unknown> = {}
+
+    if (sessionSnap.exists) {
+      // Stratégie A — code de session 6 chiffres
+      console.log(`[sheets-webhook] code ${codeStr} trouvé dans codes_sessions ✅`)
+      const session = sessionSnap.data()!
+      prescripteurId = session.prescripteur_partenaire_id as string
+
+      const prescSnap = await db.collection('prescripteurs_partenaires').doc(prescripteurId).get()
+      prescData = prescSnap.exists ? prescSnap.data()! : {}
+    } else {
+      // Stratégie B — code promo stable (ex: BEAUSEJOUR-2026)
+      console.log(`[sheets-webhook] code ${codeStr} absent de codes_sessions — fallback code_promo_affilie`)
+      const fallbackSnap = await db.collection('prescripteurs_partenaires')
+        .where('code_promo_affilie', '==', codeStr)
+        .limit(1)
+        .get()
+
+      if (fallbackSnap.empty) {
+        console.error(`[sheets-webhook] code ${codeStr} introuvable dans codes_sessions ET prescripteurs_partenaires`)
+        await updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
+        return NextResponse.json({
+          error: 'Code introuvable',
+          detail: `${codeStr} absent de codes_sessions et prescripteurs_partenaires`,
+        }, { status: 404 })
+      }
+
+      const doc = fallbackSnap.docs[0]
+      prescripteurId = doc.id
+      prescData = doc.data()
+      console.log(`[sheets-webhook] prescripteurId trouvé via code_promo_affilie: ${prescripteurId} ✅`)
     }
 
-    console.log(`[sheets-webhook] code ${codeStr} trouvé dans Firestore ✅`)
-    const session = sessionSnap.data()!
-    const prescripteurId = session.prescripteur_partenaire_id as string
-    console.log(`[sheets-webhook] prescripteurId: ${prescripteurId}`)
+    // ── 2. Montant final — FIX BUG : Apps Script envoyait data[9] (Lien_Orange_Money) ──
+    // Le champ correct est data[8] = col I = Montant_Final.
+    // Si amount vaut 0 (ancienne version du Apps Script), on relit depuis Sheets.
+    let montantFcfa = parseFloat(amount?.toString() ?? '0') || 0
+    if (montantFcfa === 0) {
+      console.warn(`[sheets-webhook] amount=0 reçu pour ${codeStr} — lecture Montant_Final depuis Sheets`)
+      montantFcfa = await getMontantFinalParCode(codeStr)
+      console.log(`[sheets-webhook] Montant_Final depuis Sheets: ${montantFcfa} FCFA`)
+    }
 
-    // ── 2. Lire prescripteur partenaire ───────────────────────
-    const prescSnap = await db.collection('prescripteurs_partenaires').doc(prescripteurId).get()
-    const prescData = prescSnap.exists ? prescSnap.data()! : {}
+    if (montantFcfa === 0) {
+      console.warn(`[sheets-webhook] Montant toujours 0 après fallback Sheets pour ${codeStr}`)
+    }
 
-    // ── 3. Montant (col J = Lien_Orange_Money) ────────────────
-    const montantFcfa = parseFloat(amount?.toString() ?? '0') || 0
-
-    // ── 4. Taux commission depuis Paramètres ──────────────────
+    // ── 3. Taux commission depuis Paramètres ──────────────────
     const params = await getParametresPlateforme()
     const tauxCommission = params.commission_partenaire_pct ?? 10
     const commissionFcfa = Math.round(montantFcfa * tauxCommission / 100)
 
     const now = new Date().toISOString()
 
-    // ── 5. Créer commission Firestore ─────────────────────────
+    // ── 4. Créer commission Firestore ─────────────────────────
     await db.collection('commissions_canal2').add({
       prescripteur_partenaire_id: prescripteurId,
       code: codeStr,
@@ -137,25 +170,24 @@ export async function POST(req: NextRequest) {
       source: 'sheets_webhook',
     })
 
-    // ── 6. Incrémenter stats prescripteur ─────────────────────
+    // ── 5. Incrémenter stats prescripteur ─────────────────────
     await db.collection('prescripteurs_partenaires').doc(prescripteurId).update({
       total_ca_boutique_fcfa: FieldValue.increment(montantFcfa),
       total_commissions_fcfa: FieldValue.increment(commissionFcfa),
       total_utilisations: FieldValue.increment(1),
     })
 
-    // ── 7. Mettre à jour Affiliés_Codes stats G H I ───────────
-    const codePrescripteur = (prescData.code_promo_affilie as string) ?? ''
-    if (codePrescripteur) {
-      updateStatsAffilie(codePrescripteur, montantFcfa, commissionFcfa)
-        .catch((e) => console.warn('[sheets-webhook] updateStatsAffilie failed:', e))
-    }
+    // ── 6. Mettre à jour Affiliés_Codes stats G H I ───────────
+    // FIX BUG : utiliser codeStr (le code réel de col G) et non code_promo_affilie
+    // pour incrémenter la bonne ligne dans Affiliés_Codes.
+    updateStatsAffilie(codeStr, montantFcfa, commissionFcfa)
+      .catch((e) => console.warn('[sheets-webhook] updateStatsAffilie failed:', e))
 
-    // ── 8. Logging colonne O (Sync_Firebase) ──────────────────
+    // ── 7. Logging colonne O (Sync_Firebase) ──────────────────
     updateSyncStatus(codeStr, 'success')
       .catch((e) => console.warn('[sheets-webhook] updateSyncStatus failed:', e))
 
-    // ── 9. WhatsApp partenaire ─────────────────────────────────
+    // ── 8. WhatsApp partenaire ─────────────────────────────────
     const nomPartenaire = (prescData.nom_etablissement as string) ?? 'Partenaire'
     const telPartenaire = (prescData.telephone as string) ?? ''
     if (telPartenaire) {
@@ -165,7 +197,7 @@ export async function POST(req: NextRequest) {
       ).catch(() => {})
     }
 
-    // ── 10. WhatsApp admin ────────────────────────────────────
+    // ── 9. WhatsApp admin ─────────────────────────────────────
     const adminPhone = process.env.ADMIN_WHATSAPP_PHONE ?? ''
     if (adminPhone) {
       sendWhatsApp(
@@ -174,7 +206,7 @@ export async function POST(req: NextRequest) {
       ).catch(() => {})
     }
 
-    return NextResponse.json({ success: true, logged: true, commission_fcfa: commissionFcfa })
+    return NextResponse.json({ success: true, logged: true, commission_fcfa: commissionFcfa, montant_fcfa: montantFcfa })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[sheets-webhook] error:', msg)
