@@ -1,5 +1,105 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-05 — Sprint C Prescripteur complet (commit e9ea004)
+Dernière mise à jour : 2026-04-14 — Fix liaison boutique → partenaire (commit 1752def)
+
+---
+
+## FIX — LIAISON BOUTIQUE → PARTENAIRE (2026-04-14) ✅
+
+**Commit `1752def` — 3 bugs corrigés dans le flux webhook Google Sheets → Dashboard**
+
+**BUG 1 (0 FCFA dans dashboard) :**
+- Apps Script envoyait `data[9]` = col J = `Lien_Orange_Money` (un lien/numéro) comme `amount`
+- `Montant_Final` est en col I = `data[8]` — le webhook recevait donc toujours 0
+- **Fix :** `getMontantFinalParCode()` ajoutée dans `lib/sheetsCanal2.ts` — relit col I depuis Sheets en fallback si `amount == 0`
+
+**BUG 2 (Liaison cassée — code non trouvé) :**
+- Pour les codes promo stables (ex: `BEAUSEJOUR-2026`), le webhook retournait 404 car ils n'existent pas dans `codes_sessions` Firestore
+- **Fix :** Stratégie B ajoutée dans `app/api/sheets-webhook/route.ts` — fallback `prescripteurs_partenaires.where('code_promo_affilie', '==', codeStr)`
+
+**BUG 3 (Mauvaise ligne Affiliés_Codes mise à jour) :**
+- `updateStatsAffilie` recevait `code_promo_affilie` (stable) au lieu du `codeStr` (code col G)
+- **Fix :** `updateStatsAffilie(codeStr, ...)` — incrémente la bonne ligne
+
+**Fichiers modifiés :**
+- `lib/sheetsCanal2.ts` — +31 lignes, nouvelle fonction `getMontantFinalParCode`
+- `app/api/sheets-webhook/route.ts` — +63/-34 lignes, 3 bugs corrigés
+
+**Action requise côté Apps Script (letlui boutique) :**
+Mettre à jour la ligne du payload pour envoyer `data[8]` au lieu de `data[9]` comme `amount` — le fallback Sheets couvre l'ancienne version en attendant.
+
+---
+
+## CANAL 2 — POPUP ÉVÉNEMENTS & FIXES (2026-04-11 → 2026-04-12) ✅
+
+### Popup événements page accueil
+- `components/PopupEvenements.tsx` : bannière slide-up 5s delay, lecture Firestore `evenements_kribi`
+- Personnalisation avec nom partenaire sur `/sejour/[code]`
+- CRUD admin `/admin/evenements` (`EvenementsClient.tsx`)
+- Fixes : debug sans filtre date, logs console, délai 2s, cleanup timer, robustesse
+
+### Webhook Google Sheets → Canal 2
+- `app/api/sheets-webhook/route.ts` : Bearer token + mapping réel colonnes + déduplication
+- `lib/sheetsCanal2.ts` : 4 fonctions — `creerPrescripteurPartenaire`, `genererCodeSession`, `getNomPartenairePourCode`, mapping colonnes vérifié
+- `app/api/partenaires/route.ts` : POST création partenaire depuis Sheets
+- Fix `fix(canal2)` : supprimer écriture Commandes au scan — Affiliés_Codes uniquement
+- Endpoints de diagnostic : `/api/test-webhook`, `/api/test-webhook-simulate`, `/api/test-popup`, `/api/test-sheets`
+
+### Canal 2 — QR & Forfaits
+- `feat(canal2)` : QR intelligent hôtel/résidence → boutique uniquement
+- Forfait hôtel/résidence paramétrable + commission réservation hébergement
+- Code 6 chiffres inséré dans `Affiliés_Codes` pour validation boutique
+- Fix focus inputs formulaire partenaire (FormFields sorti au niveau module)
+- CRUD édition partenaire + flux Sheets sortant + webhook entrant
+
+### Cron & Alertes Canal 2
+- `app/api/cron/canal2/route.ts` : cron quotidien 8h UTC — expiration codes + alertes WhatsApp
+- Fix TypeScript : retirer export de `getRedirectionParDefaut` (use server exige async)
+
+---
+
+## CANAL 2 — SCAN2SHEET (2026-04-11) ✅
+
+### Schéma Firestore & Actions
+- `actions/codes-sessions.ts` : schéma Firestore Canal 2, gestion codes séjour et sessions
+- Collection `codes_sejour` : code, partenaire_id, client_tel, statut, expire_at, montant_fcfa
+
+### Nouvelles routes
+- `/promo/[id]` (`app/promo/[id]/page.tsx`) : génération code + SMS + redirection `/sejour/[code]`
+- `/sejour/[code]` (`app/sejour/[code]/`) : page wallet client — 3 états (actif/expiré/utilisé) + compte à rebours
+- `app/api/valider-code/route.ts` : API validation code cross-plateforme
+- `app/api/confirmer-utilisation/route.ts` : confirmation utilisation code
+
+### Dashboards
+- `/partenaire-prescripteur/[id]` (`DashboardPartenaireClient.tsx`) : dashboard prescripteur partenaire
+- `/admin/prescripteurs-partenaires` (`AdminCanalDeuxClient.tsx`) : dashboard admin Canal 2 global + commissions + top partenaires
+- Intégration code séjour dans formulaire réservation hébergement + pré-remplissage URL
+
+---
+
+## PARAMÈTRES ADMIN (2026-04-10 → 2026-04-11) ✅
+
+- `actions/parametres.ts` : CRUD collection Firestore `taux_et_forfaits`
+- `app/admin/parametres/` (`ParametresClient.tsx`) : page 4 canaux avec aperçus temps réel
+  - Canal moto-taxi : taux commission prescripteur
+  - Canal partenaire : taux commission partenaire hébergement
+  - Boutique mariage : taux affilié
+  - Hébergements : frais de service
+- Taux lus dynamiquement depuis Firestore (plus de valeurs hardcodées)
+- Lien navigation admin sidebar → `/admin/parametres`
+
+---
+
+## SPRINT E — GÉOLOCALISATION PARTENAIRES (2026-04-07) ✅
+
+- `feat(admin)` : composant `MapPickerPartenaire` Google Maps Kribi
+- Intégration MapPicker dans création / modification / vue globale partenaires
+- `feat(geo)` : comptage logements disponibles par partenaire en temps réel
+- PWA prescripteur : géoloc partenaires < 2 km, auto-refresh 30s disponibilités logements
+- Carte Google Maps partenaires + synchronisation PWA prescripteur
+- Badge confiance 🏆 affiché partout (dashboard, liste, scan)
+- Classement mensuel prescripteurs
+- Fix géolocalisation sans manipulation paramètres navigateur
+- Fix : création réelle du dossier `qr-generator`
 
 ---
 
