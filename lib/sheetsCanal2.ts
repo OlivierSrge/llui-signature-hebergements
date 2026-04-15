@@ -9,10 +9,10 @@
 // Onglet "Commandes" — colonnes A(0) à O(14) :
 //   A(0)  Date          B(1)  Client_Nom       C(2)  Client_Tel
 //   D(3)  Client_Email  E(4)  Produit          F(5)  Prix_Original
-//   G(6)  Code_U_Affilié ← 6 chiffres
-//   H(7)  Réduction_%   I(8)  Montant_Final    J(9)  Lien_Orange_Money
-//   K(10) Statut ← "Payé"/"Confirmé"           L(11) Notes
-//   M(12) (vide)        N(13) Source           O(14) Sync_Firebase
+//   G(6)  Code_U_Affilié ← identifiant unique affilié
+//   H(7)  NomAffilié    I(8)  Réduction_%      J(9)  Montant_Final
+//   K(10) (vide)        L(11) Statut ← "En attente"/"Payé"/"Confirmé"
+//   M(12) Notes         N(13) Source           O(14) Sync_Firebase
 //
 // Onglet "Affiliés_Codes" — colonnes A(0) à I(8) :
 //   A Code_Promo  B Nom_Affilié  C Email_Affilié  D Réduction_%
@@ -361,7 +361,8 @@ export async function getMontantFinalParCode(code: string): Promise<number> {
     // Chercher la dernière ligne avec ce code (cas de code réutilisé)
     const row = [...rows].reverse().find((r) => r[6]?.toString().trim() === code.trim())
     if (!row) return 0
-    const raw = row[8]?.toString().replace(/\s/g, '').replace(',', '.') ?? '0'
+    // Montant_Final est en col J (index 9) depuis la mise à jour du mapping Apps Script
+    const raw = row[9]?.toString().replace(/\s/g, '').replace(',', '.') ?? '0'
     const montant = parseFloat(raw)
     return isNaN(montant) ? 0 : montant
   } catch (error) {

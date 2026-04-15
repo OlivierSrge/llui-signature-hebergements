@@ -1,242 +1,662 @@
-/**
- * Google Apps Script — Feuille "Commandes" / "Affiliés_Codes"
- * L&Lui Signature Hébergements
- *
- * INSTALLATION :
- * 1. Ouvre la feuille Google Sheets
- * 2. Extensions > Apps Script → colle ce code
- * 3. Dans le menu Apps Script : Projet > Propriétés du script > Propriétés de script
- *    Ajoute la propriété : SHEETS_WEBHOOK_SECRET = <ta clé secrète Vercel>
- * 4. Déclencheurs > Ajouter un déclencheur :
- *    - Fonction : onEditCommandes
- *    - Source d'événements : À partir du tableur
- *    - Type d'événement : Lors de la modification
- *    ⚠️ Utiliser le déclencheur INSTALLABLE (pas la fonction simple onEdit)
- *       car UrlFetchApp nécessite des autorisations
- *
- * LOGIQUE :
- *   Col K (Statut) change vers "En attente" → webhook statut="En attente"
- *   Col K (Statut) change vers "Payé" ou "Confirmé" → webhook statut="Payé"
- *                                                   + mise à jour Affiliés_Codes
- *
- * COLONNES "Commandes" (0-indexé) :
- *   A(0) Date  B(1) Client_Nom  C(2) Client_Tel  D(3) Client_Email
- *   E(4) Produit  F(5) Prix_Original  G(6) Code_U_Affilié  H(7) Réduction_%
- *   I(8) Montant_Final  J(9) Lien_Orange_Money  K(10) Statut
- *   L(11) Notes  M(12) —  N(13) Source  O(14) Sync_Firebase
- *
- * COLONNES "Affiliés_Codes" (0-indexé) :
- *   A(0) Code_Promo  B(1) Nom_Affilié  C(2) Email_Affilié  D(3) Réduction_%
- *   E(4) Commission_%  F(5) Actif  G(6) Nb_Commandes  H(7) Montant_Généré
- *   I(8) Commission_À_Payer
- */
+// ============================================================
+// LETLUI BOUTIQUE — Google Apps Script (Backend)
+// Version finale stabilisée — anti-429
+// ============================================================
+// À copier-coller dans Google Apps Script
+// (Extensions > Apps Script depuis la Google Sheet)
+// ============================================================
 
-// ─── Point d'entrée ────────────────────────────────────────────────────────────
+// --- CONFIGURATION ---
+var EMAIL_VENDEUR = "olivierfinestone@gmail.com";
+var ORANGE_MONEY_NUMERO = "6 93 40 79 64";
+var ORANGE_MONEY_NOM = "Olivier SERGE";
 
-/**
- * Déclencheur installable sur "Lors de la modification"
- * Surveille les changements de statut dans la colonne K de l'onglet Commandes
- */
+// --- GitHub (pour publier produits.json) ---
+var GITHUB_OWNER = "OlivierSrge";
+var GITHUB_REPO = "letlui";
+var GITHUB_FILE = "produits.json";
+var GITHUB_BRANCH = "main";
+
+// --- Noms des onglets ---
+var ONGLET_PRODUITS = "Produits";
+var ONGLET_AFFILIES = "Affiliés_Codes";
+var ONGLET_COMMANDES = "Commandes";
+
+// ============================================================
+// MENU PERSONNALISÉ — Affiché dans Google Sheets
+// ============================================================
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("L et Lui")
+    .addItem("Mettre à jour le site", "publierProduits")
+    .addToUi();
+}
+
+// ============================================================
+// PUBLIER PRODUITS — Pousse produits.json sur GitHub
+// ============================================================
+function publierProduits() {
+  var ui = SpreadsheetApp.getUi();
+
+  var token = PropertiesService.getScriptProperties().getProperty("GITHUB_TOKEN");
+  if (!token) {
+    ui.alert("Token GitHub manquant", "Va dans Extensions > Apps Script > Paramètres du projet > Propriétés de script\nAjoute : GITHUB_TOKEN = ton_token", ui.ButtonSet.OK);
+    return;
+  }
+
+  CacheService.getScriptCache().remove("produits_v1");
+
+  var resultat = getProduits();
+  var contenu = JSON.stringify(resultat, null, 2);
+  var contenuBase64 = Utilities.base64Encode(Utilities.newBlob(contenu).getBytes());
+
+  var urlGet = "https://api.github.com/repos/" + GITHUB_OWNER + "/" + GITHUB_REPO + "/contents/" + GITHUB_FILE + "?ref=" + GITHUB_BRANCH;
+  var respGet = UrlFetchApp.fetch(urlGet, {
+    headers: { "Authorization": "token " + token, "Accept": "application/vnd.github.v3+json" },
+    muteHttpExceptions: true,
+  });
+
+  var sha = "";
+  if (respGet.getResponseCode() === 200) {
+    sha = JSON.parse(respGet.getContentText()).sha;
+  }
+
+  var payload = {
+    message: "MAJ produits depuis Google Sheets — " + Utilities.formatDate(new Date(), "Africa/Douala", "yyyy-MM-dd HH:mm"),
+    content: contenuBase64,
+    branch: GITHUB_BRANCH,
+  };
+  if (sha) payload.sha = sha;
+
+  var respPut = UrlFetchApp.fetch("https://api.github.com/repos/" + GITHUB_OWNER + "/" + GITHUB_REPO + "/contents/" + GITHUB_FILE, {
+    method: "put",
+    headers: { "Authorization": "token " + token, "Accept": "application/vnd.github.v3+json", "Content-Type": "application/json" },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+
+  if (respPut.getResponseCode() === 200 || respPut.getResponseCode() === 201) {
+    ui.alert("Succès !", "Le site est en cours de mise à jour (30 secondes).\n\n" + resultat.produits.length + " produits publiés.", ui.ButtonSet.OK);
+  } else {
+    ui.alert("Erreur", "Code " + respPut.getResponseCode() + "\n" + respPut.getContentText(), ui.ButtonSet.OK);
+  }
+}
+
+// ============================================================
+// POINT D'ENTRÉE — Requêtes GET
+// ============================================================
+function doGet(e) {
+  var action = e.parameter.action;
+  var resultat;
+
+  if (action === "produits") {
+    resultat = getProduits();
+  } else if (action === "valider_code") {
+    resultat = validerCode(e.parameter.code);
+  } else {
+    resultat = { erreur: "Action inconnue" };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(resultat))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================================
+// POINT D'ENTRÉE — Requêtes POST
+// ============================================================
+function doPost(e) {
+  var data;
+  try {
+    data = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ succes: false, message: "Données invalides" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var resultat;
+
+  if (data.action === "commande") {
+    resultat = creerCommande(data);
+  } else {
+    resultat = { succes: false, message: "Action inconnue" };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(resultat))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============================================================
+// GET PRODUITS — Retourne tous les produits actifs (cache 5 min)
+// ============================================================
+function getProduits() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get("produits_v1");
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ONGLET_PRODUITS);
+  var data = sheet.getDataRange().getValues();
+  var produits = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var actif = String(row[6]).toUpperCase().trim();
+
+    if (actif === "OUI") {
+      produits.push({
+        nom: row[0],
+        description: row[1],
+        prix: Number(row[2]),
+        categorie: row[3],
+        image: convertirLienDrive(String(row[4])),
+        description_longue: row[5] || "",
+      });
+    }
+  }
+
+  var resultat = { produits: produits };
+  try { cache.put("produits_v1", JSON.stringify(resultat), 300); } catch (e) {}
+  return resultat;
+}
+
+// ============================================================
+// VALIDER CODE PROMO
+// ============================================================
+function validerCode(code) {
+  if (!code || code.trim() === "") {
+    return { valide: false, message: "Aucun code fourni" };
+  }
+
+  code = code.trim().toUpperCase();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ONGLET_AFFILIES);
+  var data = sheet.getDataRange().getValues();
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var codeSheet = String(row[0]).toUpperCase().trim();
+    var actif = String(row[5]).toUpperCase().trim();
+
+    if (codeSheet === code && actif === "OUI") {
+      return {
+        valide: true,
+        reduction: Number(row[3]),
+        affilié: row[1],
+        message: "Code valide ! Réduction de " + row[3] + "% appliquée",
+      };
+    }
+  }
+
+  return { valide: false, message: "Code invalide ou expiré" };
+}
+
+// ============================================================
+// CRÉER COMMANDE
+// ============================================================
+function creerCommande(data) {
+  if (!data.nom_client || data.nom_client.trim().length < 2) {
+    return { succes: false, message: "Nom invalide" };
+  }
+  if (!data.tel_client || data.tel_client.trim().length < 6) {
+    return { succes: false, message: "Numéro de téléphone invalide" };
+  }
+  if (!data.email_client || data.email_client.indexOf("@") === -1) {
+    return { succes: false, message: "Email invalide" };
+  }
+  if (!data.produit_nom) {
+    return { succes: false, message: "Produit manquant" };
+  }
+
+  if (data.nom_client.length > 100 || data.tel_client.length > 30 || data.email_client.length > 100) {
+    return { succes: false, message: "Données trop longues" };
+  }
+
+  var prixOriginal = Number(data.prix);
+  var quantite = Math.max(1, parseInt(data.quantite) || 1);
+  var prixTotal = prixOriginal * quantite;
+  var codePromo = data.code_promo ? data.code_promo.trim().toUpperCase() : "";
+  var nomAffilie = "";
+  var emailAffilie = "";
+  var reductionPourcent = 0;
+  var commissionPourcent = 0;
+
+  if (codePromo !== "") {
+    var sheetAffil = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ONGLET_AFFILIES);
+    var dataAffil = sheetAffil.getDataRange().getValues();
+
+    for (var i = 1; i < dataAffil.length; i++) {
+      var row = dataAffil[i];
+      var codeSheet = String(row[0]).toUpperCase().trim();
+      var actif = String(row[5]).toUpperCase().trim();
+
+      if (codeSheet === codePromo && actif === "OUI") {
+        nomAffilie = row[1];
+        emailAffilie = row[2];
+        reductionPourcent = Number(row[3]);
+        commissionPourcent = Number(row[4]);
+        break;
+      }
+    }
+  }
+
+  var reduction = Math.round(prixTotal * reductionPourcent / 100);
+  var montantFinal = prixTotal - reduction;
+  var commission = Math.round(montantFinal * commissionPourcent / 100);
+
+  var maintenant = new Date();
+  var dateFormatee = Utilities.formatDate(maintenant, "Africa/Douala", "yyyy-MM-dd HH:mm");
+
+  var sheetCmd = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ONGLET_COMMANDES);
+  sheetCmd.appendRow([
+    dateFormatee,              // A(0)  Date
+    data.nom_client.trim(),    // B(1)  Client_Nom
+    data.tel_client.trim(),    // C(2)  Client_Tel
+    data.email_client.trim(),  // D(3)  Client_Email
+    data.produit_nom,          // E(4)  Produit
+    prixTotal,                 // F(5)  Prix_Original
+    codePromo || "",           // G(6)  Code_U_Affilié
+    nomAffilie || "",          // H(7)  NomAffilié
+    reductionPourcent || 0,    // I(8)  Réduction_%
+    montantFinal,              // J(9)  Montant_Final  ← COL_MONTANT
+    "",                        // K(10) vide
+    "En attente",              // L(11) Statut         ← COL_STATUT
+    quantite > 1 ? "Qté : " + quantite + " | Prix unitaire : " + formatFCFA(prixOriginal) + " FCFA" : "", // M(12) Notes
+    "",                        // N(13) Source
+    "⏳ En attente",           // O(14) Sync_Firebase  ← COL_LOG
+  ]);
+
+  envoyerEmailVendeur({
+    produit: data.produit_nom,
+    prix_original: prixOriginal,
+    prix_total: prixTotal,
+    quantite: quantite,
+    montant_final: montantFinal,
+    reduction_pourcent: reductionPourcent,
+    nom_client: data.nom_client.trim(),
+    tel_client: data.tel_client.trim(),
+    email_client: data.email_client.trim(),
+    code_promo: codePromo,
+    nom_affilie: nomAffilie,
+    email_affilie: emailAffilie,
+    commission: commission,
+    commission_pourcent: commissionPourcent,
+    date: dateFormatee,
+  });
+
+  envoyerEmailClient({
+    nom_client: data.nom_client.trim(),
+    email_client: data.email_client.trim(),
+    produit: data.produit_nom,
+    montant_final: montantFinal,
+  });
+
+  return {
+    succes: true,
+    message: "Commande enregistrée avec succès",
+    client: data.nom_client.trim(),
+    montant_final: montantFinal,
+    quantite: quantite,
+    code_promo: codePromo || null,
+    reduction: reductionPourcent,
+  };
+}
+
+// ============================================================
+// ENVOI EMAIL AU VENDEUR
+// ============================================================
+function envoyerEmailVendeur(info) {
+  var sujet = "Nouvelle commande — " + info.produit;
+
+  var corps =
+    "Nouvelle commande reçue !\n\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "PRODUIT : " + info.produit + "\n";
+
+  if (info.quantite > 1) {
+    corps += "QUANTITÉ : " + info.quantite + " × " + formatFCFA(info.prix_original) + " FCFA = " + formatFCFA(info.prix_total) + " FCFA\n";
+  }
+
+  corps += "MONTANT : " + formatFCFA(info.montant_final) + " FCFA";
+
+  if (info.reduction_pourcent > 0) {
+    corps += " (réduction " + info.reduction_pourcent + "% appliquée)";
+  }
+
+  corps += "\n━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  corps +=
+    "CLIENT\n" +
+    "Nom : " + info.nom_client + "\n" +
+    "Téléphone : " + info.tel_client + "\n" +
+    "Email : " + info.email_client + "\n\n";
+
+  if (info.code_promo) {
+    corps +=
+      "CODE PROMO UTILISÉ : " + info.code_promo + "\n" +
+      "AFFILIÉ : " + info.nom_affilie + " (" + info.email_affilie + ")\n" +
+      "Commission due : " + formatFCFA(info.commission) + " FCFA (" + info.commission_pourcent + "%)\n\n";
+  }
+
+  corps +=
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "Action requise :\n" +
+    "1. Envoyer le lien de paiement Orange Money de " + formatFCFA(info.montant_final) + " FCFA au client par email\n" +
+    "2. Attendre la confirmation du paiement\n" +
+    "3. Aller dans Google Sheets > Commandes\n" +
+    "4. Changer le statut de cette commande à \"Confirmée\"\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n\n" +
+    "Date commande : " + info.date;
+
+  try {
+    MailApp.sendEmail(EMAIL_VENDEUR, sujet, corps);
+  } catch (err) {
+    Logger.log("Erreur envoi email : " + err.message);
+  }
+}
+
+// ============================================================
+// ENVOI EMAIL AU CLIENT — Instructions de paiement
+// ============================================================
+function envoyerEmailClient(info) {
+  var sujet = "L et Lui Signature — Votre commande pour " + info.produit;
+
+  var corps =
+    "Bonjour " + info.nom_client + ",\n\n" +
+    "Merci pour votre commande !\n\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "RÉCAPITULATIF\n" +
+    "Produit : " + info.produit + "\n" +
+    "Montant à payer : " + formatFCFA(info.montant_final) + " FCFA\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n\n" +
+    "Pour finaliser votre commande, envoyez " + formatFCFA(info.montant_final) + " FCFA par Orange Money au :\n\n" +
+    "Numéro : " + ORANGE_MONEY_NUMERO + "\n" +
+    "Nom du titulaire : " + ORANGE_MONEY_NOM + "\n\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n\n" +
+    "Votre commande sera confirmée dès réception du paiement.\n\n" +
+    "Merci pour votre confiance !\n" +
+    "L'équipe L et Lui Signature";
+
+  try {
+    MailApp.sendEmail(info.email_client, sujet, corps);
+  } catch (err) {
+    Logger.log("Erreur envoi email client : " + err.message);
+  }
+}
+
+// ============================================================
+// UTILITAIRES SITE
+// ============================================================
+
+function convertirLienDrive(url) {
+  if (!url) return "";
+
+  var fileId = "";
+  var match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) fileId = match[1];
+
+  if (!fileId) {
+    match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match) fileId = match[1];
+  }
+
+  if (fileId) {
+    return "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w800";
+  }
+
+  return url;
+}
+
+function formatFCFA(n) {
+  return Number(n).toLocaleString("fr-FR");
+}
+
+// ============================================================
+// MODULE COMMANDES & AFFILIÉS — Version finale stabilisée
+// ============================================================
+// Mapping colonnes "Commandes" (0-indexé depuis col A) :
+//   A(0)=Date   B(1)=Nom    C(2)=Tel    D(3)=Email  E(4)=Produit  F(5)=Prix
+//   G(6)=Code_U_Affilié     H(7)=NomAffilié         I(8)=Réduction_%
+//   J(9)=Montant_Final       K(10)=vide              L(11)=Statut
+//   M(12)=Notes              N(13)=Source            O(14)=Sync_Firebase
+//
+// Mapping colonnes "Affiliés_Codes" (0-indexé depuis col A) :
+//   A(0)=Code_Promo  B(1)=Nom_Affilié  C(2)=Email  D(3)=Réduction_%
+//   E(4)=Commission_%  F(5)=Actif
+//   G(6)=Nb_Commandes  H(7)=Montant_Généré  I(8)=Commission_À_Payer
+//
+// DÉCLENCHEUR REQUIS :
+//   Déclencheurs > + Ajouter > onEditCommandes > Lors de la modification
+//   ⚠️ Déclencheur INSTALLABLE obligatoire (UrlFetchApp = autorisations requises)
+
+var COL_CODE    = 6;   // G — Code_U_Affilié
+var COL_MONTANT = 9;   // J — Montant_Final
+var COL_STATUT  = 11;  // L — Statut
+var COL_LOG     = 14;  // O — Sync_Firebase (0-indexé)
+
+// ============================================================
+// DÉCLENCHEUR PRINCIPAL — Surveillance col L de l'onglet Commandes
+// ============================================================
 function onEditCommandes(e) {
   try {
-    const sheet = e.source.getActiveSheet()
-    if (sheet.getName() !== 'Commandes') return
+    if (!e || !e.source) return;
+    var range = e.range;
+    var sheet = range.getSheet();
+    if (!sheet || sheet.getName() !== 'Commandes') return;
 
-    const row = e.range.getRow()
-    const col = e.range.getColumn()
+    var row = range.getRow();
+    var col = range.getColumn(); // 1-indexé
 
-    // Colonne K = colonne 11 (1-indexé)
-    if (col !== 11 || row <= 1) return
+    // Ignorer la colonne O (log) et toute colonne autre que L (statut)
+    if (col === COL_LOG + 1) return;   // col O = 15 (1-indexé)
+    if (col !== COL_STATUT + 1) return; // col L = 12 (1-indexé)
+    if (row <= 1) return;
 
-    const newVal = (e.value || '').toString().trim()
-    const statutsAcceptes = ['En attente', 'Payé', 'Confirmé']
-    if (!statutsAcceptes.includes(newVal)) return
+    // Ignorer si la valeur n'a pas changé (évite les triggers en double)
+    var oldVal = e.oldValue ? String(e.oldValue).trim() : '';
+    var newVal = String(range.getValue()).trim();
+    if (oldVal === newVal) return;
 
-    // Lire toute la ligne (colonnes A à O = colonnes 1 à 15)
-    const data = sheet.getRange(row, 1, 1, 15).getValues()[0]
-    const code = (data[6] || '').toString().trim()        // col G (index 6) = Code_U_Affilié
-    const montantRaw = (data[8] || '0').toString()        // col I (index 8) = Montant_Final
-    const montant = parseMontant(montantRaw)
+    var statutsAcceptes = ['En attente', 'Payé', 'Confirmé'];
+    if (statutsAcceptes.indexOf(newVal) === -1) return;
+
+    // Lire les colonnes utiles de la ligne
+    var maxCols = sheet.getLastColumn();
+    var data = sheet.getRange(row, 1, 1, maxCols).getValues()[0];
+    var code = (data[COL_CODE] || '').toString().trim();
 
     if (!code) {
-      Logger.log('[onEditCommandes] code vide à la ligne ' + row + ' — ignoré')
-      return
+      Logger.log('[onEditCommandes] code vide ligne ' + row + ' — ignoré');
+      return;
     }
 
-    Logger.log('[onEditCommandes] statut="' + newVal + '" code="' + code + '" montant=' + montant)
+    // Vérifier que le code existe dans Affiliés_Codes (garde-fou anti-429)
+    if (!codeExisteDansAffilies(code)) {
+      Logger.log('[onEditCommandes] code ' + code + ' inconnu dans Affiliés_Codes — ignoré');
+      return;
+    }
 
-    const estConfirme = newVal === 'Payé' || newVal === 'Confirmé'
+    var montantRaw = data[COL_MONTANT];
+    var montant = (montantRaw !== undefined && montantRaw !== '')
+      ? parseMontantSecurise(String(montantRaw))
+      : 0;
+    if (isNaN(montant)) montant = 0;
 
-    // 1. Envoyer le webhook Vercel
-    const webhookOk = envoyerWebhook({ action: 'update_statut', code: code, amount: montant, statut: newVal })
+    Logger.log('[onEditCommandes] statut=' + newVal + ' | code=' + code + ' | montant=' + montant);
 
-    // 2. Si "Payé" ou "Confirmé" : mettre à jour Affiliés_Codes
+    var estConfirme = (newVal === 'Payé' || newVal === 'Confirmé');
+
+    // 1. Envoyer le webhook vers Vercel (Firestore / Dashboard partenaire)
+    var webhookOk = envoyerWebhook({
+      action: 'update_statut',
+      code: code,
+      amount: montant,
+      statut: newVal,
+    });
+
+    // 2. Mettre à jour Affiliés_Codes UNIQUEMENT si Payé ou Confirmé
     if (estConfirme) {
-      mettreAJourAffiliésCodes(code, montant)
+      mettreAJourAffilie(code, montant);
     }
 
-    // 3. Log dans col O (Sync_Firebase) si le webhook a réussi ou échoué
-    const logMsg = webhookOk
-      ? (estConfirme ? '✅ Synced ' + horaireLocal() : '⏳ Enregistré ' + horaireLocal())
-      : '❌ Webhook error ' + horaireLocal()
-    sheet.getRange(row, 15).setValue(logMsg) // col O = colonne 15
+    // 3. Log dans col O (Sync_Firebase)
+    if (maxCols >= COL_LOG + 1) {
+      var logMsg = webhookOk
+        ? (estConfirme ? '✅ ' + code + ' ' + montant + ' FCFA ' + horaireLocal() : '⏳ ' + code + ' ' + horaireLocal())
+        : '❌ ' + code + ' erreur ' + horaireLocal();
+      sheet.getRange(row, COL_LOG + 1).setValue(logMsg);
+    }
 
   } catch (err) {
-    Logger.log('[onEditCommandes] ERREUR : ' + err.toString())
+    Logger.log('[onEditCommandes] ERREUR : ' + err.toString());
   }
 }
 
-// ─── Mise à jour Affiliés_Codes ────────────────────────────────────────────────
+// ============================================================
+// VÉRIFIER EXISTENCE DU CODE DANS AFFILIÉS_CODES
+// ============================================================
+function codeExisteDansAffilies(code) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Affiliés_Codes');
+  if (!sheet) return false;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return false;
+  var codes = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
+    .map(function(r) { return String(r[0]).trim(); });
+  return codes.indexOf(code) !== -1;
+}
 
-/**
- * Cherche le code dans l'onglet Affiliés_Codes (col A) et incrémente :
- *   G (Nb_Commandes) += 1
- *   H (Montant_Généré) += montant
- *   I (Commission_À_Payer) += montant * commission_pct / 100
- *
- * ⚠️ Ne cherche que par code exact (comparaison stricte trimée).
- * Si le code 6 chiffres n'existe pas, on cherche aussi le code promo stable
- * associé (non implémenté ici — Firestore fait ce mapping côté webhook).
- */
-function mettreAJourAffiliésCodes(code, montant) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet()
-  const sheet = ss.getSheetByName('Affiliés_Codes')
+// ============================================================
+// MISE À JOUR AFFILIÉS_CODES — Incrémente G, H, I sur "Payé"
+// ============================================================
+function mettreAJourAffilie(code, montant) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Affiliés_Codes');
   if (!sheet) {
-    Logger.log('[mettreAJourAffiliésCodes] onglet Affiliés_Codes introuvable')
-    return
+    Logger.log('[mettreAJourAffilie] onglet Affiliés_Codes introuvable');
+    return;
   }
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
 
-  const lastRow = sheet.getLastRow()
-  if (lastRow < 2) {
-    Logger.log('[mettreAJourAffiliésCodes] onglet vide')
-    return
-  }
+  var data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
 
-  const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues() // lignes 2..N, cols A..I
+  for (var i = 0; i < data.length; i++) {
+    var codeSheet = (data[i][0] || '').toString().trim();
+    if (codeSheet !== code) continue;
 
-  for (let i = 0; i < data.length; i++) {
-    const codeSheet = (data[i][0] || '').toString().trim()
-    if (codeSheet !== code) continue
+    var realRow = i + 2;
+    var commissionPct  = parseFloat(data[i][4]) || 0;  // col E (index 4) = Commission_%
+    var nbActuel       = parseInt(data[i][6], 10) || 0; // col G (index 6) = Nb_Commandes
+    var montantActuel  = parseFloat(data[i][7]) || 0;  // col H (index 7) = Montant_Généré
+    var commActuelle   = parseFloat(data[i][8]) || 0;  // col I (index 8) = Commission_À_Payer
 
-    const realRow = i + 2 // +2 car on commence à la ligne 2
+    var nouvelleCommission = Math.round(montant * commissionPct / 100);
+    var newNb      = nbActuel + 1;
+    var newMontant = montantActuel + montant;
+    var newComm    = commActuelle + nouvelleCommission;
 
-    // Lire les valeurs actuelles (colonnes G H I = colonnes 7 8 9, 1-indexé)
-    const commissionPct = parseMontant((data[i][4] || '0').toString()) // col E (index 4) = Commission_%
-    const nbActuel     = parseInt((data[i][6] || '0').toString()) || 0 // col G (index 6)
-    const montantActuel = parseMontant((data[i][7] || '0').toString())  // col H (index 7)
-    const commActuelle  = parseMontant((data[i][8] || '0').toString())  // col I (index 8)
-
-    const nouvelleCommission = Math.round(montant * commissionPct / 100)
-    const newNb        = nbActuel + 1
-    const newMontant   = montantActuel + montant
-    const newComm      = commActuelle + nouvelleCommission
-
-    sheet.getRange(realRow, 7, 1, 3).setValues([[newNb, newMontant, newComm]])
+    sheet.getRange(realRow, 7, 1, 3).setValues([[newNb, newMontant, newComm]]);
 
     Logger.log(
-      '[mettreAJourAffiliésCodes] ✅ ligne ' + realRow +
-      ' code=' + code +
-      ' nb=' + newNb +
-      ' montant=' + newMontant +
-      ' commission=' + newComm +
+      '[mettreAJourAffilie] ✅ ligne ' + realRow +
+      ' | code=' + code +
+      ' | nb=' + newNb +
+      ' | montant=' + newMontant +
+      ' | commission=' + newComm +
       ' (taux ' + commissionPct + '%)'
-    )
-    return
+    );
+    return;
   }
 
-  Logger.log('[mettreAJourAffiliésCodes] code "' + code + '" non trouvé dans Affiliés_Codes')
+  Logger.log('[mettreAJourAffilie] code "' + code + '" non trouvé dans Affiliés_Codes');
 }
 
-// ─── Envoi Webhook ─────────────────────────────────────────────────────────────
-
-/**
- * Envoie le payload au webhook Vercel.
- * Retourne true si HTTP 2xx, false sinon.
- */
+// ============================================================
+// ENVOI WEBHOOK — POST vers Vercel /api/sheets-webhook
+// ============================================================
 function envoyerWebhook(payload) {
-  const secret = PropertiesService.getScriptProperties().getProperty('SHEETS_WEBHOOK_SECRET')
+  var secret = PropertiesService.getScriptProperties().getProperty('SHEETS_WEBHOOK_SECRET');
   if (!secret) {
-    Logger.log('[envoyerWebhook] SHEETS_WEBHOOK_SECRET non configuré')
-    return false
+    Logger.log('[envoyerWebhook] SHEETS_WEBHOOK_SECRET manquant');
+    return false;
   }
 
-  const url = 'https://llui-signature-hebergements.vercel.app/api/sheets-webhook'
+  var url = 'https://llui-signature-hebergements.vercel.app/api/sheets-webhook';
 
-  const options = {
+  var options = {
     method: 'POST',
     contentType: 'application/json',
     headers: { Authorization: 'Bearer ' + secret },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true,
-  }
+  };
 
   try {
-    const response = UrlFetchApp.fetch(url, options)
-    const code = response.getResponseCode()
-    const body = response.getContentText().slice(0, 300)
-    Logger.log('[envoyerWebhook] HTTP ' + code + ' — ' + body)
-    return code >= 200 && code < 300
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+    var body = response.getContentText().slice(0, 300);
+    Logger.log('[envoyerWebhook] HTTP ' + code + ' — ' + body);
+    return code >= 200 && code < 300;
   } catch (err) {
-    Logger.log('[envoyerWebhook] ERREUR fetch : ' + err.toString())
-    return false
+    Logger.log('[envoyerWebhook] ERREUR fetch : ' + err.toString());
+    return false;
   }
 }
 
-// ─── Utilitaires ───────────────────────────────────────────────────────────────
+// ============================================================
+// UTILITAIRES CANAL 2
+// ============================================================
 
 /**
- * Parse un montant depuis une chaîne Sheets qui peut contenir des espaces,
- * des virgules comme séparateur décimal, ou des symboles FCFA.
- * Ex: "7 500" → 7500, "12,50" → 12.5, "15 000 FCFA" → 15000
+ * Parse un montant depuis une chaîne Sheets.
+ * Gère : espaces milliers, point comme séparateur de milliers (7.500 → 7500),
+ * virgule décimale (12,50 → 12.5), suffixe FCFA.
+ * ⚠️ Supprime TOUS les points avant de traiter — adapté aux montants FCFA entiers.
  */
-function parseMontant(raw) {
-  const cleaned = raw.toString()
-    .replace(/\s/g, '')         // espaces (séparateurs de milliers)
-    .replace(/FCFA/gi, '')      // symbole monétaire
-    .replace(',', '.')          // virgule décimale → point
-    .trim()
-  const val = parseFloat(cleaned)
-  return isNaN(val) ? 0 : val
+function parseMontantSecurise(raw) {
+  if (raw === null || raw === undefined) return 0;
+  var cleaned = raw.toString()
+    .replace(/\s/g, '')      // espaces (séparateurs de milliers)
+    .replace(/\./g, '')      // points (séparateurs de milliers style européen)
+    .replace(/FCFA/gi, '')   // symbole monétaire
+    .replace(',', '.');      // virgule décimale → point
+  var val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
 }
 
-/**
- * Retourne l'heure locale Cameroun (Africa/Douala) formatée HH:MM
- */
 function horaireLocal() {
-  return Utilities.formatDate(
-    new Date(),
-    'Africa/Douala',
-    'HH:mm'
-  )
+  return Utilities.formatDate(new Date(), 'Africa/Douala', 'HH:mm');
 }
 
-// ─── Test manuel ───────────────────────────────────────────────────────────────
-
+// ============================================================
+// TEST MANUEL — À lancer depuis l'éditeur Apps Script
+// ============================================================
 /**
- * Fonction de test à lancer manuellement depuis l'éditeur Apps Script.
- * Simule un "Payé" sur le code et le montant de ton choix.
- *
- * USAGE : modifier les valeurs TEST_CODE et TEST_MONTANT, puis
- * sélectionner la fonction testManuel dans le menu déroulant et cliquer ▶
+ * USAGE :
+ * 1. Modifier TEST_CODE, TEST_MONTANT et TEST_STATUT ci-dessous
+ * 2. Sélectionner "testManuel" dans le menu déroulant de l'éditeur
+ * 3. Cliquer ▶ puis vérifier les logs (Ctrl+Entrée)
  */
 function testManuel() {
-  const TEST_CODE    = '123456'  // ← remplace par ton code de test
-  const TEST_MONTANT = 7500     // ← remplace par le montant de test (FCFA)
-  const TEST_STATUT  = 'Payé'   // 'En attente' ou 'Payé'
+  var TEST_CODE    = '123456'; // ← remplace par ton code de test
+  var TEST_MONTANT = 7500;    // ← remplace par le montant (FCFA)
+  var TEST_STATUT  = 'Payé';  // 'En attente' | 'Payé' | 'Confirmé'
 
-  Logger.log('=== TEST MANUEL ===')
-  Logger.log('Code: ' + TEST_CODE + ' | Montant: ' + TEST_MONTANT + ' | Statut: ' + TEST_STATUT)
+  Logger.log('=== TEST MANUEL ===');
+  Logger.log('Code: ' + TEST_CODE + ' | Montant: ' + TEST_MONTANT + ' | Statut: ' + TEST_STATUT);
 
-  const webhookOk = envoyerWebhook({
+  var webhookOk = envoyerWebhook({
     action: 'update_statut',
     code: TEST_CODE,
     amount: TEST_MONTANT,
     statut: TEST_STATUT,
-  })
+  });
 
   if (TEST_STATUT === 'Payé' || TEST_STATUT === 'Confirmé') {
-    mettreAJourAffiliésCodes(TEST_CODE, TEST_MONTANT)
+    mettreAJourAffilie(TEST_CODE, TEST_MONTANT);
   }
 
-  Logger.log('=== FIN TEST (webhook ok: ' + webhookOk + ') ===')
+  Logger.log('=== FIN TEST | webhook ok: ' + webhookOk + ' ===');
 }

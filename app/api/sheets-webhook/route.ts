@@ -2,21 +2,21 @@
 // Webhook sécurisé — reçoit les mises à jour depuis Google Apps Script
 // Auth : Authorization: Bearer [SHEETS_WEBHOOK_SECRET]
 //
-// Payload envoyé par Apps Script :
+// Payload envoyé par Apps Script (variables COL_* du script) :
 // {
 //   "action":  "update_statut",
-//   "code":    data[6],    // col G = Code_U_Affilié (6 chiffres)
-//   "amount":  data[8],    // col I = Montant_Final (FCFA)
-//   "statut":  data[10]    // col K = "En attente" | "Payé" | "Confirmé"
+//   "code":    data[COL_CODE]    = data[6]  // col G = Code_U_Affilié
+//   "amount":  data[COL_MONTANT] = data[9]  // col J = Montant_Final  ← v2 (était col I)
+//   "statut":  data[COL_STATUT]  = data[11] // col L = Statut         ← v2 (était col K)
 // }
 //
 // Mapping statut Sheets → statut Firestore (commissions_canal2) :
 //   "En attente"          → "vente_en_cours"   (⏳ vente enregistrée, paiement client en attente)
 //   "Payé" | "Confirmé"   → "en_attente"       (✅ paiement client reçu, commission due au partenaire)
 //
-// Note : la mise à jour de l'onglet Affiliés_Codes (col G H I) est gérée
-// UNIQUEMENT par Apps Script côté Sheets pour éviter les double-comptages.
-// Le webhook gère uniquement la synchronisation Firestore.
+// Note : la mise à jour Affiliés_Codes (col G H I) est gérée par Apps Script.
+// Ce webhook gère uniquement la synchronisation Firestore.
+// Optimisation : requêtes Firestore indépendantes lancées en Promise.all.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
@@ -103,52 +103,51 @@ export async function POST(req: NextRequest) {
   //   - Si commission à 0 FCFA (bug ancien) → supprimer + recréer en_attente
   //   - Sinon → créer en_attente
 
+  // ── Requêtes parallèles : dédup + session + params ──────────────
+  // Les 3 sont indépendantes → lancées simultanément pour réduire la latence
   let existingDocId: string | null = null
   let existingStatut: string | null = null
-  let existingCommission: number = 0
 
   try {
-    const existingSnap = await db.collection('commissions_canal2')
-      .where('code', '==', codeStr)
-      .where('canal', '==', 'boutique')
-      .limit(1)
-      .get()
+    const [existingSnap, sessionSnapInit, paramsInit] = await Promise.all([
+      db.collection('commissions_canal2')
+        .where('code', '==', codeStr)
+        .where('canal', '==', 'boutique')
+        .limit(1)
+        .get(),
+      db.collection('codes_sessions').doc(codeStr).get(),
+      getParametresPlateforme(),
+    ])
 
+    // ── Déduplication ───────────────────────────────────────────
     if (!existingSnap.empty) {
       const doc = existingSnap.docs[0]
       existingDocId = doc.id
       existingStatut = doc.data().statut as string ?? ''
-      existingCommission = doc.data().commission_fcfa as number ?? 0
+      const existingCommission = doc.data().commission_fcfa as number ?? 0
 
-      // Commission à 0 FCFA (créée avant le fix bug 1) → nettoyer et re-traiter
       if (existingCommission === 0) {
-        console.log(`[sheets-webhook] commission 0 FCFA trouvée pour ${codeStr} — suppression`)
+        // Commission zombie à 0 FCFA (bug pré-fix) → nettoyer et re-traiter
+        console.log(`[sheets-webhook] commission 0 FCFA pour ${codeStr} — suppression`)
         await doc.ref.delete()
         existingDocId = null
         existingStatut = null
-      } else if (estConfirme && existingStatut === 'vente_en_cours') {
-        // Le client vient de payer : on va mettre à jour ce document plus bas
-        console.log(`[sheets-webhook] vente_en_cours → en_attente pour ${codeStr}`)
-        // On continue, existingDocId est conservé pour la mise à jour
       } else if (!estConfirme && existingStatut === 'vente_en_cours') {
         console.log(`[sheets-webhook] vente_en_cours déjà enregistrée pour ${codeStr} — ignoré`)
         return NextResponse.json({ ignored: true, reason: 'vente_en_cours_deja_enregistree' })
       } else if (['en_attente', 'versee'].includes(existingStatut ?? '')) {
         console.log(`[sheets-webhook] commission ${existingStatut} déjà enregistrée pour ${codeStr} — ignoré`)
         return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
+      } else if (estConfirme && existingStatut === 'vente_en_cours') {
+        console.log(`[sheets-webhook] vente_en_cours → en_attente pour ${codeStr}`)
+        // existingDocId conservé pour la mise à jour plus bas
       }
     }
-  } catch (err) {
-    console.error('[sheets-webhook] déduplication error:', err)
-  }
 
-  try {
-    // ── 1. Résoudre le prescripteurId depuis Firestore ─────────────────
-    // Stratégie A : codes_sessions (code 6 chiffres généré par scan QR)
-    // Stratégie B : prescripteurs_partenaires.code_promo_affilie (code stable ex: BEAUSEJOUR-2026)
-    console.log(`[sheets-webhook] recherche code ${codeStr} dans codes_sessions Firestore`)
-    const sessionSnap = await db.collection('codes_sessions').doc(codeStr).get()
+    // ── Utiliser les résultats déjà chargés (sessionSnapInit, paramsInit) ──
+    const sessionSnap = sessionSnapInit
 
+    // ── 1. Résoudre le prescripteurId ─────────────────────────────
     let prescripteurId: string
     let prescData: Record<string, unknown> = {}
 
@@ -167,7 +166,7 @@ export async function POST(req: NextRequest) {
 
       if (fallbackSnap.empty) {
         console.error(`[sheets-webhook] code ${codeStr} introuvable dans codes_sessions ET prescripteurs_partenaires`)
-        await updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
+        updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
         return NextResponse.json({
           error: 'Code introuvable',
           detail: `${codeStr} absent de codes_sessions et prescripteurs_partenaires`,
@@ -177,14 +176,13 @@ export async function POST(req: NextRequest) {
       const doc = fallbackSnap.docs[0]
       prescripteurId = doc.id
       prescData = doc.data()
-      console.log(`[sheets-webhook] prescripteurId trouvé via code_promo_affilie: ${prescripteurId} ✅`)
+      console.log(`[sheets-webhook] prescripteurId via code_promo_affilie: ${prescripteurId} ✅`)
     }
 
     // ── 2. Montant final ──────────────────────────────────────────
-    // Fallback Sheets si Apps Script envoie amount=0 (ancienne version)
     let montantFcfa = parseFloat(amount?.toString() ?? '0') || 0
     if (montantFcfa === 0) {
-      console.warn(`[sheets-webhook] amount=0 pour ${codeStr} — lecture Montant_Final depuis Sheets`)
+      console.warn(`[sheets-webhook] amount=0 pour ${codeStr} — lecture Montant_Final depuis Sheets (col J)`)
       montantFcfa = await getMontantFinalParCode(codeStr)
       console.log(`[sheets-webhook] Montant_Final depuis Sheets: ${montantFcfa} FCFA`)
     }
@@ -192,8 +190,8 @@ export async function POST(req: NextRequest) {
       console.warn(`[sheets-webhook] Montant toujours 0 après fallback Sheets pour ${codeStr}`)
     }
 
-    // ── 3. Taux commission ────────────────────────────────────────
-    const params = await getParametresPlateforme()
+    // ── 3. Taux commission (déjà chargé en parallèle) ────────────
+    const params = paramsInit
     const tauxCommission = params.commission_partenaire_pct ?? 10
     const commissionFcfa = Math.round(montantFcfa * tauxCommission / 100)
 
