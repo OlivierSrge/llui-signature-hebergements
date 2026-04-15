@@ -49,6 +49,11 @@ export interface PrescripteurPartenaire {
   total_commissions_fcfa: number
   created_at: string
   created_by: string
+  // Vitrine Marketing
+  subscriptionLevel?: 'free' | 'premium'
+  carouselImages?: string[]     // max 5 URLs
+  defaultImage?: string         // image enseigne (Free + Premium)
+  photoUrl?: string             // logo/photo profil
 }
 
 export interface CodeSession {
@@ -523,4 +528,67 @@ export async function marquerCommissionVersee(
   await batch.commit()
   revalidatePath('/admin/prescripteurs-partenaires')
   return { success: true }
+}
+
+// ─── Actions Vitrine Marketing ────────────────────────────────
+
+/** Partenaire met à jour sa vitrine (defaultImage + carouselImages) */
+export async function updateVitrine(
+  id: string,
+  data: { defaultImage?: string; carouselImages?: string[] }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (data.defaultImage !== undefined) update.defaultImage = data.defaultImage.trim()
+    if (data.carouselImages !== undefined) {
+      update.carouselImages = data.carouselImages
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0)
+        .slice(0, 5) // max 5
+    }
+    await db.collection('prescripteurs_partenaires').doc(id).update(update)
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
+/** Admin bascule le niveau d'abonnement Free ↔ Premium */
+export async function setSubscriptionLevel(
+  id: string,
+  level: 'free' | 'premium'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      subscriptionLevel: level,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
+/** Admin définit l'image par défaut d'un partenaire */
+export async function setDefaultImageAdmin(
+  id: string,
+  defaultImage: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      defaultImage: defaultImage.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
 }

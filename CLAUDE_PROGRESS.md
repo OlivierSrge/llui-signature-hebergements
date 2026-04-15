@@ -19,11 +19,16 @@ Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui 
 - [x] `onEditCommandes` surveille maintenant 4 colonnes : G (auto-liaison) + C (mémoire tel) + D (mémoire email) + L (webhook statut)
 
 ### 3. Dashboard Partenaire (Frontend)
+- [x] **Onglet "Ma Vitrine"** — Free/Premium, carrousel interactif avec aperçu, 5 slots d'images, image enseigne
+- [x] **Carrousel avec navigation** — flèches, indicateurs (points), transitions fluides, format mobile
 - [ ] Bouton "Actualiser mes statistiques" → scan complet onglet Commandes → mise à jour CA + commissions
 - [ ] Affichage photo/logo partenaire (champ `photoUrl` Firestore) en entête du dashboard
 
 ### 4. Dashboard Admin (Backend)
-- [ ] Upload ou lien photo pour chaque profil partenaire depuis l'interface admin
+- [x] **Toggle Free/Premium** — bouton dans la liste partenaires, mise à jour Firestore instantanée
+- [x] **Image par défaut admin** — panel inline pour définir/modifier `defaultImage` de chaque partenaire
+- [x] **API publique `/api/vitrine`** — endpoint CORS ouvert consommable par la boutique Netlify (`?code=` ou `?uid=`)
+- [ ] Upload photo partenaire (photoUrl) depuis l'interface admin
 - [ ] Route `/api/admin/sync-affiliates` → garantir que TOUS les codes Sheets sont dans Firestore avec bon mapping
 
 ### 5. Logs & Fiabilité

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'react-hot-toast'
+import { updateVitrine } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 
 function formatFCFA(n: number | undefined | null) {
@@ -63,21 +65,18 @@ interface Props {
 
 export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0 }: Props) {
   const [tick, setTick] = useState(0)
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine'>('stats')
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 60000)
     return () => clearInterval(t)
   }, [])
-
-  // Supprime l'avertissement ESLint de tick non utilisé
   void tick
 
   const forfaitExpire = jours(partenaire.forfait_expire_at)
   const totalCa = (partenaire.total_ca_hebergements_fcfa ?? 0) + (partenaire.total_ca_boutique_fcfa ?? 0)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
   const qrUrl = `${appUrl}/promo/${partenaire.uid}`
-
   const msgWa = encodeURIComponent(`🏨 Mon QR Code L&Lui Signature\n${partenaire.nom_etablissement}\nScannez pour obtenir votre code séjour !\n→ ${qrUrl}`)
-
   const txList = transactions as unknown as Transaction[]
 
   return (
@@ -100,6 +99,28 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           )}
         </div>
       </div>
+
+      {/* Navigation onglets */}
+      <div className="flex gap-2 bg-white rounded-2xl p-1.5 shadow-sm">
+        {([['stats', '📊 Statistiques'], ['vitrine', '🖼️ Ma Vitrine']] as const).map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
+              activeTab === tab
+                ? 'bg-[#C9A84C] text-white'
+                : 'text-[#1A1A1A]/60 hover:text-[#1A1A1A]'
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Onglet Vitrine ─────────────────────────────────── */}
+      {activeTab === 'vitrine' && (
+        <VitrineTab partenaire={partenaire} />
+      )}
+
+      {/* ─── Onglet Stats ────────────────────────────────────── */}
+      {activeTab === 'stats' && <>
 
       {/* Stats */}
       <div className="bg-white rounded-2xl p-5 shadow-sm">
@@ -236,6 +257,195 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           </div>
         </div>
       )}
+
+      </> /* fin onglet stats */}
+    </div>
+  )
+}
+
+// ─── Composant Vitrine Tab ────────────────────────────────────
+
+function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
+  const isPremium = partenaire.subscriptionLevel === 'premium'
+  const [defaultImage, setDefaultImage] = useState(partenaire.defaultImage ?? '')
+  const [slots, setSlots] = useState<string[]>(() => {
+    const imgs = partenaire.carouselImages ?? []
+    return [...imgs, '', '', '', '', ''].slice(0, 5)
+  })
+  const [saving, setSaving] = useState(false)
+  const [carouselIdx, setCarouselIdx] = useState(0)
+
+  // Images à afficher dans l'aperçu
+  const previewImages = isPremium
+    ? slots.filter((s) => s.trim() !== '')
+    : defaultImage ? [defaultImage] : []
+
+  async function handleSave() {
+    setSaving(true)
+    const res = await updateVitrine(partenaire.uid, {
+      defaultImage,
+      carouselImages: isPremium ? slots : undefined,
+    })
+    setSaving(false)
+    if (res.success) toast.success('Vitrine mise à jour ✅')
+    else toast.error(res.error ?? 'Erreur')
+  }
+
+  return (
+    <div className="space-y-4">
+
+      {/* Badge abonnement */}
+      <div className={`rounded-2xl p-5 shadow-sm ${isPremium ? 'bg-gradient-to-br from-[#C9A84C] to-[#8B6914]' : 'bg-white'}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${isPremium ? 'text-white/70' : 'text-[#C9A84C]'}`}>
+              Mon abonnement
+            </p>
+            <p className={`text-xl font-serif font-bold ${isPremium ? 'text-white' : 'text-[#1A1A1A]'}`}>
+              {isPremium ? '⭐ Premium' : '🔓 Free'}
+            </p>
+            <p className={`text-xs mt-1 ${isPremium ? 'text-white/80' : 'text-[#1A1A1A]/50'}`}>
+              {isPremium
+                ? '5 visuels publicitaires · Transitions fluides · Pleine visibilité'
+                : 'Image enseigne uniquement · Passez Premium pour diffuser vos pubs'}
+            </p>
+          </div>
+          {!isPremium && (
+            <div className="text-right">
+              <p className="text-xs text-[#C9A84C] font-semibold">Contactez Olivier</p>
+              <a href="https://wa.me/237693407964" target="_blank" rel="noreferrer"
+                className="mt-1 inline-block px-3 py-1.5 bg-[#C9A84C] text-white text-xs font-bold rounded-xl">
+                Passer Premium →
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Aperçu Carrousel */}
+      {previewImages.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <p className="text-xs font-semibold text-[#1A1A1A]/60 px-5 pt-4 mb-3">Aperçu carrousel</p>
+          <div className="relative aspect-video bg-[#F5F0E8] overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImages[carouselIdx] || ''}
+              alt="Aperçu"
+              className="w-full h-full object-cover transition-all duration-500"
+              onError={(e) => { (e.target as HTMLImageElement).src = '' }}
+            />
+            {previewImages.length > 1 && (
+              <>
+                <button onClick={() => setCarouselIdx((i) => (i - 1 + previewImages.length) % previewImages.length)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 text-white rounded-full text-sm flex items-center justify-center">
+                  ‹
+                </button>
+                <button onClick={() => setCarouselIdx((i) => (i + 1) % previewImages.length)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 text-white rounded-full text-sm flex items-center justify-center">
+                  ›
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {previewImages.map((_, i) => (
+                    <button key={i} onClick={() => setCarouselIdx(i)}
+                      className={`w-2 h-2 rounded-full transition-all ${i === carouselIdx ? 'bg-white scale-125' : 'bg-white/50'}`} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Image enseigne (tous niveaux) */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-sm font-semibold text-[#1A1A1A] mb-1">🏪 Image de l&apos;enseigne</p>
+        <p className="text-xs text-[#1A1A1A]/50 mb-3">Affichée en mode Free et comme image de secours en Premium</p>
+        <input
+          type="url"
+          value={defaultImage}
+          onChange={(e) => setDefaultImage(e.target.value)}
+          placeholder="https://... (URL de votre logo ou photo d'enseigne)"
+          className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+        />
+        {defaultImage && (
+          <div className="mt-2 h-24 bg-[#F5F0E8] rounded-xl overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={defaultImage} alt="Enseigne" className="w-full h-full object-cover" />
+          </div>
+        )}
+      </div>
+
+      {/* Slots Premium */}
+      {isPremium && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-semibold text-[#1A1A1A] mb-1">🖼️ Mes visuels publicitaires</p>
+          <p className="text-xs text-[#1A1A1A]/50 mb-4">5 emplacements · Plats du jour, promotions, événements</p>
+          <div className="space-y-3">
+            {slots.map((url, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-colors ${url ? 'border-[#C9A84C]' : 'border-dashed border-[#F5F0E8]'} bg-[#F5F0E8]`}>
+                  {url
+                    ? /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={url} alt={`Slot ${i + 1}`} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/40 text-xl">+</div>
+                  }
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-[#1A1A1A]/40 mb-1">Image {i + 1}</p>
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => {
+                      const next = [...slots]
+                      next[i] = e.target.value
+                      setSlots(next)
+                      if (e.target.value) setCarouselIdx(i)
+                    }}
+                    placeholder="https://... URL de l'image"
+                    className="w-full border border-[#F5F0E8] rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#C9A84C]"
+                  />
+                </div>
+                {url && (
+                  <button onClick={() => { const n = [...slots]; n[i] = ''; setSlots(n) }}
+                    className="text-red-400 hover:text-red-600 text-lg flex-shrink-0">
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Message promo Free */}
+      {!isPremium && (
+        <div className="bg-gradient-to-br from-[#1A1A1A] to-[#333] rounded-2xl p-5 shadow-sm">
+          <p className="text-white font-serif font-bold text-base mb-2">⭐ Passez Premium</p>
+          <ul className="space-y-1.5 mb-4">
+            {[
+              '5 visuels publicitaires dans le carrousel',
+              'Transitions fluides et indicateurs de navigation',
+              'Plats du jour, promos, événements en temps réel',
+              'Visible par tous vos clients L&Lui',
+            ].map((item) => (
+              <li key={item} className="text-xs text-white/70 flex items-start gap-2">
+                <span className="text-[#C9A84C] mt-0.5">✓</span> {item}
+              </li>
+            ))}
+          </ul>
+          <a href="https://wa.me/237693407964?text=Je%20souhaite%20passer%20en%20Premium%20pour%20ma%20vitrine%20L%26Lui"
+            target="_blank" rel="noreferrer"
+            className="block text-center py-2.5 bg-[#C9A84C] text-white text-sm font-bold rounded-xl hover:bg-[#b8963e] transition-colors">
+            Contacter Olivier sur WhatsApp →
+          </a>
+        </div>
+      )}
+
+      {/* Bouton enregistrer */}
+      <button onClick={handleSave} disabled={saving}
+        className="w-full py-3 bg-[#C9A84C] text-white font-bold rounded-2xl disabled:opacity-60 hover:bg-[#b8963e] transition-colors shadow-sm">
+        {saving ? 'Enregistrement...' : '💾 Enregistrer ma vitrine'}
+      </button>
     </div>
   )
 }

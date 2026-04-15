@@ -6,6 +6,8 @@ import {
   creerPrescripteurPartenaire,
   modifierPrescripteurPartenaire,
   marquerCommissionVersee,
+  setSubscriptionLevel,
+  setDefaultImageAdmin,
   type TypePartenaire,
   type RemiseType,
 } from '@/actions/codes-sessions'
@@ -194,6 +196,10 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const [editSaving, setEditSaving] = useState(false)
   const [showScript, setShowScript] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [subscriptionLoading, setSubscriptionLoading] = useState<string | null>(null)
+  const [defaultImageEdit, setDefaultImageEdit] = useState<string | null>(null)
+  const [defaultImageVal, setDefaultImageVal] = useState('')
+  const [defaultImageSaving, setDefaultImageSaving] = useState(false)
 
   const [form, setForm] = useState(formDefault)
 
@@ -288,6 +294,32 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
+  }
+
+  async function handleToggleSubscription(p: PrescripteurPartenaire) {
+    const newLevel = p.subscriptionLevel === 'premium' ? 'free' : 'premium'
+    setSubscriptionLoading(p.uid)
+    const res = await setSubscriptionLevel(p.uid, newLevel)
+    setSubscriptionLoading(null)
+    if (res.success) {
+      toast.success(`${p.nom_etablissement} → ${newLevel === 'premium' ? '⭐ Premium' : '🔓 Free'}`)
+      router.refresh()
+    } else {
+      toast.error(res.error ?? 'Erreur')
+    }
+  }
+
+  async function handleSaveDefaultImage(id: string) {
+    setDefaultImageSaving(true)
+    const res = await setDefaultImageAdmin(id, defaultImageVal)
+    setDefaultImageSaving(false)
+    if (res.success) {
+      toast.success('Image par défaut mise à jour ✅')
+      setDefaultImageEdit(null)
+      router.refresh()
+    } else {
+      toast.error(res.error ?? 'Erreur')
+    }
   }
 
   // Helper onChange pour les deux formulaires (création + édition)
@@ -536,7 +568,26 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                           : p.remise_description ? ` · ${p.remise_description}` : ''}
                       </p>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+                      {/* Badge abonnement + toggle */}
+                      <button
+                        onClick={() => handleToggleSubscription(p)}
+                        disabled={subscriptionLoading === p.uid}
+                        title={p.subscriptionLevel === 'premium' ? 'Rétrograder Free' : 'Passer Premium'}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-60 ${
+                          p.subscriptionLevel === 'premium'
+                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}>
+                        {subscriptionLoading === p.uid ? '...' : p.subscriptionLevel === 'premium' ? '⭐ Premium' : '🔓 Free'}
+                      </button>
+                      {/* Image par défaut */}
+                      <button
+                        onClick={() => { setDefaultImageEdit(p.uid); setDefaultImageVal(p.defaultImage ?? '') }}
+                        className="text-xs px-2.5 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 rounded-lg hover:bg-[#F5F0E8]/80 transition-colors"
+                        title="Définir image par défaut">
+                        🖼️
+                      </button>
                       <a href={`/partenaire-prescripteur/${p.uid}`} target="_blank" rel="noreferrer"
                         className="text-xs px-3 py-1.5 border border-[#C9A84C] text-[#C9A84C] rounded-lg hover:bg-[#C9A84C]/10 transition-colors">
                         Dashboard
@@ -550,6 +601,35 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         {isEditing ? 'Fermer' : '✏️ Éditer'}
                       </button>
                     </div>
+                    {/* Panel image par défaut */}
+                    {defaultImageEdit === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <p className="text-xs text-[#1A1A1A]/60 mb-2">🖼️ Image par défaut (enseigne)</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={defaultImageVal}
+                            onChange={(e) => setDefaultImageVal(e.target.value)}
+                            placeholder="https://... URL de l'image"
+                            className="flex-1 border border-[#F5F0E8] rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#C9A84C]"
+                          />
+                          <button onClick={() => handleSaveDefaultImage(p.uid)} disabled={defaultImageSaving}
+                            className="text-xs px-3 py-1.5 bg-[#C9A84C] text-white rounded-lg disabled:opacity-60">
+                            {defaultImageSaving ? '...' : '✅'}
+                          </button>
+                          <button onClick={() => setDefaultImageEdit(null)}
+                            className="text-xs px-3 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 rounded-lg">
+                            ✕
+                          </button>
+                        </div>
+                        {defaultImageVal && (
+                          <div className="mt-2 h-20 bg-[#F5F0E8] rounded-xl overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={defaultImageVal} alt="Aperçu" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    )
                   </div>
                 </div>
               )
