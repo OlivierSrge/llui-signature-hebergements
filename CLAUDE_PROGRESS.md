@@ -28,8 +28,9 @@ Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui 
 - [x] **Toggle Free/Premium** — bouton dans la liste partenaires, mise à jour Firestore instantanée
 - [x] **Image par défaut admin** — panel inline pour définir/modifier `defaultImage` de chaque partenaire
 - [x] **API publique `/api/vitrine`** — endpoint CORS ouvert consommable par la boutique Netlify (`?code=` ou `?uid=`)
+- [x] **Route `/api/admin/merge-duplicates`** — fusion doublons, réassignation sessions + commissions, nettoyage orphelins
+- [x] **Route `/api/admin/sync-affiliates` réécrite en UPSERT** — plus de doublons, ne jamais écraser subscriptionLevel/carouselImages/defaultImage
 - [ ] Upload photo partenaire (photoUrl) depuis l'interface admin
-- [ ] Route `/api/admin/sync-affiliates` → garantir que TOUS les codes Sheets sont dans Firestore avec bon mapping
 
 ### 5. Logs & Fiabilité
 - [ ] `console.log` structurés : `[Sync Code Session]`, `[Client Memory Found]`, `[Webhook Success]`
