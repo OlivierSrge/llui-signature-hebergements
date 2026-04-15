@@ -180,20 +180,34 @@ export async function POST(req: NextRequest) {
             }, { status: 404 })
           }
 
-          // Créer prescripteur_partenaire à la volée
+          // Créer prescripteur_partenaire à la volée avec schéma complet
           const now = new Date().toISOString()
-          const newDoc = await db.collection('prescripteurs_partenaires').add({
+          const expireAt = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+          const paramsC = await getParametresPlateforme()
+          const ref = db.collection('prescripteurs_partenaires').doc()
+          await ref.set({
+            uid: ref.id,
             nom_etablissement: affilie.nom_affilie || codeStr,
-            email: affilie.email_affilie || '',
+            type: 'restaurant',
             telephone: '',
-            type: 'partenaire_boutique',
             adresse: '',
-            code_promo_affilie: codeStr,
-            uid: codeStr,
+            email: affilie.email_affilie || '',
+            statut: 'actif',
+            remise_type: 'reduction_pct',
+            remise_valeur_pct: affilie.reduction_pct || 0,
+            remise_description: null,
+            redirection_prioritaire: 'boutique',
+            forfait_type: 'annuel',
+            forfait_montant_fcfa: paramsC.forfait_prescripteur_annuel_fcfa ?? 0,
+            forfait_debut: now,
+            forfait_expire_at: expireAt,
             forfait_statut: 'actif',
-            forfait_expire_at: null,
-            reduction_pct: affilie.reduction_pct,
-            commission_pct: affilie.commission_pct,
+            qr_code_url: '',
+            qr_code_data: `${appUrl}/promo/${ref.id}`,
+            qr_genere_le: now,
+            code_promo_affilie: codeStr,
+            commission_pct: affilie.commission_pct || paramsC.commission_partenaire_pct ?? 10,
             total_scans: 0,
             total_codes_generes: 0,
             total_utilisations: 0,
@@ -202,9 +216,10 @@ export async function POST(req: NextRequest) {
             total_ca_boutique_fcfa: 0,
             total_commissions_fcfa: 0,
             created_at: now,
+            created_by: 'strategie_c_webhook',
             source: 'strategie_c_webhook',
           })
-          prescripteurId = newDoc.id
+          prescripteurId = ref.id
           prescData = {
             nom_etablissement: affilie.nom_affilie || codeStr,
             telephone: '',

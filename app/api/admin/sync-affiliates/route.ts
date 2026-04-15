@@ -59,19 +59,32 @@ export async function POST(req: NextRequest) {
           prescripteurId = existingPrescSnap.docs[0].id
           // Doc existant — pas de création
         } else {
-          // Créer un nouveau prescripteur
+          // Créer un nouveau prescripteur avec le schéma complet
           const now = new Date().toISOString()
-          const newDoc = await db.collection('prescripteurs_partenaires').add({
+          const expireAt = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+          const ref = db.collection('prescripteurs_partenaires').doc()
+          await ref.set({
+            uid: ref.id,
             nom_etablissement: nom_affilie || code_promo,
-            email: email_affilie || '',
+            type: 'restaurant' as const,
             telephone: '',
-            type: 'partenaire_boutique',
             adresse: '',
-            code_promo_affilie: code_promo,
-            uid: code_promo,
+            email: email_affilie || '',
+            statut: 'actif',
+            remise_type: 'reduction_pct',
+            remise_valeur_pct: reduction_pct || 0,
+            remise_description: null,
+            redirection_prioritaire: 'boutique',
+            forfait_type: 'annuel',
+            forfait_montant_fcfa: params.forfait_prescripteur_annuel_fcfa ?? 0,
+            forfait_debut: now,
+            forfait_expire_at: expireAt,
             forfait_statut: 'actif',
-            forfait_expire_at: null,
-            reduction_pct,
+            qr_code_url: '',
+            qr_code_data: `${appUrl}/promo/${ref.id}`,
+            qr_genere_le: now,
+            code_promo_affilie: code_promo,
             commission_pct: commission_pct || params.commission_partenaire_pct ?? 10,
             total_scans: 0,
             total_codes_generes: 0,
@@ -81,8 +94,10 @@ export async function POST(req: NextRequest) {
             total_ca_boutique_fcfa: 0,
             total_commissions_fcfa: 0,
             created_at: now,
+            created_by: 'sync_affiliates',
             source: 'sync_affiliates',
           })
+          const newDoc = ref
           prescripteurId = newDoc.id
           stats.prescripteurs_crees++
           stats.details.push({ code: code_promo, action: 'prescripteur_cree', prescripteur_id: prescripteurId })
