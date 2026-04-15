@@ -1,5 +1,33 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-14 — Système autonome : sync-affiliates + Stratégie C webhook
+Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui (specs v2)
+
+---
+
+## ROADMAP — MISSION ÉCOSYSTÈME (2026-04-15) 🔜
+
+### 1. Gestion Code Session (Double Inscription)
+- [ ] Code 6 chiffres maintenu dans `codes_sessions` Firestore ET col G Google Sheets
+- [ ] Jamais écrasé — lié au `prescripteurId`
+- [ ] Clé unique pour les futurs modules hébergement
+
+### 2. Apps Script — Intelligence CRM
+- [ ] **Auto-Liaison** : modification col G → recherche Nom Affilié dans Affiliés_Codes → écrit col H automatiquement
+- [ ] **Mémoire Client** : saisie Tel (col C) ou Email (col D) → scan historique Commandes → pré-remplir Nom si client connu
+- [ ] **Auto-Correction** : passage à "Payé" → force sync Firebase → transforme ❌ en ✅
+
+### 3. Dashboard Partenaire (Frontend)
+- [ ] Bouton "Actualiser mes statistiques" → scan complet onglet Commandes → mise à jour CA + commissions
+- [ ] Affichage photo/logo partenaire (champ `photoUrl` Firestore) en entête du dashboard
+
+### 4. Dashboard Admin (Backend)
+- [ ] Upload ou lien photo pour chaque profil partenaire depuis l'interface admin
+- [ ] Route `/api/admin/sync-affiliates` → garantir que TOUS les codes Sheets sont dans Firestore avec bon mapping
+
+### 5. Logs & Fiabilité
+- [ ] `console.log` structurés : `[Sync Code Session]`, `[Client Memory Found]`, `[Webhook Success]`
+- [ ] `Promise.all` sur toutes les requêtes indépendantes → réponse < 200ms
+
+---
 
 ---
 
