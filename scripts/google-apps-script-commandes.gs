@@ -414,7 +414,7 @@ function formatFCFA(n) {
 }
 
 // ============================================================
-// MODULE COMMANDES & AFFILIÉS — Version finale stabilisée
+// MODULE COMMANDES & AFFILIÉS — v3 Intelligence CRM
 // ============================================================
 // Mapping colonnes "Commandes" (0-indexé depuis col A) :
 //   A(0)=Date   B(1)=Nom    C(2)=Tel    D(3)=Email  E(4)=Produit  F(5)=Prix
@@ -427,17 +427,26 @@ function formatFCFA(n) {
 //   E(4)=Commission_%  F(5)=Actif
 //   G(6)=Nb_Commandes  H(7)=Montant_Généré  I(8)=Commission_À_Payer
 //
-// DÉCLENCHEUR REQUIS :
+// DÉCLENCHEURS REQUIS :
 //   Déclencheurs > + Ajouter > onEditCommandes > Lors de la modification
 //   ⚠️ Déclencheur INSTALLABLE obligatoire (UrlFetchApp = autorisations requises)
 
-var COL_CODE    = 6;   // G — Code_U_Affilié
-var COL_MONTANT = 9;   // J — Montant_Final
-var COL_STATUT  = 11;  // L — Statut
-var COL_LOG     = 14;  // O — Sync_Firebase (0-indexé)
+var COL_CODE    = 6;   // G — Code_U_Affilié   (0-indexé)
+var COL_MONTANT = 9;   // J — Montant_Final     (0-indexé)
+var COL_STATUT  = 11;  // L — Statut            (0-indexé)
+var COL_LOG     = 14;  // O — Sync_Firebase     (0-indexé)
+
+// 1-indexé pour getColumn() / getRange()
+var COL1_NOM    = 2;   // B
+var COL1_TEL    = 3;   // C
+var COL1_EMAIL  = 4;   // D
+var COL1_CODE   = 7;   // G
+var COL1_NOM_AF = 8;   // H
+var COL1_STATUT = 12;  // L
+var COL1_LOG    = 15;  // O
 
 // ============================================================
-// DÉCLENCHEUR PRINCIPAL — Surveillance col L de l'onglet Commandes
+// DÉCLENCHEUR PRINCIPAL — Surveille cols G, C, D, L
 // ============================================================
 function onEditCommandes(e) {
   try {
@@ -449,32 +458,51 @@ function onEditCommandes(e) {
     var row = range.getRow();
     var col = range.getColumn(); // 1-indexé
 
-    // Ignorer la colonne O (log) et toute colonne autre que L (statut)
-    if (col === COL_LOG + 1) return;   // col O = 15 (1-indexé)
-    if (col !== COL_STATUT + 1) return; // col L = 12 (1-indexé)
     if (row <= 1) return;
+    if (col === COL1_LOG) return; // ignorer col O (log)
 
-    // Ignorer si la valeur n'a pas changé (évite les triggers en double)
-    var oldVal = e.oldValue ? String(e.oldValue).trim() : '';
     var newVal = String(range.getValue()).trim();
+
+    // ── Auto-Liaison : col G modifiée → remplir col H ──────────
+    if (col === COL1_CODE) {
+      Logger.log('[Auto-Liaison] col G modifiée ligne ' + row + ' — code: ' + newVal);
+      autoLiaisonAffilie(sheet, row, newVal);
+      return;
+    }
+
+    // ── Mémoire Client : col C (Tel) ou col D (Email) modifiée ─
+    if (col === COL1_TEL || col === COL1_EMAIL) {
+      var type = col === COL1_TEL ? 'tel' : 'email';
+      Logger.log('[Client Memory] col ' + (col === COL1_TEL ? 'C' : 'D') + ' modifiée ligne ' + row + ' — valeur: ' + newVal);
+      memoireClient(sheet, row, newVal, type);
+      return;
+    }
+
+    // ── Webhook Firebase : col L (Statut) modifiée ──────────────
+    if (col !== COL1_STATUT) return;
+
+    var oldVal = e.oldValue ? String(e.oldValue).trim() : '';
     if (oldVal === newVal) return;
 
     var statutsAcceptes = ['En attente', 'Payé', 'Confirmé'];
     if (statutsAcceptes.indexOf(newVal) === -1) return;
 
-    // Lire les colonnes utiles de la ligne
-    var maxCols = sheet.getLastColumn();
+    var maxCols = Math.max(sheet.getLastColumn(), COL1_LOG);
     var data = sheet.getRange(row, 1, 1, maxCols).getValues()[0];
     var code = (data[COL_CODE] || '').toString().trim();
 
     if (!code) {
-      Logger.log('[onEditCommandes] code vide ligne ' + row + ' — ignoré');
+      Logger.log('[Webhook] code vide ligne ' + row + ' — ignoré');
       return;
     }
 
-    // Vérifier que le code existe dans Affiliés_Codes (garde-fou anti-429)
-    if (!codeExisteDansAffilies(code)) {
-      Logger.log('[onEditCommandes] code ' + code + ' inconnu dans Affiliés_Codes — ignoré');
+    var estConfirme = (newVal === 'Payé' || newVal === 'Confirmé');
+
+    // Garde-fou anti-429 : pour "En attente" uniquement
+    // Pour "Payé"/"Confirmé" on force le sync même si code absent (Auto-Correction ❌→✅)
+    if (!estConfirme && !codeExisteDansAffilies(code)) {
+      Logger.log('[Webhook] code ' + code + ' inconnu dans Affiliés_Codes + statut "En attente" — ignoré');
+      logSync(sheet, row, '⏸ ' + code + ' — pas dans Affiliés ' + horaireLocal());
       return;
     }
 
@@ -484,33 +512,141 @@ function onEditCommandes(e) {
       : 0;
     if (isNaN(montant)) montant = 0;
 
-    Logger.log('[onEditCommandes] statut=' + newVal + ' | code=' + code + ' | montant=' + montant);
+    Logger.log('[Webhook] statut=' + newVal + ' | code=' + code + ' | montant=' + montant + ' FCFA');
 
-    var estConfirme = (newVal === 'Payé' || newVal === 'Confirmé');
+    // Marquer "en cours" avant l'appel HTTP
+    logSync(sheet, row, '🔄 Sync... ' + horaireLocal());
 
-    // 1. Envoyer le webhook vers Vercel (Firestore / Dashboard partenaire)
+    // 1. Webhook Vercel → Firestore
     var webhookOk = envoyerWebhook({
       action: 'update_statut',
       code: code,
       amount: montant,
       statut: newVal,
     });
+    Logger.log('[Webhook Success] ok=' + webhookOk + ' | code=' + code + ' | statut=' + newVal);
 
     // 2. Mettre à jour Affiliés_Codes UNIQUEMENT si Payé ou Confirmé
     if (estConfirme) {
       mettreAJourAffilie(code, montant);
     }
 
-    // 3. Log dans col O (Sync_Firebase)
-    if (maxCols >= COL_LOG + 1) {
-      var logMsg = webhookOk
-        ? (estConfirme ? '✅ ' + code + ' ' + montant + ' FCFA ' + horaireLocal() : '⏳ ' + code + ' ' + horaireLocal())
-        : '❌ ' + code + ' erreur ' + horaireLocal();
-      sheet.getRange(row, COL_LOG + 1).setValue(logMsg);
-    }
+    // 3. Log final col O
+    var logMsg = webhookOk
+      ? (estConfirme
+          ? '✅ ' + code + ' ' + montant + ' FCFA ' + horaireLocal()
+          : '⏳ ' + code + ' ' + horaireLocal())
+      : '❌ ' + code + ' erreur ' + horaireLocal();
+    logSync(sheet, row, logMsg);
 
   } catch (err) {
     Logger.log('[onEditCommandes] ERREUR : ' + err.toString());
+  }
+}
+
+// ============================================================
+// AUTO-LIAISON — Col G modifiée → cherche Nom Affilié → écrit col H
+// ============================================================
+function autoLiaisonAffilie(sheet, row, code) {
+  if (!code || code.trim() === '') return;
+  code = code.trim();
+
+  var sheetAffil = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Affiliés_Codes');
+  if (!sheetAffil) {
+    Logger.log('[Auto-Liaison] onglet Affiliés_Codes introuvable');
+    return;
+  }
+
+  var lastRow = sheetAffil.getLastRow();
+  if (lastRow < 2) return;
+
+  var data = sheetAffil.getRange(2, 1, lastRow - 1, 6).getValues();
+
+  for (var i = 0; i < data.length; i++) {
+    var codeSheet = (data[i][0] || '').toString().trim();
+    if (codeSheet !== code) continue;
+
+    var nomAffilie    = (data[i][1] || '').toString().trim(); // col B
+    var reductionPct  = data[i][3] || 0;                      // col D
+
+    // Écrire Nom Affilié en col H
+    sheet.getRange(row, COL1_NOM_AF).setValue(nomAffilie);
+
+    // Écrire Réduction_% en col I si elle est vide
+    var cellI = sheet.getRange(row, 9); // col I
+    if (!cellI.getValue()) {
+      cellI.setValue(reductionPct);
+    }
+
+    Logger.log(
+      '[Auto-Liaison] ✅ code=' + code +
+      ' → H=' + nomAffilie +
+      ' | réduction=' + reductionPct + '%' +
+      ' (ligne ' + row + ')'
+    );
+    return;
+  }
+
+  Logger.log('[Auto-Liaison] code ' + code + ' non trouvé dans Affiliés_Codes — H non remplie');
+}
+
+// ============================================================
+// MÉMOIRE CLIENT — Tel/Email saisi → pré-remplir Nom si connu
+// ============================================================
+function memoireClient(sheet, row, valeur, type) {
+  if (!valeur || valeur.trim() === '') return;
+  valeur = valeur.trim();
+
+  // Ne pas écraser un nom déjà présent
+  var cellNom = sheet.getRange(row, COL1_NOM);
+  if (cellNom.getValue() && cellNom.getValue().toString().trim() !== '') {
+    Logger.log('[Client Memory] nom déjà présent en B' + row + ' — skip');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  // Lire tout l'historique Commandes (col B, C, D uniquement — plus léger)
+  var histData = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+
+  var colRecherche = type === 'tel' ? 2 : 3; // C=2, D=3 (0-indexé dans histData)
+
+  for (var i = 0; i < histData.length; i++) {
+    var targetRow = i + 2;
+    if (targetRow === row) continue; // ne pas comparer la ligne courante
+
+    var valHist = (histData[i][colRecherche] || '').toString().trim();
+    if (valHist !== valeur) continue;
+
+    var nomConnu = (histData[i][1] || '').toString().trim(); // col B
+    if (!nomConnu) continue;
+
+    // Client trouvé — pré-remplir col B
+    cellNom.setValue(nomConnu);
+
+    Logger.log(
+      '[Client Memory Found] ' + type + '=' + valeur +
+      ' → Nom=' + nomConnu +
+      ' (depuis ligne ' + targetRow + ', écrit en B' + row + ')'
+    );
+    return;
+  }
+
+  Logger.log('[Client Memory] ' + type + '=' + valeur + ' — client inconnu dans historique');
+}
+
+// ============================================================
+// LOG SYNC — Écrit dans col O (COL1_LOG)
+// ============================================================
+function logSync(sheet, row, message) {
+  try {
+    var maxCols = sheet.getLastColumn();
+    if (maxCols >= COL1_LOG) {
+      sheet.getRange(row, COL1_LOG).setValue(message);
+    }
+  } catch (err) {
+    Logger.log('[logSync] erreur : ' + err.toString());
   }
 }
 

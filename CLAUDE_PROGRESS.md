@@ -11,9 +11,12 @@ Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui 
 - [ ] Clé unique pour les futurs modules hébergement
 
 ### 2. Apps Script — Intelligence CRM
-- [ ] **Auto-Liaison** : modification col G → recherche Nom Affilié dans Affiliés_Codes → écrit col H automatiquement
-- [ ] **Mémoire Client** : saisie Tel (col C) ou Email (col D) → scan historique Commandes → pré-remplir Nom si client connu
-- [ ] **Auto-Correction** : passage à "Payé" → force sync Firebase → transforme ❌ en ✅
+- [x] **Auto-Liaison** : modification col G → recherche Nom Affilié dans Affiliés_Codes → écrit col H + col I (réduction%) automatiquement
+- [x] **Mémoire Client** : saisie Tel (col C) ou Email (col D) → scan historique Commandes → pré-remplir col B (Nom) si client connu
+- [x] **Auto-Correction** : passage à "Payé"/"Confirmé" → force sync Firebase sans guard Affiliés → transforme ❌ en ✅
+- [x] **Logs structurés** : `[Auto-Liaison]`, `[Client Memory Found]`, `[Webhook Success]`, `[Sync Code Session]`
+- [x] **logSync()** : fonction centralisée pour écriture col O (plus de duplication)
+- [x] `onEditCommandes` surveille maintenant 4 colonnes : G (auto-liaison) + C (mémoire tel) + D (mémoire email) + L (webhook statut)
 
 ### 3. Dashboard Partenaire (Frontend)
 - [ ] Bouton "Actualiser mes statistiques" → scan complet onglet Commandes → mise à jour CA + commissions
