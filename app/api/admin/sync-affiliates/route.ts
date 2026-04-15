@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
             qr_code_data: `${appUrl}/promo/${ref.id}`,
             qr_genere_le: now,
             code_promo_affilie: code_promo,
-            commission_pct: commission_pct || params.commission_partenaire_pct ?? 10,
+            commission_pct: commission_pct || (params.commission_partenaire_pct ?? 10),
             total_scans: 0,
             total_codes_generes: 0,
             total_utilisations: 0,
