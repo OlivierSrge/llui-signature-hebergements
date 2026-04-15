@@ -1,5 +1,40 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-14 — Sync double-état Sheets→Firestore + Apps Script (commit pending)
+Dernière mise à jour : 2026-04-14 — Système autonome : sync-affiliates + Stratégie C webhook
+
+---
+
+## SYSTÈME AUTONOME — SYNC AFFILIÉS (2026-04-14) ✅
+
+### Problème résolu
+Les codes créés manuellement dans Google Sheets (Affiliés_Codes) n'avaient aucun équivalent Firestore.
+Le webhook retournait 404 + ❌ dans col O pour ces codes.
+
+### Route admin bootstrap : `app/api/admin/sync-affiliates/route.ts`
+- `POST /api/admin/sync-affiliates` — sécurisé par `Authorization: Bearer ADMIN_API_KEY`
+- Lit tous les affiliés actifs (col F = "OUI") depuis Affiliés_Codes via Google Sheets API
+- Pour chaque code : crée `prescripteurs_partenaires` + `codes_sessions` si absents de Firestore
+- Retourne JSON : `{ prescripteurs_crees, sessions_creees, skipped, erreurs, details[] }`
+
+**Commande de sync manuelle :**
+```bash
+curl -X POST https://llui-signature-hebergements.vercel.app/api/admin/sync-affiliates \
+  -H "Authorization: Bearer MA_CLE_ADMIN"
+```
+
+### Stratégie C dans `app/api/sheets-webhook/route.ts`
+- Nouveau fallback si Stratégie A (codes_sessions) et B (code_promo_affilie) échouent
+- Lit Affiliés_Codes Sheets pour trouver le code
+- Si trouvé : crée `prescripteurs_partenaires` + `codes_sessions` à la volée (`source: 'strategie_c_webhook'`)
+- Continue le traitement normalement — ❌ devient ✅ en col O
+- Log : `[webhook] Stratégie C ✅ code XXX créé dynamiquement`
+
+### Fonction `lireAffiliésCodes()` dans `lib/sheetsCanal2.ts`
+- Retourne `LigneAffilie[]` : code_promo, nom, email, reduction_pct, commission_pct, actif
+- Filtre col F = "OUI" — ignore les codes inactifs
+- Utilisée par sync-affiliates ET Stratégie C webhook
+
+### Variable d'environnement requise (Vercel)
+- `ADMIN_API_KEY` — clé secrète pour protéger `/api/admin/sync-affiliates`
 
 ---
 

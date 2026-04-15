@@ -23,7 +23,7 @@ import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
-import { updateSyncStatus, getMontantFinalParCode } from '@/lib/sheetsCanal2'
+import { updateSyncStatus, getMontantFinalParCode, lireAffiliésCodes } from '@/lib/sheetsCanal2'
 
 export const dynamic = 'force-dynamic'
 
@@ -165,18 +165,80 @@ export async function POST(req: NextRequest) {
         .get()
 
       if (fallbackSnap.empty) {
-        console.error(`[sheets-webhook] code ${codeStr} introuvable dans codes_sessions ET prescripteurs_partenaires`)
-        updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore').catch(() => {})
-        return NextResponse.json({
-          error: 'Code introuvable',
-          detail: `${codeStr} absent de codes_sessions et prescripteurs_partenaires`,
-        }, { status: 404 })
-      }
+        // ── Stratégie C : créer depuis Affiliés_Codes Sheets ──
+        console.log(`[sheets-webhook] Stratégie C pour ${codeStr} — lecture Affiliés_Codes`)
+        try {
+          const affilies = await lireAffiliésCodes()
+          const affilie = affilies.find((a) => a.code_promo === codeStr)
 
-      const doc = fallbackSnap.docs[0]
-      prescripteurId = doc.id
-      prescData = doc.data()
-      console.log(`[sheets-webhook] prescripteurId via code_promo_affilie: ${prescripteurId} ✅`)
+          if (!affilie) {
+            console.error(`[sheets-webhook] code ${codeStr} introuvable dans codes_sessions, prescripteurs_partenaires ET Affiliés_Codes`)
+            updateSyncStatus(codeStr, 'error', 'Code non trouvé Firestore ni Sheets').catch(() => {})
+            return NextResponse.json({
+              error: 'Code introuvable',
+              detail: `${codeStr} absent de codes_sessions, prescripteurs_partenaires et Affiliés_Codes`,
+            }, { status: 404 })
+          }
+
+          // Créer prescripteur_partenaire à la volée
+          const now = new Date().toISOString()
+          const newDoc = await db.collection('prescripteurs_partenaires').add({
+            nom_etablissement: affilie.nom_affilie || codeStr,
+            email: affilie.email_affilie || '',
+            telephone: '',
+            type: 'partenaire_boutique',
+            adresse: '',
+            code_promo_affilie: codeStr,
+            uid: codeStr,
+            forfait_statut: 'actif',
+            forfait_expire_at: null,
+            reduction_pct: affilie.reduction_pct,
+            commission_pct: affilie.commission_pct,
+            total_scans: 0,
+            total_codes_generes: 0,
+            total_utilisations: 0,
+            total_clients_uniques: 0,
+            total_ca_hebergements_fcfa: 0,
+            total_ca_boutique_fcfa: 0,
+            total_commissions_fcfa: 0,
+            created_at: now,
+            source: 'strategie_c_webhook',
+          })
+          prescripteurId = newDoc.id
+          prescData = {
+            nom_etablissement: affilie.nom_affilie || codeStr,
+            telephone: '',
+          }
+
+          // Créer codes_sessions pour résolutions futures
+          await db.collection('codes_sessions').doc(codeStr).set({
+            code: codeStr,
+            prescripteur_partenaire_id: prescripteurId,
+            canal: 'boutique',
+            reduction_pct: affilie.reduction_pct,
+            nb_utilisations: 0,
+            max_utilisations: 9999,
+            expire_at: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
+            created_at: now,
+            source: 'strategie_c_webhook',
+          })
+
+          console.log(`[sheets-webhook] Stratégie C ✅ code ${codeStr} créé dynamiquement — prescripteurId: ${prescripteurId}`)
+        } catch (stratCErr) {
+          const msg = stratCErr instanceof Error ? stratCErr.message : String(stratCErr)
+          console.error(`[sheets-webhook] Stratégie C erreur pour ${codeStr}:`, msg)
+          updateSyncStatus(codeStr, 'error', `Stratégie C échouée: ${msg}`).catch(() => {})
+          return NextResponse.json({
+            error: 'Code introuvable',
+            detail: `${codeStr} — stratégie C échouée: ${msg}`,
+          }, { status: 404 })
+        }
+      } else {
+        const doc = fallbackSnap.docs[0]
+        prescripteurId = doc.id
+        prescData = doc.data()
+        console.log(`[sheets-webhook] prescripteurId via code_promo_affilie: ${prescripteurId} ✅`)
+      }
     }
 
     // ── 2. Montant final ──────────────────────────────────────────

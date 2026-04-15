@@ -371,6 +371,53 @@ export async function getMontantFinalParCode(code: string): Promise<number> {
   }
 }
 
+// ─── Lecture Affiliés_Codes (bootstrap sync) ─────────────────────
+
+export interface LigneAffilie {
+  code_promo: string       // A(0)
+  nom_affilie: string      // B(1)
+  email_affilie: string    // C(2)
+  reduction_pct: number    // D(3)
+  commission_pct: number   // E(4)
+  actif: boolean           // F(5) = "OUI"
+}
+
+/**
+ * Lit toutes les lignes actives de l'onglet Affiliés_Codes.
+ * Utilisé par le route /api/admin/sync-affiliates pour bootstrapper Firestore.
+ */
+export async function lireAffiliésCodes(): Promise<LigneAffilie[]> {
+  const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
+  if (!SHEET_ID) throw new Error('GOOGLE_SHEETS_CANAL2_ID non configuré')
+
+  const sheets = await getSheetsClient()
+  const resp = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${SHEET_AFFILIES}!A:F`,
+  })
+
+  const rows = resp.data.values ?? []
+  const result: LigneAffilie[] = []
+
+  for (const row of rows) {
+    const code = row[0]?.toString().trim() ?? ''
+    if (!code) continue
+    const actif = row[5]?.toString().trim().toUpperCase() === 'OUI'
+    if (!actif) continue
+
+    result.push({
+      code_promo:     code,
+      nom_affilie:    row[1]?.toString().trim() ?? '',
+      email_affilie:  row[2]?.toString().trim() ?? '',
+      reduction_pct:  parseFloat(row[3] ?? '0') || 0,
+      commission_pct: parseFloat(row[4] ?? '0') || 0,
+      actif:          true,
+    })
+  }
+
+  return result
+}
+
 // ─── Export utilitaire ───────────────────────────────────────────
 
 export { genererCodePromo }
