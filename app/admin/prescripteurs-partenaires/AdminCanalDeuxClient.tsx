@@ -8,11 +8,13 @@ import {
   marquerCommissionVersee,
   setSubscriptionLevel,
   setDefaultImageAdmin,
+  setPhotoUrlAdmin,
   type TypePartenaire,
   type RemiseType,
 } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import { useRouter } from 'next/navigation'
+import { useRef } from 'react'
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
@@ -200,6 +202,10 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const [defaultImageEdit, setDefaultImageEdit] = useState<string | null>(null)
   const [defaultImageVal, setDefaultImageVal] = useState('')
   const [defaultImageSaving, setDefaultImageSaving] = useState(false)
+  const [photoUploadId, setPhotoUploadId] = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<Record<string, string>>({})
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState(formDefault)
 
@@ -319,6 +325,34 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
       router.refresh()
     } else {
       toast.error(res.error ?? 'Erreur')
+    }
+  }
+
+  async function handlePhotoUpload(partnerId: string, file: File) {
+    setPhotoUploading(true)
+    console.log('[admin] upload photo →', partnerId, file.name)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('partnerId', partnerId)
+      const res = await fetch('/api/admin/upload-photo-partenaire', { method: 'POST', body: fd })
+      const json = await res.json() as { success?: boolean; photoUrl?: string; error?: string }
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? 'Erreur upload')
+        console.error('[admin] upload error:', json.error)
+      } else {
+        toast.success('Photo mise à jour ✅')
+        setPhotoPreview((prev) => ({ ...prev, [partnerId]: json.photoUrl! }))
+        // Revalider sans attendre le router.refresh complet
+        await setPhotoUrlAdmin(partnerId, json.photoUrl!)
+        router.refresh()
+      }
+    } catch (e) {
+      toast.error('Erreur réseau')
+      console.error('[admin] upload exception:', e)
+    } finally {
+      setPhotoUploading(false)
+      setPhotoUploadId(null)
     }
   }
 
@@ -588,6 +622,14 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         title="Définir image par défaut">
                         🖼️
                       </button>
+                      {/* Upload photo partenaire */}
+                      <button
+                        onClick={() => { setPhotoUploadId(p.uid); setTimeout(() => photoInputRef.current?.click(), 50) }}
+                        disabled={photoUploading && photoUploadId === p.uid}
+                        className="text-xs px-2.5 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 rounded-lg hover:bg-[#F5F0E8]/80 transition-colors disabled:opacity-60"
+                        title="Uploader photo/logo partenaire">
+                        {photoUploading && photoUploadId === p.uid ? '⏳' : '📷'}
+                      </button>
                       <a href={`/partenaire-prescripteur/${p.uid}`} target="_blank" rel="noreferrer"
                         className="text-xs px-3 py-1.5 border border-[#C9A84C] text-[#C9A84C] rounded-lg hover:bg-[#C9A84C]/10 transition-colors">
                         Dashboard
@@ -630,12 +672,47 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         )}
                       </div>
                     )}
+                    {/* Aperçu photo courante */}
+                    {(photoPreview[p.uid] || p.photoUrl) && photoUploadId !== p.uid && (
+                      <div className="mt-2 w-full flex items-center gap-3 pt-2 border-t border-[#F5F0E8]">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-[#F5F0E8]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photoPreview[p.uid] || p.photoUrl || ''}
+                            alt="Photo partenaire"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs text-[#1A1A1A]/60">📷 Photo enregistrée</p>
+                          <button
+                            onClick={() => { setPhotoUploadId(p.uid); setTimeout(() => photoInputRef.current?.click(), 50) }}
+                            className="text-[10px] text-[#C9A84C] underline mt-0.5">
+                            Changer la photo
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
         )}
+        {/* Input file global caché — un seul pour tous les partenaires */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file && photoUploadId) {
+              handlePhotoUpload(photoUploadId, file)
+            }
+            e.target.value = '' // reset pour permettre re-upload du même fichier
+          }}
+        />
       </div>
     </div>
   )

@@ -638,6 +638,25 @@ export async function actualiserStatsPartenaire(
   }
 }
 
+/** Admin définit la photo/logo d'un partenaire (photoUrl) */
+export async function setPhotoUrlAdmin(
+  id: string,
+  photoUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      photoUrl: photoUrl.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
 /** Admin définit l'image par défaut d'un partenaire */
 export async function setDefaultImageAdmin(
   id: string,
