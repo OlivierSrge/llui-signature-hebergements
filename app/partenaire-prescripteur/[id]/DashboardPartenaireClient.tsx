@@ -119,9 +119,27 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
     <div className="min-h-screen bg-[#F5F0E8] px-4 py-6 max-w-lg mx-auto space-y-4">
       {/* Entête */}
       <div className="bg-white rounded-2xl p-5 shadow-sm">
-        <p className="text-xs text-[#C9A84C] font-semibold uppercase tracking-widest mb-1">Prescripteur L&Lui Signature</p>
-        <h1 className="text-xl font-serif font-bold text-[#1A1A1A]">{partenaire.nom_etablissement}</h1>
-        <p className="text-sm text-[#1A1A1A]/60">{partenaire.type}{partenaire.adresse ? ` · ${partenaire.adresse}` : ''}</p>
+        <div className="flex items-center gap-3">
+          {/* Photo / avatar partenaire */}
+          <div className="flex-shrink-0 w-14 h-14 rounded-2xl overflow-hidden bg-[#F5F0E8] flex items-center justify-center">
+            {partenaire.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={partenaire.photoUrl}
+                alt={partenaire.nom_etablissement}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <span className="text-2xl">🏨</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-[#C9A84C] font-semibold uppercase tracking-widest mb-0.5">Prescripteur L&Lui Signature</p>
+            <h1 className="text-xl font-serif font-bold text-[#1A1A1A] truncate">{partenaire.nom_etablissement}</h1>
+            <p className="text-sm text-[#1A1A1A]/60 truncate">{partenaire.type}{partenaire.adresse ? ` · ${partenaire.adresse}` : ''}</p>
+          </div>
+        </div>
         <div className="mt-3 flex items-center gap-2 flex-wrap">
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
             partenaire.forfait_statut === 'actif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
