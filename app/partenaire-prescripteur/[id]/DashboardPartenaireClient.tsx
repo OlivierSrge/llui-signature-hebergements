@@ -266,34 +266,42 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
         </div>
       </div>
 
-      {/* Codes actifs */}
-      {codesActifs.length > 0 && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📋 Codes actifs en ce moment</p>
-          <div className="space-y-2">
-            {codesActifs.map((c) => {
-              const code = (c.code as string) ?? '——'
-              const nb = (c.nb_utilisations as number) ?? 0
-              const max = (c.max_utilisations as number) ?? 5
-              const exp = c.expire_at
-              return (
-                <div key={code} className="flex items-center justify-between bg-[#F5F0E8]/60 rounded-xl px-4 py-3">
-                  <div>
-                    <p className="font-mono font-bold text-[#C9A84C] text-lg tracking-widest">
-                      {code.length >= 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code}
-                    </p>
-                    <p className="text-xs text-[#1A1A1A]/50">⏱ Expire dans {countdown(exp)}</p>
+      {/* Codes actifs — filtrés : expire_at > maintenant */}
+      {(() => {
+        const now = Date.now()
+        const codesValides = codesActifs.filter((c) => {
+          const d = safeDate(c.expire_at)
+          return d !== null && d.getTime() > now
+        })
+        if (codesValides.length === 0) return null
+        return (
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📋 Codes actifs en ce moment</p>
+            <div className="space-y-2">
+              {codesValides.map((c) => {
+                const code = (c.code as string) ?? '——'
+                const nb = (c.nb_utilisations as number) ?? 0
+                const max = (c.max_utilisations as number) ?? 5
+                const exp = c.expire_at
+                return (
+                  <div key={code} className="flex items-center justify-between bg-[#F5F0E8]/60 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="font-mono font-bold text-[#C9A84C] text-lg tracking-widest">
+                        {code.length >= 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code}
+                      </p>
+                      <p className="text-xs text-[#1A1A1A]/50">⏱ Expire dans {countdown(exp)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">{nb}/{max}</p>
+                      <p className="text-xs text-[#1A1A1A]/50">utilisations</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-[#1A1A1A]">{nb}/{max}</p>
-                    <p className="text-xs text-[#1A1A1A]/50">utilisations</p>
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Transactions */}
       {txList.length > 0 && (
