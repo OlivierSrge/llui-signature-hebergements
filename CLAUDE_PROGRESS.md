@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui (specs v2)
+Dernière mise à jour : 2026-04-16 — Bouton stats + onglet Forfait dashboard partenaire (commit f2f8ebf)
 
 ---
 
@@ -21,7 +21,8 @@ Dernière mise à jour : 2026-04-15 — Mission Déploiement Écosystème L&Lui 
 ### 3. Dashboard Partenaire (Frontend)
 - [x] **Onglet "Ma Vitrine"** — Free/Premium, carrousel interactif avec aperçu, 5 slots d'images, image enseigne
 - [x] **Carrousel avec navigation** — flèches, indicateurs (points), transitions fluides, format mobile
-- [ ] Bouton "Actualiser mes statistiques" → scan complet onglet Commandes → mise à jour CA + commissions
+- [x] **Bouton "Actualiser mes statistiques"** — Server Action `actualiserStatsPartenaire`, recalcul depuis commissions_canal2, mise à jour locale immédiate, spinner + toast
+- [x] **Onglet "Forfait"** — statut actif/expiré, jours restants, dates début/expiration, alerte < 30 jours, lien WhatsApp renouvellement + upgrade Premium
 - [ ] Affichage photo/logo partenaire (champ `photoUrl` Firestore) en entête du dashboard
 
 ### 4. Dashboard Admin (Backend)
