@@ -629,7 +629,7 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                           </div>
                         )}
                       </div>
-                    )
+                    )}
                   </div>
                 </div>
               )

@@ -574,6 +574,70 @@ export async function setSubscriptionLevel(
   }
 }
 
+/** Partenaire actualise ses stats depuis commissions_canal2 Firestore */
+export async function actualiserStatsPartenaire(
+  id: string
+): Promise<{ success: boolean; error?: string; stats?: Record<string, number> }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+
+    const snap = await db.collection('commissions_canal2')
+      .where('prescripteur_partenaire_id', '==', id)
+      .get()
+
+    let ca_boutique = 0
+    let ca_hebergements = 0
+    let commissions_dues = 0
+    let commissions_versees = 0
+    let ventes_en_cours = 0
+    let nb_utilisations = 0
+    const clients = new Set<string>()
+
+    for (const doc of snap.docs) {
+      const d = doc.data()
+      const montant = (d.montant_transaction_fcfa as number) ?? 0
+      const commission = (d.commission_fcfa as number) ?? 0
+      const statut = d.statut as string
+      const canal = d.canal as string
+
+      if (statut === 'vente_en_cours') {
+        ventes_en_cours += montant
+        continue
+      }
+
+      // Payé / confirmé / versé
+      if (canal === 'hebergement') ca_hebergements += montant
+      else ca_boutique += montant
+
+      if (statut === 'en_attente') commissions_dues += commission
+      if (statut === 'versee') commissions_versees += commission
+
+      nb_utilisations++
+      if (d.client_tel) clients.add(d.client_tel as string)
+      if (d.client_email) clients.add(d.client_email as string)
+    }
+
+    const stats = {
+      total_ca_boutique_fcfa: ca_boutique,
+      total_ca_hebergements_fcfa: ca_hebergements,
+      total_commissions_fcfa: commissions_dues + commissions_versees,
+      total_utilisations: nb_utilisations,
+      total_clients_uniques: clients.size,
+      stats_updated_at: Date.now(),
+    }
+
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      ...stats,
+      updated_at: new Date().toISOString(),
+    })
+
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true, stats }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
 /** Admin définit l'image par défaut d'un partenaire */
 export async function setDefaultImageAdmin(
   id: string,

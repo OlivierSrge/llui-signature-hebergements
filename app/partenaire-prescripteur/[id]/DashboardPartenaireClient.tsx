@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
-import { updateVitrine } from '@/actions/codes-sessions'
+import { updateVitrine, actualiserStatsPartenaire } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 
 function formatFCFA(n: number | undefined | null) {
@@ -65,7 +65,16 @@ interface Props {
 
 export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0 }: Props) {
   const [tick, setTick] = useState(0)
-  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait'>('stats')
+  const [refreshing, setRefreshing] = useState(false)
+  const [localStats, setLocalStats] = useState({
+    total_ca_boutique_fcfa: partenaire.total_ca_boutique_fcfa ?? 0,
+    total_ca_hebergements_fcfa: partenaire.total_ca_hebergements_fcfa ?? 0,
+    total_utilisations: partenaire.total_utilisations ?? 0,
+    total_clients_uniques: partenaire.total_clients_uniques ?? 0,
+    total_commissions_fcfa: partenaire.total_commissions_fcfa ?? 0,
+  })
+
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 60000)
     return () => clearInterval(t)
@@ -73,11 +82,38 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
   void tick
 
   const forfaitExpire = jours(partenaire.forfait_expire_at)
-  const totalCa = (partenaire.total_ca_hebergements_fcfa ?? 0) + (partenaire.total_ca_boutique_fcfa ?? 0)
+  const totalCa = localStats.total_ca_hebergements_fcfa + localStats.total_ca_boutique_fcfa
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
   const qrUrl = `${appUrl}/promo/${partenaire.uid}`
   const msgWa = encodeURIComponent(`🏨 Mon QR Code L&Lui Signature\n${partenaire.nom_etablissement}\nScannez pour obtenir votre code séjour !\n→ ${qrUrl}`)
   const txList = transactions as unknown as Transaction[]
+
+  async function handleActualiserStats() {
+    setRefreshing(true)
+    console.log('[dashboard] actualiserStats →', partenaire.uid)
+    try {
+      const res = await actualiserStatsPartenaire(partenaire.uid)
+      if (res.success && res.stats) {
+        setLocalStats({
+          total_ca_boutique_fcfa: res.stats.total_ca_boutique_fcfa ?? 0,
+          total_ca_hebergements_fcfa: res.stats.total_ca_hebergements_fcfa ?? 0,
+          total_utilisations: res.stats.total_utilisations ?? 0,
+          total_clients_uniques: res.stats.total_clients_uniques ?? 0,
+          total_commissions_fcfa: res.stats.total_commissions_fcfa ?? 0,
+        })
+        toast.success('Statistiques mises à jour ✅')
+        console.log('[dashboard] stats updated:', res.stats)
+      } else {
+        toast.error(res.error ?? 'Erreur lors de la mise à jour')
+        console.error('[dashboard] actualiserStats error:', res.error)
+      }
+    } catch (e) {
+      toast.error('Erreur réseau')
+      console.error('[dashboard] actualiserStats exception:', e)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] px-4 py-6 max-w-lg mx-auto space-y-4">
@@ -101,10 +137,10 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
       </div>
 
       {/* Navigation onglets */}
-      <div className="flex gap-2 bg-white rounded-2xl p-1.5 shadow-sm">
-        {([['stats', '📊 Statistiques'], ['vitrine', '🖼️ Ma Vitrine']] as const).map(([tab, label]) => (
+      <div className="flex gap-1.5 bg-white rounded-2xl p-1.5 shadow-sm">
+        {([['stats', '📊 Stats'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-colors ${
+            className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
               activeTab === tab
                 ? 'bg-[#C9A84C] text-white'
                 : 'text-[#1A1A1A]/60 hover:text-[#1A1A1A]'
@@ -119,8 +155,26 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
         <VitrineTab partenaire={partenaire} />
       )}
 
+      {/* ─── Onglet Forfait ──────────────────────────────────── */}
+      {activeTab === 'forfait' && (
+        <ForfaitTab partenaire={partenaire} />
+      )}
+
       {/* ─── Onglet Stats ────────────────────────────────────── */}
       {activeTab === 'stats' && <>
+
+      {/* Bouton Actualiser */}
+      <button
+        onClick={handleActualiserStats}
+        disabled={refreshing}
+        className="w-full py-2.5 bg-white text-[#C9A84C] border border-[#C9A84C]/30 text-sm font-semibold rounded-2xl shadow-sm disabled:opacity-50 hover:bg-[#F5F0E8] transition-colors flex items-center justify-center gap-2"
+      >
+        {refreshing ? (
+          <><span className="animate-spin inline-block w-4 h-4 border-2 border-[#C9A84C] border-t-transparent rounded-full" /> Actualisation…</>
+        ) : (
+          '🔄 Actualiser mes statistiques'
+        )}
+      </button>
 
       {/* Stats */}
       <div className="bg-white rounded-2xl p-5 shadow-sm">
@@ -129,8 +183,8 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           {[
             { label: 'Scans QR', val: partenaire.total_scans ?? 0 },
             { label: 'Codes générés', val: partenaire.total_codes_generes ?? 0 },
-            { label: 'Utilisations', val: partenaire.total_utilisations ?? 0 },
-            { label: 'Clients uniques', val: partenaire.total_clients_uniques ?? 0 },
+            { label: 'Utilisations', val: localStats.total_utilisations },
+            { label: 'Clients uniques', val: localStats.total_clients_uniques },
           ].map(({ label, val }) => (
             <div key={label} className="bg-[#F5F0E8]/60 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-[#C9A84C]">{val}</p>
@@ -141,11 +195,11 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
         <div className="mt-3 space-y-1.5">
           <div className="flex justify-between text-sm">
             <span className="text-[#1A1A1A]/60">CA Hébergements</span>
-            <span className="font-medium">{formatFCFA(partenaire.total_ca_hebergements_fcfa)}</span>
+            <span className="font-medium">{formatFCFA(localStats.total_ca_hebergements_fcfa)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-[#1A1A1A]/60">CA Boutique</span>
-            <span className="font-medium">{formatFCFA(partenaire.total_ca_boutique_fcfa)}</span>
+            <span className="font-medium">{formatFCFA(localStats.total_ca_boutique_fcfa)}</span>
           </div>
           <div className="flex justify-between text-sm font-bold border-t border-[#F5F0E8] pt-1.5">
             <span>CA Total</span>
@@ -259,6 +313,138 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
       )}
 
       </> /* fin onglet stats */}
+    </div>
+  )
+}
+
+// ─── Composant Forfait Tab ────────────────────────────────────
+
+function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
+  const isPremium = partenaire.subscriptionLevel === 'premium'
+  const forfaitJours = jours(partenaire.forfait_expire_at)
+  const forfaitActif = partenaire.forfait_statut === 'actif'
+  const expiresSoon = forfaitActif && forfaitJours <= 30
+  const msgRenew = encodeURIComponent(
+    `Bonjour Olivier, je souhaite renouveler mon forfait L&Lui Signature pour ${partenaire.nom_etablissement}. Mon ID partenaire : ${partenaire.uid}`
+  )
+  const msgUpgrade = encodeURIComponent(
+    `Bonjour Olivier, je souhaite passer en abonnement Premium pour ma vitrine L&Lui (${partenaire.nom_etablissement}). Mon ID : ${partenaire.uid}`
+  )
+
+  return (
+    <div className="space-y-4">
+
+      {/* Statut forfait */}
+      <div className={`rounded-2xl p-5 shadow-sm ${
+        forfaitActif && !expiresSoon
+          ? 'bg-white'
+          : expiresSoon
+            ? 'bg-amber-50 border border-amber-200'
+            : 'bg-red-50 border border-red-200'
+      }`}>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C] mb-1">Mon forfait</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xl font-serif font-bold text-[#1A1A1A]">
+              {forfaitActif ? '✅ Actif' : '🔴 Expiré'}
+            </p>
+            <p className="text-sm text-[#1A1A1A]/60 mt-0.5 capitalize">
+              Forfait {partenaire.forfait_type ?? 'annuel'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-[#C9A84C]">{forfaitActif ? forfaitJours : 0}</p>
+            <p className="text-xs text-[#1A1A1A]/50">jours restants</p>
+          </div>
+        </div>
+        <div className="mt-3 space-y-1">
+          {partenaire.forfait_debut && (
+            <div className="flex justify-between text-xs text-[#1A1A1A]/60">
+              <span>Début</span>
+              <span>{formatLocalDate(partenaire.forfait_debut)}</span>
+            </div>
+          )}
+          {partenaire.forfait_expire_at && (
+            <div className="flex justify-between text-xs text-[#1A1A1A]/60">
+              <span>Expiration</span>
+              <span className={expiresSoon ? 'text-amber-600 font-semibold' : ''}>
+                {formatLocalDate(partenaire.forfait_expire_at)}
+                {expiresSoon && ' ⚠️'}
+              </span>
+            </div>
+          )}
+          {partenaire.forfait_montant_fcfa !== undefined && (
+            <div className="flex justify-between text-xs text-[#1A1A1A]/60">
+              <span>Montant</span>
+              <span>{formatFCFA(partenaire.forfait_montant_fcfa)}</span>
+            </div>
+          )}
+        </div>
+        {expiresSoon && (
+          <p className="mt-2 text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5">
+            Votre forfait expire dans moins de 30 jours. Renouvelez pour continuer à utiliser vos QR codes.
+          </p>
+        )}
+        {!forfaitActif && (
+          <p className="mt-2 text-xs text-red-700 bg-red-100 rounded-lg px-3 py-1.5">
+            Votre forfait est expiré. Contactez Olivier pour le renouveler et réactiver votre QR code.
+          </p>
+        )}
+      </div>
+
+      {/* Renouveler */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-sm font-semibold text-[#1A1A1A] mb-1">🔄 Renouveler mon forfait</p>
+        <p className="text-xs text-[#1A1A1A]/50 mb-3">
+          Forfait annuel — accès complet QR code, dashboard, commissions boutique
+        </p>
+        <a
+          href={`https://wa.me/237693407964?text=${msgRenew}`}
+          target="_blank" rel="noreferrer"
+          className="block text-center py-2.5 bg-[#C9A84C] text-white text-sm font-bold rounded-xl hover:bg-[#b8963e] transition-colors"
+        >
+          Contacter Olivier pour renouveler →
+        </a>
+      </div>
+
+      {/* Niveau vitrine */}
+      <div className={`rounded-2xl p-5 shadow-sm ${isPremium ? 'bg-gradient-to-br from-[#C9A84C] to-[#8B6914]' : 'bg-white'}`}>
+        <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${isPremium ? 'text-white/70' : 'text-[#C9A84C]'}`}>
+          Niveau vitrine
+        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={`text-xl font-serif font-bold ${isPremium ? 'text-white' : 'text-[#1A1A1A]'}`}>
+              {isPremium ? '⭐ Premium' : '🔓 Free'}
+            </p>
+            <p className={`text-xs mt-1 ${isPremium ? 'text-white/80' : 'text-[#1A1A1A]/50'}`}>
+              {isPremium
+                ? '5 visuels publicitaires · Carrousel · Pleine visibilité'
+                : 'Image enseigne uniquement'}
+            </p>
+          </div>
+          {isPremium && <span className="text-3xl">🏆</span>}
+        </div>
+        {!isPremium && (
+          <div className="mt-4">
+            <ul className="space-y-1 mb-3">
+              {['5 visuels publicitaires en carrousel', 'Plats du jour, promos, événements', 'Visible par tous vos clients L&Lui'].map((item) => (
+                <li key={item} className="text-xs text-[#1A1A1A]/60 flex items-start gap-2">
+                  <span className="text-[#C9A84C]">✓</span> {item}
+                </li>
+              ))}
+            </ul>
+            <a
+              href={`https://wa.me/237693407964?text=${msgUpgrade}`}
+              target="_blank" rel="noreferrer"
+              className="block text-center py-2.5 bg-[#1A1A1A] text-white text-sm font-bold rounded-xl hover:bg-[#333] transition-colors"
+            >
+              Passer en Premium →
+            </a>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
