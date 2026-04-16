@@ -25,6 +25,10 @@ export default function ParametresClient({ params, historique }: Props) {
     commission_partenaire_pct: params.commission_partenaire_pct,
     forfait_prescripteur_mensuel_fcfa: params.forfait_prescripteur_mensuel_fcfa,
     forfait_prescripteur_annuel_fcfa: params.forfait_prescripteur_annuel_fcfa,
+    premium_prix_mensuel_fcfa: params.premium_prix_mensuel_fcfa ?? 10000,
+    premium_prix_annuel_fcfa: params.premium_prix_annuel_fcfa ?? 100000,
+    premium_nb_images: params.premium_nb_images ?? 5,
+    premium_duree_jours: params.premium_duree_jours ?? 365,
     forfait_hotel_reservation_fcfa: params.forfait_hotel_reservation_fcfa ?? 2000,
     commission_mototaxi_fcfa: params.commission_mototaxi_fcfa,
     commission_commerciaux_pct: params.commission_commerciaux_pct,
@@ -120,6 +124,39 @@ export default function ParametresClient({ params, historique }: Props) {
           </InputRow>
           <p className="text-xs text-[#1A1A1A]/40 -mt-1">Le client a scanné le QR de l&apos;hôtel et réserve ensuite un hébergement L&amp;Lui.</p>
         </div>
+      </Section>
+
+      {/* Premium Vitrine */}
+      <Section title="⭐ Abonnement Premium Vitrine (Canal 2)">
+        <p className="text-xs text-[#1A1A1A]/50 -mt-1 mb-3">Conditions de souscription pour l&apos;abonnement Premium (carrousel publicitaire)</p>
+        <Label>Prix mensuel Premium</Label>
+        <InputRow>
+          <Input value={form.premium_prix_mensuel_fcfa} onChange={(v) => set('premium_prix_mensuel_fcfa', v)} suffix="FCFA/mois" />
+        </InputRow>
+        <Label>Prix annuel Premium</Label>
+        <InputRow>
+          <Input value={form.premium_prix_annuel_fcfa} onChange={(v) => set('premium_prix_annuel_fcfa', v)} suffix="FCFA/an" />
+        </InputRow>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Nb images autorisées (Premium)</Label>
+            <InputRow>
+              <Input value={form.premium_nb_images} onChange={(v) => set('premium_nb_images', v)} suffix="images" />
+            </InputRow>
+          </div>
+          <div>
+            <Label>Durée abonnement</Label>
+            <InputRow>
+              <Input value={form.premium_duree_jours} onChange={(v) => set('premium_duree_jours', v)} suffix="jours" />
+            </InputRow>
+          </div>
+        </div>
+        <Apercu label="Récapitulatif offre Premium"
+          lines={[
+            `Free : 1 image enseigne uniquement`,
+            `Premium : ${form.premium_nb_images} visuels carrousel pendant ${form.premium_duree_jours} jours`,
+            `Tarif : ${formatFCFA(form.premium_prix_mensuel_fcfa)}/mois ou ${formatFCFA(form.premium_prix_annuel_fcfa)}/an`,
+          ]} />
       </Section>
 
       {/* Canal 3 */}

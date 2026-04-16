@@ -9,6 +9,7 @@ import {
   setSubscriptionLevel,
   setDefaultImageAdmin,
   setPhotoUrlAdmin,
+  setCarouselImagesAdmin,
   type TypePartenaire,
   type RemiseType,
 } from '@/actions/codes-sessions'
@@ -206,6 +207,13 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<Record<string, string>>({})
   const photoInputRef = useRef<HTMLInputElement>(null)
+  // Carrousel admin
+  const [carouselEditId, setCarouselEditId] = useState<string | null>(null)
+  const [carouselSlots, setCarouselSlots] = useState<string[]>(['', '', '', '', ''])
+  const [carouselUploading, setCarouselUploading] = useState<number | null>(null) // index du slot en upload
+  const [carouselSaving, setCarouselSaving] = useState(false)
+  const carouselInputRef = useRef<HTMLInputElement>(null)
+  const [carouselCurrentSlot, setCarouselCurrentSlot] = useState(0)
 
   const [form, setForm] = useState(formDefault)
 
@@ -353,6 +361,52 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
     } finally {
       setPhotoUploading(false)
       setPhotoUploadId(null)
+    }
+  }
+
+  function openCarousel(p: PrescripteurPartenaire) {
+    const imgs = p.carouselImages ?? []
+    setCarouselSlots([...imgs, '', '', '', '', ''].slice(0, 5))
+    setCarouselEditId(p.uid)
+  }
+
+  async function handleCarouselUpload(partnerId: string, slotIdx: number, file: File) {
+    setCarouselUploading(slotIdx)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('partnerId', partnerId)
+      fd.append('slotIndex', String(slotIdx))
+      const res = await fetch('/api/admin/upload-carousel-image', { method: 'POST', body: fd })
+      const json = await res.json() as { success?: boolean; url?: string; error?: string }
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? 'Erreur upload')
+      } else {
+        setCarouselSlots((prev) => {
+          const next = [...prev]
+          next[slotIdx] = json.url!
+          return next
+        })
+        toast.success(`Image ${slotIdx + 1} uploadée ✅`)
+      }
+    } catch (e) {
+      toast.error('Erreur réseau')
+      console.error('[admin] carousel upload exception:', e)
+    } finally {
+      setCarouselUploading(null)
+    }
+  }
+
+  async function handleCarouselSave(partnerId: string) {
+    setCarouselSaving(true)
+    const res = await setCarouselImagesAdmin(partnerId, carouselSlots)
+    setCarouselSaving(false)
+    if (res.success) {
+      toast.success('Carrousel enregistré ✅')
+      setCarouselEditId(null)
+      router.refresh()
+    } else {
+      toast.error(res.error ?? 'Erreur')
     }
   }
 
@@ -600,6 +654,11 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         {p.remise_type === 'reduction_pct' && p.remise_valeur_pct
                           ? ` · Remise ${p.remise_valeur_pct}%`
                           : p.remise_description ? ` · ${p.remise_description}` : ''}
+                        {' · '}
+                        {p.subscriptionLevel === 'premium'
+                          ? <span className="text-amber-600">⭐ Premium jusqu&apos;au {p.forfait_expire_at ? new Date(p.forfait_expire_at).toLocaleDateString('fr-FR') : '—'}</span>
+                          : <span>Free</span>
+                        }
                       </p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
@@ -613,7 +672,22 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                             ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                         }`}>
-                        {subscriptionLoading === p.uid ? '...' : p.subscriptionLevel === 'premium' ? '⭐ Premium' : '🔓 Free'}
+                        {subscriptionLoading === p.uid
+                          ? '...'
+                          : p.subscriptionLevel === 'premium'
+                            ? `⭐ Premium`
+                            : '🔓 Free'}
+                      </button>
+                      {/* Carrousel images */}
+                      <button
+                        onClick={() => carouselEditId === p.uid ? setCarouselEditId(null) : openCarousel(p)}
+                        title="Gérer le carrousel d'images"
+                        className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                          carouselEditId === p.uid
+                            ? 'bg-[#C9A84C] text-white'
+                            : 'bg-[#F5F0E8] text-[#1A1A1A]/60 hover:bg-[#F5F0E8]/80'
+                        }`}>
+                        🎠
                       </button>
                       {/* Image par défaut */}
                       <button
@@ -693,13 +767,82 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         </div>
                       </div>
                     )}
+
+                    {/* Panel Carrousel */}
+                    {carouselEditId === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-semibold text-[#1A1A1A]">🎠 Carrousel publicitaire</p>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${p.subscriptionLevel === 'premium' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {p.subscriptionLevel === 'premium' ? '⭐ Premium actif' : '🔓 Free — passer Premium pour activer'}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {carouselSlots.map((url, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              {/* Miniature */}
+                              <div className={`w-16 h-10 rounded-lg overflow-hidden flex-shrink-0 border-2 ${url ? 'border-[#C9A84C]' : 'border-dashed border-[#F5F0E8]'} bg-[#F5F0E8]`}>
+                                {url
+                                  ? /* eslint-disable-next-line @next/next/no-img-element */
+                                    <img src={url} alt={`Slot ${idx + 1}`} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/40 text-sm">
+                                      {carouselUploading === idx ? <span className="animate-spin inline-block w-3 h-3 border-2 border-[#C9A84C] border-t-transparent rounded-full" /> : idx + 1}
+                                    </div>
+                                }
+                              </div>
+                              {/* Input URL */}
+                              <input
+                                type="url"
+                                value={url}
+                                onChange={(e) => {
+                                  const next = [...carouselSlots]
+                                  next[idx] = e.target.value
+                                  setCarouselSlots(next)
+                                }}
+                                placeholder={`Image ${idx + 1} — URL ou uploader →`}
+                                className="flex-1 border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#C9A84C]"
+                              />
+                              {/* Bouton upload */}
+                              <button
+                                onClick={() => { setCarouselCurrentSlot(idx); setTimeout(() => carouselInputRef.current?.click(), 50) }}
+                                disabled={carouselUploading !== null}
+                                className="text-xs px-2 py-1.5 bg-[#F5F0E8] text-[#C9A84C] rounded-lg hover:bg-[#C9A84C]/10 disabled:opacity-50 flex-shrink-0"
+                                title="Uploader une image">
+                                📁
+                              </button>
+                              {/* Supprimer */}
+                              {url && (
+                                <button
+                                  onClick={() => { const n = [...carouselSlots]; n[idx] = ''; setCarouselSlots(n) }}
+                                  className="text-red-400 hover:text-red-600 text-base flex-shrink-0">
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleCarouselSave(p.uid)}
+                            disabled={carouselSaving}
+                            className="flex-1 py-2 bg-[#C9A84C] text-white text-xs font-semibold rounded-lg disabled:opacity-60 hover:bg-[#b8963e] transition-colors">
+                            {carouselSaving ? 'Enregistrement...' : '💾 Enregistrer le carrousel'}
+                          </button>
+                          <button
+                            onClick={() => setCarouselEditId(null)}
+                            className="px-4 py-2 bg-[#F5F0E8] text-[#1A1A1A]/60 text-xs rounded-lg">
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
         )}
-        {/* Input file global caché — un seul pour tous les partenaires */}
+        {/* Input file photo partenaire */}
         <input
           ref={photoInputRef}
           type="file"
@@ -710,7 +853,21 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
             if (file && photoUploadId) {
               handlePhotoUpload(photoUploadId, file)
             }
-            e.target.value = '' // reset pour permettre re-upload du même fichier
+            e.target.value = ''
+          }}
+        />
+        {/* Input file carrousel */}
+        <input
+          ref={carouselInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file && carouselEditId) {
+              handleCarouselUpload(carouselEditId, carouselCurrentSlot, file)
+            }
+            e.target.value = ''
           }}
         />
       </div>

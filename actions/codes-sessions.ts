@@ -638,6 +638,26 @@ export async function actualiserStatsPartenaire(
   }
 }
 
+/** Admin définit les images du carrousel d'un partenaire (max 5) */
+export async function setCarouselImagesAdmin(
+  id: string,
+  images: string[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!id) return { success: false, error: 'ID requis' }
+    const cleaned = images.map((u) => u.trim()).filter((u) => u.length > 0).slice(0, 5)
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      carouselImages: cleaned,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
 /** Admin définit la photo/logo d'un partenaire (photoUrl) */
 export async function setPhotoUrlAdmin(
   id: string,
