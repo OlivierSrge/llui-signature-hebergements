@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-16 — Bouton stats + onglet Forfait dashboard partenaire (commit f2f8ebf)
+Dernière mise à jour : 2026-04-16 — Upload photo partenaire Firebase Storage (commit 6b8c9bf)
 
 ---
 
@@ -31,7 +31,7 @@ Dernière mise à jour : 2026-04-16 — Bouton stats + onglet Forfait dashboard 
 - [x] **API publique `/api/vitrine`** — endpoint CORS ouvert consommable par la boutique Netlify (`?code=` ou `?uid=`)
 - [x] **Route `/api/admin/merge-duplicates`** — fusion doublons, réassignation sessions + commissions, nettoyage orphelins
 - [x] **Route `/api/admin/sync-affiliates` réécrite en UPSERT** — plus de doublons, ne jamais écraser subscriptionLevel/carouselImages/defaultImage
-- [ ] Upload photo partenaire (photoUrl) depuis l'interface admin
+- [x] **Upload photo partenaire** — bouton 📷 dans la liste admin, input file caché, upload Firebase Storage (`partenaires-prescripteurs/`), aperçu inline 48px, server action `setPhotoUrlAdmin`
 
 ### 5. Logs & Fiabilité
 - [ ] `console.log` structurés : `[Sync Code Session]`, `[Client Memory Found]`, `[Webhook Success]`
