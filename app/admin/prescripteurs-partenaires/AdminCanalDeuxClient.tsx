@@ -622,7 +622,7 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
         </div>
       </div>
 
-      {/\* Top partenaires \*/}
+      {/* Top partenaires */}
       {stats.top_partenaires.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">🏆 Top partenaires</h2>
