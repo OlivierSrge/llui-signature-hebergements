@@ -3,7 +3,6 @@ import { getPrescripteurPartenaire } from '@/actions/codes-sessions'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { db } from '@/lib/firebase'
 import DashboardPartenaireClient from './DashboardPartenaireClient'
-import { getPartnerTransactions } from '@/actions/stars'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +27,23 @@ async function getCodesActifs(prescripteurId: string): Promise<Record<string, un
     return snap.docs.map((d) => ({ code: d.id, ...(d.data() as Record<string, unknown>) }))
   } catch (e) {
     console.error('[DashboardPartenaire] getCodesActifs error:', e)
+    return []
+  }
+}
+
+// Inline pour éviter l'import de actions/stars.ts (qui importe twilio via whatsappNotif)
+// twilio n'est pas dans serverComponentsExternalPackages → crash SSR si importé depuis un Server Component
+async function getStarsTxsCount(prescripteurId: string): Promise<{ client_id: string }[]> {
+  try {
+    const snap = await db
+      .collection('transactions_fidelite')
+      .where('partenaire_id', '==', prescripteurId)
+      .where('status', '==', 'confirmed')
+      .limit(200)
+      .get()
+    return snap.docs.map((d) => ({ client_id: d.data().client_id as string }))
+  } catch (e) {
+    console.error('[DashboardPartenaire] getStarsTxsCount error:', e)
     return []
   }
 }
@@ -66,7 +82,7 @@ export default async function DashboardPartenairePage({ params }: Props) {
     getCodesActifs(params.id),
     getTransactions(params.id),
     getParametresPlateforme(),
-    getPartnerTransactions(params.id, 100),
+    getStarsTxsCount(params.id),
   ])
 
   // Stats Stars
