@@ -546,6 +546,48 @@ export async function modifierPrescripteurPartenaire(
   }
 }
 
+/** Renomme un partenaire (nom_etablissement) */
+export async function renommerPrescripteurPartenaire(
+  id: string,
+  nom: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const trimmed = nom.trim()
+    if (!trimmed) return { success: false, error: 'Nom requis' }
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      nom_etablissement: trimmed,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
+/** Prolonge ou modifie la date d'expiration du forfait d'un partenaire */
+export async function prolongerForfaitPartenaire(
+  id: string,
+  nouvelleDateISO: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const date = new Date(nouvelleDateISO)
+    if (isNaN(date.getTime())) return { success: false, error: 'Date invalide' }
+    const newStatut = date > new Date() ? 'actif' : 'expire'
+    await db.collection('prescripteurs_partenaires').doc(id).update({
+      forfait_expire_at: date.toISOString(),
+      forfait_statut: newStatut,
+      updated_at: new Date().toISOString(),
+    })
+    revalidatePath('/admin/prescripteurs-partenaires')
+    revalidatePath(`/partenaire-prescripteur/${id}`)
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur' }
+  }
+}
+
 /** Marquer une commission comme versée */
 export async function marquerCommissionVersee(
   prescripteurId: string,

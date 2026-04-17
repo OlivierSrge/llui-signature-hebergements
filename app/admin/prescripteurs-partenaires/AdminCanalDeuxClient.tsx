@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast'
 import {
   creerPrescripteurPartenaire,
   modifierPrescripteurPartenaire,
+  renommerPrescripteurPartenaire,
+  prolongerForfaitPartenaire,
   marquerCommissionVersee,
   setSubscriptionLevel,
   setDefaultImageAdmin,
@@ -215,6 +217,16 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const carouselInputRef = useRef<HTMLInputElement>(null)
   const [carouselCurrentSlot, setCarouselCurrentSlot] = useState(0)
 
+  // Rename inline
+  const [renameId, setRenameId] = useState<string | null>(null)
+  const [renameVal, setRenameVal] = useState('')
+  const [renameSaving, setRenameSaving] = useState(false)
+
+  // Prolongation forfait
+  const [forfaitEditId, setForfaitEditId] = useState<string | null>(null)
+  const [forfaitNewDate, setForfaitNewDate] = useState('')
+  const [forfaitSaving, setForfaitSaving] = useState(false)
+
   const [form, setForm] = useState(formDefault)
 
   const [editForm, setEditForm] = useState<{
@@ -408,6 +420,37 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
     } else {
       toast.error(res.error ?? 'Erreur')
     }
+  }
+
+  async function handleRename(id: string) {
+    if (!renameVal.trim()) { toast.error('Nom requis'); return }
+    setRenameSaving(true)
+    const res = await renommerPrescripteurPartenaire(id, renameVal)
+    setRenameSaving(false)
+    if (res.success) { toast.success('Nom mis à jour ✅'); setRenameId(null); router.refresh() }
+    else toast.error(res.error ?? 'Erreur')
+  }
+
+  function openForfaitEdit(p: PrescripteurPartenaire) {
+    setForfaitEditId(p.uid)
+    // Pré-remplir avec la date actuelle d'expiration au format YYYY-MM-DD
+    const d = p.forfait_expire_at ? new Date(p.forfait_expire_at) : new Date()
+    setForfaitNewDate(d.toISOString().split('T')[0])
+  }
+
+  function addDays(baseDateStr: string, days: number): string {
+    const base = baseDateStr ? new Date(baseDateStr) : new Date()
+    base.setDate(base.getDate() + days)
+    return base.toISOString().split('T')[0]
+  }
+
+  async function handleSaveForfait(id: string) {
+    if (!forfaitNewDate) { toast.error('Date requise'); return }
+    setForfaitSaving(true)
+    const res = await prolongerForfaitPartenaire(id, forfaitNewDate + 'T23:59:59.000Z')
+    setForfaitSaving(false)
+    if (res.success) { toast.success('Forfait mis à jour ✅'); setForfaitEditId(null); router.refresh() }
+    else toast.error(res.error ?? 'Erreur')
   }
 
   // Helper onChange pour les deux formulaires (création + édition)
@@ -635,28 +678,56 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                 <div key={p.uid} className={`rounded-xl px-4 py-3 border transition-colors ${isEditing ? 'border-[#C9A84C] bg-[#C9A84C]/5' : 'border-[#F5F0E8] bg-[#F5F0E8]/30'}`}>
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-[#1A1A1A] truncate">{p.nom_etablissement}</p>
-                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#F5F0E8] text-[#1A1A1A]/50">{p.type}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          p.statut === 'actif' ? 'bg-green-100 text-green-700' :
-                          p.statut === 'suspendu' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-600'
-                        }`}>{p.statut}</span>
-                      </div>
+                      {/* Nom — rename inline */}
+                      {renameId === p.uid ? (
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            autoFocus
+                            value={renameVal}
+                            onChange={(e) => setRenameVal(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleRename(p.uid); if (e.key === 'Escape') setRenameId(null) }}
+                            className="flex-1 border border-[#C9A84C] rounded-lg px-2 py-1 text-sm font-semibold focus:outline-none"
+                          />
+                          <button onClick={() => handleRename(p.uid)} disabled={renameSaving}
+                            className="text-xs px-2.5 py-1 bg-[#C9A84C] text-white rounded-lg disabled:opacity-60">
+                            {renameSaving ? '...' : '✅'}
+                          </button>
+                          <button onClick={() => setRenameId(null)}
+                            className="text-xs px-2 py-1 bg-[#F5F0E8] text-[#1A1A1A]/60 rounded-lg">✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-[#1A1A1A] truncate">{p.nom_etablissement}</p>
+                          <button
+                            onClick={() => { setRenameId(p.uid); setRenameVal(p.nom_etablissement) }}
+                            title="Renommer"
+                            className="text-[10px] text-[#1A1A1A]/30 hover:text-[#C9A84C] transition-colors">
+                            ✏️
+                          </button>
+                          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#F5F0E8] text-[#1A1A1A]/50">{p.type}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            p.statut === 'actif' ? 'bg-green-100 text-green-700' :
+                            p.statut === 'suspendu' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-600'
+                          }`}>{p.statut}</span>
+                        </div>
+                      )}
                       <p className="text-xs text-[#1A1A1A]/50 mt-0.5">
                         {p.telephone}
                         {p.adresse ? ` · ${p.adresse}` : ''}
                         {' · '}
-                        <span className={forfaitOk ? 'text-green-600' : 'text-red-500'}>
+                        <button
+                          onClick={() => openForfaitEdit(p)}
+                          className={`underline decoration-dotted hover:text-[#C9A84C] transition-colors ${forfaitOk ? 'text-green-600' : 'text-red-500'}`}
+                          title="Modifier la date de validité">
                           Forfait {forfaitOk ? `actif (J-${forfaitJ})` : 'expiré'}
-                        </span>
+                        </button>
                         {p.remise_type === 'reduction_pct' && p.remise_valeur_pct
                           ? ` · Remise ${p.remise_valeur_pct}%`
                           : p.remise_description ? ` · ${p.remise_description}` : ''}
                         {' · '}
                         {p.subscriptionLevel === 'premium'
-                          ? <span className="text-amber-600">⭐ Premium jusqu&apos;au {p.forfait_expire_at ? new Date(p.forfait_expire_at).toLocaleDateString('fr-FR') : '—'}</span>
+                          ? <span className="text-amber-600">⭐ Premium</span>
                           : <span>Free</span>
                         }
                       </p>
@@ -703,6 +774,17 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         className="text-xs px-2.5 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 rounded-lg hover:bg-[#F5F0E8]/80 transition-colors disabled:opacity-60"
                         title="Uploader photo/logo partenaire">
                         {photoUploading && photoUploadId === p.uid ? '⏳' : '📷'}
+                      </button>
+                      {/* Prolonger forfait */}
+                      <button
+                        onClick={() => forfaitEditId === p.uid ? setForfaitEditId(null) : openForfaitEdit(p)}
+                        title="Modifier la date de validité du forfait"
+                        className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                          forfaitEditId === p.uid
+                            ? 'bg-[#C9A84C] text-white'
+                            : forfaitOk ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'
+                        }`}>
+                        📅
                       </button>
                       <a href={`/partenaire-prescripteur/${p.uid}`} target="_blank" rel="noreferrer"
                         className="text-xs px-3 py-1.5 border border-[#C9A84C] text-[#C9A84C] rounded-lg hover:bg-[#C9A84C]/10 transition-colors">
@@ -765,6 +847,58 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                             Changer la photo
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Panel — Prolongation forfait */}
+                    {forfaitEditId === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <p className="text-xs font-semibold text-[#1A1A1A] mb-2">📅 Date de validité du forfait</p>
+                        <p className="text-xs text-[#1A1A1A]/50 mb-3">
+                          Actuellement : <span className={forfaitOk ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                            {p.forfait_expire_at ? new Date(p.forfait_expire_at).toLocaleDateString('fr-FR') : '—'}
+                            {forfaitOk ? ` (J-${forfaitJ})` : ' — expiré'}
+                          </span>
+                        </p>
+                        {/* Raccourcis */}
+                        <div className="flex gap-2 mb-3">
+                          {[
+                            { label: '+30 jours', days: 30 },
+                            { label: '+90 jours', days: 90 },
+                            { label: '+1 an', days: 365 },
+                          ].map(({ label, days }) => (
+                            <button
+                              key={days}
+                              onClick={() => setForfaitNewDate(addDays(forfaitNewDate, days))}
+                              className="text-xs px-3 py-1.5 bg-[#F5F0E8] text-[#1A1A1A] rounded-lg hover:bg-[#C9A84C]/20 hover:text-[#C9A84C] transition-colors font-medium">
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Saisie date libre */}
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="date"
+                            value={forfaitNewDate}
+                            onChange={(e) => setForfaitNewDate(e.target.value)}
+                            className="flex-1 border border-[#F5F0E8] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                          />
+                          <button
+                            onClick={() => handleSaveForfait(p.uid)}
+                            disabled={forfaitSaving}
+                            className="px-4 py-1.5 bg-[#C9A84C] text-white text-xs font-semibold rounded-lg disabled:opacity-60 hover:bg-[#b8963e] transition-colors">
+                            {forfaitSaving ? '...' : '💾 Enregistrer'}
+                          </button>
+                          <button onClick={() => setForfaitEditId(null)}
+                            className="px-3 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 text-xs rounded-lg">
+                            ✕
+                          </button>
+                        </div>
+                        {forfaitNewDate && (
+                          <p className="text-xs text-[#C9A84C] mt-2 font-medium">
+                            → Nouvelle expiration : {new Date(forfaitNewDate).toLocaleDateString('fr-FR')}
+                          </p>
+                        )}
                       </div>
                     )}
 
