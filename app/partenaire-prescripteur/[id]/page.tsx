@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 import { getPrescripteurPartenaire } from '@/actions/codes-sessions'
+import { getParametresPlateforme } from '@/actions/parametres'
 import { db } from '@/lib/firebase'
 import DashboardPartenaireClient from './DashboardPartenaireClient'
+import { getPartnerTransactions } from '@/actions/stars'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,10 +62,20 @@ export default async function DashboardPartenairePage({ params }: Props) {
 
   if (!partenaire) notFound()
 
-  const [codesActifs, transactions] = await Promise.all([
+  const [codesActifs, transactions, plateformeParams, starsTxs] = await Promise.all([
     getCodesActifs(params.id),
     getTransactions(params.id),
+    getParametresPlateforme(),
+    getPartnerTransactions(params.id, 100),
   ])
+
+  // Stats Stars
+  const clientsStarsSet = new Set(starsTxs.map((t) => t.client_id))
+  const starsStats = {
+    totalCaStars: (partenaire.total_ca_stars_fcfa as number | undefined) ?? 0,
+    soldeProvision: (partenaire.solde_provision as number | undefined) ?? 0,
+    clientsCount: clientsStarsSet.size,
+  }
 
   // Commissions dues = ventes confirmées (client a payé), pas encore versées au partenaire
   const commissionsDues = transactions
@@ -85,6 +97,8 @@ export default async function DashboardPartenairePage({ params }: Props) {
       commissionsDues={commissionsDues}
       commissionsVersees={commissionsVersees}
       ventesEnCours={ventesEnCours}
+      plateformeParams={plateformeParams}
+      starsStats={starsStats}
     />
   )
 }

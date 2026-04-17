@@ -94,12 +94,18 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
   photoUrl?: string,              // URL Firebase Storage photo enseigne
   defaultImage?: string,         // image par défaut (1 seule, plan Free)
   subscriptionLevel?: 'free'|'premium',
-  carouselImages?: string[],     // max 5 URLs Firebase Storage (plan Premium)
+  carouselImages?: string[],     // max premium_nb_images URLs Firebase Storage (plan Premium)
+  carousel_interval_sec?: number, // durée affichage par image (défaut 6s, configurable par le partenaire)
   premium_expire_at?: string,    // ISO — expiration abonnement Premium
+  premium_activated_at?: string, // ISO — date d'activation Premium
 }
 ```
 
 **IMPORTANT** : tout doc créé via sync-affiliates ou Stratégie C DOIT avoir `statut: 'actif'` — sinon invisible dans `getStatsCanalDeux`.
+
+**IMPORTANT** : `carouselImages.length` est contrôlé par `params.premium_nb_images` au moment du save. Ne jamais hardcoder 5 dans le code.
+
+**IMPORTANT** : `getCodeSession` enrichit TOUJOURS la session avec les données live du partenaire (photoUrl, defaultImage, carouselImages, subscriptionLevel, carousel_interval_sec, nom_partenaire) pour éviter la staleness des données gelées dans `codes_sessions`.
 
 ---
 
@@ -156,7 +162,7 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
 
 ---
 
-## ROUTES API ADMIN (Firebase Storage)
+## ROUTES API ADMIN
 
 | Route | Méthode | Auth | Usage |
 |---|---|---|---|
@@ -164,23 +170,102 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
 | `/api/admin/upload-carousel-image` | POST | cookie admin | Image carrousel — resize 1200×675 JPEG |
 | `/api/admin/sync-affiliates` | POST | Bearer `ADMIN_API_KEY` | Sync Google Sheets → Firestore (UPSERT) |
 | `/api/admin/merge-duplicates` | POST | Bearer `ADMIN_API_KEY` | Fusionne doublons prescripteurs |
+| `/api/admin/debug-session` | GET | `?key=ADMIN_API_KEY` | Inspecte session + partenaire + diagnostic affichage |
+| `/api/admin/fix-subscription-levels` | GET | `?key=ADMIN_API_KEY` | Migration : pose `subscriptionLevel: 'premium'` si images présentes |
+| `/api/admin/fix-code-session-links` | POST | Bearer `ADMIN_API_KEY` | Répare `prescripteur_partenaire_id` + complète docs incomplets |
 | `/api/sheets-webhook` | POST | `SHEETS_WEBHOOK_SECRET` | Reçoit statut Sheets → commission Firestore |
+| `/api/confirm-transaction` | GET | `?token=nanoid32` | Confirme transaction Stars — atomique, token usage unique |
 
 ---
 
-## ROADMAP EN COURS (2026-04-16)
+## MOTEUR DE FIDÉLITÉ L&LUI STARS (ajouté 2026-04-17)
+
+### Collections Firestore
+```
+clients_fidelite/{id}
+  telephone: string           // clé de liaison (E.164)
+  points_stars: number        // solde courant (dépensable)
+  total_stars_historique: number // cumulatif pour palier
+  membership_status: MembershipStatus
+  otp_code?: string           // 6 chiffres, expire dans 10 min
+  otp_expires_at?: string     // ISO
+  created_at: Timestamp
+  updated_at: Timestamp
+
+transactions_fidelite/{id}
+  client_id: string
+  partenaire_id: string
+  code_session: string
+  montant_brut: number
+  remise_appliquee: number
+  montant_net: number
+  stars_gagnees: number
+  remise_pct: number          // snapshot
+  multiplier: number          // snapshot
+  valeur_star_fcfa: number    // snapshot
+  status: 'pending'|'confirmed'|'cancelled'
+  confirmation_token?: string // nanoid(32), usage unique, deleted après confirmation
+  expires_at: string          // +1h après création
+  confirmed_at?: Timestamp
+  created_at: Timestamp
+```
+
+### Fichiers clés
+| Fichier | Rôle |
+|---|---|
+| `lib/loyaltyEngine.ts` | Fonctions pures (getMembershipStatus, getNiveauPass, getRemisePct, getMultiplier, calculateStars, calculateRemiseAmount, canUseTransaction) |
+| `lib/loyaltyEngine.test.ts` | Tests Jest (nécessite `npm install --save-dev jest @types/jest ts-jest`) |
+| `actions/stars.ts` | Server actions : requestOtp, verifyOtpAndLinkClient, getClientFidelite, getPendingTransaction, processPartnerTransaction |
+| `app/api/confirm-transaction/route.ts` | GET ?token= — confirme transaction atomiquement (db.runTransaction) |
+| `components/ElectronicPass.tsx` | UI pass électronique (framer-motion, AnimatedCounter, progression vers palier) |
+
+### Paliers et remises (défauts)
+| Palier | Stars historique | Remise boutique | Multiplicateur |
+|---|---|---|---|
+| Novice | 0–24999 | 0% | ×1.0 |
+| Explorateur (Argent) | 25000–74999 | 5% | ×1.0 |
+| Ambassadeur (Or) | 75000–149999 | 10% | ×1.5 |
+| Excellence (Platine) | ≥ 150000 | 20% | ×2.0 |
+
+### Paramètres plateforme ajoutés (prefix `fidelite_`)
+`fidelite_seuil_novice`, `fidelite_seuil_explorateur`, `fidelite_seuil_ambassadeur`, `fidelite_seuil_excellence`, `fidelite_remise_argent_pct`, `fidelite_remise_or_pct`, `fidelite_remise_platine_pct`, `fidelite_multiplicateur_argent`, `fidelite_multiplicateur_or`, `fidelite_multiplicateur_platine`, `fidelite_valeur_star_fcfa`, `fidelite_duree_pass_jours`, `fidelite_otp_template`
+
+### Flux utilisateur
+1. Client sur `/sejour/[code]` → saisit téléphone → `requestOtp` (SMS WhatsApp, OTP 10 min)
+2. Saisit OTP → `verifyOtpAndLinkClient` → retourne `ClientFidelite`
+3. `ElectronicPass` s'affiche avec solde, statut, progression
+4. Partenaire appelle `processPartnerTransaction` → crée pending tx → envoie lien WhatsApp
+5. Client clique lien → `GET /api/confirm-transaction?token=…` → `db.runTransaction` atomique
+6. Client rechargé : `getPendingTransaction` → affiche transaction en attente
+
+**IMPORTANT** : `actions/fidelite.ts` existe déjà (programme fidélité mariage/réservation — ne pas modifier). Tout le code Stars est dans `actions/stars.ts`.
+
+**IMPORTANT** : `processPartnerTransaction` vérifie `canUseTransaction(solde_provision, starsGagnees, valeurStar)` AVANT de créer la transaction — si provision insuffisante, retourne erreur.
+
+**IMPORTANT** : `confirmation_token` est supprimé avec `FieldValue.delete()` après confirmation — token à usage unique non réutilisable.
+
+---
+
+## ROADMAP EN COURS (2026-04-17)
 
 ### Terminé ✅
 - Dashboard partenaire : bouton Actualiser stats + onglet Mon Forfait + photo avatar
-- Admin : upload photo + gestion carrousel 5 images Firebase Storage
+- Admin : upload photo + gestion carrousel Firebase Storage (slots dynamiques `premium_nb_images`)
 - Admin : filtrage codes expirés (client-side `expire_at > Date.now()`)
-- Paramètres plateforme : section Premium Vitrine (prix, nb images, durée)
-- Fix JSX brace bug AdminCanalDeuxClient + sync-affiliates UPSERT anti-doublons
+- Admin : renommage partenaire inline + prolongation forfait
+- Paramètres plateforme : section Premium Vitrine (prix, nb images, durée) — **câblés dans toute l'app**
+- Paramètres plateforme : section Stars — 13 paramètres fidelite_ avec aperçu temps réel
+- Page client `/sejour/[code]` : carrousel corrigé (hooks, subscriptionLevel, images live, nom live)
+- Page client `/sejour/[code]` : intégration Stars (phone/OTP/ElectronicPass)
+- Durée carrousel paramétrable par le partenaire (preset + slider, sauvegardé en Firestore)
+- Moteur de fidélité L&Lui Stars complet (loyaltyEngine, actions, API confirm, ElectronicPass UI)
 
 ### À faire [ ]
 - Code 6 chiffres maintenu simultanément dans Firestore ET col G Google Sheets
-- `Promise.all` sur requêtes Firestore indépendantes (objectif < 200ms)
+- Logs structurés systématiques : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
 - Nettoyer doublons existants : `POST /api/admin/merge-duplicates` (Bearer token)
-- Logs structurés : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
+- UI partenaire pour appeler `processPartnerTransaction` (encaisser une transaction Stars)
+- Admin : UI top-up `solde_provision` des partenaires
+- Firestore indexes : `transactions_fidelite` sur `(code_session, status)` et `(confirmation_token, status)`
 
 Voir `CLAUDE_PROGRESS.md` pour le détail commit par commit.

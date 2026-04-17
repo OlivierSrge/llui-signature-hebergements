@@ -16,6 +16,7 @@ import {
   type RemiseType,
 } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
+import type { ParametresPlateforme } from '@/actions/parametres'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 
@@ -192,7 +193,7 @@ function PartenaireFormFields({
   )
 }
 
-export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
+export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stats: Stats; plateformeParams: ParametresPlateforme }) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -211,7 +212,8 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   // Carrousel admin
   const [carouselEditId, setCarouselEditId] = useState<string | null>(null)
-  const [carouselSlots, setCarouselSlots] = useState<string[]>(['', '', '', '', ''])
+  const nbImages = plateformeParams.premium_nb_images ?? 5
+  const [carouselSlots, setCarouselSlots] = useState<string[]>(() => Array(nbImages).fill(''))
   const [carouselUploading, setCarouselUploading] = useState<number | null>(null) // index du slot en upload
   const [carouselSaving, setCarouselSaving] = useState(false)
   const carouselInputRef = useRef<HTMLInputElement>(null)
@@ -226,6 +228,11 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
   const [forfaitEditId, setForfaitEditId] = useState<string | null>(null)
   const [forfaitNewDate, setForfaitNewDate] = useState('')
   const [forfaitSaving, setForfaitSaving] = useState(false)
+
+  // Provision Stars
+  const [provisionPartnerId, setProvisionPartnerId] = useState<string | null>(null)
+  const [provisionAmount, setProvisionAmount] = useState('')
+  const [provisionSaving, setProvisionSaving] = useState(false)
 
   const [form, setForm] = useState(formDefault)
 
@@ -378,7 +385,7 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
 
   function openCarousel(p: PrescripteurPartenaire) {
     const imgs = p.carouselImages ?? []
-    setCarouselSlots([...imgs, '', '', '', '', ''].slice(0, 5))
+    setCarouselSlots([...imgs, ...Array(nbImages).fill('')].slice(0, nbImages))
     setCarouselEditId(p.uid)
   }
 
@@ -451,6 +458,33 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
     setForfaitSaving(false)
     if (res.success) { toast.success('Forfait mis à jour ✅'); setForfaitEditId(null); router.refresh() }
     else toast.error(res.error ?? 'Erreur')
+  }
+
+  async function handleCreditProvision(partnerId: string) {
+    const amount = Number(provisionAmount)
+    if (!amount || amount <= 0) { toast.error('Montant invalide'); return }
+    setProvisionSaving(true)
+    try {
+      const res = await fetch('/api/admin/credit-provision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId, amount }),
+      })
+      const json = await res.json() as { success?: boolean; newBalance?: number; error?: string }
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? 'Erreur')
+      } else {
+        toast.success(`Provision créditée : +${formatFCFA(amount)} (solde : ${formatFCFA(json.newBalance ?? 0)})`)
+        setProvisionPartnerId(null)
+        setProvisionAmount('')
+        router.refresh()
+      }
+    } catch (e) {
+      void e
+      toast.error('Erreur réseau')
+    } finally {
+      setProvisionSaving(false)
+    }
   }
 
   // Helper onChange pour les deux formulaires (création + édition)
@@ -588,30 +622,27 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
         </div>
       </div>
 
-      {/* Top partenaires */}
+      {/\* Top partenaires \*/}
       {stats.top_partenaires.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">🏆 Top partenaires</h2>
           <div className="space-y-2">
-            {stats.top_partenaires.map((p, i) => {
-              const ca = (p.total_ca_hebergements_fcfa ?? 0) + (p.total_ca_boutique_fcfa ?? 0)
-              return (
-                <div key={p.uid} className="flex items-center justify-between bg-[#F5F0E8]/40 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-[#C9A84C]">#{i + 1}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-[#1A1A1A]">{p.nom_etablissement}</p>
-                      <p className="text-xs text-[#1A1A1A]/50">{p.type}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(ca)}</p>
-                    <a href={`/partenaire-prescripteur/${p.uid}`} target="_blank" rel="noreferrer"
-                      className="text-xs text-[#1A1A1A]/50 hover:text-[#C9A84C] underline">Dashboard →</a>
+            {stats.top_partenaires.map((p, i) => (
+              <div key={p.uid} className="flex items-center justify-between bg-[#F5F0E8]/40 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-[#C9A84C]">{`#${i + 1}`}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">{p.nom_etablissement}</p>
+                    <p className="text-xs text-[#1A1A1A]/50">{p.type}</p>
                   </div>
                 </div>
-              )
-            })}
+                <div className="text-right">
+                  <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA((p.total_ca_hebergements_fcfa ?? 0) + (p.total_ca_boutique_fcfa ?? 0))}</p>
+                  <a href={'/partenaire-prescripteur/' + p.uid} target="_blank" rel="noreferrer"
+                    className="text-xs text-[#1A1A1A]/50 hover:text-[#C9A84C] underline">Dashboard →</a>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -627,7 +658,7 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                   <p className="text-sm font-semibold text-[#1A1A1A]">{p.nom_etablissement}</p>
                   <p className="text-xs text-amber-600">dans {jours(p.forfait_expire_at)} jours</p>
                 </div>
-                <a href={`https://wa.me/${p.telephone.replace(/\D/g, '')}?text=${encodeURIComponent(`⚠️ Votre forfait L&Lui expire dans ${jours(p.forfait_expire_at)} jours.\nContactez-nous : +237 693 407 964`)}`}
+                <a href={'https://wa.me/' + p.telephone.replace(/\D/g, '') + '?text=' + encodeURIComponent('⚠️ Votre forfait L&Lui expire dans ' + jours(p.forfait_expire_at) + ' jours.\nContactez-nous : +237 693 407 964')}
                   target="_blank" rel="noreferrer"
                   className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg">
                   Contacter
@@ -775,6 +806,20 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         title="Uploader photo/logo partenaire">
                         {photoUploading && photoUploadId === p.uid ? '⏳' : '📷'}
                       </button>
+                      {/* Provision Stars */}
+                      <button
+                        onClick={() => {
+                          if (provisionPartnerId === p.uid) { setProvisionPartnerId(null); setProvisionAmount('') }
+                          else { setProvisionPartnerId(p.uid); setProvisionAmount('') }
+                        }}
+                        title="Créditer la provision Stars"
+                        className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                          provisionPartnerId === p.uid
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}>
+                        💰
+                      </button>
                       {/* Prolonger forfait */}
                       <button
                         onClick={() => forfaitEditId === p.uid ? setForfaitEditId(null) : openForfaitEdit(p)}
@@ -897,6 +942,42 @@ export default function AdminCanalDeuxClient({ stats }: { stats: Stats }) {
                         {forfaitNewDate && (
                           <p className="text-xs text-[#C9A84C] mt-2 font-medium">
                             → Nouvelle expiration : {new Date(forfaitNewDate).toLocaleDateString('fr-FR')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Panel — Provision Stars */}
+                    {provisionPartnerId === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <p className="text-xs font-semibold text-[#1A1A1A] mb-1">💰 Créditer la provision Stars</p>
+                        <p className="text-xs text-[#1A1A1A]/50 mb-3">
+                          Solde actuel : <span className="font-semibold text-emerald-700">{formatFCFA((p as PrescripteurPartenaire & { solde_provision?: number }).solde_provision ?? 0)}</span>
+                        </p>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="number"
+                            min={1}
+                            value={provisionAmount}
+                            onChange={(e) => setProvisionAmount(e.target.value)}
+                            placeholder="Montant en FCFA"
+                            className="flex-1 border border-[#F5F0E8] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                          />
+                          <button
+                            onClick={() => handleCreditProvision(p.uid)}
+                            disabled={provisionSaving}
+                            className="px-4 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg disabled:opacity-60 hover:bg-emerald-700 transition-colors">
+                            {provisionSaving ? '...' : '✅'}
+                          </button>
+                          <button
+                            onClick={() => { setProvisionPartnerId(null); setProvisionAmount('') }}
+                            className="px-3 py-1.5 bg-[#F5F0E8] text-[#1A1A1A]/60 text-xs rounded-lg">
+                            ✕
+                          </button>
+                        </div>
+                        {provisionAmount && Number(provisionAmount) > 0 && (
+                          <p className="text-xs text-emerald-600 mt-2 font-medium">
+                            → Nouveau solde estimé : {formatFCFA(((p as PrescripteurPartenaire & { solde_provision?: number }).solde_provision ?? 0) + Number(provisionAmount))}
                           </p>
                         )}
                       </div>

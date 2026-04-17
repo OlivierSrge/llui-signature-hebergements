@@ -1,9 +1,9 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-16 — Admin carrousel + paramètres Premium + photo dashboard (commit 3329db6)
+Dernière mise à jour : 2026-04-17 — Moteur de fidélité L&Lui Stars complet (loyaltyEngine, OTP, transactions, ElectronicPass, confirm-transaction API)
 
 ---
 
-## ROADMAP — MISSION ÉCOSYSTÈME (2026-04-16) ✅ QUASI COMPLET
+## ROADMAP — MISSION ÉCOSYSTÈME (2026-04-17) ✅ COMPLET
 
 ### 1. Gestion Code Session (Double Inscription)
 - [ ] Code 6 chiffres maintenu dans `codes_sessions` Firestore ET col G Google Sheets
@@ -19,12 +19,14 @@ Dernière mise à jour : 2026-04-16 — Admin carrousel + paramètres Premium + 
 - [x] `onEditCommandes` surveille 4 colonnes : G (auto-liaison) + C (mémoire tel) + D (mémoire email) + L (webhook statut)
 
 ### 3. Dashboard Partenaire (Frontend)
-- [x] **Onglet "Ma Vitrine"** — Free/Premium, carrousel interactif avec aperçu, 5 slots d'images, image enseigne
+- [x] **Onglet "Ma Vitrine"** — Free/Premium, carrousel interactif avec aperçu, slots dynamiques (`premium_nb_images`), image enseigne
 - [x] **Carrousel avec navigation** — flèches, indicateurs (points), transitions fluides, format mobile
-- [x] **Bouton "Actualiser mes statistiques"** — Server Action `actualiserStatsPartenaire`, recalcul depuis commissions_canal2, mise à jour locale immédiate, spinner + toast
-- [x] **Onglet "Forfait"** — statut actif/expiré, jours restants, dates début/expiration, alerte < 30 jours, lien WhatsApp renouvellement + upgrade Premium
-- [x] **Photo partenaire dans l'entête** — avatar 56px, fallback 🏨, chargé depuis `photoUrl` Firestore (commit d584d99)
-- [x] **Codes expirés masqués** — filtre client `expire_at > Date.now()` (commit 1c09991)
+- [x] **Durée affichage carrousel paramétrable** — boutons présélection (3/5/6/8/10/15s) + slider 3-30s, sauvegardé dans `carousel_interval_sec`
+- [x] **Bouton "Actualiser mes statistiques"** — Server Action `actualiserStatsPartenaire`, recalcul depuis commissions_canal2
+- [x] **Onglet "Forfait"** — prix réels depuis paramètres plateforme, statut actif/expiré, dates, alerte < 30 jours, upgrade Premium avec prix réels
+- [x] **Photo partenaire dans l'entête** — avatar 56px, fallback 🏨, chargé depuis `photoUrl` Firestore
+- [x] **Codes expirés masqués** — filtre client `expire_at > Date.now()`
+- [x] **Expiration Premium affichée** — date et jours restants dans l'onglet Forfait, alerte si ≤ 30 jours
 
 ### 4. Dashboard Admin (Backend)
 - [x] **Toggle Free/Premium** — bouton dans la liste partenaires, mise à jour Firestore instantanée
@@ -33,17 +35,52 @@ Dernière mise à jour : 2026-04-16 — Admin carrousel + paramètres Premium + 
 - [x] **Route `/api/admin/merge-duplicates`** — fusion doublons, réassignation sessions + commissions, nettoyage orphelins
 - [x] **Route `/api/admin/sync-affiliates` réécrite en UPSERT** — plus de doublons, ne jamais écraser subscriptionLevel/carouselImages/defaultImage
 - [x] **Upload photo partenaire** — bouton 📷, Firebase Storage `partenaires-prescripteurs/`, server action `setPhotoUrlAdmin`
-- [x] **Gestion carrousel admin** — bouton 🎠, panel 5 slots (upload 📁 ou URL), Firebase Storage `partenaires-prescripteurs/carousel/`, server action `setCarouselImagesAdmin` (commit 3329db6)
+- [x] **Gestion carrousel admin** — bouton 🎠, panel N slots dynamiques (upload 📁 ou URL), Firebase Storage `partenaires-prescripteurs/carousel/`, server action `setCarouselImagesAdmin`
 - [x] **Date expiration abonnement** — visible dans la liste "⭐ Premium jusqu'au JJ/MM/AAAA"
+- [x] **Renommer partenaire inline** — bouton ✏️ dans la fiche, input avec Enter/Escape, server action `renommerPrescripteurPartenaire`
+- [x] **Prolonger forfait partenaire** — bouton 📅, panel avec +30j/+90j/+1an + saisie date libre, server action `prolongerForfaitPartenaire`
 
-### 5. Paramètres Globaux Premium (`/admin/parametres`)
-- [x] **Section "⭐ Abonnement Premium Vitrine"** — prix mensuel/annuel, nb images autorisées, durée abonnement (commit 3329db6)
-- [x] **Champs Firestore** : `premium_prix_mensuel_fcfa`, `premium_prix_annuel_fcfa`, `premium_nb_images`, `premium_duree_jours`
+### 5. Paramètres Globaux Premium (`/admin/parametres`) — CÂBLÉ
+- [x] **Section "⭐ Abonnement Premium Vitrine"** — prix mensuel/annuel, nb images autorisées, durée abonnement
+- [x] **Champs Firestore** : `premium_prix_mensuel_fcfa`, `premium_prix_annuel_fcfa`, `premium_nb_images`, `premium_duree_jours`, `forfait_prescripteur_mensuel_fcfa`, `forfait_prescripteur_annuel_fcfa`
+- [x] **`updateVitrine`** — lit `params.premium_nb_images` pour limiter les images au lieu de hardcoder 5
+- [x] **`setSubscriptionLevel`** — calcule `premium_expire_at = now + params.premium_duree_jours * 86400s` au passage en Premium
+- [x] **`setCarouselImagesAdmin`** — utilise `premium_nb_images` + écrit `premium_expire_at` et `premium_activated_at`
+- [x] **Dashboard partenaire `ForfaitTab`** — prix forfait mensuel/annuel et Premium mensuel/annuel depuis Firestore
+- [x] **Dashboard partenaire `VitrineTab`** — slots = `premium_nb_images`, prix dans CTA "Passez Premium"
+- [x] **Admin `AdminCanalDeuxClient`** — `nbImages` dynamique pour les slots carrousel admin
 
-### 6. Logs & Fiabilité
-- [ ] `Promise.all` sur toutes les requêtes indépendantes → réponse < 200ms
+### 6. Page Client `/sejour/[code]`
+- [x] **Carrousel affiché** — correction triple : React hooks avant returns conditionnels, `subscriptionLevel: 'premium'` écrit au save, `getCodeSession` enrichit avec images depuis la fiche partenaire
+- [x] **`nom_partenaire` toujours à jour** — `getCodeSession` écrase la valeur gelée par le `nom_etablissement` courant du partenaire
+- [x] **Images native `<img>`** — plus de `next/image` (incompatibilité mobile Android), `paddingBottom: 56.25%` pour ratio 16:9
+- [x] **Texte boutique** — "Votre code promo partenaires L&Lui Signature à Kribi : {code}"
+- [x] **Label code** — "Bon séjour avec votre code promo" (anciennement "VOTRE CODE SÉJOUR")
+- [x] **Timing carrousel paramétrable** — `carousel_interval_sec` depuis Firestore, défaut 6s, `CAROUSEL_INTERVAL_DEFAULT_MS = 6000`
+
+### 7. Logs & Fiabilité
+- [x] **`Promise.all`** sur requêtes Firestore indépendantes (dashboard partenaire + admin)
+- [x] **`[Fidelite]` prefix** dans `actions/stars.ts` et `app/api/confirm-transaction/route.ts`
+- [ ] Logs structurés systématiques : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
+
+### 8. Moteur de Fidélité L&Lui Stars ✅ COMPLET
+- [x] **`lib/loyaltyEngine.ts`** — fonctions pures : `getMembershipStatus`, `getNiveauPass`, `getRemisePct`, `getMultiplier`, `calculateStars`, `calculateRemiseAmount`, `canUseTransaction` + labels, gradients, icônes par palier
+- [x] **`lib/loyaltyEngine.test.ts`** — tests Jest sur toutes les fonctions (boundaries 24999/25000/74999/75000/149999/150000)
+- [x] **`actions/stars.ts`** — `requestOtp` (OTP WhatsApp 10 min), `verifyOtpAndLinkClient`, `getClientFidelite`, `getPendingTransaction`, `processPartnerTransaction` (vérifie provision, crée pending tx, envoie lien WhatsApp)
+- [x] **`actions/parametres.ts`** — 13 champs `fidelite_*` ajoutés à `ParametresPlateforme` avec valeurs par défaut
+- [x] **`app/api/confirm-transaction/route.ts`** — GET ?token=, `db.runTransaction` atomique : +stars client, -provision partenaire, `confirmation_token: FieldValue.delete()`, page HTML styled en réponse
+- [x] **`components/ElectronicPass.tsx`** — pass card luxe (gradient argent/or/platine), `AnimatedCounter` RAF, barre validité, transaction pending panel, progression vers prochain palier, bouton renvoi OTP
+- [x] **`app/admin/parametres/ParametresClient.tsx`** — section "⭐ Moteur de fidélité L&Lui Stars" : 4 seuils, 3 remises, 3 multiplicateurs, valeur star, durée pass, textarea template OTP, aperçu achat 5000 FCFA Pass Or
+- [x] **`app/sejour/[code]/SejourClient.tsx`** — section Stars en bas de l'écran actif : étape 1 (téléphone), étape 2 (OTP), étape 3 (ElectronicPass). Popup événements supprimée.
+- [x] **`app/sejour/[code]/page.tsx`** — `Promise.all` incluant `getParametresPlateforme`, passage `plateformeParams` à `SejourClient`
 
 ---
+
+## COMMITS 2026-04-17
+
+| Commit | Description |
+|---|---|
+| *(en cours)* | Câblage paramètres plateforme → dashboards partenaire + admin + moteur Stars complet |
 
 ## COMMITS 2026-04-16
 
@@ -54,6 +91,24 @@ Dernière mise à jour : 2026-04-16 — Admin carrousel + paramètres Premium + 
 | `d584d99` | Photo partenaire dans l'entête dashboard |
 | `1c09991` | Masquer codes expirés du dashboard |
 | `3329db6` | Admin carrousel 🎠 + paramètres Premium vitrine |
+| `1beb806` | Fix texte page client + label code séjour |
+
+---
+
+## CORRECTIFS CARROUSEL (2026-04-17) ✅
+
+### Problèmes résolus
+1. **React Rules of Hooks** — `useState(0)` et `useEffect` carrousel déclarés après des `return` conditionnels dans `SejourClient.tsx`. Au changement d'état, le nombre de hooks changeait → crash React. Fix : tous les hooks déplacés en tête de composant avant tout `return` conditionnel.
+2. **`subscriptionLevel` jamais écrit en Premium** — `setCarouselImagesAdmin` sauvegardait les images mais n'écrivait pas `subscriptionLevel: 'premium'`. Fix : ajout de l'écriture + suppression de la condition `subscriptionLevel === 'premium'` pour l'affichage (on affiche si `slides.length > 0`).
+3. **Images non chargées** — `getCodeSession` lisait la session Firestore mais ne récupérait pas les images depuis la fiche partenaire. Fix : enrichissement live depuis `prescripteurs_partenaires/{id}` après la lecture session.
+4. **`nom_partenaire` figé** — valeur gelée lors de la génération du code. Fix : `getCodeSession` écrase avec `nom_etablissement` courant du partenaire.
+
+### Routes de diagnostic créées
+| Route | Usage |
+|---|---|
+| `GET /api/admin/debug-session?code=X&key=ADMIN_API_KEY` | Inspecte session + partenaire + diagnostic affichage |
+| `GET /api/admin/fix-subscription-levels?key=ADMIN_API_KEY` | Migration : pose `subscriptionLevel: 'premium'` si `carouselImages.length > 0` |
+| `POST /api/admin/fix-code-session-links` (Bearer) | Répare `prescripteur_partenaire_id` + complète docs incomplets |
 
 ---
 

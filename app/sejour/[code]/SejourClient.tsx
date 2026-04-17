@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import type { CodeSession } from '@/actions/codes-sessions'
+import type { ParametresPlateforme } from '@/actions/parametres'
+import type { ClientFidelite, TransactionFidelite } from '@/actions/stars'
+import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction } from '@/actions/stars'
+import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
-import PopupEvenements from '@/components/PopupEvenements'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -12,7 +15,12 @@ const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-s
 /** Durée d'affichage par défaut si le partenaire n'a pas configuré la sienne (ms). */
 const CAROUSEL_INTERVAL_DEFAULT_MS = 6000
 
-interface Props { session: CodeSession }
+interface Props {
+  session: CodeSession
+  plateformeParams: ParametresPlateforme
+}
+
+type LoyaltyStep = 'idle' | 'phone' | 'otp_sent' | 'verified'
 
 function formatCode(code: string) {
   return code.slice(0, 3) + ' ' + code.slice(3)
@@ -24,13 +32,22 @@ function getBarreColor(heures: number) {
   return 'bg-red-500'
 }
 
-export default function SejourClient({ session }: Props) {
+export default function SejourClient({ session, plateformeParams }: Props) {
   const expireAt = new Date(session.expire_at)
   const [maintenant, setMaintenant] = useState(new Date())
 
   // ── Tous les hooks ici, avant tout return conditionnel ──────────
   const slides = session.carouselImages?.filter(Boolean) ?? []
   const [slideIdx, setSlideIdx] = useState(0)
+
+  // ── Stars — programme de fidélité ───────────────────────────────
+  const [loyaltyStep, setLoyaltyStep] = useState<LoyaltyStep>('idle')
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
+  const [loyaltyError, setLoyaltyError] = useState('')
+  const [clientData, setClientData] = useState<ClientFidelite | null>(null)
+  const [pendingTx, setPendingTx] = useState<TransactionFidelite | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -114,6 +131,38 @@ export default function SejourClient({ session }: Props) {
     )
   }
 
+  // ── Handlers Stars ─────────────────────────────────────────────
+
+  async function handleSendOtp() {
+    if (!phone.trim()) return
+    setLoyaltyLoading(true)
+    setLoyaltyError('')
+    const res = await requestOtp(phone.trim(), session.code)
+    setLoyaltyLoading(false)
+    if (res.success) {
+      setLoyaltyStep('otp_sent')
+    } else {
+      setLoyaltyError(res.error ?? 'Erreur lors de l\'envoi')
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!otp.trim()) return
+    setLoyaltyLoading(true)
+    setLoyaltyError('')
+    const res = await verifyOtpAndLinkClient(phone.trim(), otp.trim(), session.code)
+    setLoyaltyLoading(false)
+    if (res.success && res.client) {
+      setClientData(res.client)
+      setLoyaltyStep('verified')
+      // Charger transaction pending éventuelle
+      const tx = await getPendingTransaction(session.code)
+      setPendingTx(tx)
+    } else {
+      setLoyaltyError(res.error ?? 'Code incorrect')
+    }
+  }
+
   // Écran — code actif
   const prioriteBoutique = session.redirection_prioritaire === 'boutique'
   const estHotelOuResidence = session.type_partenaire === 'hotel' || session.type_partenaire === 'residence'
@@ -142,8 +191,7 @@ export default function SejourClient({ session }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] px-4 py-8">
-      <PopupEvenements nomPartenaire={session.nom_partenaire} />
-      <div className="max-w-sm mx-auto space-y-4">
+<div className="max-w-sm mx-auto space-y-4">
         {/* Entête */}
         <div className="text-center">
           <p className="text-xs font-medium text-[#C9A84C] uppercase tracking-widest mb-1">L&Lui Signature ✨</p>
@@ -262,7 +310,6 @@ export default function SejourClient({ session }: Props) {
           <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-3">Que souhaitez-vous faire ?</p>
           <div className="space-y-3">
             {estHotelOuResidence ? (
-              // Hôtel/résidence : boutique uniquement
               <BoutonBoutique prioritaire={true} />
             ) : prioriteBoutique ? (
               <>
@@ -277,6 +324,91 @@ export default function SejourClient({ session }: Props) {
             )}
           </div>
         </div>
+
+        {/* ── L&Lui Stars — Programme de fidélité ──────────────── */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">⭐</span>
+            <div>
+              <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
+              <p className="text-xs text-[#1A1A1A]/50">Gagnez des points à chaque achat</p>
+            </div>
+          </div>
+
+          {/* Étape 1 — Saisie téléphone */}
+          {loyaltyStep === 'idle' && (
+            <div className="space-y-3">
+              <p className="text-xs text-[#1A1A1A]/60">
+                Entrez votre numéro WhatsApp pour rejoindre le programme Stars et cumuler des avantages.
+              </p>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleSendOtp()}
+                placeholder="Ex : 6 XX XX XX XX"
+                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+              />
+              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
+              <button
+                onClick={handleSendOtp}
+                disabled={loyaltyLoading || !phone.trim()}
+                className="w-full py-2.5 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#333] transition-colors"
+              >
+                {loyaltyLoading ? 'Envoi...' : '📱 Recevoir mon code par WhatsApp'}
+              </button>
+            </div>
+          )}
+
+          {/* Étape 2 — Saisie OTP */}
+          {loyaltyStep === 'otp_sent' && (
+            <div className="space-y-3">
+              <p className="text-xs text-[#1A1A1A]/60">
+                Un code à 6 chiffres a été envoyé au <strong>{phone}</strong> via WhatsApp. Entrez-le ci-dessous.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleVerifyOtp()}
+                placeholder="_ _ _ _ _ _"
+                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-center text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#C9A84C]"
+              />
+              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
+              <button
+                onClick={handleVerifyOtp}
+                disabled={loyaltyLoading || otp.length < 6}
+                className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+              >
+                {loyaltyLoading ? 'Vérification...' : '✅ Confirmer mon code'}
+              </button>
+              <button
+                onClick={() => { setLoyaltyStep('idle'); setOtp(''); setLoyaltyError('') }}
+                className="w-full py-2 text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
+              >
+                Modifier le numéro
+              </button>
+            </div>
+          )}
+
+          {/* Étape 3 — Pass affiché */}
+          {loyaltyStep === 'verified' && clientData && (
+            <ElectronicPass
+              client={clientData}
+              params={plateformeParams}
+              pendingTx={pendingTx}
+              avantages={session.avantages_hors_stars}
+              onResendOtp={() => {
+                setLoyaltyStep('idle')
+                setOtp('')
+                setLoyaltyError('')
+              }}
+            />
+          )}
+        </div>
+
       </div>
     </div>
   )

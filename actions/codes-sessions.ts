@@ -55,6 +55,12 @@ export interface PrescripteurPartenaire {
   defaultImage?: string         // image enseigne (Free + Premium)
   photoUrl?: string             // logo/photo profil
   carousel_interval_sec?: number // durée d'affichage par image (défaut 6s)
+  premium_expire_at?: string     // expiration abonnement Premium (ISO)
+  premium_activated_at?: string  // date d'activation Premium (ISO)
+  // Stars fidélité
+  solde_provision?: number       // provision Stars disponible (FCFA)
+  total_ca_stars_fcfa?: number   // CA total encaissé via Stars
+  avantages_hors_stars?: string  // texte libre : petits plus de l'établissement
 }
 
 export interface CodeSession {
@@ -84,6 +90,9 @@ export interface CodeSession {
   carouselImages?: string[]
   subscriptionLevel?: 'free' | 'premium'
   carousel_interval_sec?: number
+  // Stars fidélité (live depuis prescripteurs_partenaires)
+  client_id?: string             // téléphone lié après OTP
+  avantages_hors_stars?: string  // petits plus de l'établissement
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -288,6 +297,7 @@ export async function getCodeSession(code: string): Promise<CodeSession | null> 
         session.carouselImages = (p.carouselImages as string[] | undefined)?.filter(Boolean) ?? undefined
         session.subscriptionLevel = p.subscriptionLevel ?? 'free'
         session.carousel_interval_sec = typeof p.carousel_interval_sec === 'number' ? p.carousel_interval_sec : 6
+        session.avantages_hors_stars = typeof p.avantages_hors_stars === 'string' ? p.avantages_hors_stars : undefined
       } else {
         console.warn(`[getCodeSession] ⚠️ partenaire "${session.prescripteur_partenaire_id}" introuvable dans Firestore`)
       }
@@ -620,16 +630,17 @@ export async function updateVitrine(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!id) return { success: false, error: 'ID requis' }
+    const params = await getParametresPlateforme()
+    const maxImages = params.premium_nb_images ?? 5
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (data.defaultImage !== undefined) update.defaultImage = data.defaultImage.trim()
     if (data.carouselImages !== undefined) {
       update.carouselImages = data.carouselImages
         .map((u) => u.trim())
         .filter((u) => u.length > 0)
-        .slice(0, 5)
+        .slice(0, maxImages)
     }
     if (data.carousel_interval_sec !== undefined) {
-      // Clamp entre 3 et 30 secondes
       update.carousel_interval_sec = Math.max(3, Math.min(30, Math.round(data.carousel_interval_sec)))
     }
     await db.collection('prescripteurs_partenaires').doc(id).update(update)
@@ -647,10 +658,20 @@ export async function setSubscriptionLevel(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!id) return { success: false, error: 'ID requis' }
-    await db.collection('prescripteurs_partenaires').doc(id).update({
+    const update: Record<string, unknown> = {
       subscriptionLevel: level,
       updated_at: new Date().toISOString(),
-    })
+    }
+    // Activation Premium → calculer premium_expire_at depuis les paramètres globaux
+    if (level === 'premium') {
+      const params = await getParametresPlateforme()
+      const dureeJours = params.premium_duree_jours ?? 365
+      update.premium_expire_at = new Date(Date.now() + dureeJours * 24 * 3600 * 1000).toISOString()
+      update.premium_activated_at = new Date().toISOString()
+    } else {
+      update.premium_expire_at = null
+    }
+    await db.collection('prescripteurs_partenaires').doc(id).update(update)
     revalidatePath('/admin/prescripteurs-partenaires')
     revalidatePath(`/partenaire-prescripteur/${id}`)
     return { success: true }
@@ -723,21 +744,29 @@ export async function actualiserStatsPartenaire(
   }
 }
 
-/** Admin définit les images du carrousel d'un partenaire (max 5) */
+/** Admin définit les images du carrousel d'un partenaire */
 export async function setCarouselImagesAdmin(
   id: string,
   images: string[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!id) return { success: false, error: 'ID requis' }
-    const cleaned = images.map((u) => u.trim()).filter((u) => u.length > 0).slice(0, 5)
-    // Si des images sont présentes → Premium. Sinon → Free.
+    const params = await getParametresPlateforme()
+    const maxImages = params.premium_nb_images ?? 5
+    const cleaned = images.map((u) => u.trim()).filter((u) => u.length > 0).slice(0, maxImages)
+    // Images présentes → Premium avec expiration. Sinon → Free.
     const subscriptionLevel = cleaned.length > 0 ? 'premium' : 'free'
-    await db.collection('prescripteurs_partenaires').doc(id).update({
+    const update: Record<string, unknown> = {
       carouselImages: cleaned,
       subscriptionLevel,
       updated_at: new Date().toISOString(),
-    })
+    }
+    if (cleaned.length > 0) {
+      const dureeJours = params.premium_duree_jours ?? 365
+      update.premium_expire_at = new Date(Date.now() + dureeJours * 24 * 3600 * 1000).toISOString()
+      update.premium_activated_at = new Date().toISOString()
+    }
+    await db.collection('prescripteurs_partenaires').doc(id).update(update)
     revalidatePath('/admin/prescripteurs-partenaires')
     revalidatePath(`/partenaire-prescripteur/${id}`)
     return { success: true }

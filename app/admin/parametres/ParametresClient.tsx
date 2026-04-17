@@ -34,7 +34,21 @@ export default function ParametresClient({ params, historique }: Props) {
     commission_commerciaux_pct: params.commission_commerciaux_pct,
     partage_llui_pct: params.partage_llui_pct,
     partage_commercial_pct: params.partage_commercial_pct,
+    // Fidélité Stars
+    fidelite_duree_pass_jours: params.fidelite_duree_pass_jours ?? 365,
+    fidelite_remise_argent_pct: params.fidelite_remise_argent_pct ?? 5,
+    fidelite_remise_or_pct: params.fidelite_remise_or_pct ?? 10,
+    fidelite_remise_platine_pct: params.fidelite_remise_platine_pct ?? 20,
+    fidelite_multiplicateur_argent: params.fidelite_multiplicateur_argent ?? 1.0,
+    fidelite_multiplicateur_or: params.fidelite_multiplicateur_or ?? 1.5,
+    fidelite_multiplicateur_platine: params.fidelite_multiplicateur_platine ?? 2.0,
+    fidelite_seuil_novice: params.fidelite_seuil_novice ?? 0,
+    fidelite_seuil_explorateur: params.fidelite_seuil_explorateur ?? 25000,
+    fidelite_seuil_ambassadeur: params.fidelite_seuil_ambassadeur ?? 75000,
+    fidelite_seuil_excellence: params.fidelite_seuil_excellence ?? 150000,
+    fidelite_valeur_star_fcfa: params.fidelite_valeur_star_fcfa ?? 1,
   })
+  const [otpTemplate, setOtpTemplate] = useState(params.fidelite_otp_template ?? '')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
 
@@ -65,7 +79,7 @@ export default function ParametresClient({ params, historique }: Props) {
     if (errs.length > 0) { setErrors(errs); return }
     setErrors([])
     setSaving(true)
-    const res = await updateParametresPlateforme(form)
+    const res = await updateParametresPlateforme({ ...form, fidelite_otp_template: otpTemplate })
     setSaving(false)
     if (res.success) toast.success('✅ Paramètres enregistrés avec succès')
     else toast.error(res.error ?? 'Erreur lors de la sauvegarde')
@@ -201,6 +215,97 @@ export default function ParametresClient({ params, historique }: Props) {
           `→ L&Lui reçoit     : ${formatFCFA(APERCU * form.commission_commerciaux_pct / 100 * form.partage_llui_pct / 100)}`,
           `→ Commercial reçoit: ${formatFCFA(APERCU * form.commission_commerciaux_pct / 100 * form.partage_commercial_pct / 100)}`,
         ]} />
+      </Section>
+
+      {/* ─── Moteur de fidélité L&Lui Stars ─── */}
+      <Section title="⭐ Moteur de fidélité L&Lui Stars">
+        <p className="text-xs text-[#1A1A1A]/50 -mt-1 mb-4">
+          Programme de points pour les clients des partenaires prescripteurs Canal 2.
+        </p>
+
+        {/* Statuts — Seuils */}
+        <p className="text-xs font-semibold text-[#1A1A1A]/60 uppercase tracking-widest mb-2">Seuils de statut (stars cumulées à vie)</p>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {([
+            ['Novice (départ)', 'fidelite_seuil_novice'],
+            ['Explorateur', 'fidelite_seuil_explorateur'],
+            ['Ambassadeur', 'fidelite_seuil_ambassadeur'],
+            ['Excellence', 'fidelite_seuil_excellence'],
+          ] as [string, keyof typeof form][]).map(([label, key]) => (
+            <div key={key}>
+              <p className="text-xs text-[#1A1A1A]/60 mb-1">{label}</p>
+              <Input value={form[key]} onChange={(v) => set(key, v)} suffix="stars" />
+            </div>
+          ))}
+        </div>
+
+        {/* Remises */}
+        <p className="text-xs font-semibold text-[#1A1A1A]/60 uppercase tracking-widest mb-2">Remises boutique par niveau</p>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {([
+            ['Pass Argent', 'fidelite_remise_argent_pct'],
+            ['Pass Or', 'fidelite_remise_or_pct'],
+            ['Pass Platine', 'fidelite_remise_platine_pct'],
+          ] as [string, keyof typeof form][]).map(([label, key]) => (
+            <div key={key}>
+              <p className="text-xs text-[#1A1A1A]/60 mb-1">{label}</p>
+              <Input value={form[key]} onChange={(v) => set(key, v)} suffix="%" />
+            </div>
+          ))}
+        </div>
+
+        {/* Multiplicateurs */}
+        <p className="text-xs font-semibold text-[#1A1A1A]/60 uppercase tracking-widest mb-2">Multiplicateurs de stars</p>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {([
+            ['Argent', 'fidelite_multiplicateur_argent'],
+            ['Or', 'fidelite_multiplicateur_or'],
+            ['Platine', 'fidelite_multiplicateur_platine'],
+          ] as [string, keyof typeof form][]).map(([label, key]) => (
+            <div key={key}>
+              <p className="text-xs text-[#1A1A1A]/60 mb-1">{label}</p>
+              <Input value={form[key]} onChange={(v) => set(key, v)} suffix="×" />
+            </div>
+          ))}
+        </div>
+
+        {/* Valeur star + durée pass */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <Label>Valeur d&apos;1 star (provision partenaire)</Label>
+            <InputRow>
+              <Input value={form.fidelite_valeur_star_fcfa} onChange={(v) => set('fidelite_valeur_star_fcfa', v)} suffix="FCFA/star" />
+            </InputRow>
+          </div>
+          <div>
+            <Label>Durée de validité du pass</Label>
+            <InputRow>
+              <Input value={form.fidelite_duree_pass_jours} onChange={(v) => set('fidelite_duree_pass_jours', v)} suffix="jours" />
+            </InputRow>
+          </div>
+        </div>
+
+        {/* Aperçu calcul */}
+        <Apercu label="Aperçu — achat 5 000 FCFA (Pass Or)" lines={[
+          `Remise : -${formatFCFA(5000 * form.fidelite_remise_or_pct / 100)} (${form.fidelite_remise_or_pct}%)`,
+          `Montant net : ${formatFCFA(5000 - 5000 * form.fidelite_remise_or_pct / 100)}`,
+          `Stars : ${Math.round((5000 * (1 - form.fidelite_remise_or_pct / 100) / 100) * form.fidelite_multiplicateur_or)} ⭐ (${form.fidelite_multiplicateur_or}×)`,
+        ]} />
+
+        {/* Template OTP */}
+        <div className="mt-4">
+          <Label>Template message OTP WhatsApp</Label>
+          <p className="text-[10px] text-[#1A1A1A]/40 mb-2">
+            Placeholders : <code>{'{otp}'}</code> (code), <code>{'{minutes}'}</code> (durée validité). Laisser vide pour utiliser le message par défaut.
+          </p>
+          <textarea
+            value={otpTemplate}
+            onChange={(e) => setOtpTemplate(e.target.value)}
+            rows={4}
+            placeholder="🔐 Votre code L&Lui Stars : {otp} — Valide {minutes} minutes."
+            className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2 text-xs text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30 resize-none"
+          />
+        </div>
       </Section>
 
       {/* Erreurs */}

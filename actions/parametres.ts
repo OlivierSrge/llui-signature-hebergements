@@ -31,6 +31,21 @@ export interface ParametresPlateforme {
   partage_llui_pct: number
   partage_commercial_pct: number
 
+  // Moteur de fidélité L&Lui Stars
+  fidelite_duree_pass_jours: number       // durée de validité du pass (défaut 365)
+  fidelite_remise_argent_pct: number      // remise boutique Pass Argent (défaut 5%)
+  fidelite_remise_or_pct: number          // remise boutique Pass Or (défaut 10%)
+  fidelite_remise_platine_pct: number     // remise boutique Pass Platine (défaut 20%)
+  fidelite_multiplicateur_argent: number  // multiplicateur stars Argent (défaut 1.0)
+  fidelite_multiplicateur_or: number      // multiplicateur stars Or (défaut 1.5)
+  fidelite_multiplicateur_platine: number // multiplicateur stars Platine (défaut 2.0)
+  fidelite_seuil_novice: number           // seuil stars Novice (défaut 0)
+  fidelite_seuil_explorateur: number      // seuil stars Explorateur (défaut 25 000)
+  fidelite_seuil_ambassadeur: number      // seuil stars Ambassadeur (défaut 75 000)
+  fidelite_seuil_excellence: number       // seuil stars Excellence (défaut 150 000)
+  fidelite_valeur_star_fcfa: number       // valeur d'1 star en FCFA (provision partenaire)
+  fidelite_otp_template: string           // template message OTP WhatsApp
+
   // Métadonnées
   modifie_par?: string
   modifie_at?: string
@@ -50,6 +65,20 @@ const DEFAULTS: ParametresPlateforme = {
   commission_commerciaux_pct: 10,
   partage_llui_pct: 50,
   partage_commercial_pct: 50,
+  // Fidélité
+  fidelite_duree_pass_jours: 365,
+  fidelite_remise_argent_pct: 5,
+  fidelite_remise_or_pct: 10,
+  fidelite_remise_platine_pct: 20,
+  fidelite_multiplicateur_argent: 1.0,
+  fidelite_multiplicateur_or: 1.5,
+  fidelite_multiplicateur_platine: 2.0,
+  fidelite_seuil_novice: 0,
+  fidelite_seuil_explorateur: 25000,
+  fidelite_seuil_ambassadeur: 75000,
+  fidelite_seuil_excellence: 150000,
+  fidelite_valeur_star_fcfa: 1,
+  fidelite_otp_template: '',
 }
 
 /** Lit les paramètres. Si le document n'existe pas, le crée avec les valeurs par défaut. */
@@ -78,6 +107,20 @@ export async function getParametresPlateforme(): Promise<ParametresPlateforme> {
     commission_commerciaux_pct: d.commission_commerciaux_pct ?? DEFAULTS.commission_commerciaux_pct,
     partage_llui_pct: d.partage_llui_pct ?? DEFAULTS.partage_llui_pct,
     partage_commercial_pct: d.partage_commercial_pct ?? DEFAULTS.partage_commercial_pct,
+    // Fidélité
+    fidelite_duree_pass_jours: d.fidelite_duree_pass_jours ?? DEFAULTS.fidelite_duree_pass_jours,
+    fidelite_remise_argent_pct: d.fidelite_remise_argent_pct ?? DEFAULTS.fidelite_remise_argent_pct,
+    fidelite_remise_or_pct: d.fidelite_remise_or_pct ?? DEFAULTS.fidelite_remise_or_pct,
+    fidelite_remise_platine_pct: d.fidelite_remise_platine_pct ?? DEFAULTS.fidelite_remise_platine_pct,
+    fidelite_multiplicateur_argent: d.fidelite_multiplicateur_argent ?? DEFAULTS.fidelite_multiplicateur_argent,
+    fidelite_multiplicateur_or: d.fidelite_multiplicateur_or ?? DEFAULTS.fidelite_multiplicateur_or,
+    fidelite_multiplicateur_platine: d.fidelite_multiplicateur_platine ?? DEFAULTS.fidelite_multiplicateur_platine,
+    fidelite_seuil_novice: d.fidelite_seuil_novice ?? DEFAULTS.fidelite_seuil_novice,
+    fidelite_seuil_explorateur: d.fidelite_seuil_explorateur ?? DEFAULTS.fidelite_seuil_explorateur,
+    fidelite_seuil_ambassadeur: d.fidelite_seuil_ambassadeur ?? DEFAULTS.fidelite_seuil_ambassadeur,
+    fidelite_seuil_excellence: d.fidelite_seuil_excellence ?? DEFAULTS.fidelite_seuil_excellence,
+    fidelite_valeur_star_fcfa: d.fidelite_valeur_star_fcfa ?? DEFAULTS.fidelite_valeur_star_fcfa,
+    fidelite_otp_template: d.fidelite_otp_template ?? DEFAULTS.fidelite_otp_template,
     modifie_par: d.modifie_par,
     modifie_at: d.modifie_at,
     version: d.version,

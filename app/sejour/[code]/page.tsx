@@ -1,4 +1,5 @@
 import { getCodeSession } from '@/actions/codes-sessions'
+import { getParametresPlateforme } from '@/actions/parametres'
 import SejourClient from './SejourClient'
 import Link from 'next/link'
 
@@ -9,7 +10,10 @@ interface Props {
 }
 
 export default async function SejourPage({ params }: Props) {
-  const session = await getCodeSession(params.code)
+  const [session, plateformeParams] = await Promise.all([
+    getCodeSession(params.code),
+    getParametresPlateforme(),
+  ])
 
   if (!session) {
     return (
@@ -26,5 +30,5 @@ export default async function SejourPage({ params }: Props) {
     )
   }
 
-  return <SejourClient session={session} />
+  return <SejourClient session={session} plateformeParams={plateformeParams} />
 }

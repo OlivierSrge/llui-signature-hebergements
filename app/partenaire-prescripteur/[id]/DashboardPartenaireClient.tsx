@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { updateVitrine, actualiserStatsPartenaire } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
+import type { ParametresPlateforme } from '@/actions/parametres'
+import StarTerminal from '@/components/StarTerminal'
 
 function formatFCFA(n: number | undefined | null) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n ?? 0)) + ' FCFA'
@@ -61,11 +63,17 @@ interface Props {
   commissionsDues: number
   commissionsVersees: number
   ventesEnCours?: number
+  plateformeParams: ParametresPlateforme
+  starsStats?: {
+    totalCaStars: number
+    soldeProvision: number
+    clientsCount: number
+  }
 }
 
-export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0 }: Props) {
+export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0, plateformeParams, starsStats }: Props) {
   const [tick, setTick] = useState(0)
-  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars'>('stats')
   const [refreshing, setRefreshing] = useState(false)
   const [localStats, setLocalStats] = useState({
     total_ca_boutique_fcfa: partenaire.total_ca_boutique_fcfa ?? 0,
@@ -155,10 +163,10 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
       </div>
 
       {/* Navigation onglets */}
-      <div className="flex gap-1.5 bg-white rounded-2xl p-1.5 shadow-sm">
-        {([['stats', '📊 Stats'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
+      <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
+        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
+            className={`flex-1 min-w-[72px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
               activeTab === tab
                 ? 'bg-[#C9A84C] text-white'
                 : 'text-[#1A1A1A]/60 hover:text-[#1A1A1A]'
@@ -170,13 +178,75 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
 
       {/* ─── Onglet Vitrine ─────────────────────────────────── */}
       {activeTab === 'vitrine' && (
-        <VitrineTab partenaire={partenaire} />
+        <VitrineTab partenaire={partenaire} params={plateformeParams} />
       )}
 
       {/* ─── Onglet Forfait ──────────────────────────────────── */}
       {activeTab === 'forfait' && (
-        <ForfaitTab partenaire={partenaire} />
+        <ForfaitTab partenaire={partenaire} params={plateformeParams} />
       )}
+
+      {/* ─── Onglet Stars ───────────────────────────────────── */}
+      {activeTab === 'stars' && (() => {
+        const now = Date.now()
+        const firstCode = codesActifs.find((c) => {
+          const d = safeDate(c.expire_at)
+          return d !== null && d.getTime() > now
+        })
+        const codeSession = firstCode ? (firstCode.code as string) : null
+        const soldeProvision = starsStats?.soldeProvision ?? partenaire.solde_provision ?? 0
+
+        return (
+          <div className="space-y-4">
+
+            {/* Stats Stars */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#1A1A1A] mb-3">⭐ Programme L&Lui Stars</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[#F5F0E8]/60 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-[#C9A84C]">{starsStats?.clientsCount ?? 0}</p>
+                  <p className="text-xs text-[#1A1A1A]/60 mt-0.5">Clients fidélisés</p>
+                </div>
+                <div className="bg-[#F5F0E8]/60 rounded-xl p-3 text-center">
+                  <p className="text-lg font-bold text-[#C9A84C]">{formatFCFA(starsStats?.totalCaStars ?? partenaire.total_ca_stars_fcfa ?? 0)}</p>
+                  <p className="text-xs text-[#1A1A1A]/60 mt-0.5">CA Stars total</p>
+                </div>
+              </div>
+              <div className="mt-3 flex justify-between text-sm">
+                <span className="text-[#1A1A1A]/60">Provision disponible</span>
+                <span className={`font-bold ${soldeProvision > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {formatFCFA(soldeProvision)}
+                </span>
+              </div>
+            </div>
+
+            {/* Terminal d'encaissement */}
+            {codeSession ? (
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-lg">💳</span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Encaisser une transaction Stars</p>
+                    <p className="text-xs text-[#1A1A1A]/50">Code actif : {codeSession.slice(0, 3)} {codeSession.slice(3)}</p>
+                  </div>
+                </div>
+                <StarTerminal
+                  codeSession={codeSession}
+                  soldeProvision={soldeProvision}
+                  params={plateformeParams}
+                />
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+                <p className="text-2xl mb-2">⚠️</p>
+                <p className="text-sm font-semibold text-[#1A1A1A]">Aucun code actif</p>
+                <p className="text-xs text-[#1A1A1A]/50 mt-1">Générez un code depuis votre QR code pour encaisser des Stars.</p>
+              </div>
+            )}
+
+          </div>
+        )
+      })()}
 
       {/* ─── Onglet Stats ────────────────────────────────────── */}
       {activeTab === 'stats' && <>
@@ -345,11 +415,20 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
 
 // ─── Composant Forfait Tab ────────────────────────────────────
 
-function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
+function ForfaitTab({ partenaire, params }: { partenaire: PrescripteurPartenaire; params: ParametresPlateforme }) {
   const isPremium = partenaire.subscriptionLevel === 'premium'
   const forfaitJours = jours(partenaire.forfait_expire_at)
   const forfaitActif = partenaire.forfait_statut === 'actif'
   const expiresSoon = forfaitActif && forfaitJours <= 30
+
+  const forfaitMensuel = params.forfait_prescripteur_mensuel_fcfa ?? 25000
+  const forfaitAnnuel = params.forfait_prescripteur_annuel_fcfa ?? 250000
+  const premiumMensuel = params.premium_prix_mensuel_fcfa ?? 10000
+  const premiumAnnuel = params.premium_prix_annuel_fcfa ?? 100000
+  const nbImages = params.premium_nb_images ?? 5
+  const premiumExpireAt = partenaire.premium_expire_at
+  const premiumJours = premiumExpireAt ? jours(premiumExpireAt) : 0
+
   const msgRenew = encodeURIComponent(
     `Bonjour Olivier, je souhaite renouveler mon forfait L&Lui Signature pour ${partenaire.nom_etablissement}. Mon ID partenaire : ${partenaire.uid}`
   )
@@ -422,8 +501,18 @@ function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
       <div className="bg-white rounded-2xl p-5 shadow-sm">
         <p className="text-sm font-semibold text-[#1A1A1A] mb-1">🔄 Renouveler mon forfait</p>
         <p className="text-xs text-[#1A1A1A]/50 mb-3">
-          Forfait annuel — accès complet QR code, dashboard, commissions boutique
+          Accès complet QR code, dashboard et commissions boutique
         </p>
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1 bg-[#F5F0E8] rounded-xl p-3 text-center">
+            <p className="text-base font-bold text-[#C9A84C]">{formatFCFA(forfaitMensuel)}</p>
+            <p className="text-[10px] text-[#1A1A1A]/50 mt-0.5">/ mois</p>
+          </div>
+          <div className="flex-1 bg-[#C9A84C]/10 rounded-xl p-3 text-center border border-[#C9A84C]/30">
+            <p className="text-base font-bold text-[#C9A84C]">{formatFCFA(forfaitAnnuel)}</p>
+            <p className="text-[10px] text-[#1A1A1A]/50 mt-0.5">/ an — économisez 2 mois</p>
+          </div>
+        </div>
         <a
           href={`https://wa.me/237693407964?text=${msgRenew}`}
           target="_blank" rel="noreferrer"
@@ -445,16 +534,44 @@ function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
             </p>
             <p className={`text-xs mt-1 ${isPremium ? 'text-white/80' : 'text-[#1A1A1A]/50'}`}>
               {isPremium
-                ? '5 visuels publicitaires · Carrousel · Pleine visibilité'
+                ? `${nbImages} visuels publicitaires · Carrousel · Pleine visibilité`
                 : 'Image enseigne uniquement'}
             </p>
           </div>
           {isPremium && <span className="text-3xl">🏆</span>}
         </div>
+        {isPremium && premiumExpireAt && (
+          <div className="mt-3 space-y-1">
+            <div className="flex justify-between text-xs text-white/70">
+              <span>Abonnement Premium valide jusqu&apos;au</span>
+              <span className="font-semibold text-white">{formatLocalDate(premiumExpireAt)}</span>
+            </div>
+            <div className="flex justify-between text-xs text-white/70">
+              <span>Jours restants</span>
+              <span className={`font-semibold ${premiumJours <= 30 ? 'text-yellow-200' : 'text-white'}`}>
+                {premiumJours} jours{premiumJours <= 30 ? ' ⚠️' : ''}
+              </span>
+            </div>
+          </div>
+        )}
         {!isPremium && (
           <div className="mt-4">
+            <div className="flex gap-2 mb-3">
+              <div className="flex-1 bg-[#F5F0E8] rounded-xl p-2.5 text-center">
+                <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(premiumMensuel)}</p>
+                <p className="text-[10px] text-[#1A1A1A]/50 mt-0.5">/ mois</p>
+              </div>
+              <div className="flex-1 bg-[#C9A84C]/10 border border-[#C9A84C]/30 rounded-xl p-2.5 text-center">
+                <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(premiumAnnuel)}</p>
+                <p className="text-[10px] text-[#1A1A1A]/50 mt-0.5">/ an</p>
+              </div>
+            </div>
             <ul className="space-y-1 mb-3">
-              {['5 visuels publicitaires en carrousel', 'Plats du jour, promos, événements', 'Visible par tous vos clients L&Lui'].map((item) => (
+              {[
+                `${nbImages} visuels publicitaires en carrousel`,
+                'Plats du jour, promos, événements',
+                'Visible par tous vos clients L&Lui',
+              ].map((item) => (
                 <li key={item} className="text-xs text-[#1A1A1A]/60 flex items-start gap-2">
                   <span className="text-[#C9A84C]">✓</span> {item}
                 </li>
@@ -479,12 +596,15 @@ function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
 
 const INTERVAL_PRESETS = [3, 5, 6, 8, 10, 15]
 
-function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
+function VitrineTab({ partenaire, params }: { partenaire: PrescripteurPartenaire; params: ParametresPlateforme }) {
   const isPremium = partenaire.subscriptionLevel === 'premium'
+  const nbImages = params.premium_nb_images ?? 5
+  const premiumMensuel = params.premium_prix_mensuel_fcfa ?? 10000
+  const premiumAnnuel = params.premium_prix_annuel_fcfa ?? 100000
   const [defaultImage, setDefaultImage] = useState(partenaire.defaultImage ?? '')
   const [slots, setSlots] = useState<string[]>(() => {
     const imgs = partenaire.carouselImages ?? []
-    return [...imgs, '', '', '', '', ''].slice(0, 5)
+    return [...imgs, ...Array(nbImages).fill('')].slice(0, nbImages)
   })
   const [intervalSec, setIntervalSec] = useState<number>(partenaire.carousel_interval_sec ?? 6)
   const [saving, setSaving] = useState(false)
@@ -522,7 +642,7 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
             </p>
             <p className={`text-xs mt-1 ${isPremium ? 'text-white/80' : 'text-[#1A1A1A]/50'}`}>
               {isPremium
-                ? '5 visuels publicitaires · Transitions fluides · Pleine visibilité'
+                ? `${nbImages} visuels publicitaires · Transitions fluides · Pleine visibilité`
                 : 'Image enseigne uniquement · Passez Premium pour diffuser vos pubs'}
             </p>
           </div>
@@ -595,7 +715,7 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
       {isPremium && (
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <p className="text-sm font-semibold text-[#1A1A1A] mb-1">🖼️ Mes visuels publicitaires</p>
-          <p className="text-xs text-[#1A1A1A]/50 mb-4">5 emplacements · Plats du jour, promotions, événements</p>
+          <p className="text-xs text-[#1A1A1A]/50 mb-4">{nbImages} emplacement{nbImages > 1 ? 's' : ''} · Plats du jour, promotions, événements</p>
           <div className="space-y-3">
             {slots.map((url, i) => (
               <div key={i} className="flex gap-2 items-center">
@@ -680,9 +800,19 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
       {!isPremium && (
         <div className="bg-gradient-to-br from-[#1A1A1A] to-[#333] rounded-2xl p-5 shadow-sm">
           <p className="text-white font-serif font-bold text-base mb-2">⭐ Passez Premium</p>
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
+              <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(premiumMensuel)}</p>
+              <p className="text-[10px] text-white/50 mt-0.5">/ mois</p>
+            </div>
+            <div className="flex-1 bg-[#C9A84C]/20 border border-[#C9A84C]/40 rounded-xl p-2.5 text-center">
+              <p className="text-sm font-bold text-[#C9A84C]">{formatFCFA(premiumAnnuel)}</p>
+              <p className="text-[10px] text-white/50 mt-0.5">/ an</p>
+            </div>
+          </div>
           <ul className="space-y-1.5 mb-4">
             {[
-              '5 visuels publicitaires dans le carrousel',
+              `${nbImages} visuels publicitaires dans le carrousel`,
               'Transitions fluides et indicateurs de navigation',
               'Plats du jour, promos, événements en temps réel',
               'Visible par tous vos clients L&Lui',
@@ -692,7 +822,7 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
               </li>
             ))}
           </ul>
-          <a href="https://wa.me/237693407964?text=Je%20souhaite%20passer%20en%20Premium%20pour%20ma%20vitrine%20L%26Lui"
+          <a href={`https://wa.me/237693407964?text=${encodeURIComponent(`Bonjour Olivier, je souhaite passer en abonnement Premium pour ma vitrine L&Lui (${partenaire.nom_etablissement}). Mon ID : ${partenaire.uid}`)}`}
             target="_blank" rel="noreferrer"
             className="block text-center py-2.5 bg-[#C9A84C] text-white text-sm font-bold rounded-xl hover:bg-[#b8963e] transition-colors">
             Contacter Olivier sur WhatsApp →
