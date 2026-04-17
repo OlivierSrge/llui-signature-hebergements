@@ -1,8 +1,16 @@
 'use server'
 
 import { db } from '@/lib/firebase'
-import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { revalidatePath } from 'next/cache'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+async function sendWhatsApp(to: string, message: string): Promise<void> {
+  await fetch(`${APP_URL}/api/whatsapp/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ADMIN_API_KEY}` },
+    body: JSON.stringify({ to, message }),
+  }).catch((e) => console.warn('[sendWhatsApp notes-prescripteurs]', e))
+}
 
 export interface NotePartenaire {
   id: string

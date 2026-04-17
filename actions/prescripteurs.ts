@@ -5,8 +5,16 @@ import { revalidatePath } from 'next/cache'
 import { createHash } from 'crypto'
 import { getParametresPlateforme } from '@/actions/parametres'
 import QRCode from 'qrcode'
-import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { sendPushNotification } from '@/lib/fcm'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+async function sendWhatsApp(to: string, message: string): Promise<void> {
+  await fetch(`${APP_URL}/api/whatsapp/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ADMIN_API_KEY}` },
+    body: JSON.stringify({ to, message }),
+  }).catch((e) => console.warn('[sendWhatsApp prescripteurs]', e))
+}
 import { FieldValue } from 'firebase-admin/firestore'
 
 // ─── Types ────────────────────────────────────────────────────
