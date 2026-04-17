@@ -11,7 +11,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
+    // twilio et firebase-admin ont des native modules — ne pas bundler via webpack SSR
+    serverComponentsExternalPackages: ['firebase-admin', 'twilio'],
   },
   images: {
     remotePatterns: [

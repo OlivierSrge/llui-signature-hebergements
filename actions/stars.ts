@@ -5,7 +5,6 @@
 
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { randomBytes } from 'crypto'
 import { getParametresPlateforme } from './parametres'
 import {
@@ -20,7 +19,31 @@ import {
   type NiveauPass,
 } from '@/lib/loyaltyEngine'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+const APP_URL_INTERNAL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+
+/**
+ * Envoie un message WhatsApp via la route API interne /api/whatsapp/send.
+ * L'import de twilio est isolé dans cette route pour éviter qu'il soit bundlé
+ * dans le graphe SSR des Server Components.
+ */
+async function sendWhatsAppInternal(telephone: string, message: string): Promise<void> {
+  try {
+    const res = await fetch(`${APP_URL_INTERNAL}/api/whatsapp/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.ADMIN_API_KEY ?? ''}`,
+      },
+      body: JSON.stringify({ telephone, message }),
+    })
+    const json = await res.json() as { success: boolean; error?: string }
+    if (!json.success) {
+      console.error(`[Fidelite] sendWhatsAppInternal erreur: ${json.error}`)
+    }
+  } catch (e) {
+    console.error('[Fidelite] sendWhatsAppInternal fetch erreur:', e)
+  }
+}
 
 // ─── Types publics ──────────────────────────────────────────────
 
@@ -132,7 +155,7 @@ export async function requestOtp(
         ? template.replace('{otp}', otp).replace('{minutes}', '10')
         : `🔐 *Votre code L&Lui Stars* :\n\n*${otp}*\n\nValide 10 minutes. Ne partagez pas ce code.\n\nL&Lui Signature ✨`
 
-    await sendWhatsApp(tel, msg)
+    await sendWhatsAppInternal(tel, msg)
     console.log(`[Fidelite] OTP envoyé → ${tel} (session=${codeSession})`)
     return { success: true }
   } catch (e: unknown) {
@@ -400,7 +423,7 @@ export async function processPartnerTransaction(
     })
 
     // 8. Lien de confirmation WhatsApp (usage unique)
-    const confirmUrl = `${APP_URL}/api/confirm-transaction?token=${confirmationToken}`
+    const confirmUrl = `${APP_URL_INTERNAL}/api/confirm-transaction?token=${confirmationToken}`
     const msg =
       `✅ *Confirmation L&Lui Stars*\n\n` +
       `Montant réglé : *${montantNet.toLocaleString('fr-FR')} FCFA*\n` +
@@ -411,7 +434,7 @@ export async function processPartnerTransaction(
       `Confirmez ici (valable 1h) :\n${confirmUrl}\n\n` +
       `L&Lui Stars ✨`
 
-    await sendWhatsApp(tel, msg)
+    await sendWhatsAppInternal(tel, msg)
     console.log(`[Fidelite] TX ${txRef.id} pending — client=${tel}, +${starsGagnees}⭐`)
 
     return {
