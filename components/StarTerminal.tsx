@@ -3,9 +3,20 @@
 // Flux : saisie téléphone client → lookup → montant → calcul → processPartnerTransaction
 
 import { useState } from 'react'
-import { getClientFidelite, processPartnerTransaction } from '@/actions/stars'
-import type { ClientFidelite, ProcessTransactionResult } from '@/actions/stars'
+import { getClientFidelite } from '@/actions/stars'
+import type { ClientFidelite } from '@/actions/stars'
 import type { ParametresPlateforme } from '@/actions/parametres'
+
+// Type local — évite d'importer depuis actions/stars (qui est chargé en SSR)
+interface ProcessTransactionResult {
+  success: boolean
+  transactionId?: string
+  message?: string
+  montant_net?: number
+  stars_gagnees?: number
+  remise_appliquee?: number
+  error?: string
+}
 import {
   getMembershipStatus,
   getRemisePct,
@@ -89,17 +100,27 @@ export default function StarTerminal({ codeSession, soldeProvision, params, onSu
     if (!client || montantBrut <= 0) return
     setStep('confirming')
     setErrorMsg('')
-    const res = await processPartnerTransaction({
-      code_session: codeSession,
-      montant_brut: montantBrut,
-      telephone_client: phone.trim(),
-    })
-    if (res.success) {
-      setResult(res)
-      setStep('done')
-      onSuccess?.(res)
-    } else {
-      setErrorMsg(res.error ?? 'Erreur lors de la transaction')
+    try {
+      const response = await fetch('/api/stars/process-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code_session: codeSession,
+          montant_brut: montantBrut,
+          telephone_client: phone.trim(),
+        }),
+      })
+      const res: ProcessTransactionResult = await response.json()
+      if (res.success) {
+        setResult(res)
+        setStep('done')
+        onSuccess?.(res)
+      } else {
+        setErrorMsg(res.error ?? 'Erreur lors de la transaction')
+        setStep('montant')
+      }
+    } catch {
+      setErrorMsg('Erreur réseau — réessayez')
       setStep('montant')
     }
   }
