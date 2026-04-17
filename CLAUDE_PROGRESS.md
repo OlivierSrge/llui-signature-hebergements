@@ -1,9 +1,24 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 20:00 — Refactorisation radicale : processPartnerTransaction → route API, StarTerminal → fetch, actions/stars.ts nettoyé (build ✅)
+Dernière mise à jour : 2026-04-17 22:30 — Isolation complète twilio : tous les actions/ utilisent fetch /api/whatsapp/send. Poussé sur origin/main.
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-17 22:30 — Isolation complète twilio dans actions/ (fix final digest 1347802925)
+**Contexte** : Malgré la refactorisation de `actions/stars.ts` (commit 39e32aa), 5 autres fichiers `actions/` importaient encore `sendWhatsApp` depuis `lib/whatsappNotif` (qui importe `twilio` au top-level). Ces actions sont importées par des Server Components et Client Components → twilio transitif dans le bundle SSR.
+**Fichiers corrigés** :
+- `actions/codes-sessions.ts` — import whatsappNotif → helper local fetch
+- `actions/employes.ts` — import whatsappNotif → helper local fetch
+- `actions/notes-prescripteurs.ts` — import whatsappNotif → helper local fetch
+- `actions/prescripteurs.ts` — import whatsappNotif → helper local fetch
+- `actions/partner-reservations.ts` — import whatsappNotif → helper local fetch
+**Pattern helper local** : `fetch(APP_URL/api/whatsapp/send, { method: POST, Authorization: Bearer ADMIN_API_KEY })` — identique à `actions/stars.ts`.
+**Résultat** : 0 import `whatsappNotif` dans `actions/`. Seul `app/api/whatsapp/send/route.ts` importe twilio.
+**Git** : branch `claude/fix-ssr-digest-error-Yrl0H` → fast-forward push sur `origin/main` directement.
+**Commits** : `a157b58` (debug-session env diagnostics), `c2cdf17` (whatsappNotif removal).
+
+---
 
 ### 2026-04-17 20:00 — Refactorisation radicale isolation twilio (fix définitif + build vérifié)
 **Contexte** : Digest 1347802925 persistait. Cause : `actions/stars.ts` est chargée dans le bundle serveur lors du SSR de `StarTerminal` (Client Component). Même sans import direct de `twilio`, Next.js 14 load le module `'use server'` côté serveur pour le SSR des composants client qui l'importent.
