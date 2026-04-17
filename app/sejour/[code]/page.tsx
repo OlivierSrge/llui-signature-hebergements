@@ -1,5 +1,6 @@
 import { getCodeSession } from '@/actions/codes-sessions'
 import { getParametresPlateforme } from '@/actions/parametres'
+import { serialize } from '@/lib/serialize'
 import SejourClient from './SejourClient'
 import Link from 'next/link'
 
@@ -30,5 +31,5 @@ export default async function SejourPage({ params }: Props) {
     )
   }
 
-  return <SejourClient session={session} plateformeParams={plateformeParams} />
+  return <SejourClient session={serialize(session)} plateformeParams={serialize(plateformeParams)} />
 }

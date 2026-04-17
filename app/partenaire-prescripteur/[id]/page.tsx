@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { getPrescripteurPartenaire } from '@/actions/codes-sessions'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { db } from '@/lib/firebase'
+import { serialize } from '@/lib/serialize'
 import DashboardPartenaireClient from './DashboardPartenaireClient'
 
 export const dynamic = 'force-dynamic'
@@ -107,13 +108,13 @@ export default async function DashboardPartenairePage({ params }: Props) {
 
   return (
     <DashboardPartenaireClient
-      partenaire={partenaire}
-      codesActifs={codesActifs}
-      transactions={transactions}
+      partenaire={serialize(partenaire)}
+      codesActifs={serialize(codesActifs)}
+      transactions={serialize(transactions)}
       commissionsDues={commissionsDues}
       commissionsVersees={commissionsVersees}
       ventesEnCours={ventesEnCours}
-      plateformeParams={plateformeParams}
+      plateformeParams={serialize(plateformeParams)}
       starsStats={starsStats}
     />
   )
