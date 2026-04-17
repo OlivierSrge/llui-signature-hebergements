@@ -1,11 +1,27 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 17:30 — Fix server-side exception StarTerminal (nanoid ESM → crypto, orderBy Firestore supprimé)
+Dernière mise à jour : 2026-04-17 18:00 — Fix root cause server-side exception (import twilio via actions/stars dans Server Component)
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
 
-### 2026-04-17 17:30 — Fix server-side exception lors du crédit de montant Stars
+### 2026-04-17 18:00 — Fix root cause server-side exception dashboard partenaire (digest 1347802925)
+**Contexte** : Même digest d'erreur malgré le fix nanoid — l'erreur se produisait au chargement de la page (SSR), pas lors du clic sur StarTerminal.
+**Cause réelle** : `page.tsx` (Server Component) importait `getPartnerTransactions` depuis `actions/stars.ts`. Cette action importe `sendWhatsApp` depuis `lib/whatsappNotif.ts` qui importe `twilio`. `twilio` n'est pas dans `serverComponentsExternalPackages` → webpack essaie de le bundler pour le SSR → crash à l'initialisation du module, avant même d'exécuter une requête.
+**Chaîne d'imports fautive** :
+```
+page.tsx (Server Component)
+  → actions/stars.ts ('use server')
+    → lib/whatsappNotif.ts
+      → twilio (native modules non bundlables)
+```
+**Fix** : Suppression de `import { getPartnerTransactions } from '@/actions/stars'` dans `page.tsx`. La logique de comptage des clients Stars est inlinée directement dans `page.tsx` via `getStarsTxsCount()` qui utilise `db` (déjà importé, sans dépendance twilio).
+**Fichiers modifiés** : `app/partenaire-prescripteur/[id]/page.tsx`
+**Commit** : `dd7b2dd` — poussé sur `origin/main`
+
+---
+
+### 2026-04-17 17:30 — Fix server-side exception lors du crédit de montant Stars (1er essai — incomplet)
 **Contexte** : Erreur "Application error: a server-side exception has occurred" (digest 1347802925) lors de l'utilisation de StarTerminal pour créditer une transaction.
 **Causes identifiées** :
 1. `nanoid` v5 est ESM-only → `SyntaxError: Cannot use import statement in a module` dans les Server Actions compilées en CJS par webpack Next.js 14
@@ -148,6 +164,7 @@ Dernière mise à jour : 2026-04-17 17:30 — Fix server-side exception StarTerm
 
 | Commit | Heure | Description |
 |---|---|---|
+| `dd7b2dd` | 18:00 | fix(dashboard): éviter import actions/stars dans Server Component (crash twilio SSR) |
 | `2ec366f` | 17:30 | fix(stars): nanoid ESM → crypto.randomBytes + suppression orderBy Firestore |
 | `6ee0420` | 16:00 | docs: mise à jour CLAUDE_PROGRESS.md et CLAUDE.md — session 2026-04-17 |
 | `326db10` | 15:30 | fix: correctif regex JSX AdminCanalDeuxClient (backslash → commentaire JSX) |
