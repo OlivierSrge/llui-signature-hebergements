@@ -1,11 +1,23 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 19:00 — Isolation twilio dans route API dédiée + serverComponentsExternalPackages (fix définitif SSR crash)
+Dernière mise à jour : 2026-04-17 20:00 — Refactorisation radicale : processPartnerTransaction → route API, StarTerminal → fetch, actions/stars.ts nettoyé (build ✅)
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
 
-### 2026-04-17 19:00 — Isolation twilio : route API dédiée + refactoring actions/stars.ts (fix définitif)
+### 2026-04-17 20:00 — Refactorisation radicale isolation twilio (fix définitif + build vérifié)
+**Contexte** : Digest 1347802925 persistait. Cause : `actions/stars.ts` est chargée dans le bundle serveur lors du SSR de `StarTerminal` (Client Component). Même sans import direct de `twilio`, Next.js 14 load le module `'use server'` côté serveur pour le SSR des composants client qui l'importent.
+**Solution radicale** :
+1. `app/api/stars/process-transaction/route.ts` (NOUVEAU) — route API publique contenant toute la logique de transaction (Firestore + calculs + WhatsApp via fetch). Appelée depuis le navigateur par StarTerminal.
+2. `actions/stars.ts` — réécriture complète : suppression `processPartnerTransaction`, `getPartnerTransactions`, `ProcessTransactionResult`. Garde uniquement `requestOtp`, `verifyOtpAndLinkClient`, `getClientFidelite`, `getPendingTransaction`. Aucun import `twilio`/`whatsappNotif`. WhatsApp via `sendWhatsApp()` local qui fait `fetch /api/whatsapp/send`.
+3. `components/StarTerminal.tsx` — suppression `import processPartnerTransaction from '@/actions/stars'`. `handleSubmit` fait `fetch('/api/stars/process-transaction')`. `ProcessTransactionResult` défini localement.
+**Build local** : `npm run build` → exit code 0 ✅ (après `rm -rf .next`)
+**Fichiers modifiés** : `actions/stars.ts`, `components/StarTerminal.tsx`, `app/api/stars/process-transaction/route.ts` (créé)
+**Commit** : `39e32aa` — poussé sur `origin/main`
+
+---
+
+### 2026-04-17 19:00 — Isolation twilio : route API dédiée + refactoring actions/stars.ts (fix partiel)
 **Contexte** : Erreur SSR digest 1347802925 persistait après la suppression de l'import dans `page.tsx`. Cause : Next.js charge `actions/stars.ts` dans le bundle serveur lors du SSR des Client Components (`StarTerminal` → `actions/stars` → `whatsappNotif` → `twilio`). Twilio non bundlable sans `serverComponentsExternalPackages`.
 **Solution** :
 1. Création `app/api/whatsapp/send/route.ts` — seul endroit du projet qui importe `twilio`. Auth Bearer `ADMIN_API_KEY`. Support `TWILIO_WHATSAPP_NUMBER` (nouveau) + `TWILIO_WHATSAPP_FROM` (legacy).
@@ -176,7 +188,8 @@ page.tsx (Server Component)
 
 | Commit | Heure | Description |
 |---|---|---|
-| `187719a` | 19:00 | fix(stars): isoler twilio dans route API + serverComponentsExternalPackages (fix définitif SSR) |
+| `39e32aa` | 20:00 | fix(stars): refactorisation radicale — processPartnerTransaction → API route, StarTerminal → fetch |
+| `187719a` | 19:00 | fix(stars): isoler twilio dans route API + serverComponentsExternalPackages |
 | `dd7b2dd` | 18:00 | fix(dashboard): éviter import actions/stars dans Server Component (crash twilio SSR) |
 | `2ec366f` | 17:30 | fix(stars): nanoid ESM → crypto.randomBytes + suppression orderBy Firestore |
 | `6ee0420` | 16:00 | docs: mise à jour CLAUDE_PROGRESS.md et CLAUDE.md — session 2026-04-17 |
