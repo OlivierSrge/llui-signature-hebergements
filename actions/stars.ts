@@ -6,7 +6,7 @@
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
-import { nanoid } from 'nanoid'
+import { randomBytes } from 'crypto'
 import { getParametresPlateforme } from './parametres'
 import {
   getMembershipStatus,
@@ -252,11 +252,11 @@ export async function getPartnerTransactions(
   limit = 5
 ): Promise<TransactionFidelite[]> {
   try {
+    // Sans orderBy pour éviter l'index composite Firestore
     const snap = await db
       .collection('transactions_fidelite')
       .where('partenaire_id', '==', partnerId)
       .where('status', '==', 'confirmed')
-      .orderBy('created_at', 'desc')
       .limit(limit)
       .get()
 
@@ -379,7 +379,7 @@ export async function processPartnerTransaction(
     }
 
     // 7. Transaction PENDING avec token non prévisible
-    const confirmationToken = nanoid(32)
+    const confirmationToken = randomBytes(24).toString('base64url')
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString()
     const txRef = db.collection('transactions_fidelite').doc()
     await txRef.set({
