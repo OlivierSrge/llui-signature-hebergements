@@ -259,13 +259,17 @@ transactions_fidelite/{id}
 - Page client `/sejour/[code]` : intégration Stars (phone/OTP/ElectronicPass)
 - Durée carrousel paramétrable par le partenaire (preset + slider, sauvegardé en Firestore)
 - Moteur de fidélité L&Lui Stars complet (loyaltyEngine, actions, API confirm, ElectronicPass UI)
+- `ElectronicPass.tsx` : prop `avantages` → section "Les petits plus de cet établissement"
+- Page confirm-transaction (`/api/confirm-transaction`) : HTML premium dark/gold avec animation Stars
+- `StarTerminal.tsx` : terminal d'encaissement mobile-first (lookup client, calcul temps réel, provision badge)
+- Dashboard partenaire : onglet "⭐ Stars" avec stats + StarTerminal intégré
+- Firestore index composite `(partenaire_id, status, created_at)` sur `transactions_fidelite`
+- Correctif régex JSX `AdminCanalDeuxClient.tsx` : `{/\* ... \*/}` → `{/* ... */}`
 
 ### À faire [ ]
 - Code 6 chiffres maintenu simultanément dans Firestore ET col G Google Sheets
 - Logs structurés systématiques : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
 - Nettoyer doublons existants : `POST /api/admin/merge-duplicates` (Bearer token)
-- UI partenaire pour appeler `processPartnerTransaction` (encaisser une transaction Stars)
-- Admin : UI top-up `solde_provision` des partenaires
-- Firestore indexes : `transactions_fidelite` sur `(code_session, status)` et `(confirmation_token, status)`
+- Admin : UI top-up `solde_provision` des partenaires (panel admin inline)
 
 Voir `CLAUDE_PROGRESS.md` pour le détail commit par commit.

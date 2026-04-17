@@ -1,5 +1,5 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 — Moteur de fidélité L&Lui Stars complet (loyaltyEngine, OTP, transactions, ElectronicPass, confirm-transaction API)
+Dernière mise à jour : 2026-04-17 — Écosystème Stars complet déployé (StarTerminal, avantages_hors_stars, provision admin, page confirm premium, indexes Firestore) + correctif regex JSX
 
 ---
 
@@ -66,13 +66,24 @@ Dernière mise à jour : 2026-04-17 — Moteur de fidélité L&Lui Stars complet
 ### 8. Moteur de Fidélité L&Lui Stars ✅ COMPLET
 - [x] **`lib/loyaltyEngine.ts`** — fonctions pures : `getMembershipStatus`, `getNiveauPass`, `getRemisePct`, `getMultiplier`, `calculateStars`, `calculateRemiseAmount`, `canUseTransaction` + labels, gradients, icônes par palier
 - [x] **`lib/loyaltyEngine.test.ts`** — tests Jest sur toutes les fonctions (boundaries 24999/25000/74999/75000/149999/150000)
-- [x] **`actions/stars.ts`** — `requestOtp` (OTP WhatsApp 10 min), `verifyOtpAndLinkClient`, `getClientFidelite`, `getPendingTransaction`, `processPartnerTransaction` (vérifie provision, crée pending tx, envoie lien WhatsApp)
+- [x] **`actions/stars.ts`** — `requestOtp` (OTP WhatsApp 10 min), `verifyOtpAndLinkClient`, `getClientFidelite`, `getPendingTransaction`, `processPartnerTransaction` (vérifie provision, crée pending tx, envoie lien WhatsApp), `getPartnerTransactions`
 - [x] **`actions/parametres.ts`** — 13 champs `fidelite_*` ajoutés à `ParametresPlateforme` avec valeurs par défaut
-- [x] **`app/api/confirm-transaction/route.ts`** — GET ?token=, `db.runTransaction` atomique : +stars client, -provision partenaire, `confirmation_token: FieldValue.delete()`, page HTML styled en réponse
-- [x] **`components/ElectronicPass.tsx`** — pass card luxe (gradient argent/or/platine), `AnimatedCounter` RAF, barre validité, transaction pending panel, progression vers prochain palier, bouton renvoi OTP
+- [x] **`app/api/confirm-transaction/route.ts`** — GET ?token=, `db.runTransaction` atomique : +stars client, -provision partenaire, `confirmation_token: FieldValue.delete()`. **Page HTML premium** dark/gold avec animation `@keyframes pop`, "+N Stars" en gradient or, panel solde, panel détails transaction.
+- [x] **`components/ElectronicPass.tsx`** — pass card luxe (gradient argent/or/platine), `AnimatedCounter` RAF, barre validité, transaction pending panel, progression vers prochain palier, bouton renvoi OTP. **Prop `avantages?`** : section "Les petits plus de cet établissement" affichée si définie.
 - [x] **`app/admin/parametres/ParametresClient.tsx`** — section "⭐ Moteur de fidélité L&Lui Stars" : 4 seuils, 3 remises, 3 multiplicateurs, valeur star, durée pass, textarea template OTP, aperçu achat 5000 FCFA Pass Or
-- [x] **`app/sejour/[code]/SejourClient.tsx`** — section Stars en bas de l'écran actif : étape 1 (téléphone), étape 2 (OTP), étape 3 (ElectronicPass). Popup événements supprimée.
+- [x] **`app/sejour/[code]/SejourClient.tsx`** — section Stars en bas de l'écran actif : étape 1 (téléphone), étape 2 (OTP), étape 3 (ElectronicPass). `avantages={session.avantages_hors_stars}` passé à ElectronicPass. Popup événements supprimée.
 - [x] **`app/sejour/[code]/page.tsx`** — `Promise.all` incluant `getParametresPlateforme`, passage `plateformeParams` à `SejourClient`
+- [x] **`components/StarTerminal.tsx`** (nouveau) — terminal d'encaissement mobile-first pour partenaires : lookup client par téléphone, calcul remise + Stars temps réel (loyaltyEngine), badge provision vert/rouge, submit `processPartnerTransaction`, steps : `phone → montant → confirming → done/error`
+- [x] **`app/partenaire-prescripteur/[id]/DashboardPartenaireClient.tsx`** — onglet "⭐ Stars" avec grid stats (clients, CA Stars, solde provision), `StarTerminal` intégré, tab nav 4 onglets en `overflow-x-auto`
+- [x] **`app/partenaire-prescripteur/[id]/page.tsx`** — `getPartnerTransactions(id, 100)` dans `Promise.all`, calcul `starsStats` (clients uniques via Set, CA Stars, solde_provision), passage à `DashboardPartenaireClient`
+- [x] **`firestore.indexes.json`** — index composite `(partenaire_id ASC, status ASC, created_at DESC)` sur `transactions_fidelite`
+
+### 9. Correctif Régex JSX (`AdminCanalDeuxClient.tsx`) ✅
+- **Bug** : ligne 625 contenait `{/\* Top partenaires \*/}` avec backslashes réels — littéral RegExp JavaScript. React lançait "Objects are not valid as a React child" au runtime.
+- **Pourquoi la build passait** : `ignoreBuildErrors: true` + les regex literals sont syntaxiquement valides en JSX → parseur accepte, crash uniquement au runtime React.
+- **Diagnostic** : `python3 -c "repr(lines[624])"` → `'      {/\\* Top partenaires \\*/}'` — backslashes confirmés dans le fichier réel.
+- **Fix** : `{/\* ... \*/}` → `{/* Top partenaires */}` (commentaire JSX standard).
+- **Commits** : `9703cbc` (Stars complet) · `fe233fc` (framer-motion dep) · `326db10` (fix regex)
 
 ---
 
@@ -80,7 +91,9 @@ Dernière mise à jour : 2026-04-17 — Moteur de fidélité L&Lui Stars complet
 
 | Commit | Description |
 |---|---|
-| *(en cours)* | Câblage paramètres plateforme → dashboards partenaire + admin + moteur Stars complet |
+| `9703cbc` | Stars complet : StarTerminal, onglet Stars dashboard, avantages ElectronicPass, page confirm premium, stats page.tsx, index Firestore |
+| `fe233fc` | fix: add framer-motion dependency for Stars animations |
+| `326db10` | fix: correctif regex JSX AdminCanalDeuxClient (backslash → commentaire JSX) |
 
 ## COMMITS 2026-04-16
 
