@@ -1,9 +1,21 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 18:00 — Fix root cause server-side exception (import twilio via actions/stars dans Server Component)
+Dernière mise à jour : 2026-04-17 19:00 — Isolation twilio dans route API dédiée + serverComponentsExternalPackages (fix définitif SSR crash)
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-17 19:00 — Isolation twilio : route API dédiée + refactoring actions/stars.ts (fix définitif)
+**Contexte** : Erreur SSR digest 1347802925 persistait après la suppression de l'import dans `page.tsx`. Cause : Next.js charge `actions/stars.ts` dans le bundle serveur lors du SSR des Client Components (`StarTerminal` → `actions/stars` → `whatsappNotif` → `twilio`). Twilio non bundlable sans `serverComponentsExternalPackages`.
+**Solution** :
+1. Création `app/api/whatsapp/send/route.ts` — seul endroit du projet qui importe `twilio`. Auth Bearer `ADMIN_API_KEY`. Support `TWILIO_WHATSAPP_NUMBER` (nouveau) + `TWILIO_WHATSAPP_FROM` (legacy).
+2. `actions/stars.ts` : suppression `import sendWhatsApp from whatsappNotif`, ajout `sendWhatsAppInternal()` qui fait `fetch POST /api/whatsapp/send`. Plus aucun import twilio dans le graphe SSR.
+3. `next.config.js` : ajout `twilio` dans `serverComponentsExternalPackages` (filet de sécurité).
+**Build local** : `npm run build` → exit code 0 ✅
+**Fichiers modifiés** : `actions/stars.ts`, `app/api/whatsapp/send/route.ts` (créé), `next.config.js`
+**Commit** : `187719a` — poussé sur `origin/main`
+
+---
 
 ### 2026-04-17 18:00 — Fix root cause server-side exception dashboard partenaire (digest 1347802925)
 **Contexte** : Même digest d'erreur malgré le fix nanoid — l'erreur se produisait au chargement de la page (SSR), pas lors du clic sur StarTerminal.
@@ -164,6 +176,7 @@ page.tsx (Server Component)
 
 | Commit | Heure | Description |
 |---|---|---|
+| `187719a` | 19:00 | fix(stars): isoler twilio dans route API + serverComponentsExternalPackages (fix définitif SSR) |
 | `dd7b2dd` | 18:00 | fix(dashboard): éviter import actions/stars dans Server Component (crash twilio SSR) |
 | `2ec366f` | 17:30 | fix(stars): nanoid ESM → crypto.randomBytes + suppression orderBy Firestore |
 | `6ee0420` | 16:00 | docs: mise à jour CLAUDE_PROGRESS.md et CLAUDE.md — session 2026-04-17 |
