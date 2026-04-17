@@ -51,6 +51,14 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     code,
+    env: {
+      hasAdminApiKey: !!process.env.ADMIN_API_KEY,
+      hasTwilioSid: !!process.env.TWILIO_ACCOUNT_SID,
+      hasTwilioToken: !!process.env.TWILIO_AUTH_TOKEN,
+      hasTwilioNumber: !!process.env.TWILIO_WHATSAPP_NUMBER,
+      hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
+      nodeEnv: process.env.NODE_ENV,
+    },
     session: {
       prescripteur_partenaire_id: sessionData.prescripteur_partenaire_id,
       nom_partenaire: sessionData.nom_partenaire,
