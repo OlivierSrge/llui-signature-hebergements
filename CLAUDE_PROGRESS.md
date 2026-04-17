@@ -1,5 +1,62 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 — Écosystème Stars complet déployé (StarTerminal, avantages_hors_stars, provision admin, page confirm premium, indexes Firestore) + correctif regex JSX
+Dernière mise à jour : 2026-04-17 17:30 — Fix server-side exception StarTerminal (nanoid ESM → crypto, orderBy Firestore supprimé)
+
+---
+
+## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-17 17:30 — Fix server-side exception lors du crédit de montant Stars
+**Contexte** : Erreur "Application error: a server-side exception has occurred" (digest 1347802925) lors de l'utilisation de StarTerminal pour créditer une transaction.
+**Causes identifiées** :
+1. `nanoid` v5 est ESM-only → `SyntaxError: Cannot use import statement in a module` dans les Server Actions compilées en CJS par webpack Next.js 14
+2. `getPartnerTransactions` utilisait `orderBy('created_at', 'desc')` → nécessite l'index composite Firestore `(partenaire_id, status, created_at)` non déployé → `FAILED_PRECONDITION`
+**Fichiers modifiés** : `actions/stars.ts`
+**Changements** :
+- `import { nanoid } from 'nanoid'` → `import { randomBytes } from 'crypto'`
+- `nanoid(32)` → `randomBytes(24).toString('base64url')` (token 32-char URL-safe, Node.js natif)
+- `getPartnerTransactions` : suppression de `.orderBy('created_at', 'desc')` (inutile pour le comptage de clients uniques)
+**Commit** : `2ec366f` — poussé sur `origin/main`
+
+---
+
+### 2026-04-17 16:00 — Documentation CLAUDE_PROGRESS.md + CLAUDE.md
+**Contexte** : Mise à jour post-session après déploiement complet de l'écosystème Stars.
+**Fichiers modifiés** : `CLAUDE_PROGRESS.md`, `CLAUDE.md`
+**Changements** :
+- ROADMAP section 8 complétée (StarTerminal, avantages, HTML confirm premium, Stars tab, index)
+- Nouvelle section 9 : correctif régex JSX AdminCanalDeuxClient
+- Table commits 2026-04-17 mise à jour
+- CLAUDE.md : items déplacés de "À faire" vers "Terminé ✅"
+**Commit** : `6ee0420`
+
+---
+
+### 2026-04-17 15:30 — Correctif regex JSX AdminCanalDeuxClient.tsx
+**Contexte** : "Application error: a client-side exception has occurred" après push Stars complet.
+**Cause** : Ligne 625 `{/\* Top partenaires \*/}` avec backslashes réels = littéral RegExp JavaScript → React crash "Objects are not valid as a React child".
+**Diagnostic** : `python3 repr()` sur le fichier → backslashes confirmés dans les bytes réels.
+**Fichiers modifiés** : `app/admin/prescripteurs-partenaires/AdminCanalDeuxClient.tsx`
+**Commit** : `326db10`
+
+---
+
+### 2026-04-17 15:00 — Ajout dépendance framer-motion
+**Contexte** : `npm install framer-motion` pour garantir la présence de la dépendance sur Vercel.
+**Fichiers modifiés** : `package.json`, `package-lock.json`
+**Commit** : `fe233fc`
+
+---
+
+### 2026-04-17 14:30 — Déploiement initial Stars complet
+**Contexte** : 21 fichiers créés/modifiés n'avaient jamais été commités. `origin/main` était encore à `1beb806`.
+**Fichiers commités** : `actions/stars.ts`, `lib/loyaltyEngine.ts`, `lib/loyaltyEngine.test.ts`, `components/ElectronicPass.tsx`, `components/StarTerminal.tsx`, `app/api/confirm-transaction/route.ts`, `app/partenaire-prescripteur/[id]/page.tsx`, `app/partenaire-prescripteur/[id]/DashboardPartenaireClient.tsx`, `app/sejour/[code]/SejourClient.tsx`, `app/sejour/[code]/page.tsx`, `firestore.indexes.json`, et autres.
+**Commit** : `9703cbc`
+
+---
+
+### 2026-04-17 12:00 — Correctif documentation CLAUDE.md (ajout section Stars)
+**Contexte** : Ajout de la section "MOTEUR DE FIDÉLITÉ L&LUI STARS" dans CLAUDE.md.
+**Fichiers modifiés** : `CLAUDE.md`
 
 ---
 
@@ -89,11 +146,13 @@ Dernière mise à jour : 2026-04-17 — Écosystème Stars complet déployé (St
 
 ## COMMITS 2026-04-17
 
-| Commit | Description |
-|---|---|
-| `9703cbc` | Stars complet : StarTerminal, onglet Stars dashboard, avantages ElectronicPass, page confirm premium, stats page.tsx, index Firestore |
-| `fe233fc` | fix: add framer-motion dependency for Stars animations |
-| `326db10` | fix: correctif regex JSX AdminCanalDeuxClient (backslash → commentaire JSX) |
+| Commit | Heure | Description |
+|---|---|---|
+| `2ec366f` | 17:30 | fix(stars): nanoid ESM → crypto.randomBytes + suppression orderBy Firestore |
+| `6ee0420` | 16:00 | docs: mise à jour CLAUDE_PROGRESS.md et CLAUDE.md — session 2026-04-17 |
+| `326db10` | 15:30 | fix: correctif regex JSX AdminCanalDeuxClient (backslash → commentaire JSX) |
+| `fe233fc` | 15:00 | fix: add framer-motion dependency for Stars animations |
+| `9703cbc` | 14:30 | Stars complet : StarTerminal, onglet Stars dashboard, avantages ElectronicPass, page confirm premium, stats page.tsx, index Firestore |
 
 ## COMMITS 2026-04-16
 
