@@ -54,6 +54,7 @@ export interface PrescripteurPartenaire {
   carouselImages?: string[]     // max 5 URLs
   defaultImage?: string         // image enseigne (Free + Premium)
   photoUrl?: string             // logo/photo profil
+  carousel_interval_sec?: number // durée d'affichage par image (défaut 6s)
 }
 
 export interface CodeSession {
@@ -82,6 +83,7 @@ export interface CodeSession {
   defaultImage?: string
   carouselImages?: string[]
   subscriptionLevel?: 'free' | 'premium'
+  carousel_interval_sec?: number
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -285,6 +287,7 @@ export async function getCodeSession(code: string): Promise<CodeSession | null> 
         session.defaultImage = p.defaultImage ?? undefined
         session.carouselImages = (p.carouselImages as string[] | undefined)?.filter(Boolean) ?? undefined
         session.subscriptionLevel = p.subscriptionLevel ?? 'free'
+        session.carousel_interval_sec = typeof p.carousel_interval_sec === 'number' ? p.carousel_interval_sec : 6
       } else {
         console.warn(`[getCodeSession] ⚠️ partenaire "${session.prescripteur_partenaire_id}" introuvable dans Firestore`)
       }
@@ -613,7 +616,7 @@ export async function marquerCommissionVersee(
 /** Partenaire met à jour sa vitrine (defaultImage + carouselImages) */
 export async function updateVitrine(
   id: string,
-  data: { defaultImage?: string; carouselImages?: string[] }
+  data: { defaultImage?: string; carouselImages?: string[]; carousel_interval_sec?: number }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!id) return { success: false, error: 'ID requis' }
@@ -623,7 +626,11 @@ export async function updateVitrine(
       update.carouselImages = data.carouselImages
         .map((u) => u.trim())
         .filter((u) => u.length > 0)
-        .slice(0, 5) // max 5
+        .slice(0, 5)
+    }
+    if (data.carousel_interval_sec !== undefined) {
+      // Clamp entre 3 et 30 secondes
+      update.carousel_interval_sec = Math.max(3, Math.min(30, Math.round(data.carousel_interval_sec)))
     }
     await db.collection('prescripteurs_partenaires').doc(id).update(update)
     revalidatePath(`/partenaire-prescripteur/${id}`)

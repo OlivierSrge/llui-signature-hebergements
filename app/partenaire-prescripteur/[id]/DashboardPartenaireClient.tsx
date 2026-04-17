@@ -477,6 +477,8 @@ function ForfaitTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
 
 // ─── Composant Vitrine Tab ────────────────────────────────────
 
+const INTERVAL_PRESETS = [3, 5, 6, 8, 10, 15]
+
 function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
   const isPremium = partenaire.subscriptionLevel === 'premium'
   const [defaultImage, setDefaultImage] = useState(partenaire.defaultImage ?? '')
@@ -484,6 +486,7 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
     const imgs = partenaire.carouselImages ?? []
     return [...imgs, '', '', '', '', ''].slice(0, 5)
   })
+  const [intervalSec, setIntervalSec] = useState<number>(partenaire.carousel_interval_sec ?? 6)
   const [saving, setSaving] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState(0)
 
@@ -497,6 +500,7 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
     const res = await updateVitrine(partenaire.uid, {
       defaultImage,
       carouselImages: isPremium ? slots : undefined,
+      carousel_interval_sec: isPremium ? intervalSec : undefined,
     })
     setSaving(false)
     if (res.success) toast.success('Vitrine mise à jour ✅')
@@ -625,6 +629,49 @@ function VitrineTab({ partenaire }: { partenaire: PrescripteurPartenaire }) {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ⏱ Durée d'affichage carrousel — Premium uniquement */}
+      {isPremium && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-base">⏱</span>
+            <p className="text-sm font-semibold text-[#1A1A1A]">Durée d&apos;affichage par image</p>
+          </div>
+          <p className="text-xs text-[#1A1A1A]/50 mb-4">
+            Chaque image reste visible {intervalSec} seconde{intervalSec > 1 ? 's' : ''} avant de passer à la suivante.
+          </p>
+          {/* Boutons de présélection */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {INTERVAL_PRESETS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setIntervalSec(s)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  intervalSec === s
+                    ? 'bg-[#C9A84C] text-white shadow-sm'
+                    : 'bg-[#F5F0E8] text-[#1A1A1A]/60 hover:bg-[#C9A84C]/20 hover:text-[#C9A84C]'
+                }`}>
+                {s}s
+              </button>
+            ))}
+          </div>
+          {/* Slider */}
+          <div className="space-y-2">
+            <input
+              type="range"
+              min={3} max={30} step={1}
+              value={intervalSec}
+              onChange={(e) => setIntervalSec(Number(e.target.value))}
+              className="w-full accent-[#C9A84C]"
+            />
+            <div className="flex justify-between text-[10px] text-[#1A1A1A]/40">
+              <span>3s (rapide)</span>
+              <span className="font-bold text-[#C9A84C] text-xs">{intervalSec}s</span>
+              <span>30s (lent)</span>
+            </div>
           </div>
         </div>
       )}
