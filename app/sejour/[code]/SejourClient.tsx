@@ -211,7 +211,7 @@ export default function SejourClient({ session }: Props) {
 
         {/* Code */}
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-          <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-3">Votre code séjour</p>
+          <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-3">Bon séjour avec votre code promo</p>
           <div className="text-5xl font-mono font-bold text-[#C9A84C] tracking-[0.3em] mb-4">
             {formatCode(session.code)}
           </div>
