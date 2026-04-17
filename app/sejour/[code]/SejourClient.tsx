@@ -136,7 +136,7 @@ export default function SejourClient({ session }: Props) {
         <span className="font-semibold text-sm">🛍️ Visiter la boutique</span>
         {prioritaire && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Prioritaire ⭐</span>}
       </div>
-      <p className="text-xs opacity-70">Entrez {formatCode(session.code)} à la caisse</p>
+      <p className="text-xs opacity-70">Votre code promo partenaires L&amp;Lui Signature à Kribi : {formatCode(session.code)}</p>
     </a>
   )
 
