@@ -279,6 +279,8 @@ export async function getCodeSession(code: string): Promise<CodeSession | null> 
       if (partSnap.exists) {
         const p = partSnap.data()!
         console.log(`[getCodeSession] partenaire fields: subscriptionLevel="${p.subscriptionLevel}" carouselImages=${JSON.stringify(p.carouselImages ?? [])} defaultImage="${p.defaultImage}" photoUrl="${p.photoUrl}"`)
+        // Toujours utiliser le nom actuel du partenaire (peut avoir été renommé après génération du code)
+        if (p.nom_etablissement) session.nom_partenaire = p.nom_etablissement as string
         session.photoUrl = p.photoUrl ?? undefined
         session.defaultImage = p.defaultImage ?? undefined
         session.carouselImages = (p.carouselImages as string[] | undefined)?.filter(Boolean) ?? undefined

@@ -9,6 +9,9 @@ import PopupEvenements from '@/components/PopupEvenements'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
 
+/** Durée d'affichage de chaque image du carrousel (en millisecondes). */
+const CAROUSEL_INTERVAL_MS = 6000
+
 interface Props { session: CodeSession }
 
 function formatCode(code: string) {
@@ -36,7 +39,7 @@ export default function SejourClient({ session }: Props) {
 
   useEffect(() => {
     if (slides.length <= 1) return
-    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 4000)
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), CAROUSEL_INTERVAL_MS)
     return () => clearInterval(t)
   }, [slides.length])
   // ───────────────────────────────────────────────────────────────
