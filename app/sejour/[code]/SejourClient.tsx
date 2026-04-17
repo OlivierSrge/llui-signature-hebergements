@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { CodeSession } from '@/actions/codes-sessions'
 import Link from 'next/link'
+import Image from 'next/image'
 import PopupEvenements from '@/components/PopupEvenements'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
@@ -24,10 +25,21 @@ export default function SejourClient({ session }: Props) {
   const expireAt = new Date(session.expire_at)
   const [maintenant, setMaintenant] = useState(new Date())
 
+  // ── Tous les hooks ici, avant tout return conditionnel ──────────
+  const slides = session.carouselImages?.filter(Boolean) ?? []
+  const [slideIdx, setSlideIdx] = useState(0)
+
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (slides.length <= 1) return
+    const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), 4000)
+    return () => clearInterval(t)
+  }, [slides.length])
+  // ───────────────────────────────────────────────────────────────
 
   const msRestants = Math.max(0, expireAt.getTime() - maintenant.getTime())
   const heuresRestantes = msRestants / 3600000
@@ -136,6 +148,62 @@ export default function SejourClient({ session }: Props) {
           </h1>
           <p className="text-sm text-[#1A1A1A]/60">une expérience exclusive à Kribi</p>
         </div>
+
+        {/* Vitrine partenaire */}
+        {slides.length > 0 ? (
+          /* Carrousel (dès qu'il y a des images, peu importe subscriptionLevel) */
+          <div className="relative w-full rounded-2xl overflow-hidden shadow-sm bg-[#1A1A1A]"
+            style={{ paddingBottom: '56.25%' /* ratio 16/9 compatible tous navigateurs */ }}>
+            {slides.map((url, i) => (
+              <div key={i}
+                className="absolute inset-0 transition-opacity duration-700"
+                style={{ opacity: i === slideIdx ? 1 : 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`${session.nom_partenaire} – photo ${i + 1}`}
+                  className="w-full h-full object-cover" />
+              </div>
+            ))}
+            {/* Logo overlay */}
+            {session.photoUrl && (
+              <div className="absolute bottom-2 left-2 w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={session.photoUrl} alt="Logo" className="w-full h-full object-cover" />
+              </div>
+            )}
+            {/* Indicateurs dots */}
+            {slides.length > 1 && (
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                {slides.map((_, i) => (
+                  <button key={i} onClick={() => setSlideIdx(i)}
+                    className={`h-1.5 rounded-full transition-all ${i === slideIdx ? 'bg-white w-3' : 'bg-white/50 w-1.5'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : session.defaultImage ? (
+          /* Image unique */
+          <div className="relative w-full rounded-2xl overflow-hidden shadow-sm"
+            style={{ paddingBottom: '56.25%' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={session.defaultImage} alt={session.nom_partenaire}
+              className="absolute inset-0 w-full h-full object-cover" />
+            {session.photoUrl && (
+              <div className="absolute bottom-2 left-2 w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={session.photoUrl} alt="Logo" className="w-full h-full object-cover" />
+              </div>
+            )}
+          </div>
+        ) : session.photoUrl ? (
+          /* Juste le logo */
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-sm border border-[#F5F0E8]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={session.photoUrl} alt={session.nom_partenaire}
+                className="w-full h-full object-cover" />
+            </div>
+          </div>
+        ) : null}
 
         {/* Code */}
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center">

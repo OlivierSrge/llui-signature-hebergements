@@ -77,6 +77,11 @@ export interface CodeSession {
     commission_fcfa: number
     reservation_id: string | null
   }[]
+  // Vitrine partenaire (chargés depuis prescripteurs_partenaires)
+  photoUrl?: string
+  defaultImage?: string
+  carouselImages?: string[]
+  subscriptionLevel?: 'free' | 'premium'
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -258,8 +263,37 @@ export async function genererCodeSession(
 /** Lit un code session */
 export async function getCodeSession(code: string): Promise<CodeSession | null> {
   const snap = await db.collection('codes_sessions').doc(code).get()
+  console.log(`[getCodeSession] code="${code}" exists=${snap.exists}`)
   if (!snap.exists) return null
-  return { code, ...(snap.data() as Omit<CodeSession, 'code'>) }
+
+  const data = snap.data()!
+  console.log(`[getCodeSession] session data: prescripteur_partenaire_id="${data.prescripteur_partenaire_id}" nom_partenaire="${data.nom_partenaire}" statut="${data.statut}"`)
+
+  const session = { code, ...(data as Omit<CodeSession, 'code'>) }
+
+  // Charger les images depuis le doc partenaire
+  if (session.prescripteur_partenaire_id) {
+    try {
+      const partSnap = await db.collection('prescripteurs_partenaires').doc(session.prescripteur_partenaire_id).get()
+      console.log(`[getCodeSession] partenaire "${session.prescripteur_partenaire_id}" exists=${partSnap.exists}`)
+      if (partSnap.exists) {
+        const p = partSnap.data()!
+        console.log(`[getCodeSession] partenaire fields: subscriptionLevel="${p.subscriptionLevel}" carouselImages=${JSON.stringify(p.carouselImages ?? [])} defaultImage="${p.defaultImage}" photoUrl="${p.photoUrl}"`)
+        session.photoUrl = p.photoUrl ?? undefined
+        session.defaultImage = p.defaultImage ?? undefined
+        session.carouselImages = (p.carouselImages as string[] | undefined)?.filter(Boolean) ?? undefined
+        session.subscriptionLevel = p.subscriptionLevel ?? 'free'
+      } else {
+        console.warn(`[getCodeSession] ⚠️ partenaire "${session.prescripteur_partenaire_id}" introuvable dans Firestore`)
+      }
+    } catch (e) {
+      console.error(`[getCodeSession] erreur chargement partenaire:`, e)
+    }
+  } else {
+    console.warn(`[getCodeSession] ⚠️ code "${code}" n'a pas de prescripteur_partenaire_id`)
+  }
+
+  return session
 }
 
 /** Valide un code (vérification sans incrément) */
@@ -646,8 +680,11 @@ export async function setCarouselImagesAdmin(
   try {
     if (!id) return { success: false, error: 'ID requis' }
     const cleaned = images.map((u) => u.trim()).filter((u) => u.length > 0).slice(0, 5)
+    // Si des images sont présentes → Premium. Sinon → Free.
+    const subscriptionLevel = cleaned.length > 0 ? 'premium' : 'free'
     await db.collection('prescripteurs_partenaires').doc(id).update({
       carouselImages: cleaned,
+      subscriptionLevel,
       updated_at: new Date().toISOString(),
     })
     revalidatePath('/admin/prescripteurs-partenaires')

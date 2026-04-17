@@ -1,9 +1,9 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-16 — Upload photo partenaire Firebase Storage (commit 6b8c9bf)
+Dernière mise à jour : 2026-04-16 — Admin carrousel + paramètres Premium + photo dashboard (commit 3329db6)
 
 ---
 
-## ROADMAP — MISSION ÉCOSYSTÈME (2026-04-15) 🔜
+## ROADMAP — MISSION ÉCOSYSTÈME (2026-04-16) ✅ QUASI COMPLET
 
 ### 1. Gestion Code Session (Double Inscription)
 - [ ] Code 6 chiffres maintenu dans `codes_sessions` Firestore ET col G Google Sheets
@@ -16,14 +16,15 @@ Dernière mise à jour : 2026-04-16 — Upload photo partenaire Firebase Storage
 - [x] **Auto-Correction** : passage à "Payé"/"Confirmé" → force sync Firebase sans guard Affiliés → transforme ❌ en ✅
 - [x] **Logs structurés** : `[Auto-Liaison]`, `[Client Memory Found]`, `[Webhook Success]`, `[Sync Code Session]`
 - [x] **logSync()** : fonction centralisée pour écriture col O (plus de duplication)
-- [x] `onEditCommandes` surveille maintenant 4 colonnes : G (auto-liaison) + C (mémoire tel) + D (mémoire email) + L (webhook statut)
+- [x] `onEditCommandes` surveille 4 colonnes : G (auto-liaison) + C (mémoire tel) + D (mémoire email) + L (webhook statut)
 
 ### 3. Dashboard Partenaire (Frontend)
 - [x] **Onglet "Ma Vitrine"** — Free/Premium, carrousel interactif avec aperçu, 5 slots d'images, image enseigne
 - [x] **Carrousel avec navigation** — flèches, indicateurs (points), transitions fluides, format mobile
 - [x] **Bouton "Actualiser mes statistiques"** — Server Action `actualiserStatsPartenaire`, recalcul depuis commissions_canal2, mise à jour locale immédiate, spinner + toast
 - [x] **Onglet "Forfait"** — statut actif/expiré, jours restants, dates début/expiration, alerte < 30 jours, lien WhatsApp renouvellement + upgrade Premium
-- [ ] Affichage photo/logo partenaire (champ `photoUrl` Firestore) en entête du dashboard
+- [x] **Photo partenaire dans l'entête** — avatar 56px, fallback 🏨, chargé depuis `photoUrl` Firestore (commit d584d99)
+- [x] **Codes expirés masqués** — filtre client `expire_at > Date.now()` (commit 1c09991)
 
 ### 4. Dashboard Admin (Backend)
 - [x] **Toggle Free/Premium** — bouton dans la liste partenaires, mise à jour Firestore instantanée
@@ -31,11 +32,28 @@ Dernière mise à jour : 2026-04-16 — Upload photo partenaire Firebase Storage
 - [x] **API publique `/api/vitrine`** — endpoint CORS ouvert consommable par la boutique Netlify (`?code=` ou `?uid=`)
 - [x] **Route `/api/admin/merge-duplicates`** — fusion doublons, réassignation sessions + commissions, nettoyage orphelins
 - [x] **Route `/api/admin/sync-affiliates` réécrite en UPSERT** — plus de doublons, ne jamais écraser subscriptionLevel/carouselImages/defaultImage
-- [x] **Upload photo partenaire** — bouton 📷 dans la liste admin, input file caché, upload Firebase Storage (`partenaires-prescripteurs/`), aperçu inline 48px, server action `setPhotoUrlAdmin`
+- [x] **Upload photo partenaire** — bouton 📷, Firebase Storage `partenaires-prescripteurs/`, server action `setPhotoUrlAdmin`
+- [x] **Gestion carrousel admin** — bouton 🎠, panel 5 slots (upload 📁 ou URL), Firebase Storage `partenaires-prescripteurs/carousel/`, server action `setCarouselImagesAdmin` (commit 3329db6)
+- [x] **Date expiration abonnement** — visible dans la liste "⭐ Premium jusqu'au JJ/MM/AAAA"
 
-### 5. Logs & Fiabilité
-- [ ] `console.log` structurés : `[Sync Code Session]`, `[Client Memory Found]`, `[Webhook Success]`
+### 5. Paramètres Globaux Premium (`/admin/parametres`)
+- [x] **Section "⭐ Abonnement Premium Vitrine"** — prix mensuel/annuel, nb images autorisées, durée abonnement (commit 3329db6)
+- [x] **Champs Firestore** : `premium_prix_mensuel_fcfa`, `premium_prix_annuel_fcfa`, `premium_nb_images`, `premium_duree_jours`
+
+### 6. Logs & Fiabilité
 - [ ] `Promise.all` sur toutes les requêtes indépendantes → réponse < 200ms
+
+---
+
+## COMMITS 2026-04-16
+
+| Commit | Description |
+|---|---|
+| `f2f8ebf` | Bouton stats + onglet Forfait dashboard partenaire |
+| `6b8c9bf` | Upload photo partenaire via Firebase Storage |
+| `d584d99` | Photo partenaire dans l'entête dashboard |
+| `1c09991` | Masquer codes expirés du dashboard |
+| `3329db6` | Admin carrousel 🎠 + paramètres Premium vitrine |
 
 ---
 

@@ -89,6 +89,13 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
   total_commissions_fcfa: number,
   created_at: string,
   created_by: string,
+
+  // Champs visuels / abonnement Premium (ajoutés 2026-04-16)
+  photoUrl?: string,              // URL Firebase Storage photo enseigne
+  defaultImage?: string,         // image par défaut (1 seule, plan Free)
+  subscriptionLevel?: 'free'|'premium',
+  carouselImages?: string[],     // max 5 URLs Firebase Storage (plan Premium)
+  premium_expire_at?: string,    // ISO — expiration abonnement Premium
 }
 ```
 
@@ -130,11 +137,50 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
 
 ---
 
-## ROADMAP EN COURS (2026-04-15)
+## PARAMÈTRES PLATEFORME (collection `parametres_plateforme/taux_et_forfaits`)
 
-1. **Apps Script CRM** — Auto-Liaison col G→H, Mémoire Client Tel/Email, Auto-Correction ❌→✅
-2. **Dashboard Partenaire** — Bouton "Actualiser stats" + photo/logo partenaire (`photoUrl`)
-3. **Admin** — Upload photo partenaire + sync-affiliates amélioré
-4. **Logs structurés** — `[Sync Code Session]`, `[Client Memory Found]`, `[Webhook Success]`
+| Champ | Défaut | Description |
+|---|---|---|
+| `commission_partenaire_pct` | 10 | Canal 1 — commission hébergeur |
+| `forfait_prescripteur_mensuel_fcfa` | 25000 | Canal 2 — forfait mensuel |
+| `forfait_prescripteur_annuel_fcfa` | 250000 | Canal 2 — forfait annuel |
+| `premium_prix_mensuel_fcfa` | 10000 | Abonnement Premium mensuel |
+| `premium_prix_annuel_fcfa` | 100000 | Abonnement Premium annuel |
+| `premium_nb_images` | 5 | Nb images carrousel (Premium) |
+| `premium_duree_jours` | 365 | Durée abonnement Premium |
+| `forfait_hotel_reservation_fcfa` | 2000 | Commission hôtel si réservation L&Lui |
+| `commission_mototaxi_fcfa` | 1500 | Canal 3 — commission moto-taxi |
+| `commission_commerciaux_pct` | 10 | Canal 4 — commission commercial |
+| `partage_llui_pct` | 50 | Part L&Lui sur commission canal 4 |
+| `partage_commercial_pct` | 50 | Part commercial sur commission canal 4 |
 
-Voir `CLAUDE_PROGRESS.md` pour le détail de chaque tâche et son état.
+---
+
+## ROUTES API ADMIN (Firebase Storage)
+
+| Route | Méthode | Auth | Usage |
+|---|---|---|---|
+| `/api/admin/upload-photo-partenaire` | POST | cookie admin | Photo enseigne — resize 400×400 JPEG |
+| `/api/admin/upload-carousel-image` | POST | cookie admin | Image carrousel — resize 1200×675 JPEG |
+| `/api/admin/sync-affiliates` | POST | Bearer `ADMIN_API_KEY` | Sync Google Sheets → Firestore (UPSERT) |
+| `/api/admin/merge-duplicates` | POST | Bearer `ADMIN_API_KEY` | Fusionne doublons prescripteurs |
+| `/api/sheets-webhook` | POST | `SHEETS_WEBHOOK_SECRET` | Reçoit statut Sheets → commission Firestore |
+
+---
+
+## ROADMAP EN COURS (2026-04-16)
+
+### Terminé ✅
+- Dashboard partenaire : bouton Actualiser stats + onglet Mon Forfait + photo avatar
+- Admin : upload photo + gestion carrousel 5 images Firebase Storage
+- Admin : filtrage codes expirés (client-side `expire_at > Date.now()`)
+- Paramètres plateforme : section Premium Vitrine (prix, nb images, durée)
+- Fix JSX brace bug AdminCanalDeuxClient + sync-affiliates UPSERT anti-doublons
+
+### À faire [ ]
+- Code 6 chiffres maintenu simultanément dans Firestore ET col G Google Sheets
+- `Promise.all` sur requêtes Firestore indépendantes (objectif < 200ms)
+- Nettoyer doublons existants : `POST /api/admin/merge-duplicates` (Bearer token)
+- Logs structurés : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
+
+Voir `CLAUDE_PROGRESS.md` pour le détail commit par commit.
