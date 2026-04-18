@@ -33,6 +33,8 @@ interface Props {
   soldeProvision: number
   params: ParametresPlateforme
   onSuccess?: (result: ProcessTransactionResult) => void
+  initialMode?: TerminalMode
+  hideTabs?: boolean
 }
 
 type Step = 'phone' | 'montant' | 'confirming' | 'done' | 'error'
@@ -42,7 +44,7 @@ function formatFr(n: number): string {
   return n.toLocaleString('fr-FR')
 }
 
-export default function StarTerminal({ codeSession, partnerId, soldeProvision, params, onSuccess }: Props) {
+export default function StarTerminal({ codeSession, partnerId, soldeProvision, params, onSuccess, initialMode = 'earn', hideTabs = false }: Props) {
   // ── Earn states ─────────────────────────────────────────────
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
@@ -53,7 +55,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
   const [result, setResult] = useState<ProcessTransactionResult | null>(null)
 
   // ── Spend states ─────────────────────────────────────────────
-  const [terminalMode, setTerminalMode] = useState<TerminalMode>('earn')
+  const [terminalMode, setTerminalMode] = useState<TerminalMode>(initialMode)
   const [pendingSpend, setPendingSpend] = useState<(SpendTransaction & { client_points: number }) | null>(null)
   const [spendLoading, setSpendLoading] = useState(false)
   const [spendFeedback, setSpendFeedback] = useState('')
@@ -328,7 +330,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
     <div className="space-y-4">
 
       {/* ── Tabs ────────────────────────────────────────────────── */}
-      <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
+      {!hideTabs && <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
         <button
           onClick={() => setTerminalMode('earn')}
           className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
@@ -359,7 +361,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
         >
           📱 Scan QR
         </button>
-      </div>
+      </div>}
 
       {/* ── Mode Encaisser ─────────────────────────────────────── */}
       {terminalMode === 'earn' && (

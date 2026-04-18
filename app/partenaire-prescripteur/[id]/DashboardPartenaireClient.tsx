@@ -73,7 +73,7 @@ interface Props {
 
 export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0, plateformeParams, starsStats }: Props) {
   const [tick, setTick] = useState(0)
-  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars' | 'reduction' | 'scan'>('stats')
   const [refreshing, setRefreshing] = useState(false)
   const [localStats, setLocalStats] = useState({
     total_ca_boutique_fcfa: partenaire.total_ca_boutique_fcfa ?? 0,
@@ -164,7 +164,7 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
 
       {/* Navigation onglets */}
       <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
-        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
+        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['reduction', '🎁 Réduction'], ['scan', '📱 Scan QR'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 min-w-[72px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
               activeTab === tab
@@ -185,6 +185,74 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
       {activeTab === 'forfait' && (
         <ForfaitTab partenaire={partenaire} params={plateformeParams} />
       )}
+
+      {/* ─── Onglet Réduction Stars ──────────────────────────── */}
+      {activeTab === 'reduction' && (() => {
+        const now = Date.now()
+        const firstCode = codesActifs.find((c) => {
+          const d = safeDate(c.expire_at)
+          return d !== null && d.getTime() > now
+        })
+        const codeSession = firstCode ? (firstCode.code as string) : null
+        const soldeProvision = starsStats?.soldeProvision ?? partenaire.solde_provision ?? 0
+        return (
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">🎁</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">Réduction Stars</p>
+                <p className="text-xs text-[#1A1A1A]/50">Validez les demandes de réduction de vos clients</p>
+              </div>
+            </div>
+            {codeSession ? (
+              <StarTerminal
+                codeSession={codeSession}
+                partnerId={partenaire.uid}
+                soldeProvision={soldeProvision}
+                params={plateformeParams}
+                initialMode="spend"
+                hideTabs
+              />
+            ) : (
+              <p className="text-xs text-[#1A1A1A]/50 text-center py-4">Aucun code actif — générez un code depuis votre QR code.</p>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ─── Onglet Scan QR ──────────────────────────────────── */}
+      {activeTab === 'scan' && (() => {
+        const now = Date.now()
+        const firstCode = codesActifs.find((c) => {
+          const d = safeDate(c.expire_at)
+          return d !== null && d.getTime() > now
+        })
+        const codeSession = firstCode ? (firstCode.code as string) : null
+        const soldeProvision = starsStats?.soldeProvision ?? partenaire.solde_provision ?? 0
+        return (
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">📱</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">Scan QR Client</p>
+                <p className="text-xs text-[#1A1A1A]/50">Validez les demandes Stars initiées par vos clients</p>
+              </div>
+            </div>
+            {codeSession ? (
+              <StarTerminal
+                codeSession={codeSession}
+                partnerId={partenaire.uid}
+                soldeProvision={soldeProvision}
+                params={plateformeParams}
+                initialMode="scan"
+                hideTabs
+              />
+            ) : (
+              <p className="text-xs text-[#1A1A1A]/50 text-center py-4">Aucun code actif — générez un code depuis votre QR code.</p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ─── Onglet Stars ───────────────────────────────────── */}
       {activeTab === 'stars' && (() => {
