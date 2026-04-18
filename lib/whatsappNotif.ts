@@ -1,6 +1,5 @@
 // lib/whatsappNotif.ts — Twilio WhatsApp : lib + messages prédéfinis
-
-import twilio from 'twilio'
+// Import dynamique de twilio pour éviter le crash SSR Next.js (native modules non bundlables).
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
@@ -30,7 +29,8 @@ export async function sendWhatsApp(
 
     console.log(`[sendWhatsApp] from=${fromWa} to=${toWa}`)
 
-    const client = twilio(accountSid, authToken)
+    const twilioModule = (await import('twilio')).default
+    const client = twilioModule(accountSid, authToken)
     const msg = await client.messages.create({ from: fromWa, to: toWa, body: message })
 
     console.log(`[sendWhatsApp] OK sid=${msg.sid} status=${msg.status}`)
