@@ -87,6 +87,24 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "expires_at", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "qr_scan_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expires_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "qr_scan_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "client_uid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expires_at", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

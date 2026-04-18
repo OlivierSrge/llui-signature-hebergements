@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getClientFidelite } from '@/actions/stars'
 import type { ClientFidelite, SpendTransaction } from '@/actions/stars'
 import type { ParametresPlateforme } from '@/actions/parametres'
+import type { QrScanRequest } from '@/actions/qr-scan'
 import {
   getMembershipStatus,
   getRemisePct,
@@ -35,7 +36,7 @@ interface Props {
 }
 
 type Step = 'phone' | 'montant' | 'confirming' | 'done' | 'error'
-type TerminalMode = 'earn' | 'spend'
+type TerminalMode = 'earn' | 'spend' | 'scan'
 
 function formatFr(n: number): string {
   return n.toLocaleString('fr-FR')
@@ -58,9 +59,17 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
   const [spendFeedback, setSpendFeedback] = useState('')
   const [countdown, setCountdown] = useState(0)
 
+  // ── QR Scan states ───────────────────────────────────────────
+  const [qrRequests, setQrRequests] = useState<QrScanRequest[]>([])
+  const [qrLoading, setQrLoading] = useState<string | null>(null) // requestId being processed
+  const [qrFeedback, setQrFeedback] = useState('')
+  const [qrCountdowns, setQrCountdowns] = useState<Record<string, number>>({})
+
   // ── Refs for polling/countdown cleanup ───────────────────────
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  const qrPollRef = useRef<NodeJS.Timeout | null>(null)
+  const qrCountdownRef = useRef<NodeJS.Timeout | null>(null)
 
   // ── Polling (5s) when in spend mode ─────────────────────────
   useEffect(() => {
@@ -98,6 +107,41 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
     countdownRef.current = setInterval(update, 1000)
     return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
   }, [pendingSpend])
+
+  // ── Polling QR scan requests (5s) ────────────────────────────
+  useEffect(() => {
+    if (terminalMode !== 'scan' || !partnerId) return
+
+    const fetchQrRequests = async () => {
+      try {
+        const res = await fetch(`/api/stars/qr-scan/poll?partner_id=${encodeURIComponent(partnerId)}`)
+        const data = await res.json() as { success: boolean; requests?: QrScanRequest[] }
+        if (data.success) setQrRequests(data.requests ?? [])
+      } catch { /* non bloquant */ }
+    }
+
+    fetchQrRequests()
+    qrPollRef.current = setInterval(fetchQrRequests, 5000)
+    return () => { if (qrPollRef.current) clearInterval(qrPollRef.current) }
+  }, [terminalMode, partnerId])
+
+  // ── QR countdowns ────────────────────────────────────────────
+  useEffect(() => {
+    if (qrCountdownRef.current) clearInterval(qrCountdownRef.current)
+    if (qrRequests.length === 0) { setQrCountdowns({}); return }
+
+    const update = () => {
+      const now = Date.now()
+      const counts: Record<string, number> = {}
+      qrRequests.forEach((r) => {
+        counts[r.id] = Math.max(0, Math.floor((new Date(r.expires_at).getTime() - now) / 1000))
+      })
+      setQrCountdowns(counts)
+    }
+    update()
+    qrCountdownRef.current = setInterval(update, 1000)
+    return () => { if (qrCountdownRef.current) clearInterval(qrCountdownRef.current) }
+  }, [qrRequests])
 
   // ── Earn computed values ─────────────────────────────────────
   const valeurStar = params.fidelite_valeur_star_fcfa ?? 1
@@ -235,6 +279,51 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
     setSpendLoading(false)
   }
 
+  // ── QR scan handlers ─────────────────────────────────────────
+  async function handleValidateQrScan(requestId: string) {
+    setQrLoading(requestId)
+    setQrFeedback('')
+    try {
+      const res = await fetch('/api/stars/qr-scan/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, partenaireId: partnerId }),
+      })
+      const data = await res.json() as { success: boolean; starsCredites?: number; error?: string }
+      if (data.success) {
+        setQrFeedback(`✅ +${data.starsCredites} Stars crédités au client !`)
+        setQrRequests((prev) => prev.filter((r) => r.id !== requestId))
+      } else {
+        setQrFeedback(`❌ ${data.error ?? 'Erreur lors de la validation'}`)
+      }
+    } catch {
+      setQrFeedback('❌ Erreur réseau — réessayez')
+    }
+    setQrLoading(null)
+  }
+
+  async function handleRejectQrScan(requestId: string) {
+    setQrLoading(requestId)
+    setQrFeedback('')
+    try {
+      const res = await fetch('/api/stars/qr-scan/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, partenaireId: partnerId }),
+      })
+      const data = await res.json() as { success: boolean; error?: string }
+      if (data.success) {
+        setQrFeedback('Demande refusée.')
+        setQrRequests((prev) => prev.filter((r) => r.id !== requestId))
+      } else {
+        setQrFeedback(`❌ ${data.error ?? 'Erreur'}`)
+      }
+    } catch {
+      setQrFeedback('❌ Erreur réseau — réessayez')
+    }
+    setQrLoading(null)
+  }
+
   return (
     <div className="space-y-4">
 
@@ -258,7 +347,17 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
               : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
           }`}
         >
-          🎁 Réduction Stars
+          🎁 Réduction
+        </button>
+        <button
+          onClick={() => { setTerminalMode('scan'); setQrFeedback('') }}
+          className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+            terminalMode === 'scan'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
+          }`}
+        >
+          📱 Scan QR
         </button>
       </div>
 
@@ -421,6 +520,96 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
             </div>
           )}
         </>
+      )}
+
+      {/* ── Mode Scan QR Client ───────────────────────────────── */}
+      {terminalMode === 'scan' && (
+        <div className="space-y-3">
+          {qrFeedback && (
+            <div className={`rounded-xl px-4 py-3 text-sm text-center font-medium ${
+              qrFeedback.startsWith('✅')
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : qrFeedback.startsWith('❌')
+                  ? 'bg-red-50 border border-red-200 text-red-700'
+                  : 'bg-[#F5F0E8] text-[#1A1A1A]/60'
+            }`}>
+              {qrFeedback}
+            </div>
+          )}
+
+          {qrRequests.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 shadow-sm text-center space-y-3">
+              <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-sm font-semibold text-[#1A1A1A]">En attente de demandes QR</p>
+              <p className="text-xs text-[#1A1A1A]/40">
+                Le client scanne votre QR code depuis son téléphone et saisit le montant.<br />
+                Actualisation automatique toutes les 5 secondes.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {qrRequests.map((req) => {
+                const cd = qrCountdowns[req.id] ?? 120
+                return (
+                  <div key={req.id} className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#1A1A1A]">📱 Demande scan client</p>
+                      <span className={`text-xs font-mono px-2 py-1 rounded-lg ${
+                        cd > 60 ? 'bg-green-100 text-green-700' :
+                        cd > 20 ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {Math.floor(cd / 60)}:{String(cd % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+
+                    <div className="bg-[#F5F0E8]/60 rounded-xl p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-[#1A1A1A]/60">Client</span>
+                        <span className="font-medium font-mono">{req.client_tel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#1A1A1A]/60">Montant réglé</span>
+                        <span className="font-medium">{formatFr(req.montant_fcfa)} FCFA</span>
+                      </div>
+                      {req.remise_appliquee > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#1A1A1A]/60">Remise {req.remise_pct}%</span>
+                          <span className="font-medium text-green-700">−{formatFr(req.remise_appliquee)} FCFA</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-[#1A1A1A]/10 pt-1.5">
+                        <span className="text-[#1A1A1A]/60">Montant net</span>
+                        <span className="font-semibold">{formatFr(req.montant_net)} FCFA</span>
+                      </div>
+                      <div className="flex justify-between border-t border-[#C9A84C]/30 pt-1.5">
+                        <span className="text-[#1A1A1A]/70 font-bold">Stars à créditer</span>
+                        <span className="font-bold text-[#C9A84C]">+{formatFr(req.stars_a_crediter)} ⭐</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleRejectQrScan(req.id)}
+                        disabled={qrLoading === req.id}
+                        className="flex-1 py-2.5 border border-red-200 text-red-500 text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-red-50 transition-colors"
+                      >
+                        ✕ Refuser
+                      </button>
+                      <button
+                        onClick={() => handleValidateQrScan(req.id)}
+                        disabled={qrLoading === req.id}
+                        className="flex-2 flex-grow py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-blue-700 transition-colors"
+                      >
+                        {qrLoading === req.id ? 'Traitement...' : '✅ Valider +Stars'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Mode Réduction Stars ───────────────────────────────── */}

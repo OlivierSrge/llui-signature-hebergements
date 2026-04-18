@@ -2420,3 +2420,56 @@ public/llui-boutique-tracker.js   — tracker JS à déployer sur Netlify
 components/admin/portail/GestionMaries.tsx — formulaire création admin
 components/portail/dashboard/CardCodePromo.tsx — card dashboard marié
 ```
+
+---
+
+## SESSION QR SCAN STARS (2026-04-18) — Module flux client-initiated QR scan
+
+### Objectif
+Permettre au client de scanner le QR code partenaire, saisir un montant, et obtenir ses Stars automatiquement après validation par le partenaire.
+
+### Fichiers créés
+
+**Actions**
+- `actions/qr-scan.ts` — 5 Server Actions atomiques :
+  - `createQrScanRequest()` : crée doc `qr_scan_requests` pending (TTL 120s)
+  - `validateQrScanRequest()` : `db.runTransaction` atomique — crédite stars + débite provision
+  - `rejectQrScanRequest()` : refuse la demande + notif WhatsApp client
+  - `getPendingQrScansForPartner()` : liste pending pour StarTerminal polling
+  - `getPendingQrScanForClient()` : 1 demande pending pour polling côté client
+
+**API Routes**
+- `app/api/stars/qr-scan/poll/route.ts` — GET ?partner_id=uid OU ?client_tel=E.164
+- `app/api/stars/qr-scan/validate/route.ts` — POST { requestId, partenaireId }
+- `app/api/stars/qr-scan/reject/route.ts` — POST { requestId, partenaireId }
+- `app/api/cron/expire-qr-scans/route.ts` — expire les pending > 2min (cron toutes 3min)
+
+**UI Client**
+- `app/stars/scan/page.tsx` — page /stars/scan?tel=+237... (redirect si tel absent)
+- `app/stars/scan/ScanClient.tsx` — camera jsqr → saisie montant → polling status
+
+**Modifications**
+- `components/StarTerminal.tsx` — 3ème onglet "📱 Scan QR" : polling 5s + UI validate/reject
+- `vercel.json` — cron expire-qr-scans toutes 3 minutes
+- `firestore.indexes.json` — 2 nouveaux index `qr_scan_requests`
+
+### Schéma `qr_scan_requests`
+```
+partenaire_id, partenaire_nom, client_uid (E.164), client_tel
+montant_fcfa, remise_appliquee, montant_net, stars_a_crediter
+remise_pct, multiplier, membership_status
+status: pending|validated|rejected|expired
+created_at (Timestamp), expires_at (+120s ISO)
+validated_at?, rejected_at?, validated_by?
+```
+
+### Flux
+1. Client → `/stars/scan?tel=+237...` → scanne QR partenaire (jsqr)
+2. Client saisit montant → `createQrScanRequest()` → doc pending 120s
+3. StarTerminal partenaire onglet "📱 Scan QR" → polling 5s → voit la demande
+4. Partenaire clique "Valider" → `POST /api/stars/qr-scan/validate` → transaction atomique
+5. Stars crédités + provision débitée + notif WhatsApp client
+6. Client : polling 3s → step 'done' → affiche +Stars
+
+### Règle WhatsApp respectée
+Toutes les notifs WhatsApp de `actions/qr-scan.ts` passent par `fetch /api/whatsapp/send`.
