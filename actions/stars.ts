@@ -41,6 +41,8 @@ export interface ClientFidelite {
   created_at: string
   updated_at: string
   phone_verified: boolean
+  has_pending_spend?: boolean
+  pending_spend_id?: string
 }
 
 export interface TransactionFidelite {
@@ -60,6 +62,25 @@ export interface TransactionFidelite {
   created_at: string
   confirmed_at?: string
   expires_at: string
+}
+
+export type SpendStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired'
+export type StarsMode = 'earn' | 'spend'
+
+export interface SpendTransaction {
+  id: string
+  client_id: string
+  partenaire_id: string
+  type: 'spend'
+  points_used: number
+  point_value: number
+  reduction_fcfa: number
+  status: SpendStatus
+  created_at: string
+  expires_at: string
+  confirmed_at?: string | null
+  cancelled_at?: string | null
+  cancel_reason?: string | null
 }
 
 // ─── Helpers internes ──────────────────────────────────────────
@@ -89,6 +110,8 @@ function docToClient(tel: string, d: Record<string, unknown>): ClientFidelite {
     created_at: toIso(d.created_at),
     updated_at: toIso(d.updated_at),
     phone_verified: (d.phone_verified as boolean) ?? false,
+    has_pending_spend: (d.has_pending_spend as boolean) ?? false,
+    pending_spend_id: (d.pending_spend_id as string) ?? undefined,
   }
 }
 
@@ -236,5 +259,241 @@ export async function getPendingTransaction(codeSession: string): Promise<Transa
   } catch (e) {
     console.error('[Fidelite] getPendingTransaction erreur:', e)
     return null
+  }
+}
+
+// ─── Spend Stars ───────────────────────────────────────────────
+
+function toIsoSafe(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
+    return (v as { toDate: () => Date }).toDate().toISOString()
+  }
+  return ''
+}
+
+export async function getClientFideliteById(clientId: string): Promise<ClientFidelite | null> {
+  try {
+    const snap = await db.collection('clients_fidelite').doc(clientId).get()
+    if (!snap.exists) return null
+    const d = snap.data()!
+    if (!d.phone_verified) return null
+    return docToClient(clientId, d)
+  } catch (e) {
+    console.error('[Stars] getClientFideliteById erreur:', e)
+    return null
+  }
+}
+
+export async function spendPointsRequest(params: {
+  clientId: string
+  partnerId: string
+  pointsToUse: number
+}): Promise<{ success: boolean; transactionId?: string; reductionFcfa?: number; error?: string }> {
+  try {
+    const { clientId, partnerId, pointsToUse } = params
+    const platformParams = await getParametresPlateforme()
+    const pointValue = (platformParams as Record<string, unknown>).fidelite_valeur_star_fcfa as number ?? 10
+
+    let transactionId = ''
+    let reductionFcfa = 0
+
+    await db.runTransaction(async (tx) => {
+      const clientRef = db.collection('clients_fidelite').doc(clientId)
+      const clientSnap = await tx.get(clientRef)
+      if (!clientSnap.exists) throw new Error('Client introuvable')
+
+      const d = clientSnap.data()!
+      if (!d.phone_verified) throw new Error('Téléphone non vérifié')
+      if (d.has_pending_spend) throw new Error('Une demande de réduction est déjà en cours')
+
+      const currentPoints = (d.points_stars as number) ?? 0
+      if (currentPoints < pointsToUse) throw new Error(`Solde insuffisant (${currentPoints} stars disponibles)`)
+      if (pointsToUse <= 0) throw new Error('Nombre de stars invalide')
+
+      reductionFcfa = Math.round(pointsToUse * pointValue)
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+      const txRef = db.collection('transactions_fidelite').doc()
+      transactionId = txRef.id
+
+      tx.set(txRef, {
+        type: 'spend',
+        client_id: clientId,
+        partenaire_id: partnerId,
+        points_used: pointsToUse,
+        point_value: pointValue,
+        reduction_fcfa: reductionFcfa,
+        status: 'pending',
+        created_at: FieldValue.serverTimestamp(),
+        expires_at: expiresAt,
+        confirmed_at: null,
+        cancelled_at: null,
+        cancel_reason: null,
+      })
+
+      tx.update(clientRef, {
+        has_pending_spend: true,
+        pending_spend_id: transactionId,
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    })
+
+    console.log(`[Stars] Spend request créée: ${transactionId} — ${pointsToUse} stars → ${reductionFcfa} FCFA`)
+    return { success: true, transactionId, reductionFcfa }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+    console.error('[Stars] spendPointsRequest erreur:', e)
+    return { success: false, error: msg }
+  }
+}
+
+export async function confirmSpendTransaction(
+  transactionId: string,
+  partnerId: string
+): Promise<{ success: boolean; reductionFcfa?: number; error?: string }> {
+  try {
+    let reductionFcfa = 0
+
+    await db.runTransaction(async (tx) => {
+      const txRef = db.collection('transactions_fidelite').doc(transactionId)
+      const txSnap = await tx.get(txRef)
+      if (!txSnap.exists) throw new Error('Transaction introuvable')
+
+      const d = txSnap.data()!
+      if (d.type !== 'spend') throw new Error('Type de transaction invalide')
+      if (d.partenaire_id !== partnerId) throw new Error('Partenaire non autorisé')
+      if (d.status !== 'pending') throw new Error(`Transaction déjà ${d.status}`)
+      if (d.expires_at && new Date(d.expires_at as string) < new Date()) {
+        throw new Error('Transaction expirée')
+      }
+
+      const clientId = d.client_id as string
+      const pointsUsed = d.points_used as number
+      reductionFcfa = d.reduction_fcfa as number
+
+      const clientRef = db.collection('clients_fidelite').doc(clientId)
+      const clientSnap = await tx.get(clientRef)
+      if (!clientSnap.exists) throw new Error('Client introuvable')
+
+      const clientData = clientSnap.data()!
+      const currentPoints = (clientData.points_stars as number) ?? 0
+      if (currentPoints < pointsUsed) throw new Error(`Solde insuffisant (${currentPoints} stars)`)
+
+      tx.update(txRef, {
+        status: 'confirmed',
+        confirmed_at: FieldValue.serverTimestamp(),
+      })
+
+      tx.update(clientRef, {
+        points_stars: FieldValue.increment(-pointsUsed),
+        has_pending_spend: false,
+        pending_spend_id: FieldValue.delete(),
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    })
+
+    console.log(`[Stars] Spend confirmée: ${transactionId} — ${reductionFcfa} FCFA déduits`)
+    return { success: true, reductionFcfa }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+    console.error('[Stars] confirmSpendTransaction erreur:', e)
+    return { success: false, error: msg }
+  }
+}
+
+export async function cancelSpendTransaction(
+  transactionId: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.runTransaction(async (tx) => {
+      const txRef = db.collection('transactions_fidelite').doc(transactionId)
+      const txSnap = await tx.get(txRef)
+      if (!txSnap.exists) throw new Error('Transaction introuvable')
+
+      const d = txSnap.data()!
+      if (d.status !== 'pending') throw new Error(`Transaction déjà ${d.status}`)
+
+      const clientId = d.client_id as string
+      const clientRef = db.collection('clients_fidelite').doc(clientId)
+
+      tx.update(txRef, {
+        status: 'cancelled',
+        cancelled_at: FieldValue.serverTimestamp(),
+        cancel_reason: reason,
+      })
+
+      tx.update(clientRef, {
+        has_pending_spend: false,
+        pending_spend_id: FieldValue.delete(),
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    })
+
+    console.log(`[Stars] Spend annulée: ${transactionId} — raison: ${reason}`)
+    return { success: true }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+    console.error('[Stars] cancelSpendTransaction erreur:', e)
+    return { success: false, error: msg }
+  }
+}
+
+export async function getPendingSpendForPartner(partnerId: string): Promise<(SpendTransaction & { client_points: number })[]> {
+  try {
+    const snap = await db
+      .collection('transactions_fidelite')
+      .where('partenaire_id', '==', partnerId)
+      .where('type', '==', 'spend')
+      .where('status', '==', 'pending')
+      .get()
+
+    const now = new Date()
+    const results: (SpendTransaction & { client_points: number })[] = []
+    const expiredIds: string[] = []
+
+    for (const doc of snap.docs) {
+      const d = doc.data()
+      const expiresAt = d.expires_at as string
+      if (expiresAt && new Date(expiresAt) < now) {
+        expiredIds.push(doc.id)
+        continue
+      }
+
+      let clientPoints = 0
+      try {
+        const clientSnap = await db.collection('clients_fidelite').doc(d.client_id as string).get()
+        if (clientSnap.exists) clientPoints = (clientSnap.data()!.points_stars as number) ?? 0
+      } catch { /* non bloquant */ }
+
+      results.push({
+        id: doc.id,
+        client_id: d.client_id as string,
+        partenaire_id: d.partenaire_id as string,
+        type: 'spend',
+        points_used: d.points_used as number,
+        point_value: d.point_value as number,
+        reduction_fcfa: d.reduction_fcfa as number,
+        status: 'pending',
+        created_at: toIsoSafe(d.created_at),
+        expires_at: expiresAt,
+        confirmed_at: null,
+        cancelled_at: null,
+        cancel_reason: null,
+        client_points: clientPoints,
+      })
+    }
+
+    // Auto-annuler les expirations en arrière-plan (non bloquant)
+    if (expiredIds.length > 0) {
+      Promise.all(expiredIds.map((id) => cancelSpendTransaction(id, 'expired')))
+        .catch((e) => console.error('[Stars] auto-cancel expired:', e))
+    }
+
+    return results
+  } catch (e) {
+    console.error('[Stars] getPendingSpendForPartner erreur:', e)
+    return []
   }
 }
