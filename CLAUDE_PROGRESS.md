@@ -1,9 +1,22 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-18 — Vérification post-déploiement Stars Spend : ✅ 0 import whatsappNotif, ✅ flux earn intact, ✅ 2 index spend présents, ✅ CRON_SECRET dans .env.example.
+Dernière mise à jour : 2026-04-18 — Module Google Maps complet : picker admin, carte partenaires client, lien QR scan depuis InfoWindow.
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-18 — Module Google Maps — 3 livrables
+**Contexte** : Ajout géolocalisation partenaires prescripteurs + carte client + bouton Scanner QR depuis la carte.
+**Livrables** :
+1. **Picker admin** — `MapPickerPartenaire` intégré dans `AdminCanalDeuxClient.tsx` (formulaires créer et modifier). Champs `latitude`, `longitude`, `adresse_gps` ajoutés à `creerPrescripteurPartenaire` et `modifierPrescripteurPartenaire` dans `actions/codes-sessions.ts`.
+2. **Carte partenaires client** — `components/PartenairesMap.tsx` : marqueurs ⭐ or, InfoWindow HTML avec bouton "Scanner le QR", géolocalisation navigateur + distance Haversine, callback `window.__llui_scan_request__` isolé pour pont DOM→React. `actions/partenaires-map.ts` : `getPartenairesGeolocalisees()` retourne les partenaires actifs avec lat/lng. `types/geolocation.ts` : `PartenaireAvecLocation` interface.
+3. **Lien QR scan** — `components/QrScanModal.tsx` : modal client (caméra jsqr ou pré-sélection partenaire). `SejourClient.tsx` : carte + modal après section Stars vérifiée. `page.tsx` : `getPartenairesGeolocalisees()` ajouté au `Promise.all`.
+4. **Firestore index** — `prescripteurs_partenaires (statut ASC, latitude ASC)` dans `firestore.indexes.json`.
+5. **Env** — `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` documenté dans `.env.example` (APIs requises : Maps JavaScript API, Places API, Geocoding API).
+**Actions manuelles requises** :
+- Ajouter `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` sur Vercel Dashboard → Settings → Environment Variables
+- `firebase deploy --only firestore:indexes` (nouvel index prescripteurs_partenaires)
+**Commit** : `f04b8a2`
 
 ### 2026-04-18 — Vérification post-déploiement module Stars Spend
 **Contexte** : Audit complet après déploiement des 7 livrables Stars Spend.
