@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     }
 
     const batch = db.batch()
-    snap.docs.forEach((doc) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    snap.docs.forEach((doc: any) => {
       batch.update(doc.ref, { status: 'expired' })
     })
     await batch.commit()

@@ -129,6 +129,9 @@ export async function creerPrescripteurPartenaire(data: {
   telephone: string
   adresse: string
   email?: string
+  latitude?: number | null
+  longitude?: number | null
+  adresse_gps?: string | null
   remise_type: RemiseType
   remise_valeur_pct: number | null
   remise_description: string | null
@@ -172,6 +175,9 @@ export async function creerPrescripteurPartenaire(data: {
       qr_code_data: qrData,
       qr_genere_le: maintenant.toISOString(),
       code_promo_affilie,
+      ...(data.latitude != null && data.longitude != null
+        ? { latitude: data.latitude, longitude: data.longitude, adresse_gps: data.adresse_gps ?? '' }
+        : {}),
       total_scans: 0,
       total_codes_generes: 0,
       total_utilisations: 0,
@@ -535,6 +541,9 @@ export async function modifierPrescripteurPartenaire(
     type?: TypePartenaire
     telephone?: string
     adresse?: string
+    latitude?: number | null
+    longitude?: number | null
+    adresse_gps?: string | null
     remise_type?: RemiseType
     remise_valeur_pct?: number | null
     remise_description?: string | null
@@ -554,6 +563,11 @@ export async function modifierPrescripteurPartenaire(
     }
     if (data.telephone !== undefined) update.telephone = data.telephone
     if (data.adresse !== undefined) update.adresse = data.adresse
+    if (data.latitude != null && data.longitude != null) {
+      update.latitude = data.latitude
+      update.longitude = data.longitude
+      update.adresse_gps = data.adresse_gps ?? ''
+    }
     if (data.remise_type !== undefined) update.remise_type = data.remise_type
     if (data.remise_valeur_pct !== undefined) update.remise_valeur_pct = data.remise_valeur_pct
     if (data.remise_description !== undefined) update.remise_description = data.remise_description

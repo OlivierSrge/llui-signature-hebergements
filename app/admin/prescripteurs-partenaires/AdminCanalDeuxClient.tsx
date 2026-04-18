@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { toast } from 'react-hot-toast'
 import {
   creerPrescripteurPartenaire,
@@ -19,6 +20,11 @@ import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
+
+const MapPickerPartenaire = dynamic(
+  () => import('@/components/admin/MapPickerPartenaire'),
+  { ssr: false, loading: () => <div className="h-[300px] rounded-2xl border border-[#F5F0E8] bg-[#F5F0E8]/50 flex items-center justify-center text-sm text-[#1A1A1A]/40">Chargement de la carte...</div> }
+)
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
@@ -119,6 +125,9 @@ const formDefault = {
   type: 'hotel' as TypePartenaire,
   telephone: '',
   adresse: '',
+  latitude: null as number | null,
+  longitude: null as number | null,
+  adresse_gps: null as string | null,
   remise_type: 'reduction_pct' as RemiseType,
   remise_valeur_pct: 10,
   remise_description: '',
@@ -241,6 +250,9 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
     type: TypePartenaire
     telephone: string
     adresse: string
+    latitude: number | null
+    longitude: number | null
+    adresse_gps: string | null
     remise_type: RemiseType
     remise_valeur_pct: number
     remise_description: string
@@ -250,6 +262,9 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
     type: 'hotel',
     telephone: '',
     adresse: '',
+    latitude: null,
+    longitude: null,
+    adresse_gps: null,
     remise_type: 'reduction_pct',
     remise_valeur_pct: 10,
     remise_description: '',
@@ -263,6 +278,9 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
       type: p.type,
       telephone: p.telephone,
       adresse: p.adresse ?? '',
+      latitude: (p as Record<string, unknown>).latitude as number | null ?? null,
+      longitude: (p as Record<string, unknown>).longitude as number | null ?? null,
+      adresse_gps: (p as Record<string, unknown>).adresse_gps as string | null ?? null,
       remise_type: p.remise_type,
       remise_valeur_pct: p.remise_valeur_pct ?? 10,
       remise_description: p.remise_description ?? '',
@@ -281,6 +299,9 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
       ...form,
       remise_valeur_pct: form.remise_type === 'reduction_pct' ? form.remise_valeur_pct : null,
       remise_description: form.remise_type === 'non_financier' ? form.remise_description : null,
+      latitude: form.latitude,
+      longitude: form.longitude,
+      adresse_gps: form.adresse_gps,
     })
     setSaving(false)
     if (res.success) {
@@ -303,6 +324,9 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
       ...editForm,
       remise_valeur_pct: editForm.remise_type === 'reduction_pct' ? editForm.remise_valeur_pct : null,
       remise_description: editForm.remise_type === 'non_financier' ? editForm.remise_description : null,
+      latitude: editForm.latitude,
+      longitude: editForm.longitude,
+      adresse_gps: editForm.adresse_gps,
     })
     setEditSaving(false)
     if (res.success) {
@@ -531,6 +555,21 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
             </div>
           </div>
           <PartenaireFormFields vals={editForm} onChange={onChangeEditForm} />
+          <div className="mt-4 space-y-2">
+            <label className="text-xs text-[#1A1A1A]/60 font-medium block">📍 Position sur la carte</label>
+            {editForm.adresse_gps && (
+              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {editForm.adresse_gps}</p>
+            )}
+            <MapPickerPartenaire
+              partenaireId={editId ?? undefined}
+              latitudeInitiale={editForm.latitude ?? undefined}
+              longitudeInitiale={editForm.longitude ?? undefined}
+              nomPartenaire={editForm.nom_etablissement}
+              onPositionValidee={(lat, lng, adresse) =>
+                setEditForm((f) => ({ ...f, latitude: lat, longitude: lng, adresse_gps: adresse }))
+              }
+            />
+          </div>
           <div className="flex gap-3 mt-4">
             <button onClick={handleModifier} disabled={editSaving}
               className="px-6 py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-60 hover:bg-[#b8963e] transition-colors">
@@ -549,6 +588,18 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
           <h2 className="text-sm font-semibold mb-4 text-[#1A1A1A]">Nouveau prescripteur partenaire</h2>
           <PartenaireFormFields vals={form} onChange={onChangeForm} />
+          <div className="mt-4 space-y-2">
+            <label className="text-xs text-[#1A1A1A]/60 font-medium block">📍 Position sur la carte <span className="text-[#1A1A1A]/40">(optionnel)</span></label>
+            {form.adresse_gps && (
+              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {form.adresse_gps}</p>
+            )}
+            <MapPickerPartenaire
+              nomPartenaire={form.nom_etablissement}
+              onPositionValidee={(lat, lng, adresse) =>
+                setForm((f) => ({ ...f, latitude: lat, longitude: lng, adresse_gps: adresse }))
+              }
+            />
+          </div>
           <div className="mt-4">
             <label className="text-xs text-[#1A1A1A]/60 mb-1 block">Forfait</label>
             <select value={form.forfait_type} onChange={(e) => setForm((f) => ({ ...f, forfait_type: e.target.value as 'mensuel' | 'annuel' }))}

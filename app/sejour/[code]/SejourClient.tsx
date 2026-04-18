@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import type { CodeSession } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import type { ClientFidelite, TransactionFidelite, StarsMode } from '@/actions/stars'
@@ -8,6 +9,18 @@ import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction, spendPointsR
 import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
+import type { PartenaireAvecLocation } from '@/types/geolocation'
+
+const PartenairesMap = dynamic(
+  () => import('@/components/PartenairesMap'),
+  { ssr: false, loading: () => (
+    <div className="h-64 bg-[#F5F0E8] rounded-2xl animate-pulse flex items-center justify-center text-[#1A1A1A]/30 text-sm">
+      Chargement de la carte...
+    </div>
+  )}
+)
+
+const QrScanModal = dynamic(() => import('@/components/QrScanModal'), { ssr: false })
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -18,6 +31,7 @@ const CAROUSEL_INTERVAL_DEFAULT_MS = 6000
 interface Props {
   session: CodeSession
   plateformeParams: ParametresPlateforme
+  partenaires?: PartenaireAvecLocation[]
 }
 
 type LoyaltyStep = 'idle' | 'phone' | 'otp_sent' | 'verified'
@@ -32,7 +46,7 @@ function getBarreColor(heures: number) {
   return 'bg-red-500'
 }
 
-export default function SejourClient({ session, plateformeParams }: Props) {
+export default function SejourClient({ session, plateformeParams, partenaires = [] }: Props) {
   const expireAt = new Date(session.expire_at)
   const [maintenant, setMaintenant] = useState(new Date())
 
@@ -52,6 +66,9 @@ export default function SejourClient({ session, plateformeParams }: Props) {
   const [pointsToSpend, setPointsToSpend] = useState('')
   const [spendLoading, setSpendLoading] = useState(false)
   const [spendResult, setSpendResult] = useState<{ success: boolean; reductionFcfa?: number; error?: string } | null>(null)
+  const [showQrModal, setShowQrModal] = useState(false)
+  const [qrPartenaire, setQrPartenaire] = useState<string | null>(null)
+  const [qrPartenaireNom, setQrPartenaireNom] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -521,9 +538,43 @@ export default function SejourClient({ session, plateformeParams }: Props) {
               )}
             </div>
           )}
+
+          {/* ── Carte partenaires Stars ── */}
+          {loyaltyStep === 'verified' && clientData && partenaires.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-[#1A1A1A]">⭐ Partenaires L&amp;Lui Stars</h2>
+                <span className="text-xs text-[#C9A84C] font-medium">{partenaires.length} partenaires</span>
+              </div>
+              <p className="text-xs text-[#1A1A1A]/50">
+                Rendez-vous chez nos partenaires et scannez leur QR code pour gagner des Stars à chaque achat.
+              </p>
+              <PartenairesMap
+                partenaires={partenaires}
+                onScanRequest={(partenaire_id) => {
+                  setQrPartenaire(partenaire_id)
+                  setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
+                  setShowQrModal(true)
+                }}
+              />
+            </div>
+          )}
+
         </div>
 
       </div>
+
+      {/* Modal QR Scan */}
+      {showQrModal && clientData && (
+        <QrScanModal
+          client_uid={clientData.telephone}
+          client_tel={clientData.telephone}
+          partenaire_id_preselect={qrPartenaire}
+          partenaire_nom_preselect={qrPartenaireNom}
+          onClose={() => { setShowQrModal(false); setQrPartenaire(null); setQrPartenaireNom(null) }}
+        />
+      )}
+
     </div>
   )
 }

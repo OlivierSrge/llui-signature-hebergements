@@ -1,5 +1,6 @@
 import { getCodeSession } from '@/actions/codes-sessions'
 import { getParametresPlateforme } from '@/actions/parametres'
+import { getPartenairesGeolocalisees } from '@/actions/partenaires-map'
 import { serialize } from '@/lib/serialize'
 import SejourClient from './SejourClient'
 import Link from 'next/link'
@@ -11,9 +12,10 @@ interface Props {
 }
 
 export default async function SejourPage({ params }: Props) {
-  const [session, plateformeParams] = await Promise.all([
+  const [session, plateformeParams, partenaires] = await Promise.all([
     getCodeSession(params.code),
     getParametresPlateforme(),
+    getPartenairesGeolocalisees(),
   ])
 
   if (!session) {
@@ -31,5 +33,5 @@ export default async function SejourPage({ params }: Props) {
     )
   }
 
-  return <SejourClient session={serialize(session)} plateformeParams={serialize(plateformeParams)} />
+  return <SejourClient session={serialize(session)} plateformeParams={serialize(plateformeParams)} partenaires={serialize(partenaires)} />
 }
