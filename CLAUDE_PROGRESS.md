@@ -1,9 +1,23 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-17 22:30 — Isolation complète twilio : tous les actions/ utilisent fetch /api/whatsapp/send. Poussé sur origin/main.
+Dernière mise à jour : 2026-04-18 — Module "Dépenser ses Stars" complet (7 livrables). Poussé sur origin/main via claude/fix-ssr-digest-error-Yrl0H.
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-18 — Module "Dépenser ses Stars" — 7 livrables
+**Contexte** : Ajout du flow client-side pour utiliser ses Stars comme réduction chez le partenaire.
+**Livrables** :
+1. **Types** — `SpendStatus`, `StarsMode`, `SpendTransaction` dans `actions/stars.ts`. Champs `has_pending_spend` + `pending_spend_id` dans `ClientFidelite` + `docToClient`.
+2. **5 Server Actions** — `getClientFideliteById`, `spendPointsRequest` (runTransaction atomique, pose flag, NO déduction), `confirmSpendTransaction` (vérifie balance+expiry+status, déduit points), `cancelSpendTransaction` (libère flag), `getPendingSpendForPartner` (query + auto-cancel expirés, enrichi `client_points`).
+3. **3 API routes** — `POST /api/stars/confirm-spend` (confirme, WhatsApp client via fetch), `POST /api/stars/cancel-spend`, `GET /api/stars/poll-spend?partnerId=`.
+4. **Cron** — `GET /api/cron/expire-spend` (batch Firestore, auth CRON_SECRET), schedule `*/15 * * * *` dans `vercel.json`.
+5. **StarTerminal.tsx** — prop `partnerId` ajoutée, tabs Encaisser/Réduction Stars, polling `useRef` 5s, countdown `useRef` 1s, carte de demande avec confirm/cancel.
+6. **SejourClient.tsx** — import `spendPointsRequest + StarsMode`, 4 états au top, `handleSpendRequest`, tabs Mon Pass/Dépenser mes Stars, 3 cas UI (avant/succès/erreur).
+7. **Firestore indexes** — 2 nouveaux index `(partenaire_id, type, status, created_at)` et `(type, status, expires_at)` sur `transactions_fidelite`.
+**Commits** : `f5ed644`, `f2df53c`, `d191f4d`, `1f5f4a7`, `a0aebf1`.
+
+---
 
 ### 2026-04-17 22:30 — Isolation complète twilio dans actions/ (fix final digest 1347802925)
 **Contexte** : Malgré la refactorisation de `actions/stars.ts` (commit 39e32aa), 5 autres fichiers `actions/` importaient encore `sendWhatsApp` depuis `lib/whatsappNotif` (qui importe `twilio` au top-level). Ces actions sont importées par des Server Components et Client Components → twilio transitif dans le bundle SSR.
@@ -198,6 +212,16 @@ page.tsx (Server Component)
 - **Commits** : `9703cbc` (Stars complet) · `fe233fc` (framer-motion dep) · `326db10` (fix regex)
 
 ---
+
+## COMMITS 2026-04-18
+
+| Commit | Description |
+|---|---|
+| `f5ed644` | feat(stars): types SpendTransaction + StarsMode + 5 Server Actions spend atomiques |
+| `f2df53c` | feat(stars): routes API confirm-spend + cancel-spend + poll-spend |
+| `d191f4d` | feat(stars): cron expire-spend 15min + vercel.json |
+| `1f5f4a7` | feat(stars): StarTerminal onglet Réduction Stars + polling 5s propre |
+| `a0aebf1` | feat(stars): SejourClient mode earn/spend + UI demande réduction |
 
 ## COMMITS 2026-04-17
 

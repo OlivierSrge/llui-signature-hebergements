@@ -292,10 +292,12 @@ transactions_fidelite/{id}
 - Correctif régex JSX `AdminCanalDeuxClient.tsx` : `{/\* ... \*/}` → `{/* ... */}`
 - **Isolation complète twilio** — digest SSR 1347802925 résolu : tous les `actions/` utilisent `fetch /api/whatsapp/send` (commits `a157b58`, `c2cdf17`)
 - `debug-session` enrichi avec diagnostics env (`hasTwilioSid`, `hasTwilioToken`, `hasTwilioNumber`, `nodeEnv`)
+- **Module "Dépenser ses Stars"** complet (2026-04-18) : types SpendTransaction/StarsMode, 5 Server Actions atomiques, 3 API routes, cron expire-spend 15min, StarTerminal onglet spend + polling, SejourClient mode earn/spend, 2 index Firestore
 
 ### À faire [ ]
 - Vérifier sur Vercel que l'erreur digest 1347802925 est résolue
 - Configurer variables Twilio sur Vercel : `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`, `ADMIN_API_KEY`, `NEXT_PUBLIC_APP_URL`
+- Configurer `CRON_SECRET` sur Vercel (utilisé par `/api/cron/expire-spend`)
 - Code 6 chiffres maintenu simultanément dans Firestore ET col G Google Sheets
 - Logs structurés systématiques : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
 - Nettoyer doublons existants : `POST /api/admin/merge-duplicates` (Bearer token)
