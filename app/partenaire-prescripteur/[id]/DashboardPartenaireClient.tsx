@@ -232,6 +232,7 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
                 </div>
                 <StarTerminal
                   codeSession={codeSession}
+                  partnerId={partenaire.uid}
                   soldeProvision={soldeProvision}
                   params={plateformeParams}
                 />
