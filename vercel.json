@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/canal2",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/expire-spend",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
