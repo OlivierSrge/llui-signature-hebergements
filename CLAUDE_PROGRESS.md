@@ -1,9 +1,19 @@
 # CLAUDE PROGRESS — L&Lui Signature Hébergements
-Dernière mise à jour : 2026-04-18 — Module "Dépenser ses Stars" complet (7 livrables). Poussé sur origin/main via claude/fix-ssr-digest-error-Yrl0H.
+Dernière mise à jour : 2026-04-18 — Vérification post-déploiement Stars Spend : ✅ 0 import whatsappNotif, ✅ flux earn intact, ✅ 2 index spend présents, ✅ CRON_SECRET dans .env.example.
 
 ---
 
 ## JOURNAL D'ACTIVITÉ (entrées les plus récentes en premier)
+
+### 2026-04-18 — Vérification post-déploiement module Stars Spend
+**Contexte** : Audit complet après déploiement des 7 livrables Stars Spend.
+**Résultats** :
+- ✅ **0 import whatsappNotif** dans `actions/` et `components/` — isolation twilio confirmée
+- ✅ **Flux earn StarTerminal intact** — lookup client, calcul temps réel (loyaltyEngine), badge provision, submit → `fetch /api/stars/process-transaction`, steps phone→montant→confirming→done/error
+- ✅ **2 index Firestore spend présents** dans `firestore.indexes.json` : `(partenaire_id, type, status, created_at)` et `(type, status, expires_at)`
+- ✅ **CRON_SECRET présent** dans `.env.example` ligne 38 (valeur vide — à configurer sur Vercel)
+- ⚠️ **firebase CLI absent** dans cet environnement — index à déployer manuellement : `firebase deploy --only firestore:indexes`
+- ℹ️ **git status** : working tree clean, branche `claude/fix-ssr-digest-error-Yrl0H` à jour avec origin
 
 ### 2026-04-18 — Module "Dépenser ses Stars" — 7 livrables
 **Contexte** : Ajout du flow client-side pour utiliser ses Stars comme réduction chez le partenaire.
