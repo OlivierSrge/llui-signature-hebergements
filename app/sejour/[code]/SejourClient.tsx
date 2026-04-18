@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import type { CodeSession } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
-import type { ClientFidelite, TransactionFidelite } from '@/actions/stars'
-import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction } from '@/actions/stars'
+import type { ClientFidelite, TransactionFidelite, StarsMode } from '@/actions/stars'
+import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction, spendPointsRequest } from '@/actions/stars'
 import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -48,6 +48,10 @@ export default function SejourClient({ session, plateformeParams }: Props) {
   const [loyaltyError, setLoyaltyError] = useState('')
   const [clientData, setClientData] = useState<ClientFidelite | null>(null)
   const [pendingTx, setPendingTx] = useState<TransactionFidelite | null>(null)
+  const [starsMode, setStarsMode] = useState<StarsMode>('earn')
+  const [pointsToSpend, setPointsToSpend] = useState('')
+  const [spendLoading, setSpendLoading] = useState(false)
+  const [spendResult, setSpendResult] = useState<{ success: boolean; reductionFcfa?: number; error?: string } | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -161,6 +165,21 @@ export default function SejourClient({ session, plateformeParams }: Props) {
     } else {
       setLoyaltyError(res.error ?? 'Code incorrect')
     }
+  }
+
+  async function handleSpendRequest() {
+    if (!clientData || !session.prescripteur_partenaire_id) return
+    const pts = parseInt(pointsToSpend.replace(/\D/g, ''), 10)
+    if (!pts || pts <= 0) return
+    setSpendLoading(true)
+    setSpendResult(null)
+    const res = await spendPointsRequest({
+      clientId: clientData.telephone,
+      partnerId: session.prescripteur_partenaire_id,
+      pointsToUse: pts,
+    })
+    setSpendLoading(false)
+    setSpendResult(res)
   }
 
   // Écran — code actif
@@ -393,19 +412,114 @@ export default function SejourClient({ session, plateformeParams }: Props) {
             </div>
           )}
 
-          {/* Étape 3 — Pass affiché */}
+          {/* Étape 3 — Pass affiché + mode earn/spend */}
           {loyaltyStep === 'verified' && clientData && (
-            <ElectronicPass
-              client={clientData}
-              params={plateformeParams}
-              pendingTx={pendingTx}
-              avantages={session.avantages_hors_stars}
-              onResendOtp={() => {
-                setLoyaltyStep('idle')
-                setOtp('')
-                setLoyaltyError('')
-              }}
-            />
+            <div className="space-y-4">
+              {/* Sélecteur mode */}
+              <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
+                <button
+                  onClick={() => { setStarsMode('earn'); setSpendResult(null) }}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                    starsMode === 'earn' ? 'bg-[#1A1A1A] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
+                  }`}
+                >
+                  ⭐ Mon Pass
+                </button>
+                <button
+                  onClick={() => { setStarsMode('spend'); setSpendResult(null); setPointsToSpend('') }}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                    starsMode === 'spend' ? 'bg-[#C9A84C] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
+                  }`}
+                >
+                  🎁 Dépenser mes Stars
+                </button>
+              </div>
+
+              {/* Mode Earn : ElectronicPass */}
+              {starsMode === 'earn' && (
+                <ElectronicPass
+                  client={clientData}
+                  params={plateformeParams}
+                  pendingTx={pendingTx}
+                  avantages={session.avantages_hors_stars}
+                  onResendOtp={() => {
+                    setLoyaltyStep('idle')
+                    setOtp('')
+                    setLoyaltyError('')
+                  }}
+                />
+              )}
+
+              {/* Mode Spend */}
+              {starsMode === 'spend' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-[#1A1A1A]/60">
+                    Solde disponible : <strong>{clientData.points_stars.toLocaleString('fr-FR')} ⭐</strong>
+                  </p>
+
+                  {/* Cas 1 — Avant envoi */}
+                  {spendResult === null && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-[#1A1A1A]/60">
+                        Indiquez le nombre de Stars à utiliser. Le partenaire validera la réduction.
+                      </p>
+                      <input
+                        type="number"
+                        value={pointsToSpend}
+                        onChange={(e) => setPointsToSpend(e.target.value)}
+                        placeholder="Ex : 500"
+                        min={1}
+                        max={clientData.points_stars}
+                        className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                      />
+                      {parseInt(pointsToSpend) > 0 && (
+                        <p className="text-xs text-[#C9A84C] font-semibold">
+                          ≈ {(parseInt(pointsToSpend) * (plateformeParams.fidelite_valeur_star_fcfa ?? 1)).toLocaleString('fr-FR')} FCFA de réduction
+                        </p>
+                      )}
+                      <button
+                        onClick={handleSpendRequest}
+                        disabled={spendLoading || !pointsToSpend || parseInt(pointsToSpend) <= 0 || parseInt(pointsToSpend) > clientData.points_stars}
+                        className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+                      >
+                        {spendLoading ? 'Envoi en cours...' : '🎁 Envoyer la demande au partenaire'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Cas 2 — Succès */}
+                  {spendResult?.success && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-2">
+                      <div className="text-2xl">✅</div>
+                      <p className="text-sm font-bold text-green-700">Demande envoyée !</p>
+                      <p className="text-xs text-green-600">
+                        Réduction de <strong>{spendResult.reductionFcfa?.toLocaleString('fr-FR')} FCFA</strong> en attente de validation par le partenaire.
+                      </p>
+                      <button
+                        onClick={() => { setSpendResult(null); setPointsToSpend('') }}
+                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
+                      >
+                        Nouvelle demande
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Cas 3 — Erreur */}
+                  {spendResult !== null && !spendResult.success && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center space-y-2">
+                      <div className="text-2xl">❌</div>
+                      <p className="text-xs text-red-600">{spendResult.error ?? 'Erreur lors de la demande'}</p>
+                      <button
+                        onClick={() => setSpendResult(null)}
+                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
+                      >
+                        Réessayer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
