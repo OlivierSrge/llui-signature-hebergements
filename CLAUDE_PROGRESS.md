@@ -203,6 +203,8 @@ page.tsx (Server Component)
 
 | Commit | Heure | Description |
 |---|---|---|
+| `c2cdf17` | 22:30 | fix(ssr): suppression whatsappNotif dans 5 actions/ — fetch /api/whatsapp/send |
+| `a157b58` | 22:00 | fix(debug): debug-session route enrichie avec diagnostics env (hasTwilioSid, etc.) |
 | `39e32aa` | 20:00 | fix(stars): refactorisation radicale — processPartnerTransaction → API route, StarTerminal → fetch |
 | `187719a` | 19:00 | fix(stars): isoler twilio dans route API + serverComponentsExternalPackages |
 | `dd7b2dd` | 18:00 | fix(dashboard): éviter import actions/stars dans Server Component (crash twilio SSR) |

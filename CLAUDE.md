@@ -137,6 +137,31 @@ N(13) Source       O(14) Sync_Firebase ← log webhook
 - Garde contre 429 : `codeExisteDansAffilies()` avant tout appel webhook
 - Déduplication : `oldVal === newVal` → ignorer
 
+### WhatsApp / Twilio — RÈGLE ABSOLUE
+- **JAMAIS** importer `twilio` ou `lib/whatsappNotif` dans `actions/` ou `components/`
+- **TOUJOURS** utiliser un helper local `fetch` vers `/api/whatsapp/send` :
+  ```typescript
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
+  async function sendWhatsApp(to: string, message: string): Promise<void> {
+    await fetch(`${APP_URL}/api/whatsapp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.ADMIN_API_KEY}` },
+      body: JSON.stringify({ to, message }),
+    }).catch((e) => console.warn('[sendWhatsApp]', e))
+  }
+  ```
+- **Seul fichier autorisé** à importer `twilio` : `app/api/whatsapp/send/route.ts`
+- **Raison** : `twilio` contient des native modules non bundlables par webpack SSR Next.js 14. Un import transitif dans le graphe SSR (action → whatsappNotif → twilio) provoque l'erreur digest SSR (`1347802925`).
+
+### Architecture WhatsApp (twilio isolé)
+```
+Client / Server Action / Server Component
+  ↓ fetch POST
+/api/whatsapp/send  ← SEUL fichier important twilio
+  ↓ Twilio SDK
+WhatsApp destinataire
+```
+
 ### Git
 - Toujours mettre à jour `CLAUDE_PROGRESS.md` après chaque commit important
 - Format commit : `type(scope): description` — ex: `fix(canal2): ...`, `feat(dashboard): ...`
@@ -265,11 +290,16 @@ transactions_fidelite/{id}
 - Dashboard partenaire : onglet "⭐ Stars" avec stats + StarTerminal intégré
 - Firestore index composite `(partenaire_id, status, created_at)` sur `transactions_fidelite`
 - Correctif régex JSX `AdminCanalDeuxClient.tsx` : `{/\* ... \*/}` → `{/* ... */}`
+- **Isolation complète twilio** — digest SSR 1347802925 résolu : tous les `actions/` utilisent `fetch /api/whatsapp/send` (commits `a157b58`, `c2cdf17`)
+- `debug-session` enrichi avec diagnostics env (`hasTwilioSid`, `hasTwilioToken`, `hasTwilioNumber`, `nodeEnv`)
 
 ### À faire [ ]
+- Vérifier sur Vercel que l'erreur digest 1347802925 est résolue
+- Configurer variables Twilio sur Vercel : `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`, `ADMIN_API_KEY`, `NEXT_PUBLIC_APP_URL`
 - Code 6 chiffres maintenu simultanément dans Firestore ET col G Google Sheets
 - Logs structurés systématiques : `[Sync Code Session]`, `[Webhook Success]`, `[Client Memory Found]`
 - Nettoyer doublons existants : `POST /api/admin/merge-duplicates` (Bearer token)
 - Admin : UI top-up `solde_provision` des partenaires (panel admin inline)
+- Déployer index Firestore : `firebase deploy --only firestore:indexes`
 
 Voir `CLAUDE_PROGRESS.md` pour le détail commit par commit.
