@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from './parametres'
 import { type MembershipStatus, type NiveauPass } from '@/lib/loyaltyEngine'
+import { serializeFirestoreDoc } from '@/lib/serialization'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
@@ -94,24 +95,19 @@ function normalizePhone(tel: string): string {
 }
 
 function docToClient(tel: string, d: Record<string, unknown>): ClientFidelite {
-  const toIso = (v: unknown): string => {
-    if (typeof v === 'string') return v
-    if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
-      return (v as { toDate: () => Date }).toDate().toISOString()
-    }
-    return new Date().toISOString()
-  }
+  // serializeFirestoreDoc convertit tous les Timestamp → ISO string, y compris champs inconnus
+  const s = serializeFirestoreDoc(d)
   return {
     telephone: tel,
-    points_stars: (d.points_stars as number) ?? 0,
-    total_stars_historique: (d.total_stars_historique as number) ?? 0,
-    membership_status: (d.membership_status as MembershipStatus) ?? 'novice',
-    last_status_update: toIso(d.last_status_update),
-    created_at: toIso(d.created_at),
-    updated_at: toIso(d.updated_at),
-    phone_verified: (d.phone_verified as boolean) ?? false,
-    has_pending_spend: (d.has_pending_spend as boolean) ?? false,
-    pending_spend_id: (d.pending_spend_id as string) ?? undefined,
+    points_stars: (s.points_stars as number) ?? 0,
+    total_stars_historique: (s.total_stars_historique as number) ?? 0,
+    membership_status: (s.membership_status as MembershipStatus) ?? 'novice',
+    last_status_update: (s.last_status_update as string) ?? new Date().toISOString(),
+    created_at: (s.created_at as string) ?? new Date().toISOString(),
+    updated_at: (s.updated_at as string) ?? new Date().toISOString(),
+    phone_verified: (s.phone_verified as boolean) ?? false,
+    has_pending_spend: (s.has_pending_spend as boolean) ?? false,
+    pending_spend_id: (s.pending_spend_id as string) ?? undefined,
   }
 }
 
@@ -231,30 +227,23 @@ export async function getPendingTransaction(codeSession: string): Promise<Transa
       .limit(1)
       .get()
     if (snap.empty) return null
-    const d = snap.docs[0].data()
-    const toIso = (v: unknown): string => {
-      if (typeof v === 'string') return v
-      if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
-        return (v as { toDate: () => Date }).toDate().toISOString()
-      }
-      return ''
-    }
+    const s = serializeFirestoreDoc(snap.docs[0].data())
     return {
       id: snap.docs[0].id,
-      client_id: d.client_id as string,
-      partenaire_id: d.partenaire_id as string,
-      code_session: d.code_session as string,
-      montant_net: d.montant_net as number,
-      stars_gagnees: d.stars_gagnees as number,
-      remise_appliquee: d.remise_appliquee as number,
-      niveau_pass: (d.niveau_pass as NiveauPass | null) ?? null,
-      remise_pct: d.remise_pct as number,
-      multiplier: d.multiplier as number,
-      valeur_star_fcfa: d.valeur_star_fcfa as number,
+      client_id: s.client_id as string,
+      partenaire_id: s.partenaire_id as string,
+      code_session: s.code_session as string,
+      montant_net: s.montant_net as number,
+      stars_gagnees: s.stars_gagnees as number,
+      remise_appliquee: s.remise_appliquee as number,
+      niveau_pass: (s.niveau_pass as NiveauPass | null) ?? null,
+      remise_pct: s.remise_pct as number,
+      multiplier: s.multiplier as number,
+      valeur_star_fcfa: s.valeur_star_fcfa as number,
       status: 'pending',
-      confirmation_token: d.confirmation_token as string,
-      created_at: toIso(d.created_at),
-      expires_at: (d.expires_at as string) ?? '',
+      confirmation_token: s.confirmation_token as string,
+      created_at: (s.created_at as string) ?? '',
+      expires_at: (s.expires_at as string) ?? '',
     }
   } catch (e) {
     console.error('[Fidelite] getPendingTransaction erreur:', e)
@@ -263,14 +252,6 @@ export async function getPendingTransaction(codeSession: string): Promise<Transa
 }
 
 // ─── Spend Stars ───────────────────────────────────────────────
-
-function toIsoSafe(v: unknown): string {
-  if (typeof v === 'string') return v
-  if (v && typeof (v as { toDate?: () => Date }).toDate === 'function') {
-    return (v as { toDate: () => Date }).toDate().toISOString()
-  }
-  return ''
-}
 
 export async function getClientFideliteById(clientId: string): Promise<ClientFidelite | null> {
   try {
@@ -293,7 +274,7 @@ export async function spendPointsRequest(params: {
   try {
     const { clientId, partnerId, pointsToUse } = params
     const platformParams = await getParametresPlateforme()
-    const pointValue = (platformParams as Record<string, unknown>).fidelite_valeur_star_fcfa as number ?? 10
+    const pointValue = platformParams.fidelite_valeur_star_fcfa ?? 10
 
     let transactionId = ''
     let reductionFcfa = 0
@@ -467,16 +448,17 @@ export async function getPendingSpendForPartner(partnerId: string): Promise<(Spe
         if (clientSnap.exists) clientPoints = (clientSnap.data()!.points_stars as number) ?? 0
       } catch { /* non bloquant */ }
 
+      const s = serializeFirestoreDoc(d)
       results.push({
         id: doc.id,
-        client_id: d.client_id as string,
-        partenaire_id: d.partenaire_id as string,
+        client_id: s.client_id as string,
+        partenaire_id: s.partenaire_id as string,
         type: 'spend',
-        points_used: d.points_used as number,
-        point_value: d.point_value as number,
-        reduction_fcfa: d.reduction_fcfa as number,
+        points_used: s.points_used as number,
+        point_value: s.point_value as number,
+        reduction_fcfa: s.reduction_fcfa as number,
         status: 'pending',
-        created_at: toIsoSafe(d.created_at),
+        created_at: (s.created_at as string) ?? '',
         expires_at: expiresAt,
         confirmed_at: null,
         cancelled_at: null,
