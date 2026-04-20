@@ -419,16 +419,24 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : myQrToken && myQrExpiresAt ? (
-              <StarsQrCard
-                clientUid={clientData?.telephone ?? normalizeTel(phone.trim())}
-                clientNom={myQrDisplayName || clientData?.telephone || phone}
-                clientTel={phone}
-                totalStars={clientData?.points_stars ?? 0}
-                qrToken={myQrToken}
-                expiresAt={myQrExpiresAt}
-                onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null); setMyQrDisplayName('') }}
-                onRenew={handleGenerateMyQr}
-              />
+              <>
+                <StarsQrCard
+                  clientUid={clientData?.telephone ?? normalizeTel(phone.trim())}
+                  clientNom={myQrDisplayName || clientData?.telephone || phone}
+                  clientTel={phone}
+                  totalStars={clientData?.points_stars ?? 0}
+                  qrToken={myQrToken}
+                  expiresAt={myQrExpiresAt}
+                  onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null); setMyQrDisplayName('') }}
+                  onRenew={handleGenerateMyQr}
+                />
+                <button
+                  onClick={() => { setQrPartenaire(null); setQrPartenaireNom(null); setShowQrModal(true) }}
+                  className="w-full py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-semibold rounded-xl hover:bg-[#C9A84C]/5 transition-colors"
+                >
+                  📷 Scanner un QR Partenaire
+                </button>
+              </>
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
@@ -472,7 +480,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
 
           {/* ── Section 2 : Mon Pass / Solde (OTP requis) ───────── */}
-          <div className="border-t border-[#F5F0E8] mt-4 pt-4 space-y-3">
+          {!(myQrToken && myQrExpiresAt) && <div className="border-t border-[#F5F0E8] mt-4 pt-4 space-y-3">
 
             {/* Saisie OTP */}
             {loyaltyStep === 'otp_sent' && (
@@ -615,7 +623,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 {loyaltyLoading ? 'Envoi...' : '⭐ Voir mon solde Stars →'}
               </button>
             )}
-          </div>
+          </div>}
 
         </div>
 
@@ -633,7 +641,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           <PartenairesMap
             partenaires={partenaires}
             onScanRequest={(partenaire_id) => {
-              if (!clientData) { setLoyaltyStep('phone'); return }
+              if (!clientData && !myQrToken) { setLoyaltyStep('phone'); return }
               setQrPartenaire(partenaire_id)
               setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
               setShowQrModal(true)
@@ -643,11 +651,11 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
       </div>
 
-      {/* Modal QR Scan */}
-      {showQrModal && clientData && (
+      {/* Modal QR Scan — disponible dès que la carte QR est générée */}
+      {showQrModal && (clientData || myQrToken) && (
         <QrScanModal
-          client_uid={clientData.telephone}
-          client_tel={clientData.telephone}
+          client_uid={clientData?.telephone ?? normalizeTel(phone.trim())}
+          client_tel={clientData?.telephone ?? normalizeTel(phone.trim())}
           partenaire_id_preselect={qrPartenaire}
           partenaire_nom_preselect={qrPartenaireNom}
           onClose={() => { setShowQrModal(false); setQrPartenaire(null); setQrPartenaireNom(null) }}
