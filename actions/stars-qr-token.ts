@@ -26,26 +26,41 @@ export interface QrClientData {
 }
 
 export type GenerateQrResult =
-  | { success: true; token: string; expiresAt: string }
+  | { success: true; token: string; expiresAt: string; displayName: string }
   | { success: false; error: string }
 
 export type GetQrTokenResult =
   | { valid: true; clientData: QrClientData; expiresAt: string; params: ParametresPlateforme }
   | { valid: false; error: string }
 
-export async function generateStarsQrToken(clientUid: string): Promise<GenerateQrResult> {
+export async function generateStarsQrToken(
+  clientUid: string,
+  prenom: string,
+  nom: string,
+): Promise<GenerateQrResult> {
   try {
-    // Auto-création doc client si absent — flux QR sans OTP
+    const displayName = `${prenom.trim()} ${nom.trim()}`.trim()
     const clientRef = db.collection('clients_fidelite').doc(clientUid)
     const clientDoc = await clientRef.get()
+
     if (!clientDoc.exists) {
       await clientRef.set({
         telephone: clientUid,
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        display_name: displayName,
         points_stars: 0,
         total_stars_historique: 0,
         membership_status: 'novice',
         phone_verified: false,
         created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    } else {
+      await clientRef.update({
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        display_name: displayName,
         updated_at: FieldValue.serverTimestamp(),
       })
     }
@@ -61,7 +76,7 @@ export async function generateStarsQrToken(clientUid: string): Promise<GenerateQ
       used: false,
     })
 
-    return { success: true, token, expiresAt: expiresAt.toISOString() }
+    return { success: true, token, expiresAt: expiresAt.toISOString(), displayName }
   } catch (e) {
     console.error('[generateStarsQrToken]', e)
     return { success: false, error: 'Erreur lors de la génération du QR' }

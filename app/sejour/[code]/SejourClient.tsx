@@ -83,8 +83,11 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── QR Code personnel client ────────────────────────────────────
   const [myQrToken, setMyQrToken] = useState<string | null>(null)
   const [myQrExpiresAt, setMyQrExpiresAt] = useState<string | null>(null)
+  const [myQrDisplayName, setMyQrDisplayName] = useState('')
   const [myQrLoading, setMyQrLoading] = useState(false)
   const [myQrError, setMyQrError] = useState('')
+  const [prenom, setPrenom] = useState('')
+  const [nom, setNom] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -172,14 +175,20 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── Handlers Stars ─────────────────────────────────────────────
 
   async function handleGenerateMyQr() {
+    const p = prenom.trim()
+    const n = nom.trim()
     const tel = clientData?.telephone ?? normalizeTel(phone.trim())
-    if (!tel || !phone.trim() || myQrLoading) return
+    if (!phone.trim() || p.length < 2 || n.length < 2 || myQrLoading) {
+      setMyQrError('Veuillez saisir votre prénom et nom (min. 2 caractères chacun)')
+      return
+    }
     setMyQrLoading(true)
     setMyQrError('')
-    const result = await generateStarsQrToken(tel)
+    const result = await generateStarsQrToken(tel, p, n)
     if (result.success) {
       setMyQrToken(result.token)
       setMyQrExpiresAt(result.expiresAt)
+      setMyQrDisplayName(result.displayName)
     } else {
       setMyQrError(result.error ?? 'Erreur lors de la génération')
     }
@@ -412,26 +421,40 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
             ) : myQrToken && myQrExpiresAt ? (
               <StarsQrCard
                 clientUid={clientData?.telephone ?? normalizeTel(phone.trim())}
-                clientNom={clientData?.telephone ?? ''}
+                clientNom={myQrDisplayName || clientData?.telephone || phone}
                 clientTel={phone}
                 totalStars={clientData?.points_stars ?? 0}
                 qrToken={myQrToken}
                 expiresAt={myQrExpiresAt}
-                onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null) }}
+                onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null); setMyQrDisplayName('') }}
                 onRenew={handleGenerateMyQr}
               />
             ) : (
               <>
                 <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
                 <p className="text-xs text-[#1A1A1A]/60">
-                  Entrez votre numéro WhatsApp pour générer votre QR Code Stars personnel.
+                  Créez votre carte Stars personnelle en quelques secondes.
                 </p>
+                <input
+                  type="text"
+                  value={prenom}
+                  onChange={(e) => setPrenom(e.target.value)}
+                  placeholder="Votre prénom *"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+                <input
+                  type="text"
+                  value={nom}
+                  onChange={(e) => setNom(e.target.value)}
+                  placeholder="Votre nom *"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !myQrLoading && handleGenerateMyQr()}
-                  placeholder="Ex : 6 XX XX XX XX"
+                  placeholder="6 XX XX XX XX *"
                   className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
                 />
                 {myQrError && (
@@ -439,7 +462,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 )}
                 <button
                   onClick={handleGenerateMyQr}
-                  disabled={myQrLoading || !phone.trim()}
+                  disabled={myQrLoading || !phone.trim() || !prenom.trim() || !nom.trim()}
                   className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
                 >
                   {myQrLoading ? 'Génération...' : '📱 Générer mon QR Code'}
