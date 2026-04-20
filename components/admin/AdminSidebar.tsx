@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/admin/promo-codes', label: 'Codes promo', icon: Tag },
   { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/fidelite', label: '⭐ Fidélité L&Lui Stars', icon: Star },
+  { href: '/admin/stars-mlm', label: '💰 Stars & MLM Wallets', icon: Wallet },
   { href: '/admin/devis', label: '💍 Mariages & Devis', icon: Gem },
   { href: '/admin/mariage', label: '📋 Dossiers Mariés', icon: Users },
   { href: '/admin/dashboard', label: '🏠 Dashboard Portail', icon: TrendingUp },

@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { updateVitrine, actualiserStatsPartenaire } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import StarTerminal from '@/components/StarTerminal'
+import {
+  getWalletPartenaire,
+  getCommissionsPartenaire,
+  getRetraitsPartenaire,
+  demanderRetraitPartenaire,
+} from '@/actions/wallet-partenaire'
+import type { WalletPartenaire, CommissionPartenaire, RetraitPartenaire, OperateurMobileMoney } from '@/types/wallet-partenaire'
 
 function formatFCFA(n: number | undefined | null) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n ?? 0)) + ' FCFA'
@@ -73,7 +80,7 @@ interface Props {
 
 export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0, plateformeParams, starsStats }: Props) {
   const [tick, setTick] = useState(0)
-  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars' | 'reduction' | 'scan'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars' | 'reduction' | 'scan' | 'wallet'>('stats')
   const [refreshing, setRefreshing] = useState(false)
   const [localStats, setLocalStats] = useState({
     total_ca_boutique_fcfa: partenaire.total_ca_boutique_fcfa ?? 0,
@@ -172,7 +179,7 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
 
       {/* Navigation onglets */}
       <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
-        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['reduction', '🎁 Réduction'], ['scan', '📱 Scan QR'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
+        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['wallet', '💰 Wallet'], ['reduction', '🎁 Réduction'], ['scan', '📱 Scan QR'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 min-w-[72px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
               activeTab === tab
@@ -183,6 +190,11 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           </button>
         ))}
       </div>
+
+      {/* ─── Onglet Wallet ───────────────────────────────────── */}
+      {activeTab === 'wallet' && (
+        <WalletTab partenaireId={partenaire.uid} />
+      )}
 
       {/* ─── Onglet Vitrine ─────────────────────────────────── */}
       {activeTab === 'vitrine' && (
@@ -912,6 +924,204 @@ function VitrineTab({ partenaire, params }: { partenaire: PrescripteurPartenaire
         className="w-full py-3 bg-[#C9A84C] text-white font-bold rounded-2xl disabled:opacity-60 hover:bg-[#b8963e] transition-colors shadow-sm">
         {saving ? 'Enregistrement...' : '💾 Enregistrer ma vitrine'}
       </button>
+    </div>
+  )
+}
+
+// ─── Composant Wallet Tab ─────────────────────────────────────
+
+const GRADE_COLORS_W: Record<string, string> = {
+  START: '#888', BRONZE: '#CD7F32', ARGENT: '#A8A9AD',
+  OR: '#C9A84C', SAPHIR: '#0F52BA', DIAMANT: '#B9F2FF',
+}
+
+function WalletTab({ partenaireId }: { partenaireId: string }) {
+  const [wallet, setWallet] = useState<WalletPartenaire | null>(null)
+  const [commissions, setCommissions] = useState<CommissionPartenaire[]>([])
+  const [retraits, setRetraits] = useState<RetraitPartenaire[]>([])
+  const [loading, setLoading] = useState(true)
+  const [retraitMontant, setRetraitMontant] = useState('')
+  const [retraitOperateur, setRetraitOperateur] = useState<OperateurMobileMoney>('MTN')
+  const [retraitNumero, setRetraitNumero] = useState('')
+  const [retraitSaving, setRetraitSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [w, c, r] = await Promise.all([
+        getWalletPartenaire(partenaireId),
+        getCommissionsPartenaire(partenaireId, 10),
+        getRetraitsPartenaire(partenaireId, 5),
+      ])
+      setWallet(w)
+      setCommissions(c)
+      setRetraits(r)
+    } catch {
+      toast.error('Erreur chargement wallet')
+    } finally {
+      setLoading(false)
+    }
+  }, [partenaireId])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleRetrait() {
+    const montant = parseInt(retraitMontant, 10)
+    if (!montant || montant < 5000) { toast.error('Montant minimum 5 000 FCFA'); return }
+    if (!retraitNumero.trim()) { toast.error('Numéro Mobile Money requis'); return }
+    setRetraitSaving(true)
+    try {
+      await demanderRetraitPartenaire(partenaireId, montant, retraitOperateur, retraitNumero.trim())
+      toast.success('Demande de retrait envoyée ✅')
+      setRetraitMontant('')
+      setRetraitNumero('')
+      await load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setRetraitSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
+  const gradeColor = GRADE_COLORS_W[wallet?.grade_actuel ?? 'START'] ?? '#888'
+
+  return (
+    <div className="space-y-4">
+      {/* Soldes */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A84C] mb-0.5">Mon portefeuille</p>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+              style={{ background: gradeColor + '22', color: gradeColor, border: `1px solid ${gradeColor}44` }}>
+              ★ {wallet?.grade_actuel ?? 'START'}
+            </span>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-white/40">REV total</p>
+            <p className="text-2xl font-bold text-white">{wallet?.rev_total ?? 0}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-white/50 mb-1">💵 Cash disponible</p>
+            <p className="text-lg font-bold text-[#C9A84C]">{fmt(wallet?.cash ?? 0)}</p>
+            {(wallet?.cash_en_attente ?? 0) > 0 && (
+              <p className="text-[10px] text-white/40 mt-0.5">+ {fmt(wallet?.cash_en_attente ?? 0)} en attente</p>
+            )}
+          </div>
+          <div className="bg-white/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-white/50 mb-1">⭐ Crédits Stars</p>
+            <p className="text-lg font-bold text-blue-400">{fmt(wallet?.credits ?? 0)}</p>
+            {(wallet?.credits_en_attente ?? 0) > 0 && (
+              <p className="text-[10px] text-white/40 mt-0.5">+ {fmt(wallet?.credits_en_attente ?? 0)} en attente</p>
+            )}
+          </div>
+        </div>
+        <p className="text-[10px] text-white/30 text-center mt-3">70% cash · 30% crédits Stars</p>
+      </div>
+
+      {/* Demande retrait */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-sm font-semibold text-[#1A1A1A] mb-3">💸 Demander un retrait cash</p>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <button onClick={() => setRetraitOperateur('MTN')}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${retraitOperateur === 'MTN' ? 'bg-yellow-400 text-black border-yellow-400' : 'border-[#F5F0E8] text-[#1A1A1A]/60'}`}>
+              MTN MoMo
+            </button>
+            <button onClick={() => setRetraitOperateur('Orange')}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${retraitOperateur === 'Orange' ? 'bg-orange-400 text-white border-orange-400' : 'border-[#F5F0E8] text-[#1A1A1A]/60'}`}>
+              Orange Money
+            </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Numéro Mobile Money (ex: 237690...)"
+            value={retraitNumero}
+            onChange={(e) => setRetraitNumero(e.target.value)}
+            className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+          />
+          <input
+            type="number"
+            placeholder="Montant (min. 5 000 FCFA)"
+            value={retraitMontant}
+            onChange={(e) => setRetraitMontant(e.target.value)}
+            className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A84C]"
+          />
+          <button onClick={handleRetrait} disabled={retraitSaving}
+            className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-bold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors">
+            {retraitSaving ? 'Envoi...' : '📤 Envoyer la demande'}
+          </button>
+        </div>
+      </div>
+
+      {/* Historique retraits */}
+      {retraits.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-semibold text-[#1A1A1A] mb-3">🔄 Mes retraits récents</p>
+          <div className="space-y-2">
+            {retraits.map((r) => (
+              <div key={r.id} className="flex items-center justify-between bg-[#F5F0E8]/60 rounded-xl px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-bold text-[#1A1A1A]">{fmt(r.montant)}</p>
+                  <p className="text-xs text-[#1A1A1A]/50">{r.operateur} · {r.numero_mobile_money}</p>
+                </div>
+                <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${
+                  r.statut === 'validee' ? 'bg-green-100 text-green-700' :
+                  r.statut === 'refusee' ? 'bg-red-100 text-red-600' :
+                  'bg-[#C9A84C]/10 text-[#C9A84C]'
+                }`}>
+                  {r.statut === 'validee' ? '✅ Versé' : r.statut === 'refusee' ? '❌ Refusé' : '⏳ En attente'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Commissions récentes */}
+      {commissions.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📊 Commissions récentes</p>
+          <div className="space-y-2">
+            {commissions.map((c) => (
+              <div key={c.id} className="bg-[#F5F0E8]/40 rounded-xl px-3 py-2.5">
+                <div className="flex items-center justify-between mb-0.5">
+                  <p className="text-xs text-[#1A1A1A]/60 capitalize">
+                    {c.type_vente} · N{c.niveau} · {c.rev_generes > 0 ? `+${c.rev_generes} REV` : ''}
+                  </p>
+                  <span className="text-[10px] text-green-600 font-semibold">✅ Validée</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#1A1A1A]/70">{fmt(c.montant_vente)}</span>
+                  <span className="font-semibold text-[#C9A84C]">{fmt(c.montant_commission)}</span>
+                </div>
+                <p className="text-[10px] text-[#1A1A1A]/40 mt-0.5">
+                  💵 {fmt(c.montant_cash)} cash · ⭐ {fmt(c.montant_credits)} crédits
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {commissions.length === 0 && (
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+          <p className="text-3xl mb-3">💰</p>
+          <p className="text-sm font-semibold text-[#1A1A1A]">Aucune commission pour l&apos;instant</p>
+          <p className="text-xs text-[#1A1A1A]/50 mt-1">Vos commissions apparaîtront ici</p>
+        </div>
+      )}
     </div>
   )
 }
