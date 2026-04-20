@@ -41,6 +41,14 @@ function formatCode(code: string) {
   return code.slice(0, 3) + ' ' + code.slice(3)
 }
 
+function normalizeTel(t: string): string {
+  t = t.replace(/[\s\-().]/g, '')
+  if (t.startsWith('00')) t = '+' + t.slice(2)
+  if (/^237\d{8,9}$/.test(t)) t = '+' + t
+  if (!t.startsWith('+')) t = '+237' + t
+  return t
+}
+
 function getBarreColor(heures: number) {
   if (heures > 24) return 'bg-green-500'
   if (heures > 6) return 'bg-amber-500'
@@ -176,10 +184,11 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── Handlers Stars ─────────────────────────────────────────────
 
   async function handleGenerateMyQr() {
-    if (!clientData || myQrLoading) return
+    const tel = clientData?.telephone ?? normalizeTel(phone.trim())
+    if (!tel || myQrLoading) return
     setMyQrLoading(true)
     setMyQrDataUrl(null)
-    const result = await generateStarsQrToken(clientData.telephone)
+    const result = await generateStarsQrToken(tel)
     if (result.success) {
       try {
         const QRCode = (await import('qrcode')).default
@@ -413,90 +422,121 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
             </div>
           </div>
 
-          {/* Étape 1 — Saisie téléphone */}
-          {loyaltyStep === 'idle' && (
-            <div className="space-y-3">
-              <p className="text-xs text-[#1A1A1A]/60">
-                Entrez votre numéro WhatsApp pour rejoindre le programme Stars et cumuler des avantages.
-              </p>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleSendOtp()}
-                placeholder="Ex : 6 XX XX XX XX"
-                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-              />
-              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
-              <button
-                onClick={handleSendOtp}
-                disabled={loyaltyLoading || !phone.trim()}
-                className="w-full py-2.5 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#333] transition-colors"
-              >
-                {loyaltyLoading ? 'Envoi...' : '📱 Recevoir mon code par WhatsApp'}
-              </button>
+          {/* ── Section 1 : QR Code Personnel — TOUJOURS VISIBLE ──── */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
+              {myQrDataUrl && myQrCountdown > 0 && (
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-lg ${
+                  myQrCountdown > 120 ? 'bg-green-100 text-green-700' :
+                  myQrCountdown > 30  ? 'bg-amber-100 text-amber-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {Math.floor(myQrCountdown / 60)}:{String(myQrCountdown % 60).padStart(2, '0')}
+                </span>
+              )}
             </div>
-          )}
 
-          {/* Étape 2 — Saisie OTP */}
-          {loyaltyStep === 'otp_sent' && (
-            <div className="space-y-3">
-              <p className="text-xs text-[#1A1A1A]/60">
-                Un code à 6 chiffres a été envoyé au <strong>{phone}</strong> via WhatsApp. Entrez-le ci-dessous.
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleVerifyOtp()}
-                placeholder="_ _ _ _ _ _"
-                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-center text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#C9A84C]"
-              />
-              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loyaltyLoading || otp.length < 6}
-                className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-              >
-                {loyaltyLoading ? 'Vérification...' : '✅ Confirmer mon code'}
-              </button>
-              <button
-                onClick={() => { setLoyaltyStep('idle'); setOtp(''); setLoyaltyError('') }}
-                className="w-full py-2 text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-              >
-                Modifier le numéro
-              </button>
-            </div>
-          )}
-
-          {/* Étape 3 — Pass affiché + mode earn/spend */}
-          {loyaltyStep === 'verified' && clientData && (
-            <div className="space-y-4">
-              {/* Sélecteur mode */}
-              <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
+            {myQrLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : myQrDataUrl ? (
+              <div className="flex flex-col items-center space-y-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={myQrDataUrl} alt="Mon QR Code Stars" className="w-48 h-48 rounded-2xl border border-[#F5F0E8]" />
+                <p className="text-[10px] text-[#1A1A1A]/40">Valable 5 minutes · Usage unique</p>
                 <button
-                  onClick={() => { setStarsMode('earn'); setSpendResult(null) }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                    starsMode === 'earn' ? 'bg-[#1A1A1A] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                  }`}
+                  onClick={handleGenerateMyQr}
+                  className="text-xs text-[#C9A84C] font-semibold hover:underline"
                 >
-                  ⭐ Mon Pass
-                </button>
-                <button
-                  onClick={() => { setStarsMode('spend'); setSpendResult(null); setPointsToSpend('') }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                    starsMode === 'spend' ? 'bg-[#C9A84C] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                  }`}
-                >
-                  🎁 Dépenser mes Stars
+                  🔄 Actualiser le QR
                 </button>
               </div>
+            ) : (
+              <>
+                <p className="text-xs text-[#1A1A1A]/60">
+                  Entrez votre numéro WhatsApp pour générer votre QR Code Stars personnel.
+                </p>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !myQrLoading && handleGenerateMyQr()}
+                  placeholder="Ex : 6 XX XX XX XX"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+                <button
+                  onClick={handleGenerateMyQr}
+                  disabled={myQrLoading || !phone.trim()}
+                  className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+                >
+                  {myQrLoading ? 'Génération...' : '📱 Générer mon QR Code'}
+                </button>
+              </>
+            )}
+          </div>
 
-              {/* Mode Earn : ElectronicPass + QR personnel */}
-              {starsMode === 'earn' && (
-                <>
+          {/* ── Section 2 : Mon Pass / Solde (OTP requis) ───────── */}
+          <div className="border-t border-[#F5F0E8] mt-4 pt-4 space-y-3">
+
+            {/* Saisie OTP */}
+            {loyaltyStep === 'otp_sent' && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-[#1A1A1A]">⭐ Vérification de votre compte</p>
+                <p className="text-xs text-[#1A1A1A]/60">
+                  Code à 6 chiffres envoyé au <strong>{phone}</strong> via WhatsApp.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleVerifyOtp()}
+                  placeholder="_ _ _ _ _ _"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-center text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#C9A84C]"
+                />
+                {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={loyaltyLoading || otp.length < 6}
+                  className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+                >
+                  {loyaltyLoading ? 'Vérification...' : '✅ Confirmer mon code'}
+                </button>
+                <button
+                  onClick={() => { setLoyaltyStep('idle'); setOtp(''); setLoyaltyError('') }}
+                  className="w-full py-2 text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
+                >
+                  Annuler
+                </button>
+              </div>
+            )}
+
+            {/* Vérifié — Pass + Dépenser */}
+            {loyaltyStep === 'verified' && clientData && (
+              <div className="space-y-4">
+                <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
+                  <button
+                    onClick={() => { setStarsMode('earn'); setSpendResult(null) }}
+                    className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                      starsMode === 'earn' ? 'bg-[#1A1A1A] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
+                    }`}
+                  >
+                    ⭐ Mon Pass
+                  </button>
+                  <button
+                    onClick={() => { setStarsMode('spend'); setSpendResult(null); setPointsToSpend('') }}
+                    className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                      starsMode === 'spend' ? 'bg-[#C9A84C] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
+                    }`}
+                  >
+                    🎁 Dépenser mes Stars
+                  </button>
+                </div>
+
+                {starsMode === 'earn' && (
                   <ElectronicPass
                     client={clientData}
                     params={plateformeParams}
@@ -508,118 +548,80 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                       setLoyaltyError('')
                     }}
                   />
+                )}
 
-                  {/* ── QR Code personnel ── */}
-                  <div className="border-t border-[#F5F0E8] pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
-                      {myQrDataUrl && myQrCountdown > 0 && (
-                        <span className={`text-xs font-mono px-2 py-0.5 rounded-lg ${
-                          myQrCountdown > 120 ? 'bg-green-100 text-green-700' :
-                          myQrCountdown > 30  ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {Math.floor(myQrCountdown / 60)}:{String(myQrCountdown % 60).padStart(2, '0')}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-[#1A1A1A]/50">
-                      Montrez ce QR au partenaire pour qu&apos;il scanne et valide votre achat.
+                {starsMode === 'spend' && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-[#1A1A1A]/60">
+                      Solde disponible : <strong>{clientData.points_stars.toLocaleString('fr-FR')} ⭐</strong>
                     </p>
-
-                    {myQrLoading ? (
-                      <div className="flex justify-center py-6">
-                        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+                    {spendResult === null && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-[#1A1A1A]/60">
+                          Indiquez le nombre de Stars à utiliser. Le partenaire validera la réduction.
+                        </p>
+                        <input
+                          type="number"
+                          value={pointsToSpend}
+                          onChange={(e) => setPointsToSpend(e.target.value)}
+                          placeholder="Ex : 500"
+                          min={1}
+                          max={clientData.points_stars}
+                          className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+                        />
+                        {parseInt(pointsToSpend) > 0 && (
+                          <p className="text-xs text-[#C9A84C] font-semibold">
+                            ≈ {(parseInt(pointsToSpend) * (plateformeParams.fidelite_valeur_star_fcfa ?? 1)).toLocaleString('fr-FR')} FCFA de réduction
+                          </p>
+                        )}
+                        <button
+                          onClick={handleSpendRequest}
+                          disabled={spendLoading || !pointsToSpend || parseInt(pointsToSpend) <= 0 || parseInt(pointsToSpend) > clientData.points_stars}
+                          className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+                        >
+                          {spendLoading ? 'Envoi en cours...' : '🎁 Envoyer la demande au partenaire'}
+                        </button>
                       </div>
-                    ) : myQrDataUrl ? (
-                      <div className="flex flex-col items-center space-y-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={myQrDataUrl} alt="Mon QR Code Stars" className="w-48 h-48 rounded-2xl border border-[#F5F0E8]" />
-                        <p className="text-[10px] text-[#1A1A1A]/40">Valable 5 minutes · Usage unique</p>
+                    )}
+                    {spendResult?.success && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-2">
+                        <div className="text-2xl">✅</div>
+                        <p className="text-sm font-bold text-green-700">Demande envoyée !</p>
+                        <p className="text-xs text-green-600">
+                          Réduction de <strong>{spendResult.reductionFcfa?.toLocaleString('fr-FR')} FCFA</strong> en attente de validation par le partenaire.
+                        </p>
+                        <button onClick={() => { setSpendResult(null); setPointsToSpend('') }}
+                          className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors">
+                          Nouvelle demande
+                        </button>
                       </div>
-                    ) : (
-                      <button
-                        onClick={handleGenerateMyQr}
-                        className="w-full py-2.5 bg-[#F5F0E8] text-[#1A1A1A] text-sm font-semibold rounded-xl hover:bg-[#ece7db] transition-colors"
-                      >
-                        🔄 {myQrToken ? 'Actualiser le QR Code' : 'Afficher mon QR Code'}
-                      </button>
+                    )}
+                    {spendResult !== null && !spendResult.success && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center space-y-2">
+                        <div className="text-2xl">❌</div>
+                        <p className="text-xs text-red-600">{spendResult.error ?? 'Erreur lors de la demande'}</p>
+                        <button onClick={() => setSpendResult(null)}
+                          className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors">
+                          Réessayer
+                        </button>
+                      </div>
                     )}
                   </div>
-                </>
-              )}
+                )}
+              </div>
+            )}
 
-              {/* Mode Spend */}
-              {starsMode === 'spend' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-[#1A1A1A]/60">
-                    Solde disponible : <strong>{clientData.points_stars.toLocaleString('fr-FR')} ⭐</strong>
-                  </p>
-
-                  {/* Cas 1 — Avant envoi */}
-                  {spendResult === null && (
-                    <div className="space-y-3">
-                      <p className="text-xs text-[#1A1A1A]/60">
-                        Indiquez le nombre de Stars à utiliser. Le partenaire validera la réduction.
-                      </p>
-                      <input
-                        type="number"
-                        value={pointsToSpend}
-                        onChange={(e) => setPointsToSpend(e.target.value)}
-                        placeholder="Ex : 500"
-                        min={1}
-                        max={clientData.points_stars}
-                        className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                      />
-                      {parseInt(pointsToSpend) > 0 && (
-                        <p className="text-xs text-[#C9A84C] font-semibold">
-                          ≈ {(parseInt(pointsToSpend) * (plateformeParams.fidelite_valeur_star_fcfa ?? 1)).toLocaleString('fr-FR')} FCFA de réduction
-                        </p>
-                      )}
-                      <button
-                        onClick={handleSpendRequest}
-                        disabled={spendLoading || !pointsToSpend || parseInt(pointsToSpend) <= 0 || parseInt(pointsToSpend) > clientData.points_stars}
-                        className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-                      >
-                        {spendLoading ? 'Envoi en cours...' : '🎁 Envoyer la demande au partenaire'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Cas 2 — Succès */}
-                  {spendResult?.success && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-2">
-                      <div className="text-2xl">✅</div>
-                      <p className="text-sm font-bold text-green-700">Demande envoyée !</p>
-                      <p className="text-xs text-green-600">
-                        Réduction de <strong>{spendResult.reductionFcfa?.toLocaleString('fr-FR')} FCFA</strong> en attente de validation par le partenaire.
-                      </p>
-                      <button
-                        onClick={() => { setSpendResult(null); setPointsToSpend('') }}
-                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-                      >
-                        Nouvelle demande
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Cas 3 — Erreur */}
-                  {spendResult !== null && !spendResult.success && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center space-y-2">
-                      <div className="text-2xl">❌</div>
-                      <p className="text-xs text-red-600">{spendResult.error ?? 'Erreur lors de la demande'}</p>
-                      <button
-                        onClick={() => setSpendResult(null)}
-                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-                      >
-                        Réessayer
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+            {/* Idle — lien pour voir le solde */}
+            {loyaltyStep === 'idle' && (
+              <button
+                onClick={handleSendOtp}
+                disabled={loyaltyLoading || !phone.trim()}
+                className="w-full py-2 text-xs text-[#1A1A1A]/50 hover:text-[#C9A84C] disabled:opacity-40 transition-colors text-center"
+              >
+                {loyaltyLoading ? 'Envoi...' : '⭐ Voir mon solde Stars →'}
+              </button>
+            )}
+          </div>
 
         </div>
 
