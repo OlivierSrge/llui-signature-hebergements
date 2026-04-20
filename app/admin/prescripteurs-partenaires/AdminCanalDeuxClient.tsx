@@ -18,6 +18,8 @@ import {
 } from '@/actions/codes-sessions'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
+import { getAvantagesPartenaire, saveAvantagesPartenaire } from '@/actions/avantages-partenaire'
+import { AVANTAGES_DISPONIBLES, GRADE_ORDER, type AvantageStars, type StarsGradeMinimum } from '@/types/avantages-stars'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 
@@ -242,6 +244,12 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
   const [provisionPartnerId, setProvisionPartnerId] = useState<string | null>(null)
   const [provisionAmount, setProvisionAmount] = useState('')
   const [provisionSaving, setProvisionSaving] = useState(false)
+
+  // Avantages Stars
+  const [avantagesEditId, setAvantagesEditId] = useState<string | null>(null)
+  const [avantagesEditing, setAvantagesEditing] = useState<AvantageStars[]>([])
+  const [avantagesLoading, setAvantagesLoading] = useState(false)
+  const [avantagesSaving, setAvantagesSaving] = useState(false)
 
   const [form, setForm] = useState(formDefault)
 
@@ -509,6 +517,45 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
     } finally {
       setProvisionSaving(false)
     }
+  }
+
+  async function handleOpenAvantages(partnerId: string) {
+    if (avantagesEditId === partnerId) { setAvantagesEditId(null); return }
+    setAvantagesLoading(true)
+    setAvantagesEditId(partnerId)
+    const { avantages: saved } = await getAvantagesPartenaire(partnerId)
+    // Merge saved config over full AVANTAGES_DISPONIBLES list
+    const merged: AvantageStars[] = AVANTAGES_DISPONIBLES.map((a) => {
+      const found = saved.find((s) => s.id === a.id)
+      return found ?? { ...a, grade_minimum: 'START', actif: false }
+    })
+    setAvantagesEditing(merged)
+    setAvantagesLoading(false)
+  }
+
+  async function handleSaveAvantages(partnerId: string) {
+    setAvantagesSaving(true)
+    const res = await saveAvantagesPartenaire(partnerId, avantagesEditing)
+    setAvantagesSaving(false)
+    if (res.success) {
+      toast.success('Avantages Stars sauvegardés ✅')
+      setAvantagesEditId(null)
+      router.refresh()
+    } else {
+      toast.error(res.error ?? 'Erreur')
+    }
+  }
+
+  function toggleAvantage(id: string) {
+    setAvantagesEditing((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, actif: !a.actif } : a)),
+    )
+  }
+
+  function setGradeMinimum(id: string, grade: StarsGradeMinimum) {
+    setAvantagesEditing((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, grade_minimum: grade } : a)),
+    )
   }
 
   // Helper onChange pour les deux formulaires (création + édition)
@@ -871,6 +918,17 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                         }`}>
                         💰
                       </button>
+                      {/* Avantages Stars */}
+                      <button
+                        onClick={() => handleOpenAvantages(p.uid)}
+                        title="Gérer les avantages Stars"
+                        className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                          avantagesEditId === p.uid
+                            ? 'bg-[#C9A84C] text-white'
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        }`}>
+                        ⭐
+                      </button>
                       {/* Prolonger forfait */}
                       <button
                         onClick={() => forfaitEditId === p.uid ? setForfaitEditId(null) : openForfaitEdit(p)}
@@ -1030,6 +1088,81 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                           <p className="text-xs text-emerald-600 mt-2 font-medium">
                             → Nouveau solde estimé : {formatFCFA(((p as PrescripteurPartenaire & { solde_provision?: number }).solde_provision ?? 0) + Number(provisionAmount))}
                           </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Panel — Avantages Stars */}
+                    {avantagesEditId === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-semibold text-[#1A1A1A]">⭐ Avantages Stars membres</p>
+                          <button onClick={() => setAvantagesEditId(null)} className="text-[10px] text-[#1A1A1A]/40 hover:text-[#1A1A1A]">✕ Fermer</button>
+                        </div>
+                        {avantagesLoading ? (
+                          <div className="flex justify-center py-6">
+                            <div className="w-5 h-5 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-[11px] text-[#1A1A1A]/50 mb-3">
+                              Activez les avantages offerts aux membres L&amp;Lui Stars et définissez le grade minimum requis.
+                              ({avantagesEditing.filter(a => a.actif).length} actif{avantagesEditing.filter(a => a.actif).length !== 1 ? 's' : ''})
+                            </p>
+                            <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                              {Object.entries(
+                                avantagesEditing.reduce<Record<string, AvantageStars[]>>((acc, a) => {
+                                  if (!acc[a.categorie]) acc[a.categorie] = []
+                                  acc[a.categorie].push(a)
+                                  return acc
+                                }, {})
+                              ).map(([cat, items]) => (
+                                <div key={cat}>
+                                  <p className="text-[10px] font-bold text-[#C9A84C] uppercase tracking-widest mb-2">{cat}</p>
+                                  <div className="space-y-1.5">
+                                    {items.map((a) => (
+                                      <div key={a.id} className={`flex items-center gap-2 rounded-lg p-2 transition-colors ${a.actif ? 'bg-amber-50 border border-amber-200' : 'bg-[#F5F0E8]/40'}`}>
+                                        <input
+                                          type="checkbox"
+                                          checked={a.actif}
+                                          onChange={() => toggleAvantage(a.id)}
+                                          className="w-3.5 h-3.5 accent-[#C9A84C] shrink-0"
+                                        />
+                                        <span className="text-sm shrink-0">{a.emoji}</span>
+                                        <p className="text-[11px] text-[#1A1A1A] flex-1 leading-tight">{a.label}</p>
+                                        {a.actif && (
+                                          <select
+                                            value={a.grade_minimum}
+                                            onChange={(e) => setGradeMinimum(a.id, e.target.value as StarsGradeMinimum)}
+                                            className="text-[10px] border border-amber-200 rounded px-1 py-0.5 bg-white focus:outline-none shrink-0"
+                                          >
+                                            {GRADE_ORDER.map((g) => (
+                                              <option key={g} value={g}>{g}</option>
+                                            ))}
+                                          </select>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                              <button
+                                onClick={() => handleSaveAvantages(p.uid)}
+                                disabled={avantagesSaving}
+                                className="flex-1 py-2 bg-[#C9A84C] text-white text-xs font-semibold rounded-lg disabled:opacity-60 hover:bg-[#b8963e] transition-colors"
+                              >
+                                {avantagesSaving ? '...' : '✅ Sauvegarder les avantages'}
+                              </button>
+                              <button
+                                onClick={() => setAvantagesEditId(null)}
+                                className="px-4 py-2 bg-[#F5F0E8] text-[#1A1A1A]/60 text-xs rounded-lg"
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     )}

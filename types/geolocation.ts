@@ -1,5 +1,7 @@
 // types/geolocation.ts — Types géolocalisation pour la carte partenaires L&Lui Stars
 
+import type { AvantageStars } from './avantages-stars'
+
 export interface GeoLocation {
   latitude: number
   longitude: number
@@ -14,4 +16,5 @@ export interface PartenaireAvecLocation {
   latitude: number
   longitude: number
   adresse_gps: string
+  avantages_stars?: AvantageStars[]
 }

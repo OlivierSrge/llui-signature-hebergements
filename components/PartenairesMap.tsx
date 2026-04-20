@@ -102,14 +102,22 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
             const photo = p.photoUrl
               ? `<img src="${p.photoUrl}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px" />`
               : ''
+            const avantagesHtml = p.avantages_stars && p.avantages_stars.length > 0
+              ? `<div style="margin-top:6px;padding:6px 8px;background:#FFFBF0;border-radius:8px;border:1px solid #C9A84C33">
+                   <p style="font-size:10px;font-weight:700;color:#C9A84C;margin:0 0 4px 0">🎁 Avantages membres</p>
+                   ${p.avantages_stars.slice(0, 3).map((a) => `<p style="font-size:10px;color:#555;margin:2px 0">${a.emoji} ${a.label}</p>`).join('')}
+                   ${p.avantages_stars.length > 3 ? `<p style="font-size:10px;color:#C9A84C;margin-top:2px">+${p.avantages_stars.length - 3} autres avantages...</p>` : ''}
+                 </div>`
+              : ''
             const content = `
-              <div style="max-width:220px;font-family:sans-serif">
+              <div style="max-width:240px;font-family:sans-serif">
                 ${photo}
                 <p style="font-size:14px;font-weight:700;color:#1A1A1A;margin:0">${p.nom}</p>
                 <p style="font-size:11px;color:#888;margin:2px 0">🏷️ ${p.type}</p>
                 ${p.adresse_gps ? `<p style="font-size:11px;color:#888">📍 ${p.adresse_gps}</p>` : ''}
                 ${dist}
                 <p style="font-size:11px;color:${GOLD};margin-top:4px">⭐ Partenaire L&amp;Lui Stars</p>
+                ${avantagesHtml}
                 <button
                   onclick="window.__llui_scan_request__('${p.id}')"
                   style="margin-top:8px;width:100%;padding:8px;background:${GOLD};color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer"

@@ -404,12 +404,21 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
         {/* ── L&Lui Stars — Programme de fidélité ──────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl">⭐</span>
-            <div>
-              <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
-              <p className="text-xs text-[#1A1A1A]/50">Gagnez des points à chaque achat</p>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⭐</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
+                <p className="text-xs text-[#1A1A1A]/50">Gagnez des points à chaque achat</p>
+              </div>
             </div>
+            <Link
+              href="/stars/notice"
+              target="_blank"
+              className="text-[10px] text-[#C9A84C] hover:underline shrink-0"
+            >
+              📋 Règles
+            </Link>
           </div>
 
           {/* ── Section 1 : QR Code Personnel — TOUJOURS VISIBLE ──── */}
