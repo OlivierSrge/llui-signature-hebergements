@@ -6,6 +6,7 @@ import type { CodeSession } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import type { ClientFidelite, TransactionFidelite, StarsMode } from '@/actions/stars'
 import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction, spendPointsRequest } from '@/actions/stars'
+import { generateStarsQrToken } from '@/actions/stars-qr-token'
 import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -70,6 +71,13 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   const [qrPartenaire, setQrPartenaire] = useState<string | null>(null)
   const [qrPartenaireNom, setQrPartenaireNom] = useState<string | null>(null)
 
+  // ── QR Code personnel client ────────────────────────────────────
+  const [myQrToken, setMyQrToken] = useState<string | null>(null)
+  const [myQrExpiresAt, setMyQrExpiresAt] = useState<string | null>(null)
+  const [myQrDataUrl, setMyQrDataUrl] = useState<string | null>(null)
+  const [myQrLoading, setMyQrLoading] = useState(false)
+  const [myQrCountdown, setMyQrCountdown] = useState(0)
+
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
     return () => clearInterval(timer)
@@ -81,6 +89,19 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), intervalMs)
     return () => clearInterval(t)
   }, [slides.length])
+
+  // ── QR countdown — efface le QR quand expiré ─────────────────
+  useEffect(() => {
+    if (!myQrExpiresAt) return
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((new Date(myQrExpiresAt).getTime() - Date.now()) / 1000))
+      setMyQrCountdown(secs)
+      if (secs === 0) { setMyQrDataUrl(null); setMyQrToken(null) }
+    }
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [myQrExpiresAt])
   // ───────────────────────────────────────────────────────────────
 
   const msRestants = Math.max(0, expireAt.getTime() - maintenant.getTime())
@@ -153,6 +174,27 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   }
 
   // ── Handlers Stars ─────────────────────────────────────────────
+
+  async function handleGenerateMyQr() {
+    if (!clientData || myQrLoading) return
+    setMyQrLoading(true)
+    setMyQrDataUrl(null)
+    const result = await generateStarsQrToken(clientData.telephone)
+    if (result.success) {
+      try {
+        const QRCode = (await import('qrcode')).default
+        const qrUrl = `${APP_URL}/stars/client/${result.token}`
+        const dataUrl = await QRCode.toDataURL(qrUrl, {
+          width: 192, margin: 2,
+          color: { dark: '#1A1A1A', light: '#FFFFFF' },
+        })
+        setMyQrToken(result.token)
+        setMyQrExpiresAt(result.expiresAt)
+        setMyQrDataUrl(dataUrl)
+      } catch { /* non bloquant */ }
+    }
+    setMyQrLoading(false)
+  }
 
   async function handleSendOtp() {
     if (!phone.trim()) return
@@ -452,19 +494,59 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 </button>
               </div>
 
-              {/* Mode Earn : ElectronicPass */}
+              {/* Mode Earn : ElectronicPass + QR personnel */}
               {starsMode === 'earn' && (
-                <ElectronicPass
-                  client={clientData}
-                  params={plateformeParams}
-                  pendingTx={pendingTx}
-                  avantages={session.avantages_hors_stars}
-                  onResendOtp={() => {
-                    setLoyaltyStep('idle')
-                    setOtp('')
-                    setLoyaltyError('')
-                  }}
-                />
+                <>
+                  <ElectronicPass
+                    client={clientData}
+                    params={plateformeParams}
+                    pendingTx={pendingTx}
+                    avantages={session.avantages_hors_stars}
+                    onResendOtp={() => {
+                      setLoyaltyStep('idle')
+                      setOtp('')
+                      setLoyaltyError('')
+                    }}
+                  />
+
+                  {/* ── QR Code personnel ── */}
+                  <div className="border-t border-[#F5F0E8] pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
+                      {myQrDataUrl && myQrCountdown > 0 && (
+                        <span className={`text-xs font-mono px-2 py-0.5 rounded-lg ${
+                          myQrCountdown > 120 ? 'bg-green-100 text-green-700' :
+                          myQrCountdown > 30  ? 'bg-amber-100 text-amber-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {Math.floor(myQrCountdown / 60)}:{String(myQrCountdown % 60).padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#1A1A1A]/50">
+                      Montrez ce QR au partenaire pour qu&apos;il scanne et valide votre achat.
+                    </p>
+
+                    {myQrLoading ? (
+                      <div className="flex justify-center py-6">
+                        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : myQrDataUrl ? (
+                      <div className="flex flex-col items-center space-y-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={myQrDataUrl} alt="Mon QR Code Stars" className="w-48 h-48 rounded-2xl border border-[#F5F0E8]" />
+                        <p className="text-[10px] text-[#1A1A1A]/40">Valable 5 minutes · Usage unique</p>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleGenerateMyQr}
+                        className="w-full py-2.5 bg-[#F5F0E8] text-[#1A1A1A] text-sm font-semibold rounded-xl hover:bg-[#ece7db] transition-colors"
+                      >
+                        🔄 {myQrToken ? 'Actualiser le QR Code' : 'Afficher mon QR Code'}
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
 
               {/* Mode Spend */}
