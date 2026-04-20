@@ -159,6 +159,14 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
               expire {formatLocalDate(partenaire.forfait_expire_at)} · dans {forfaitExpire} jours
             </span>
           )}
+          <a
+            href="/notice-partenaire"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#C9A84C]/10 text-[#C9A84C] hover:bg-[#C9A84C]/20 transition-colors"
+          >
+            📘 Guide partenaire
+          </a>
         </div>
       </div>
 
