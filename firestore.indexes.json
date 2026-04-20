@@ -129,6 +129,22 @@
         { "fieldPath": "client_uid", "order": "ASCENDING" },
         { "fieldPath": "used", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pass_vip_actifs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "client_uid", "order": "ASCENDING" },
+        { "fieldPath": "actif", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pass_vip_actifs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "expire_notifie_j3", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

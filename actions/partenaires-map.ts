@@ -31,6 +31,7 @@ export async function getPartenairesGeolocalisees(): Promise<PartenaireAvecLocat
         longitude: lng,
         adresse_gps: (s.adresse_gps as string) ?? '',
         avantages_stars: avantages.filter((a: { actif?: boolean }) => a.actif),
+        accepte_pass_vip: (s.accepte_pass_vip as boolean) ?? false,
       })
     }
     return results

@@ -17,4 +17,5 @@ export interface PartenaireAvecLocation {
   longitude: number
   adresse_gps: string
   avantages_stars?: AvantageStars[]
+  accepte_pass_vip?: boolean
 }

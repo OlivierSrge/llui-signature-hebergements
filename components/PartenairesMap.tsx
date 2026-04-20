@@ -117,6 +117,7 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
                 ${p.adresse_gps ? `<p style="font-size:11px;color:#888">📍 ${p.adresse_gps}</p>` : ''}
                 ${dist}
                 <p style="font-size:11px;color:${GOLD};margin-top:4px">⭐ Partenaire L&amp;Lui Stars</p>
+                ${p.accepte_pass_vip ? '<p style="font-size:11px;color:#7C3AED;margin-top:2px;font-weight:600">👑 Pass VIP accepté</p>' : ''}
                 ${avantagesHtml}
                 <button
                   onclick="window.__llui_scan_request__('${p.id}')"

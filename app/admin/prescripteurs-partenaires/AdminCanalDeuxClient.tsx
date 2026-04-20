@@ -19,6 +19,8 @@ import {
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import { getAvantagesPartenaire, saveAvantagesPartenaire } from '@/actions/avantages-partenaire'
+import { sauvegarderVipPartenaire } from '@/actions/pass-vip'
+import { type PassVipGrade, PASS_VIP_CONFIGS } from '@/types/pass-vip'
 import { AVANTAGES_DISPONIBLES, GRADE_ORDER, type AvantageStars, type StarsGradeMinimum } from '@/types/avantages-stars'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
@@ -250,6 +252,12 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
   const [avantagesEditing, setAvantagesEditing] = useState<AvantageStars[]>([])
   const [avantagesLoading, setAvantagesLoading] = useState(false)
   const [avantagesSaving, setAvantagesSaving] = useState(false)
+
+  // Pass VIP partenaire
+  const [vipEditId, setVipEditId] = useState<string | null>(null)
+  const [acceptePassVip, setAcceptePassVip] = useState(false)
+  const [gradesPassAcceptes, setGradesPassAcceptes] = useState<PassVipGrade[]>([])
+  const [vipSaving, setVipSaving] = useState(false)
 
   const [form, setForm] = useState(formDefault)
 
@@ -544,6 +552,33 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
     } else {
       toast.error(res.error ?? 'Erreur')
     }
+  }
+
+  function openVipPanel(p: PrescripteurPartenaire) {
+    if (vipEditId === p.uid) { setVipEditId(null); return }
+    const pp = p as PrescripteurPartenaire & { accepte_pass_vip?: boolean; grades_pass_acceptes?: PassVipGrade[] }
+    setAcceptePassVip(pp.accepte_pass_vip ?? false)
+    setGradesPassAcceptes(pp.grades_pass_acceptes ?? [])
+    setVipEditId(p.uid)
+  }
+
+  async function handleSaveVip(partnerId: string) {
+    setVipSaving(true)
+    const res = await sauvegarderVipPartenaire(partnerId, acceptePassVip, gradesPassAcceptes)
+    setVipSaving(false)
+    if (res.success) {
+      toast.success('Préférences Pass VIP sauvegardées ✅')
+      setVipEditId(null)
+      router.refresh()
+    } else {
+      toast.error(res.error ?? 'Erreur')
+    }
+  }
+
+  function toggleGradePassAccepte(grade: PassVipGrade) {
+    setGradesPassAcceptes((prev) =>
+      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade],
+    )
   }
 
   function toggleAvantage(id: string) {
@@ -929,6 +964,19 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                         }`}>
                         ⭐
                       </button>
+                      {/* Pass VIP */}
+                      <button
+                        onClick={() => openVipPanel(p)}
+                        title="Gérer les Pass VIP acceptés"
+                        className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                          vipEditId === p.uid
+                            ? 'bg-purple-600 text-white'
+                            : (p as PrescripteurPartenaire & { accepte_pass_vip?: boolean }).accepte_pass_vip
+                              ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                              : 'bg-[#F5F0E8] text-[#1A1A1A]/60 hover:bg-[#F5F0E8]/80'
+                        }`}>
+                        👑
+                      </button>
                       {/* Prolonger forfait */}
                       <button
                         onClick={() => forfaitEditId === p.uid ? setForfaitEditId(null) : openForfaitEdit(p)}
@@ -1164,6 +1212,59 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                             </div>
                           </>
                         )}
+                      </div>
+                    )}
+
+                    {/* Panel — Pass VIP */}
+                    {vipEditId === p.uid && (
+                      <div className="mt-3 pt-3 border-t border-[#F5F0E8] w-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-semibold text-[#1A1A1A]">👑 Pass VIP acceptés</p>
+                          <button onClick={() => setVipEditId(null)} className="text-[10px] text-[#1A1A1A]/40 hover:text-[#1A1A1A]">✕ Fermer</button>
+                        </div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <input
+                            type="checkbox"
+                            id={`vip-toggle-${p.uid}`}
+                            checked={acceptePassVip}
+                            onChange={(e) => setAcceptePassVip(e.target.checked)}
+                            className="w-4 h-4 accent-purple-600"
+                          />
+                          <label htmlFor={`vip-toggle-${p.uid}`} className="text-xs text-[#1A1A1A] cursor-pointer">
+                            Ce partenaire accepte les Pass VIP (clients upgradés)
+                          </label>
+                        </div>
+                        {acceptePassVip && (
+                          <div className="space-y-2 mb-4">
+                            <p className="text-[11px] text-[#1A1A1A]/50">Grades acceptés :</p>
+                            {(Object.keys(PASS_VIP_CONFIGS) as PassVipGrade[]).map((grade) => (
+                              <div key={grade} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`grade-${p.uid}-${grade}`}
+                                  checked={gradesPassAcceptes.includes(grade)}
+                                  onChange={() => toggleGradePassAccepte(grade)}
+                                  className="w-3.5 h-3.5 accent-purple-600"
+                                />
+                                <label htmlFor={`grade-${p.uid}-${grade}`} className="text-xs text-[#1A1A1A] cursor-pointer">
+                                  {grade} · {PASS_VIP_CONFIGS[grade].duree_jours}j · {PASS_VIP_CONFIGS[grade].prix_fcfa.toLocaleString('fr-FR')} FCFA
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveVip(p.uid)}
+                            disabled={vipSaving}
+                            className="flex-1 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg disabled:opacity-60 hover:bg-purple-700 transition-colors">
+                            {vipSaving ? '...' : '✅ Sauvegarder'}
+                          </button>
+                          <button onClick={() => setVipEditId(null)}
+                            className="px-4 py-2 bg-[#F5F0E8] text-[#1A1A1A]/60 text-xs rounded-lg">
+                            Annuler
+                          </button>
+                        </div>
                       </div>
                     )}
 

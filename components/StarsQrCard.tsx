@@ -20,6 +20,7 @@ interface StarsQrCardProps {
   expiresAt: string
   onExpired: () => void
   onRenew: () => void
+  passVipActif?: { grade_pass: string; expires_at: string } | null
 }
 
 export default function StarsQrCard({
@@ -30,12 +31,19 @@ export default function StarsQrCard({
   expiresAt,
   onExpired,
   onRenew,
+  passVipActif,
 }: StarsQrCardProps) {
   const [countdown, setCountdown] = useState('5:00')
 
-  const grade = getGradeFromStars(totalStars)
-  const config = GRADE_CONFIGS[grade]
+  const naturalGrade = getGradeFromStars(totalStars)
+  const effectiveGrade = passVipActif
+    ? (passVipActif.grade_pass as keyof typeof GRADE_CONFIGS)
+    : naturalGrade
+  const config = GRADE_CONFIGS[effectiveGrade]
   const progress = getProgressToNextGrade(totalStars)
+  const joursRestants = passVipActif
+    ? Math.max(0, Math.ceil((new Date(passVipActif.expires_at).getTime() - Date.now()) / 86400000))
+    : 0
 
   useEffect(() => {
     if (!expiresAt) return
@@ -68,7 +76,7 @@ export default function StarsQrCard({
         useCORS: true,
       })
       const link = document.createElement('a')
-      link.download = `llui-stars-${grade.toLowerCase()}-${clientNom || 'membre'}.png`
+      link.download = `llui-stars-${effectiveGrade.toLowerCase()}-${clientNom || 'membre'}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch {
@@ -87,6 +95,16 @@ export default function StarsQrCard({
       }}
       className={`relative rounded-3xl border-2 p-6 shadow-2xl max-w-sm mx-auto overflow-hidden ${config.specialEffect}`}
     >
+      {/* Badge Pass VIP */}
+      {passVipActif && (
+        <div
+          className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold z-10"
+          style={{ backgroundColor: GRADE_CONFIGS[passVipActif.grade_pass as keyof typeof GRADE_CONFIGS].color, color: '#FFFFFF' }}
+        >
+          PASS VIP · {joursRestants}j
+        </div>
+      )}
+
       {/* Motif décoratif arrière-plan */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
         <div className="absolute -top-4 -right-4 text-8xl opacity-10">{config.emoji}</div>
@@ -142,10 +160,16 @@ export default function StarsQrCard({
       {/* Message grade */}
       <p
         style={{ color: config.textSecondary }}
-        className="text-center text-xs italic mb-4"
+        className="text-center text-xs italic mb-1"
       >
         {config.welcomeMessage}
       </p>
+      {passVipActif && (
+        <p style={{ color: config.textSecondary }} className="text-center text-xs opacity-70 mb-3">
+          Grade naturel : {GRADE_CONFIGS[naturalGrade].label}
+        </p>
+      )}
+      {!passVipActif && <div className="mb-4" />}
 
       {/* Solde + Countdown */}
       <div className="relative flex justify-between items-center mb-4">

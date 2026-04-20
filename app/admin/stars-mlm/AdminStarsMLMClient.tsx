@@ -1,9 +1,12 @@
 'use client'
 // app/admin/stars-mlm/AdminStarsMLMClient.tsx — Dashboard admin global Stars & MLM
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { traiterRetraitPartenaire } from '@/actions/wallet-partenaire'
+import { rechercherClientStars, creditStarsManuel } from '@/actions/admin-stars'
+import type { ClientStarsInfo } from '@/actions/admin-stars'
+import { getGradeFromStars, GRADE_CONFIGS } from '@/types/stars-grade'
 import { useRouter } from 'next/navigation'
 
 const GOLD = '#C9A84C'
@@ -51,11 +54,59 @@ interface Props {
 }
 
 export default function AdminStarsMLMClient({ wallets, retraits, commissions, kpis }: Props) {
-  const [activeTab, setActiveTab] = useState<'kpis' | 'wallets' | 'retraits' | 'commissions'>('kpis')
+  const [activeTab, setActiveTab] = useState<'kpis' | 'wallets' | 'retraits' | 'commissions' | 'stars-clients'>('kpis')
   const [noteMap, setNoteMap] = useState<Record<string, string>>({})
   const [isPending, startTransition] = useTransition()
   const [processingId, setProcessingId] = useState<string | null>(null)
   const router = useRouter()
+
+  // ─── Stars clients state ────────────────────────────────────────────────────
+  const [searchTel, setSearchTel] = useState('')
+  const [clientTrouve, setClientTrouve] = useState<ClientStarsInfo | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [typeOperation, setTypeOperation] = useState<'credit' | 'debit'>('credit')
+  const [montantStars, setMontantStars] = useState(0)
+  const [motif, setMotif] = useState('')
+  const [creditLoading, setCreditLoading] = useState(false)
+
+  const handleRechercherClient = useCallback(async () => {
+    if (!searchTel.trim()) { toast.error('Téléphone requis'); return }
+    setSearchLoading(true)
+    try {
+      const client = await rechercherClientStars(searchTel)
+      if (!client) toast.error('Client introuvable')
+      else { setClientTrouve(client); setMontantStars(0); setMotif('') }
+    } catch { toast.error('Erreur recherche') }
+    finally { setSearchLoading(false) }
+  }, [searchTel])
+
+  async function handleCreditStars() {
+    if (!clientTrouve || !montantStars || !motif.trim()) {
+      toast.error('Tous les champs sont requis')
+      return
+    }
+    setCreditLoading(true)
+    try {
+      const delta = typeOperation === 'credit' ? montantStars : -montantStars
+      const res = await creditStarsManuel({
+        telephone: clientTrouve.telephone,
+        prenom: clientTrouve.prenom,
+        nom: clientTrouve.nom,
+        montant_stars: delta,
+        motif: motif.trim(),
+      })
+      if (res.success) {
+        toast.success(`✅ ${res.client_nom} — Nouveau solde : ${res.nouveau_solde} Stars (${res.nouveau_grade})`)
+        setClientTrouve(null)
+        setSearchTel('')
+        setMontantStars(0)
+        setMotif('')
+      } else {
+        toast.error(res.error ?? 'Erreur')
+      }
+    } catch { toast.error('Erreur réseau') }
+    finally { setCreditLoading(false) }
+  }
 
   function handleTraiter(retraitId: string, statut: 'validee' | 'refusee') {
     setProcessingId(retraitId)
@@ -74,24 +125,33 @@ export default function AdminStarsMLMClient({ wallets, retraits, commissions, kp
 
   const tabs: [typeof activeTab, string][] = [
     ['kpis', '📊 KPIs'],
+    ['stars-clients', '⭐ Stars clients'],
     ['wallets', `💰 Wallets (${wallets.length})`],
     ['retraits', `💸 Retraits${kpis.retraitsPendingCount > 0 ? ` 🔴${kpis.retraitsPendingCount}` : ''}`],
     ['commissions', '🧾 Commissions'],
   ]
+
+  // Simulation grade après opération
+  const nouveauTotal = clientTrouve
+    ? typeOperation === 'credit'
+      ? clientTrouve.total_stars_historique + montantStars
+      : Math.max(0, clientTrouve.total_stars_historique - montantStars)
+    : 0
+  const nouveauGrade = getGradeFromStars(nouveauTotal)
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[#1A1A1A]">⭐ Stars & MLM</h1>
-        <p className="text-sm text-[#1A1A1A]/50">Wallets partenaires prescripteurs · Commissions · Retraits</p>
+        <p className="text-sm text-[#1A1A1A]/50">Wallets partenaires prescripteurs · Commissions · Retraits · Stars clients</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
         {tabs.map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex-1 min-w-[100px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
+            className={`flex-1 min-w-[90px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
               activeTab === tab ? 'bg-[#C9A84C] text-white' : 'text-[#1A1A1A]/60 hover:text-[#1A1A1A]'
             }`}>
             {label}
@@ -134,6 +194,118 @@ export default function AdminStarsMLMClient({ wallets, retraits, commissions, kp
             <p className="text-2xl font-bold" style={{ color: GOLD }}>{fmt(kpis.commissionsTotal)}</p>
             <p className="text-xs text-[#1A1A1A]/50 mt-0.5">{commissions.length} entrées (100 dernières)</p>
           </div>
+        </div>
+      )}
+
+      {/* ─── STARS CLIENTS ────────────────────────────────────── */}
+      {activeTab === 'stars-clients' && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h3 className="font-semibold text-[#1A1A1A] mb-4 text-lg">⭐ Crédit Stars manuel</h3>
+
+          {/* Étape 1 — Recherche client */}
+          {!clientTrouve && (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  placeholder="Numéro téléphone (ex: 699...)"
+                  value={searchTel}
+                  onChange={(e) => setSearchTel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRechercherClient()}
+                  className="flex-1 border border-[#F5F0E8] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+                <button
+                  onClick={handleRechercherClient}
+                  disabled={searchLoading}
+                  className="px-5 py-3 bg-[#1A1A1A] text-white rounded-xl text-sm font-medium disabled:opacity-50">
+                  {searchLoading ? '⏳' : '🔍'}
+                </button>
+              </div>
+              <p className="text-xs text-[#1A1A1A]/40">Recherche par numéro de téléphone Mobile Money</p>
+            </div>
+          )}
+
+          {/* Étape 2 — Client trouvé */}
+          {clientTrouve && (() => {
+            const gc = GRADE_CONFIGS[getGradeFromStars(clientTrouve.total_stars_historique)]
+            return (
+              <div className="space-y-4">
+                {/* Carte client */}
+                <div
+                  className="flex items-center gap-3 p-4 rounded-xl border"
+                  style={{ backgroundColor: gc.color + '11', borderColor: gc.color + '44' }}
+                >
+                  <span className="text-3xl">{gc.emoji}</span>
+                  <div className="flex-1">
+                    <p className="font-bold text-[#1A1A1A]">{clientTrouve.prenom} {clientTrouve.nom}</p>
+                    <p className="text-xs text-gray-500">{clientTrouve.telephone}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg text-[#C9A84C]">{clientTrouve.total_stars_historique.toLocaleString()} ⭐</p>
+                    <p className="text-xs font-semibold" style={{ color: gc.color }}>{gc.label}</p>
+                  </div>
+                </div>
+
+                {/* Toggle crédit/débit */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTypeOperation('credit')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      typeOperation === 'credit' ? 'bg-green-500 text-white' : 'border border-gray-200 text-gray-500'
+                    }`}>
+                    ➕ Créditer
+                  </button>
+                  <button
+                    onClick={() => setTypeOperation('debit')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      typeOperation === 'debit' ? 'bg-red-500 text-white' : 'border border-gray-200 text-gray-500'
+                    }`}>
+                    ➖ Débiter
+                  </button>
+                </div>
+
+                <input
+                  type="number"
+                  min={1}
+                  max={typeOperation === 'debit' ? clientTrouve.points_stars : 99999}
+                  value={montantStars || ''}
+                  onChange={(e) => setMontantStars(Number(e.target.value))}
+                  placeholder="Nombre de Stars"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+
+                <input
+                  value={motif}
+                  onChange={(e) => setMotif(e.target.value)}
+                  placeholder="Motif obligatoire (ex: Compensation erreur transaction)"
+                  className="w-full border border-[#F5F0E8] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#C9A84C]"
+                />
+
+                {/* Simulation */}
+                {montantStars > 0 && (
+                  <div className="bg-[#F5F0E8] rounded-xl p-3 text-xs">
+                    <p className="font-medium text-[#1A1A1A]">Après opération :</p>
+                    <p className="text-[#C9A84C] font-bold mt-1">
+                      {nouveauTotal.toLocaleString()} ⭐ → {GRADE_CONFIGS[nouveauGrade].emoji} {GRADE_CONFIGS[nouveauGrade].label}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setClientTrouve(null); setSearchTel('') }}
+                    className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl text-sm">
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleCreditStars}
+                    disabled={!montantStars || !motif.trim() || creditLoading}
+                    className="flex-1 bg-[#C9A84C] text-white py-3 rounded-xl text-sm font-medium disabled:opacity-50 hover:bg-[#b8963e] transition-colors">
+                    {creditLoading ? '⏳...' : '✅ Confirmer'}
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
