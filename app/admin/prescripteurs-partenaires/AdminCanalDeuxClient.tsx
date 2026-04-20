@@ -557,8 +557,8 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
           <PartenaireFormFields vals={editForm} onChange={onChangeEditForm} />
           <div className="mt-4 space-y-2">
             <label className="text-xs text-[#1A1A1A]/60 font-medium block">📍 Position sur la carte</label>
-            {editForm.adresse_gps && (
-              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {editForm.adresse_gps}</p>
+            {editForm.latitude != null && editForm.longitude != null && (
+              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {editForm.adresse_gps || `${editForm.latitude.toFixed(5)}, ${editForm.longitude.toFixed(5)}`}</p>
             )}
             <MapPickerPartenaire
               partenaireId={editId ?? undefined}
@@ -590,8 +590,8 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
           <PartenaireFormFields vals={form} onChange={onChangeForm} />
           <div className="mt-4 space-y-2">
             <label className="text-xs text-[#1A1A1A]/60 font-medium block">📍 Position sur la carte <span className="text-[#1A1A1A]/40">(optionnel)</span></label>
-            {form.adresse_gps && (
-              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {form.adresse_gps}</p>
+            {form.latitude != null && form.longitude != null && (
+              <p className="text-xs bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700">✅ {form.adresse_gps || `${form.latitude.toFixed(5)}, ${form.longitude.toFixed(5)}`}</p>
             )}
             <MapPickerPartenaire
               nomPartenaire={form.nom_etablissement}
