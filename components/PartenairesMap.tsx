@@ -195,6 +195,18 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
     )
   }
 
+  if (partenaires.length === 0) {
+    return (
+      <div className="rounded-xl bg-[#F5F0E8]/60 border border-[#F5F0E8] p-6 text-center space-y-2">
+        <div className="text-2xl">🗺️</div>
+        <p className="text-sm font-semibold text-[#1A1A1A]">Carte bientôt disponible</p>
+        <p className="text-xs text-[#1A1A1A]/50">
+          Les partenaires L&Lui Stars seront géolocalisés prochainement.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-2">
       <div className="relative rounded-2xl overflow-hidden border border-[#F5F0E8]" style={{ height: 380 }}>

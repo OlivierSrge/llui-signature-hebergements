@@ -539,27 +539,28 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
             </div>
           )}
 
-          {/* ── Carte partenaires Stars ── */}
-          {loyaltyStep === 'verified' && clientData && partenaires.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-[#1A1A1A]">⭐ Partenaires L&amp;Lui Stars</h2>
-                <span className="text-xs text-[#C9A84C] font-medium">{partenaires.length} partenaires</span>
-              </div>
-              <p className="text-xs text-[#1A1A1A]/50">
-                Rendez-vous chez nos partenaires et scannez leur QR code pour gagner des Stars à chaque achat.
-              </p>
-              <PartenairesMap
-                partenaires={partenaires}
-                onScanRequest={(partenaire_id) => {
-                  setQrPartenaire(partenaire_id)
-                  setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
-                  setShowQrModal(true)
-                }}
-              />
-            </div>
-          )}
+        </div>
 
+        {/* ── Carte partenaires Stars ── carte visible à tous les visiteurs */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-[#1A1A1A]">📍 Partenaires Stars à Kribi</h2>
+            {partenaires.length > 0 && (
+              <span className="text-xs text-[#C9A84C] font-medium">{partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <p className="text-xs text-[#1A1A1A]/50 mb-3">
+            Rendez-vous chez nos partenaires et scannez leur QR code pour gagner des Stars à chaque achat.
+          </p>
+          <PartenairesMap
+            partenaires={partenaires}
+            onScanRequest={(partenaire_id) => {
+              if (!clientData) { setLoyaltyStep('phone'); return }
+              setQrPartenaire(partenaire_id)
+              setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
+              setShowQrModal(true)
+            }}
+          />
         </div>
 
       </div>
