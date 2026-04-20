@@ -30,6 +30,7 @@ export interface PrescripteurPartenaire {
   type: TypePartenaire
   telephone: string
   adresse: string
+  email?: string
   statut: StatutPartenaire
   // Remise
   remise_type: RemiseType
@@ -65,6 +66,10 @@ export interface PrescripteurPartenaire {
   carousel_interval_sec?: number // durée d'affichage par image (défaut 6s)
   premium_expire_at?: string     // expiration abonnement Premium (ISO)
   premium_activated_at?: string  // date d'activation Premium (ISO)
+  // Géolocalisation
+  latitude?: number | null
+  longitude?: number | null
+  adresse_gps?: string | null
   // Stars fidélité
   solde_provision?: number       // provision Stars disponible (FCFA)
   total_ca_stars_fcfa?: number   // CA total encaissé via Stars
