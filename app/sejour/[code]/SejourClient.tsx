@@ -22,6 +22,7 @@ const PartenairesMap = dynamic(
 )
 
 const QrScanModal = dynamic(() => import('@/components/QrScanModal'), { ssr: false })
+const StarsQrCard = dynamic(() => import('@/components/StarsQrCard'), { ssr: false })
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -82,9 +83,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── QR Code personnel client ────────────────────────────────────
   const [myQrToken, setMyQrToken] = useState<string | null>(null)
   const [myQrExpiresAt, setMyQrExpiresAt] = useState<string | null>(null)
-  const [myQrDataUrl, setMyQrDataUrl] = useState<string | null>(null)
   const [myQrLoading, setMyQrLoading] = useState(false)
-  const [myQrCountdown, setMyQrCountdown] = useState(0)
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -98,19 +97,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     return () => clearInterval(t)
   }, [slides.length])
 
-  // ── QR countdown — efface le QR quand expiré ─────────────────
-  useEffect(() => {
-    if (!myQrExpiresAt) return
-    const tick = () => {
-      const secs = Math.max(0, Math.floor((new Date(myQrExpiresAt).getTime() - Date.now()) / 1000))
-      setMyQrCountdown(secs)
-      if (secs === 0) { setMyQrDataUrl(null); setMyQrToken(null) }
-    }
-    tick()
-    const t = setInterval(tick, 1000)
-    return () => clearInterval(t)
-  }, [myQrExpiresAt])
-  // ───────────────────────────────────────────────────────────────
+  // ── (countdown QR géré dans StarsQrCard via onExpired callback) ─
 
   const msRestants = Math.max(0, expireAt.getTime() - maintenant.getTime())
   const heuresRestantes = msRestants / 3600000
@@ -187,20 +174,10 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     const tel = clientData?.telephone ?? normalizeTel(phone.trim())
     if (!tel || myQrLoading) return
     setMyQrLoading(true)
-    setMyQrDataUrl(null)
     const result = await generateStarsQrToken(tel)
     if (result.success) {
-      try {
-        const QRCode = (await import('qrcode')).default
-        const qrUrl = `${APP_URL}/stars/client/${result.token}`
-        const dataUrl = await QRCode.toDataURL(qrUrl, {
-          width: 192, margin: 2,
-          color: { dark: '#1A1A1A', light: '#FFFFFF' },
-        })
-        setMyQrToken(result.token)
-        setMyQrExpiresAt(result.expiresAt)
-        setMyQrDataUrl(dataUrl)
-      } catch { /* non bloquant */ }
+      setMyQrToken(result.token)
+      setMyQrExpiresAt(result.expiresAt)
     }
     setMyQrLoading(false)
   }
@@ -424,37 +401,24 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
           {/* ── Section 1 : QR Code Personnel — TOUJOURS VISIBLE ──── */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
-              {myQrDataUrl && myQrCountdown > 0 && (
-                <span className={`text-xs font-mono px-2 py-0.5 rounded-lg ${
-                  myQrCountdown > 120 ? 'bg-green-100 text-green-700' :
-                  myQrCountdown > 30  ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {Math.floor(myQrCountdown / 60)}:{String(myQrCountdown % 60).padStart(2, '0')}
-                </span>
-              )}
-            </div>
-
             {myQrLoading ? (
-              <div className="flex justify-center py-6">
+              <div className="flex justify-center py-8">
                 <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : myQrDataUrl ? (
-              <div className="flex flex-col items-center space-y-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={myQrDataUrl} alt="Mon QR Code Stars" className="w-48 h-48 rounded-2xl border border-[#F5F0E8]" />
-                <p className="text-[10px] text-[#1A1A1A]/40">Valable 5 minutes · Usage unique</p>
-                <button
-                  onClick={handleGenerateMyQr}
-                  className="text-xs text-[#C9A84C] font-semibold hover:underline"
-                >
-                  🔄 Actualiser le QR
-                </button>
-              </div>
+            ) : myQrToken && myQrExpiresAt ? (
+              <StarsQrCard
+                clientUid={clientData?.telephone ?? normalizeTel(phone.trim())}
+                clientNom={clientData?.telephone ?? ''}
+                clientTel={phone}
+                totalStars={clientData?.points_stars ?? 0}
+                qrToken={myQrToken}
+                expiresAt={myQrExpiresAt}
+                onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null) }}
+                onRenew={handleGenerateMyQr}
+              />
             ) : (
               <>
+                <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
                 <p className="text-xs text-[#1A1A1A]/60">
                   Entrez votre numéro WhatsApp pour générer votre QR Code Stars personnel.
                 </p>
