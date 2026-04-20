@@ -90,7 +90,7 @@ export default function AdminSidebar() {
         <p className="text-white/40 text-xs mt-1">Administration</p>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto pb-8">
         {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => (
           <Link key={href} href={href} onClick={() => setIsOpen(false)}
             className={cn(
@@ -136,7 +136,7 @@ export default function AdminSidebar() {
 
   return (
     <>
-      <aside className="hidden lg:flex w-60 bg-dark flex-col flex-shrink-0 min-h-screen sticky top-0">
+      <aside className="hidden lg:flex w-60 bg-dark flex-col flex-shrink-0 h-screen sticky top-0 overflow-hidden">
         <SidebarContent />
       </aside>
 
@@ -150,7 +150,7 @@ export default function AdminSidebar() {
       {isOpen && (
         <div className="lg:hidden fixed inset-0 z-40" onClick={() => setIsOpen(false)}>
           <div className="absolute inset-0 bg-dark/60" />
-          <aside className="absolute top-0 left-0 bottom-0 w-64 bg-dark" onClick={(e) => e.stopPropagation()}>
+          <aside className="absolute top-0 left-0 bottom-0 w-64 bg-dark overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="pt-14"><SidebarContent /></div>
           </aside>
         </div>
