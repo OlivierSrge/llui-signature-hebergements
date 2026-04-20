@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { db } from '@/lib/firebase'
 import AccommodationCard from '@/components/accommodations/AccommodationCard'
 import AccommodationFilters from '@/components/accommodations/AccommodationFilters'
-import { Award, Shield, HeartHandshake, Calendar, MapPin, Clock } from 'lucide-react'
+import { Calendar, MapPin, Clock } from 'lucide-react'
 import { resolveAccommodationTypeId, getTypeLabelFromId } from '@/lib/accommodationTypes'
 import WeekendCTA from '@/components/home/WeekendCTA'
 import BarreWeekend from '@/components/home/BarreWeekend'
@@ -125,25 +125,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       {/* ── Section Ce weekend à Kribi (client, fetches /api/evenements/weekend) ── */}
       <SectionWeekend />
-
-      {/* ── Confiance ── */}
-      <section className="bg-beige-100 py-14 px-4">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-          {[
-            { icon: Award, title: 'Sélection premium', desc: 'Chaque hébergement est rigoureusement sélectionné par notre équipe pour son excellence.' },
-            { icon: Shield, title: 'Réservation sécurisée', desc: "Vos données et paiements sont protégés. Réservez l'esprit tranquille." },
-            { icon: HeartHandshake, title: 'Service personnalisé', desc: "Notre équipe L&Lui vous accompagne de la réservation jusqu'au check-out." },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-2xl bg-gold-500 flex items-center justify-center mb-4">
-                <Icon size={22} className="text-white" />
-              </div>
-              <h3 className="font-serif text-lg font-semibold text-dark mb-2">{title}</h3>
-              <p className="text-dark/60 text-sm leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── Élément B — Section "Prochainement à Kribi" ── */}
       {prochainEvenements.length > 0 && (
