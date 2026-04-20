@@ -1,6 +1,7 @@
 'use server'
 
 import { db } from '@/lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
 import { nanoid } from 'nanoid'
 import {
   getMembershipStatus,
@@ -34,6 +35,21 @@ export type GetQrTokenResult =
 
 export async function generateStarsQrToken(clientUid: string): Promise<GenerateQrResult> {
   try {
+    // Auto-création doc client si absent — flux QR sans OTP
+    const clientRef = db.collection('clients_fidelite').doc(clientUid)
+    const clientDoc = await clientRef.get()
+    if (!clientDoc.exists) {
+      await clientRef.set({
+        telephone: clientUid,
+        points_stars: 0,
+        total_stars_historique: 0,
+        membership_status: 'novice',
+        phone_verified: false,
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    }
+
     const token = nanoid(32)
     const now = new Date()
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000)
@@ -66,9 +82,9 @@ export async function getQrTokenData(token: string): Promise<GetQrTokenResult> {
     if (new Date(data.expires_at) <= new Date()) return { valid: false, error: 'Ce QR Code a expiré' }
 
     const clientDoc = await db.collection('clients_fidelite').doc(data.client_uid).get()
-    if (!clientDoc.exists) return { valid: false, error: 'Client introuvable' }
-
-    const c = clientDoc.data()!
+    const c = clientDoc.exists
+      ? clientDoc.data()!
+      : { points_stars: 0, total_stars_historique: 0, phone_verified: false }
     const thresholds = {
       seuil_novice: params.fidelite_seuil_novice,
       seuil_explorateur: params.fidelite_seuil_explorateur,

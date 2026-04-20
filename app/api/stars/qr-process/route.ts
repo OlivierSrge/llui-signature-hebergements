@@ -74,13 +74,12 @@ export async function POST(req: NextRequest) {
     const partnerId = partnerDoc.id
     const provision: number = partner.solde_provision ?? 0
 
-    // 3. Client vérifié
+    // 3. Client — auto-créé si absent (flux QR sans OTP)
     const clientRef = db.collection('clients_fidelite').doc(clientUid)
     const clientDoc = await clientRef.get()
-    if (!clientDoc.exists || !clientDoc.data()!.phone_verified) {
-      return NextResponse.json({ success: false, error: 'Client non vérifié' })
-    }
-    const clientData = clientDoc.data()!
+    const clientData = clientDoc.exists
+      ? clientDoc.data()!
+      : { points_stars: 0, total_stars_historique: 0, phone_verified: false }
 
     // 4. Paramètres fidélité
     const params = await getParametresPlateforme()

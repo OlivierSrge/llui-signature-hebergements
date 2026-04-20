@@ -84,6 +84,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   const [myQrToken, setMyQrToken] = useState<string | null>(null)
   const [myQrExpiresAt, setMyQrExpiresAt] = useState<string | null>(null)
   const [myQrLoading, setMyQrLoading] = useState(false)
+  const [myQrError, setMyQrError] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -172,12 +173,15 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
   async function handleGenerateMyQr() {
     const tel = clientData?.telephone ?? normalizeTel(phone.trim())
-    if (!tel || myQrLoading) return
+    if (!tel || !phone.trim() || myQrLoading) return
     setMyQrLoading(true)
+    setMyQrError('')
     const result = await generateStarsQrToken(tel)
     if (result.success) {
       setMyQrToken(result.token)
       setMyQrExpiresAt(result.expiresAt)
+    } else {
+      setMyQrError(result.error ?? 'Erreur lors de la génération')
     }
     setMyQrLoading(false)
   }
@@ -430,6 +434,9 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                   placeholder="Ex : 6 XX XX XX XX"
                   className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
                 />
+                {myQrError && (
+                  <p className="text-xs text-red-500">{myQrError}</p>
+                )}
                 <button
                   onClick={handleGenerateMyQr}
                   disabled={myQrLoading || !phone.trim()}
