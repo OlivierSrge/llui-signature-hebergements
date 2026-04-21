@@ -39,8 +39,9 @@ export async function POST(req: NextRequest) {
 
   try {
     // Charger tous les partenaires actifs une seule fois
+    type PartenaireDoc = { id: string } & Record<string, unknown>
     const partenairesSnap = await db.collection('prescripteurs_partenaires').get()
-    const partenaires = partenairesSnap.docs.map(d => ({ id: d.id, ...d.data() as Record<string, unknown> }))
+    const partenaires: PartenaireDoc[] = partenairesSnap.docs.map(d => ({ id: d.id, ...(d.data() as Record<string, unknown>) } as PartenaireDoc))
     console.log(`[fix-code-session-links] ${partenaires.length} partenaires chargés`)
 
     // Index rapide

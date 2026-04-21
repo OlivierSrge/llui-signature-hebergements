@@ -31,7 +31,7 @@ function phoneFormats(telephone: string): string[] {
   const digits = raw.replace(/\D/g, '')
   const without237 = digits.startsWith('237') ? digits.slice(3) : digits
   const with237 = digits.startsWith('237') ? digits : `237${digits}`
-  return [...new Set([raw, digits, without237, with237, `+${with237}`])]
+  return Array.from(new Set([raw, digits, without237, with237, `+${with237}`]))
 }
 
 /** Cherche un doc clients_fidelite en testant plusieurs formats de numéro */

@@ -71,7 +71,7 @@ export async function creerAffilie({
   email: string
   reduction_pct: number
   commission_pct: number
-}): Promise<{ success: boolean; code_promo: string }> {
+}): Promise<{ success: boolean; code_promo: string; error_message?: string; error_stack?: string }> {
   const SHEET_ID = process.env.GOOGLE_SHEETS_CANAL2_ID
 
   // Logs diagnostic — visibles dans Vercel Function Logs

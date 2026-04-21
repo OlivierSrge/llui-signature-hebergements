@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { generateMemberCode, generateBoutiquePromoCode } from '@/lib/loyalty'
 
+export const dynamic = 'force-dynamic'
+
 // Endpoint de bootstrap one-shot : crée tous les profils clients manquants
 // Accessible via GET depuis le navigateur admin
 export async function GET(request: NextRequest) {

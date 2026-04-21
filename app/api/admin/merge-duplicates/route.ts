@@ -69,14 +69,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Traiter chaque groupe avec doublons ────────────────────
-    for (const [cle, groupe] of groupes) {
+    for (const [cle, groupe] of Array.from(groupes)) {
       if (groupe.length <= 1) continue
 
       rapport.groupes_doublons++
       console.log(`[merge-duplicates] groupe "${cle}" — ${groupe.length} docs: ${groupe.map(d => d.id).join(', ')}`)
 
       // Choisir le gagnant : plus grand CA boutique, sinon plus ancien created_at
-      const gagnant = groupe.reduce((best, cur) => {
+      const gagnant = groupe.reduce((best: DocData, cur: DocData) => {
         const bestCa = (best.data.total_ca_boutique_fcfa as number) ?? 0
         const curCa  = (cur.data.total_ca_boutique_fcfa as number) ?? 0
         if (curCa > bestCa) return cur

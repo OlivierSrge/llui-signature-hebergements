@@ -100,7 +100,7 @@ export async function activerPassVip(
     await db.runTransaction(async (tx) => {
       tx.set(passRef, {
         client_uid, client_telephone,
-        grade_pass, grade_naturel,
+        grade_pass, grade_naturel: gradeNaturel,
         prix_paye: config.prix_fcfa,
         sku, prescripteur_id: prescripteur_id ?? null,
         actif: true,
