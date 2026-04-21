@@ -8,13 +8,6 @@ import { serializeFirestoreDoc } from '@/lib/serialization'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
-function normalizePhone(tel: string): string {
-  const digits = tel.replace(/\D/g, '')
-  if (digits.startsWith('237')) return digits
-  if (digits.length === 9) return `237${digits}`
-  return digits
-}
-
 function gradeFromStars(stars: number): string {
   if (stars >= 10000) return 'DIAMANT'
   if (stars >= 5000)  return 'SAPHIR'
@@ -32,6 +25,36 @@ async function sendWhatsApp(to: string, message: string): Promise<void> {
   }).catch((e) => console.warn('[admin-stars sendWhatsApp]', e))
 }
 
+/** Retourne toutes les variantes possibles d'un numéro camérounais */
+function phoneFormats(telephone: string): string[] {
+  const raw = telephone.trim().replace(/\s/g, '')
+  const digits = raw.replace(/\D/g, '')
+  const without237 = digits.startsWith('237') ? digits.slice(3) : digits
+  const with237 = digits.startsWith('237') ? digits : `237${digits}`
+  return [...new Set([raw, digits, without237, with237, `+${with237}`])]
+}
+
+/** Cherche un doc clients_fidelite en testant plusieurs formats de numéro */
+async function findClientDoc(telephone: string) {
+  const formats = phoneFormats(telephone)
+
+  // 1) Essai en parallèle par doc ID (le plus rapide)
+  const snaps = await Promise.all(
+    formats.map((f) => db.collection('clients_fidelite').doc(f).get()),
+  )
+  const byId = snaps.find((s) => s.exists)
+  if (byId) return byId
+
+  // 2) Requête par champ telephone (au cas où le doc ID diffère)
+  const fieldSnap = await db.collection('clients_fidelite')
+    .where('telephone', 'in', formats.slice(0, 10))
+    .limit(1)
+    .get()
+  if (!fieldSnap.empty) return fieldSnap.docs[0]
+
+  return null
+}
+
 export interface ClientStarsInfo {
   uid: string
   prenom: string
@@ -45,16 +68,15 @@ export interface ClientStarsInfo {
 // ─── rechercherClientStars ────────────────────────────────────────────────────
 
 export async function rechercherClientStars(telephone: string): Promise<ClientStarsInfo | null> {
-  const tel = normalizePhone(telephone.trim())
-  const snap = await db.collection('clients_fidelite').doc(tel).get()
-  if (!snap.exists) return null
-  const s = serializeFirestoreDoc(snap.data()!)
+  const doc = await findClientDoc(telephone)
+  if (!doc) return null
+  const s = serializeFirestoreDoc(doc.data()!)
   const totalHist = (s.total_stars_historique as number) ?? 0
   return {
-    uid: snap.id,
+    uid: doc.id,
     prenom: (s.prenom as string) ?? '',
     nom: (s.nom as string) ?? '',
-    telephone: tel,
+    telephone: doc.id,
     points_stars: (s.points_stars as number) ?? 0,
     total_stars_historique: totalHist,
     grade_actuel: gradeFromStars(totalHist),
@@ -84,8 +106,11 @@ export async function creditStarsManuel(params: CreditStarsParams): Promise<Cred
   if (!motif?.trim()) return { success: false, error: 'Motif obligatoire' }
   if (montant_stars === 0) return { success: false, error: 'Montant doit être différent de 0' }
 
-  const tel = normalizePhone(telephone.trim())
-  const clientRef = db.collection('clients_fidelite').doc(tel)
+  // Trouver le doc réel (multi-format)
+  const existingDoc = await findClientDoc(telephone)
+  if (!existingDoc) return { success: false, error: 'Client introuvable' }
+
+  const clientRef = existingDoc.ref
 
   try {
     let nouveauSolde = 0
@@ -103,7 +128,6 @@ export async function creditStarsManuel(params: CreditStarsParams): Promise<Cred
       const nom: string = (d.nom as string) ?? ''
       clientNom = `${prenom} ${nom}`.trim()
 
-      // Débit : vérifier solde points suffisant
       if (montant_stars < 0 && pointsActuels + montant_stars < 0) {
         throw new Error(`Solde insuffisant (${pointsActuels} Stars disponibles)`)
       }
@@ -121,7 +145,7 @@ export async function creditStarsManuel(params: CreditStarsParams): Promise<Cred
 
       const txRef = db.collection('transactions_fidelite').doc()
       tx.set(txRef, {
-        client_id: tel,
+        client_id: clientRef.id,
         partenaire_id: 'admin',
         code_session: 'admin-manuel',
         type: montant_stars > 0 ? 'credit_admin' : 'debit_admin',
@@ -142,7 +166,7 @@ export async function creditStarsManuel(params: CreditStarsParams): Promise<Cred
 
     // Notif WhatsApp client non-bloquante
     const clientSnap = await clientRef.get()
-    const clientPhone = clientSnap.data()?.telephone as string ?? tel
+    const clientPhone = (clientSnap.data()?.telephone as string) ?? clientRef.id
     const verb = montant_stars > 0 ? `reçu +${montant_stars}` : `déduit ${montant_stars}`
     await sendWhatsApp(
       clientPhone,
