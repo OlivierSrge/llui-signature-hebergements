@@ -14,6 +14,7 @@ import {
   type PassVipAnonyme,
   type PassVipGrade,
 } from '@/types/pass-vip'
+import { updatePassVipStatutSheets } from '@/lib/sheets-pass-vip'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
@@ -269,11 +270,109 @@ export async function getPassVipParToken(token: string): Promise<PassVipAnonyme 
     nom_usage: (d.nom_usage as string) ?? '',
     grade_pass,
     actif: (d.actif as boolean) ?? false,
+    statut: ((d.statut as string) ?? 'actif') as PassVipAnonyme['statut'],
     created_at: (d.created_at as string) ?? '',
     expires_at: (d.expires_at as string) ?? '',
+    activated_at: (d.activated_at as string) ?? undefined,
     nb_utilisations: (d.nb_utilisations as number) ?? 0,
     prescripteur_id: (d.prescripteur_id as string) ?? null,
     ref_lisible: `L&Lui Signature-${grade_pass}-${doc.id.slice(0, 4).toUpperCase()}`,
+    sheets_row: (d.sheets_row as number) ?? undefined,
+    sheets_id: (d.sheets_id as string) ?? undefined,
+    email: (d.email as string) ?? undefined,
+    contact: (d.contact as string) ?? undefined,
+  }
+}
+
+// ─── activerPassAuPremierClic ─────────────────────────────────────────────────
+// Appelée une seule fois à la première ouverture du lien.
+// Idempotent : si déjà actif, ne fait rien.
+
+export async function activerPassAuPremierClic(
+  token: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!token) return { success: false, error: 'Token manquant' }
+
+  try {
+    const passRef = db.collection('pass_vip_actifs').doc(token)
+    let sheetsRow: number | undefined
+    let sheetsId: string | undefined
+    let grade_pass: PassVipGrade = 'ARGENT'
+    let prescripteur_id: string | null = null
+    let prix_paye = 0
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(passRef)
+      if (!snap.exists) throw new Error('Pass introuvable')
+
+      const d = snap.data()!
+      // Idempotent — déjà activé
+      if (d.actif === true && d.statut === 'actif') return
+
+      grade_pass = (d.grade_pass as PassVipGrade) ?? 'ARGENT'
+      prescripteur_id = (d.prescripteur_id as string) ?? null
+      prix_paye = (d.prix_paye as number) ?? 0
+      sheetsRow = (d.sheets_row as number) ?? undefined
+      sheetsId = (d.sheets_id as string) ?? undefined
+
+      const config = PASS_VIP_CONFIGS[grade_pass]
+      const now = new Date()
+      const activated_at = now.toISOString()
+      const expires_at = new Date(now.getTime() + config.duree_jours * 86400000).toISOString()
+
+      tx.update(passRef, {
+        actif: true,
+        statut: 'actif',
+        activated_at,
+        expires_at,    // repart de maintenant
+        updated_at: FieldValue.serverTimestamp(),
+      })
+    })
+
+    // Commission prescripteur N1 à l'activation — non-bloquante
+    if (prescripteur_id && prix_paye > 0) {
+      const commissionN1 = Math.round(prix_paye * TAUX_COMMISSION_PASS[1])
+      const rev = Math.floor(prix_paye / 10000)
+      const walletRef = db.collection('wallets_partenaires').doc(prescripteur_id)
+      const commRef = db.collection('commissions_partenaires').doc()
+      const nowStr = new Date().toISOString()
+      db.runTransaction(async (tx) => {
+        tx.set(walletRef, {
+          cash: FieldValue.increment(Math.round(commissionN1 * 0.7)),
+          credits: FieldValue.increment(Math.round(commissionN1 * 0.3)),
+          rev_total: FieldValue.increment(rev),
+          updated_at: nowStr,
+        }, { merge: true })
+        tx.set(commRef, {
+          partenaire_id: prescripteur_id,
+          partenaire_source_id: null,
+          partenaire_source_grade: 'ANONYME',
+          type_vente: 'boutique',
+          niveau: 1,
+          montant_vente: prix_paye,
+          taux_commission: TAUX_COMMISSION_PASS[1],
+          montant_commission: commissionN1,
+          montant_cash: Math.round(commissionN1 * 0.7),
+          montant_credits: Math.round(commissionN1 * 0.3),
+          rev_generes: rev,
+          statut: 'validee',
+          reference_vente: `PASS-${token}`,
+          created_at: nowStr, validee_at: nowStr,
+        })
+      }).catch((e) => console.warn('[activerPassAuPremierClic] commission error:', e))
+    }
+
+    // Sync Google Sheets — non-bloquante
+    if (sheetsRow) {
+      updatePassVipStatutSheets(sheetsRow, sheetsId ?? null).catch(
+        (e) => console.warn('[activerPassAuPremierClic] sheets sync error:', e),
+      )
+    }
+
+    return { success: true }
+  } catch (e: unknown) {
+    console.error('[activerPassAuPremierClic]', e)
+    return { success: false, error: e instanceof Error ? e.message : 'Erreur interne' }
   }
 }
 

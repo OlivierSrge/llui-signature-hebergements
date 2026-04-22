@@ -55,9 +55,15 @@ export interface PassVipAnonyme {
   nom_usage: string;      // nom affiché sur la carte (uppercase)
   grade_pass: PassVipGrade;
   actif: boolean;
+  statut?: 'pending' | 'actif' | 'expire';
   created_at: string;
   expires_at: string;
+  activated_at?: string;
   nb_utilisations: number;
   prescripteur_id: string | null;
   ref_lisible?: string;   // ex: "L&Lui Signature-OR-723F"
+  sheets_row?: number;    // numéro de ligne Google Sheets (1-indexed)
+  sheets_id?: string;     // ID du Google Sheet source
+  email?: string;         // email client pour notifications
+  contact?: string;       // WhatsApp client
 }

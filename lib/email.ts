@@ -449,3 +449,147 @@ export async function sendPackRequestEmail(data: {
     }),
   ])
 }
+
+// ─── Pass VIP emails ───────────────────────────────────────────────────────
+
+export async function sendPassVipEmails(params: {
+  nom_usage: string
+  grade: string
+  duree: number
+  prix: number
+  remise_min: number
+  ref_lisible: string
+  pass_url: string
+  contact?: string | null
+  email?: string | null
+  prescripteur_nom?: string | null
+}): Promise<void> {
+  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, contact, email, prescripteur_nom } = params
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const prixFormatted = new Intl.NumberFormat('fr-FR').format(prix)
+
+  const adminHtml = emailBase(`
+    <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Nouvelle commande Pass ${grade}
+    </h2>
+    <p style="margin:0 0 20px;color:#888;font-size:13px">
+      Référence : <span style="font-family:monospace">${ref_lisible}</span>
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:8px 0;color:#666;width:40%">Nom sur la carte</td>
+        <td style="padding:8px 0;font-weight:700;color:#1a1a1a">${nom_usage.toUpperCase()}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:8px 0;color:#666">Grade</td>
+        <td style="padding:8px 0;font-weight:700;color:#c9a227">${grade} — ${duree} jours</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:8px 0;color:#666">Prix</td>
+        <td style="padding:8px 0;font-weight:700;color:#1a1a1a">${prixFormatted} FCFA</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:8px 0;color:#666">Contact WhatsApp</td>
+        <td style="padding:8px 0;color:#1a1a1a">${contact ?? 'Non renseigné'}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:8px 0;color:#666">Email client</td>
+        <td style="padding:8px 0;color:#1a1a1a">${email ?? 'Non renseigné'}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#666">Affilié</td>
+        <td style="padding:8px 0;color:#1a1a1a">${prescripteur_nom ?? 'Aucun'}</td>
+      </tr>
+    </table>
+    <div style="background:#f5f0eb;border-radius:12px;padding:20px;margin-bottom:20px">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a1a">
+        ✅ Dès réception du paiement Orange Money :
+      </p>
+      <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.6">
+        Transférez ce mail au client ou copiez ce lien sur WhatsApp.
+        La carte s'activera automatiquement à la première ouverture.
+      </p>
+      <a href="${pass_url}"
+         style="display:block;background:#c9a227;color:#1a1a1a;text-align:center;
+                padding:16px;border-radius:8px;font-weight:700;font-size:15px;
+                text-decoration:none;margin-bottom:12px">
+        ✦ LIEN CARTE ${grade} — À ENVOYER AU CLIENT
+      </a>
+      <p style="font-family:monospace;font-size:11px;color:#888;word-break:break-all;text-align:center;margin:0">
+        ${pass_url}
+      </p>
+    </div>
+    <div style="background:#f5f0eb;border-radius:12px;padding:16px">
+      <p style="margin:0 0 8px;color:#888;font-size:12px">
+        📋 Template réponse mail client (copier-coller) :
+      </p>
+      <div style="background:#fff;border-radius:8px;padding:14px;font-size:13px;color:#333;line-height:1.7">
+        Bonjour,<br><br>
+        Votre paiement a bien été reçu. Merci !<br><br>
+        Accédez à votre carte ${grade} exclusive ici :<br>
+        <strong>${pass_url}</strong><br><br>
+        Votre carte est valable ${duree} jours.
+        Présentez-la chez nos partenaires pour bénéficier de votre remise garantie.<br><br>
+        L&amp;Lui Signature — Kribi<br>
+        ✦ Votre bonheur est notre signature.
+      </div>
+    </div>
+  `)
+
+  const clientHtmlContent = emailBase(`
+    <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Merci pour votre commande !
+    </h2>
+    <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6">
+      Votre Pass VIP ${grade} a bien été enregistré.
+    </p>
+    <div style="background:#f5f0eb;border-radius:12px;padding:20px;margin-bottom:20px">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666;width:45%">Produit</td>
+          <td style="padding:8px 0;font-weight:700;color:#1a1a1a">Pass VIP ${grade} — ${duree} jours</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666">Montant</td>
+          <td style="padding:8px 0;font-weight:700;color:#c9a227">${prixFormatted} FCFA</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666">Remise garantie</td>
+          <td style="padding:8px 0;font-weight:700;color:#1a1a1a">${remise_min}% minimum</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#666">Référence</td>
+          <td style="padding:8px 0;font-family:monospace;color:#1a1a1a">${ref_lisible}</td>
+        </tr>
+      </table>
+    </div>
+    <div style="background:#fffbf0;border:1px solid #c9a227;border-radius:12px;padding:18px;margin-bottom:20px">
+      <p style="margin:0 0 8px;font-weight:700;color:#c9a227;font-size:14px">
+        ⏳ En attente de votre paiement
+      </p>
+      <p style="margin:0;color:#555;font-size:14px;line-height:1.6">
+        Veuillez effectuer votre paiement par Orange Money ou MTN Mobile Money.
+        Dès réception, nous vous enverrons votre carte personnelle par retour de mail.
+      </p>
+    </div>
+    <p style="margin:0;font-size:12px;color:#aaa;text-align:center">
+      Des questions ? Répondez directement à ce mail.<br>
+      ✦ L&amp;Lui Signature — Kribi, Cameroun
+    </p>
+  `)
+
+  await Promise.allSettled([
+    getResend().emails.send({
+      from: FROM,
+      to: adminEmail,
+      subject: `🆕 Commande Pass ${grade} — ${nom_usage}`,
+      html: adminHtml,
+    }),
+    ...(email ? [getResend().emails.send({
+      from: FROM,
+      to: email,
+      subject: `✦ Votre commande Pass ${grade} — L&Lui Signature`,
+      html: clientHtmlContent,
+    })] : []),
+  ])
+}
