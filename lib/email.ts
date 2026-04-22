@@ -461,15 +461,31 @@ export async function sendPassVipEmails(params: {
   ref_lisible: string
   pass_url: string
   activation_url: string
+  created_at?: string
   contact?: string | null
   email?: string | null
   prescripteur_nom?: string | null
 }): Promise<void> {
-  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, activation_url, contact, email, prescripteur_nom } = params
+  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, activation_url, created_at, contact, email, prescripteur_nom } = params
   const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   const prixFormatted = new Intl.NumberFormat('fr-FR').format(prix)
 
+  const dateHeure = created_at
+    ? new Date(created_at).toLocaleString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : new Date().toLocaleString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+
   const adminHtml = emailBase(`
+    <div style="background:#1a1a1a;border-radius:10px;padding:14px 18px;margin-bottom:20px">
+      <p style="margin:0;font-family:monospace;font-size:13px;color:#c9a227;letter-spacing:.03em">
+        Commande ${ref_lisible} — ${nom_usage.toUpperCase()} — ${dateHeure}
+      </p>
+    </div>
     <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
       Nouvelle commande Pass ${grade}
     </h2>

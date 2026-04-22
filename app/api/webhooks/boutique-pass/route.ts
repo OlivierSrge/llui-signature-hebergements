@@ -101,6 +101,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ref_lisible,
       pass_url,
       activation_url,
+      created_at,
       contact: contact ?? null,
       email: email ?? null,
       prescripteur_nom: prescripteur_nom ?? null,

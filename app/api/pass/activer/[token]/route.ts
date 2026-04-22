@@ -1,5 +1,7 @@
 // GET /api/pass/activer/[token]?secret=WEBHOOK_SECRET
 // Olivier clicks this link from his admin email → activates the pass → redirects to card.
+// Idempotent: already-active passes redirect to the card without error.
+// Unknown token: redirects to /pass/[token] which shows PassIntrouvable.
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -22,9 +24,17 @@ export async function GET(
   }
 
   const result = await activerPassAuPremierClic(token)
-  if (!result.success) {
-    return NextResponse.json({ error: result.error ?? 'Activation échouée' }, { status: 500 })
+
+  // Success (activated or already active) → show card
+  if (result.success) {
+    return NextResponse.redirect(`${APP_URL}/pass/${token}`)
   }
 
-  return NextResponse.redirect(`${APP_URL}/pass/${token}`)
+  // Pass not found → redirect to pass page (PassIntrouvable component will display)
+  if (result.error === 'Pass introuvable') {
+    return NextResponse.redirect(`${APP_URL}/pass/${token}`)
+  }
+
+  // Other system error → JSON for easier debugging
+  return NextResponse.json({ error: result.error ?? 'Activation échouée' }, { status: 500 })
 }
