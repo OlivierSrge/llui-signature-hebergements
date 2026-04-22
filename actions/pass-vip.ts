@@ -263,15 +263,17 @@ export async function getPassVipParToken(token: string): Promise<PassVipAnonyme 
   const doc = await db.collection('pass_vip_actifs').doc(token).get()
   if (!doc.exists) return null
   const d = serializeFirestoreDoc(doc.data()!)
+  const grade_pass = (d.grade_pass as PassVipGrade) ?? 'ARGENT'
   return {
     id: doc.id,
     nom_usage: (d.nom_usage as string) ?? '',
-    grade_pass: (d.grade_pass as PassVipGrade) ?? 'ARGENT',
+    grade_pass,
     actif: (d.actif as boolean) ?? false,
     created_at: (d.created_at as string) ?? '',
     expires_at: (d.expires_at as string) ?? '',
     nb_utilisations: (d.nb_utilisations as number) ?? 0,
     prescripteur_id: (d.prescripteur_id as string) ?? null,
+    ref_lisible: `L&Lui Signature-${grade_pass}-${doc.id.slice(0, 4).toUpperCase()}`,
   }
 }
 

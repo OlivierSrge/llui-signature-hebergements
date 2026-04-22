@@ -59,4 +59,5 @@ export interface PassVipAnonyme {
   expires_at: string;
   nb_utilisations: number;
   prescripteur_id: string | null;
+  ref_lisible?: string;   // ex: "L&Lui Signature-OR-723F"
 }

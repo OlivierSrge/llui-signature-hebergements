@@ -80,6 +80,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       prescripteur_id: prescripteur_id ?? null,
       contact,
       sku,
+      ref_lisible: `L&Lui Signature-${grade}-${token.slice(0, 4).toUpperCase()}`,
     })
 
     const pass_url = `${APP_URL}/pass/${token}`

@@ -189,8 +189,11 @@ export default function PassVipCard({ pass }: { pass: PassVipAnonyme }) {
         </button>
 
         {/* Référence discrète */}
-        <p style={{ color: config.textSecondary }} className="text-center text-xs mt-3 opacity-50">
-          Réf. {pass.id.slice(0, 8).toUpperCase()}
+        <p
+          style={{ color: config.textSecondary }}
+          className="text-center text-xs mt-3 opacity-70 font-mono tracking-wide"
+        >
+          L&amp;Lui Signature-{pass.grade_pass}-{pass.id.slice(0, 4).toUpperCase()}
         </p>
       </div>
     </div>

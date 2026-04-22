@@ -4,10 +4,6 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import type { CodeSession } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
-import type { ClientFidelite, TransactionFidelite, StarsMode } from '@/actions/stars'
-import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction, spendPointsRequest } from '@/actions/stars'
-import { generateStarsQrToken } from '@/actions/stars-qr-token'
-import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { PartenaireAvecLocation } from '@/types/geolocation'
@@ -22,7 +18,6 @@ const PartenairesMap = dynamic(
 )
 
 const QrScanModal = dynamic(() => import('@/components/QrScanModal'), { ssr: false })
-const StarsQrCard = dynamic(() => import('@/components/StarsQrCard'), { ssr: false })
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -36,18 +31,8 @@ interface Props {
   partenaires?: PartenaireAvecLocation[]
 }
 
-type LoyaltyStep = 'idle' | 'phone' | 'otp_sent' | 'verified'
-
 function formatCode(code: string) {
   return code.slice(0, 3) + ' ' + code.slice(3)
-}
-
-function normalizeTel(t: string): string {
-  t = t.replace(/[\s\-().]/g, '')
-  if (t.startsWith('00')) t = '+' + t.slice(2)
-  if (/^237\d{8,9}$/.test(t)) t = '+' + t
-  if (!t.startsWith('+')) t = '+237' + t
-  return t
 }
 
 function getBarreColor(heures: number) {
@@ -64,30 +49,10 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   const slides = session.carouselImages?.filter(Boolean) ?? []
   const [slideIdx, setSlideIdx] = useState(0)
 
-  // ── Stars — programme de fidélité ───────────────────────────────
-  const [loyaltyStep, setLoyaltyStep] = useState<LoyaltyStep>('idle')
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
-  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
-  const [loyaltyError, setLoyaltyError] = useState('')
-  const [clientData, setClientData] = useState<ClientFidelite | null>(null)
-  const [pendingTx, setPendingTx] = useState<TransactionFidelite | null>(null)
-  const [starsMode, setStarsMode] = useState<StarsMode>('earn')
-  const [pointsToSpend, setPointsToSpend] = useState('')
-  const [spendLoading, setSpendLoading] = useState(false)
-  const [spendResult, setSpendResult] = useState<{ success: boolean; reductionFcfa?: number; error?: string } | null>(null)
+  // ── QR scan partenaire depuis la carte ─────────────────────────
   const [showQrModal, setShowQrModal] = useState(false)
   const [qrPartenaire, setQrPartenaire] = useState<string | null>(null)
   const [qrPartenaireNom, setQrPartenaireNom] = useState<string | null>(null)
-
-  // ── QR Code personnel client ────────────────────────────────────
-  const [myQrToken, setMyQrToken] = useState<string | null>(null)
-  const [myQrExpiresAt, setMyQrExpiresAt] = useState<string | null>(null)
-  const [myQrDisplayName, setMyQrDisplayName] = useState('')
-  const [myQrLoading, setMyQrLoading] = useState(false)
-  const [myQrError, setMyQrError] = useState('')
-  const [prenom, setPrenom] = useState('')
-  const [nom, setNom] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
@@ -170,74 +135,6 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
         </div>
       </div>
     )
-  }
-
-  // ── Handlers Stars ─────────────────────────────────────────────
-
-  async function handleGenerateMyQr() {
-    const p = prenom.trim()
-    const n = nom.trim()
-    const tel = clientData?.telephone ?? normalizeTel(phone.trim())
-    if (!phone.trim() || p.length < 2 || n.length < 2 || myQrLoading) {
-      setMyQrError('Veuillez saisir votre prénom et nom (min. 2 caractères chacun)')
-      return
-    }
-    setMyQrLoading(true)
-    setMyQrError('')
-    const result = await generateStarsQrToken(tel, p, n)
-    if (result.success) {
-      setMyQrToken(result.token)
-      setMyQrExpiresAt(result.expiresAt)
-      setMyQrDisplayName(result.displayName)
-    } else {
-      setMyQrError(result.error ?? 'Erreur lors de la génération')
-    }
-    setMyQrLoading(false)
-  }
-
-  async function handleSendOtp() {
-    if (!phone.trim()) return
-    setLoyaltyLoading(true)
-    setLoyaltyError('')
-    const res = await requestOtp(phone.trim(), session.code)
-    setLoyaltyLoading(false)
-    if (res.success) {
-      setLoyaltyStep('otp_sent')
-    } else {
-      setLoyaltyError(res.error ?? 'Erreur lors de l\'envoi')
-    }
-  }
-
-  async function handleVerifyOtp() {
-    if (!otp.trim()) return
-    setLoyaltyLoading(true)
-    setLoyaltyError('')
-    const res = await verifyOtpAndLinkClient(phone.trim(), otp.trim(), session.code)
-    setLoyaltyLoading(false)
-    if (res.success && res.client) {
-      setClientData(res.client)
-      setLoyaltyStep('verified')
-      // Charger transaction pending éventuelle
-      const tx = await getPendingTransaction(session.code)
-      setPendingTx(tx)
-    } else {
-      setLoyaltyError(res.error ?? 'Code incorrect')
-    }
-  }
-
-  async function handleSpendRequest() {
-    if (!clientData || !session.prescripteur_partenaire_id) return
-    const pts = parseInt(pointsToSpend.replace(/\D/g, ''), 10)
-    if (!pts || pts <= 0) return
-    setSpendLoading(true)
-    setSpendResult(null)
-    const res = await spendPointsRequest({
-      clientId: clientData.telephone,
-      partnerId: session.prescripteur_partenaire_id,
-      pointsToUse: pts,
-    })
-    setSpendLoading(false)
-    setSpendResult(res)
   }
 
   // Écran — code actif
@@ -402,238 +299,114 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
         </div>
 
-        {/* ── L&Lui Stars — Programme de fidélité ──────────────── */}
+        {/* ── Club VIP L&Lui — Pass VIP ─────────────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">⭐</span>
-              <div>
-                <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
-                <p className="text-xs text-[#1A1A1A]/50">Gagnez des points à chaque achat</p>
-              </div>
+          <div className="space-y-4">
+
+            {/* Titre section */}
+            <div className="text-center mb-2">
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">
+                L&Lui ✦ Signature
+              </p>
+              <h3 className="text-lg font-bold text-[#1A1A1A]">Club VIP L&Lui</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Choisissez votre Pass et profitez de remises exclusives chez nos partenaires à Kribi.
+              </p>
             </div>
-            <Link
-              href="/stars/notice"
-              target="_blank"
-              className="text-[10px] text-[#C9A84C] hover:underline shrink-0"
-            >
-              📋 Règles
-            </Link>
-          </div>
 
-          {/* ── Section 1 : QR Code Personnel — TOUJOURS VISIBLE ──── */}
-          <div className="space-y-3">
-            {myQrLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : myQrToken && myQrExpiresAt ? (
-              <>
-                <StarsQrCard
-                  clientUid={clientData?.telephone ?? normalizeTel(phone.trim())}
-                  clientNom={myQrDisplayName || clientData?.telephone || phone}
-                  clientTel={phone}
-                  totalStars={clientData?.points_stars ?? 0}
-                  qrToken={myQrToken}
-                  expiresAt={myQrExpiresAt}
-                  onExpired={() => { setMyQrToken(null); setMyQrExpiresAt(null); setMyQrDisplayName('') }}
-                  onRenew={handleGenerateMyQr}
-                />
-                <button
-                  onClick={() => { setQrPartenaire(null); setQrPartenaireNom(null); setShowQrModal(true) }}
-                  className="w-full py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-semibold rounded-xl hover:bg-[#C9A84C]/5 transition-colors"
-                >
-                  📷 Scanner un QR Partenaire
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-[#1A1A1A]">📱 Mon QR Code Stars</p>
-                <p className="text-xs text-[#1A1A1A]/60">
-                  Créez votre carte Stars personnelle en quelques secondes.
-                </p>
-                <input
-                  type="text"
-                  value={prenom}
-                  onChange={(e) => setPrenom(e.target.value)}
-                  placeholder="Votre prénom *"
-                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                />
-                <input
-                  type="text"
-                  value={nom}
-                  onChange={(e) => setNom(e.target.value)}
-                  placeholder="Votre nom *"
-                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !myQrLoading && handleGenerateMyQr()}
-                  placeholder="6 XX XX XX XX *"
-                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                />
-                {myQrError && (
-                  <p className="text-xs text-red-500">{myQrError}</p>
-                )}
-                <button
-                  onClick={handleGenerateMyQr}
-                  disabled={myQrLoading || !phone.trim() || !prenom.trim() || !nom.trim()}
-                  className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-                >
-                  {myQrLoading ? 'Génération...' : '📱 Générer mon QR Code'}
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* ── Section 2 : Mon Pass / Solde (OTP requis) ───────── */}
-          {!(myQrToken && myQrExpiresAt) && <div className="border-t border-[#F5F0E8] mt-4 pt-4 space-y-3">
-
-            {/* Saisie OTP */}
-            {loyaltyStep === 'otp_sent' && (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-[#1A1A1A]">⭐ Vérification de votre compte</p>
-                <p className="text-xs text-[#1A1A1A]/60">
-                  Code à 6 chiffres envoyé au <strong>{phone}</strong> via WhatsApp.
-                </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleVerifyOtp()}
-                  placeholder="_ _ _ _ _ _"
-                  className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-center text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#C9A84C]"
-                />
-                {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={loyaltyLoading || otp.length < 6}
-                  className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-                >
-                  {loyaltyLoading ? 'Vérification...' : '✅ Confirmer mon code'}
-                </button>
-                <button
-                  onClick={() => { setLoyaltyStep('idle'); setOtp(''); setLoyaltyError('') }}
-                  className="w-full py-2 text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-                >
-                  Annuler
-                </button>
-              </div>
-            )}
-
-            {/* Vérifié — Pass + Dépenser */}
-            {loyaltyStep === 'verified' && clientData && (
-              <div className="space-y-4">
-                <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
-                  <button
-                    onClick={() => { setStarsMode('earn'); setSpendResult(null) }}
-                    className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                      starsMode === 'earn' ? 'bg-[#1A1A1A] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                    }`}
-                  >
-                    ⭐ Mon Pass
-                  </button>
-                  <button
-                    onClick={() => { setStarsMode('spend'); setSpendResult(null); setPointsToSpend('') }}
-                    className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                      starsMode === 'spend' ? 'bg-[#C9A84C] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                    }`}
-                  >
-                    🎁 Dépenser mes Stars
-                  </button>
+            {/* 4 cartes Pass VIP */}
+            {([
+              {
+                grade: 'ARGENT',
+                emoji: '🥈',
+                duree: '7 jours',
+                prix: '3 500 FCFA',
+                remise: '6%',
+                bg: 'linear-gradient(135deg, #E8E8E8 0%, #A8A9AD 50%, #E8E8E8 100%)',
+                textColor: '#1A1A1A',
+                url: 'https://l-et-lui-signature.com/produit.html?id=29',
+              },
+              {
+                grade: 'OR',
+                emoji: '✦',
+                duree: '15 jours',
+                prix: '7 500 FCFA',
+                remise: '8%',
+                bg: 'linear-gradient(135deg, #C9A84C 0%, #F5D17A 40%, #C9A84C 70%, #A07830 100%)',
+                textColor: '#FFFFFF',
+                url: 'https://l-et-lui-signature.com/produit.html?id=30',
+              },
+              {
+                grade: 'SAPHIR',
+                emoji: '💎',
+                duree: '30 jours',
+                prix: '15 000 FCFA',
+                remise: '10%',
+                bg: 'linear-gradient(135deg, #0F3460 0%, #0F52BA 50%, #0F3460 100%)',
+                textColor: '#FFFFFF',
+                url: 'https://l-et-lui-signature.com/produit.html?id=31',
+              },
+              {
+                grade: 'DIAMANT',
+                emoji: '👑',
+                duree: '30 jours',
+                prix: '25 000 FCFA',
+                remise: '15%',
+                bg: 'linear-gradient(135deg, #1A1A2E 0%, #4A0E8F 40%, #1A1A2E 70%, #6C3483 100%)',
+                textColor: '#FFFFFF',
+                url: 'https://l-et-lui-signature.com/produit.html?id=32',
+              },
+            ] as const).map((pass) => (
+              <div
+                key={pass.grade}
+                style={{ background: pass.bg }}
+                className="rounded-2xl p-5 shadow-md"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xl">{pass.emoji}</span>
+                      <span className="font-bold text-sm tracking-wide" style={{ color: pass.textColor }}>
+                        {pass.grade}
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-80" style={{ color: pass.textColor }}>
+                      {pass.duree}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold" style={{ color: pass.textColor }}>
+                      -{pass.remise}
+                    </p>
+                    <p className="text-xs opacity-80" style={{ color: pass.textColor }}>
+                      garanti
+                    </p>
+                  </div>
                 </div>
 
-                {starsMode === 'earn' && (
-                  <ElectronicPass
-                    client={clientData}
-                    params={plateformeParams}
-                    pendingTx={pendingTx}
-                    avantages={session.avantages_hors_stars}
-                    onResendOtp={() => {
-                      setLoyaltyStep('idle')
-                      setOtp('')
-                      setLoyaltyError('')
-                    }}
-                  />
-                )}
-
-                {starsMode === 'spend' && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-[#1A1A1A]/60">
-                      Solde disponible : <strong>{clientData.points_stars.toLocaleString('fr-FR')} ⭐</strong>
-                    </p>
-                    {spendResult === null && (
-                      <div className="space-y-3">
-                        <p className="text-xs text-[#1A1A1A]/60">
-                          Indiquez le nombre de Stars à utiliser. Le partenaire validera la réduction.
-                        </p>
-                        <input
-                          type="number"
-                          value={pointsToSpend}
-                          onChange={(e) => setPointsToSpend(e.target.value)}
-                          placeholder="Ex : 500"
-                          min={1}
-                          max={clientData.points_stars}
-                          className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                        />
-                        {parseInt(pointsToSpend) > 0 && (
-                          <p className="text-xs text-[#C9A84C] font-semibold">
-                            ≈ {(parseInt(pointsToSpend) * (plateformeParams.fidelite_valeur_star_fcfa ?? 1)).toLocaleString('fr-FR')} FCFA de réduction
-                          </p>
-                        )}
-                        <button
-                          onClick={handleSpendRequest}
-                          disabled={spendLoading || !pointsToSpend || parseInt(pointsToSpend) <= 0 || parseInt(pointsToSpend) > clientData.points_stars}
-                          className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-                        >
-                          {spendLoading ? 'Envoi en cours...' : '🎁 Envoyer la demande au partenaire'}
-                        </button>
-                      </div>
-                    )}
-                    {spendResult?.success && (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-2">
-                        <div className="text-2xl">✅</div>
-                        <p className="text-sm font-bold text-green-700">Demande envoyée !</p>
-                        <p className="text-xs text-green-600">
-                          Réduction de <strong>{spendResult.reductionFcfa?.toLocaleString('fr-FR')} FCFA</strong> en attente de validation par le partenaire.
-                        </p>
-                        <button onClick={() => { setSpendResult(null); setPointsToSpend('') }}
-                          className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors">
-                          Nouvelle demande
-                        </button>
-                      </div>
-                    )}
-                    {spendResult !== null && !spendResult.success && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center space-y-2">
-                        <div className="text-2xl">❌</div>
-                        <p className="text-xs text-red-600">{spendResult.error ?? 'Erreur lors de la demande'}</p>
-                        <button onClick={() => setSpendResult(null)}
-                          className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors">
-                          Réessayer
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-semibold" style={{ color: pass.textColor }}>
+                    {pass.prix}
+                  </p>
+                  <a
+                    href={pass.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-white/20 backdrop-blur-sm"
+                    style={{ color: pass.textColor, border: `1px solid ${pass.textColor}44` }}
+                  >
+                    Obtenir ce Pass →
+                  </a>
+                </div>
               </div>
-            )}
+            ))}
 
-            {/* Idle — lien pour voir le solde */}
-            {loyaltyStep === 'idle' && (
-              <button
-                onClick={handleSendOtp}
-                disabled={loyaltyLoading || !phone.trim()}
-                className="w-full py-2 text-xs text-[#1A1A1A]/50 hover:text-[#C9A84C] disabled:opacity-40 transition-colors text-center"
-              >
-                {loyaltyLoading ? 'Envoi...' : '⭐ Voir mon solde Stars →'}
-              </button>
-            )}
-          </div>}
+            {/* Note bas de section */}
+            <p className="text-xs text-gray-400 text-center pb-2">
+              Votre carte s&apos;affiche instantanément après l&apos;achat. Aucune inscription requise.
+            </p>
 
+          </div>
         </div>
 
         {/* ── Carte partenaires Stars ── carte visible à tous les visiteurs */}
@@ -650,7 +423,6 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           <PartenairesMap
             partenaires={partenaires}
             onScanRequest={(partenaire_id) => {
-              if (!clientData && !myQrToken) { setLoyaltyStep('phone'); return }
               setQrPartenaire(partenaire_id)
               setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
               setShowQrModal(true)
@@ -660,11 +432,11 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
       </div>
 
-      {/* Modal QR Scan — disponible dès que la carte QR est générée */}
-      {showQrModal && (clientData || myQrToken) && (
+      {/* Modal QR Scan partenaire */}
+      {showQrModal && (
         <QrScanModal
-          client_uid={clientData?.telephone ?? normalizeTel(phone.trim())}
-          client_tel={clientData?.telephone ?? normalizeTel(phone.trim())}
+          client_uid=""
+          client_tel=""
           partenaire_id_preselect={qrPartenaire}
           partenaire_nom_preselect={qrPartenaireNom}
           onClose={() => { setShowQrModal(false); setQrPartenaire(null); setQrPartenaireNom(null) }}
