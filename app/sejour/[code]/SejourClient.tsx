@@ -314,6 +314,37 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
               </p>
             </div>
 
+            {/* Bouton guide d'utilisation */}
+            <a
+              href="/notices/guide-pass-vip.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '18px 24px',
+                marginBottom: '4px',
+                background: 'linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%)',
+                color: 'white',
+                textAlign: 'center',
+                textDecoration: 'none',
+                borderRadius: '12px',
+                fontSize: '18px',
+                fontWeight: 700,
+                boxShadow: '0 4px 12px rgba(201, 168, 76, 0.3)',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(201, 168, 76, 0.4)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(201, 168, 76, 0.3)'
+              }}
+            >
+              📖 Guide d&apos;utilisation des Pass VIP
+            </a>
+
             {/* 4 cartes Pass VIP */}
             {([
               {
