@@ -1,11 +1,12 @@
 // app/pass/[token]/page.tsx — Page publique Pass VIP anonyme
-// Activation automatique au premier clic (pending → actif).
-// Validation visuelle par timestamp — aucun scan partenaire requis.
+// pending → page d'attente ; actif → carte ; expiré → PassExpire
+// Activation manuelle par Olivier via /api/pass/activer/[token]?secret=…
 
-import { getPassVipParToken, activerPassAuPremierClic } from '@/actions/pass-vip'
+import { getPassVipParToken } from '@/actions/pass-vip'
 import PassVipCard from '@/components/PassVipCard'
 import PassIntrouvable from '@/components/PassIntrouvable'
 import PassExpire from '@/components/PassExpire'
+import PassEnAttente from '@/components/PassEnAttente'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,21 +27,17 @@ export default async function PassVipPage({
 
   if (!pass) return <PassIntrouvable />
 
+  // Pass en attente de paiement → page d'attente (Olivier active via son email)
+  if (pass.statut === 'pending' && !pass.actif) {
+    return <PassEnAttente pass={pass} />
+  }
+
   // Pass expiré (actif mais hors délai)
   if (pass.actif && new Date(pass.expires_at) < new Date()) {
     return <PassExpire pass={pass} />
   }
 
-  // Pass pending → activer au premier clic
-  if (pass.statut === 'pending' && !pass.actif) {
-    await activerPassAuPremierClic(token)
-    // Re-lire pour avoir expires_at recalculé et statut = 'actif'
-    const passActif = await getPassVipParToken(token)
-    if (!passActif) return <PassIntrouvable />
-    return <PassVipCard pass={passActif} />
-  }
-
-  // Pass déjà actif → afficher directement
+  // Pass actif → afficher la carte
   if (pass.actif) {
     return <PassVipCard pass={pass} />
   }

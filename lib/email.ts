@@ -460,11 +460,12 @@ export async function sendPassVipEmails(params: {
   remise_min: number
   ref_lisible: string
   pass_url: string
+  activation_url: string
   contact?: string | null
   email?: string | null
   prescripteur_nom?: string | null
 }): Promise<void> {
-  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, contact, email, prescripteur_nom } = params
+  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, activation_url, contact, email, prescripteur_nom } = params
   const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   const prixFormatted = new Intl.NumberFormat('fr-FR').format(prix)
 
@@ -501,27 +502,40 @@ export async function sendPassVipEmails(params: {
         <td style="padding:8px 0;color:#1a1a1a">${prescripteur_nom ?? 'Aucun'}</td>
       </tr>
     </table>
-    <div style="background:#f5f0eb;border-radius:12px;padding:20px;margin-bottom:20px">
-      <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a1a">
-        ✅ Dès réception du paiement Orange Money :
+
+    <!-- Lien carte client -->
+    <div style="background:#fffbf0;border:2px solid #c9a227;border-radius:12px;padding:20px;margin-bottom:16px">
+      <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#1a1a1a">
+        🔗 Lien carte à envoyer au client :
       </p>
-      <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.6">
-        Transférez ce mail au client ou copiez ce lien sur WhatsApp.
-        La carte s'activera automatiquement à la première ouverture.
-      </p>
-      <a href="${pass_url}"
-         style="display:block;background:#c9a227;color:#1a1a1a;text-align:center;
-                padding:16px;border-radius:8px;font-weight:700;font-size:15px;
-                text-decoration:none;margin-bottom:12px">
-        ✦ LIEN CARTE ${grade} — À ENVOYER AU CLIENT
-      </a>
-      <p style="font-family:monospace;font-size:11px;color:#888;word-break:break-all;text-align:center;margin:0">
+      <p style="font-family:monospace;font-size:12px;color:#7a6010;word-break:break-all;margin:0 0 14px;line-height:1.5">
         ${pass_url}
       </p>
+      <a href="${pass_url}"
+         style="display:block;background:#1a1a1a;color:#c9a227;text-align:center;
+                padding:14px;border-radius:8px;font-weight:700;font-size:14px;
+                text-decoration:none">
+        Ouvrir la carte ${grade}
+      </a>
     </div>
+
+    <!-- Bouton activation -->
+    <div style="border-radius:12px;overflow:hidden;margin-bottom:20px">
+      <a href="${activation_url}"
+         style="display:block;background:#22c55e;color:#fff;text-align:center;
+                padding:18px 20px;font-weight:700;font-size:16px;
+                text-decoration:none;letter-spacing:.02em">
+        ✅ Confirmer le paiement et activer la carte
+      </a>
+    </div>
+    <p style="margin:0 0 20px;font-size:12px;color:#aaa;text-align:center;line-height:1.5">
+      Ce bouton active le Pass côté serveur et redirige vers la carte.<br>
+      Cliquer une seule fois suffit — l'activation est instantanée.
+    </p>
+
     <div style="background:#f5f0eb;border-radius:12px;padding:16px">
       <p style="margin:0 0 8px;color:#888;font-size:12px">
-        📋 Template réponse mail client (copier-coller) :
+        📋 Template WhatsApp client (copier-coller) :
       </p>
       <div style="background:#fff;border-radius:8px;padding:14px;font-size:13px;color:#333;line-height:1.7">
         Bonjour,<br><br>
@@ -565,11 +579,19 @@ export async function sendPassVipEmails(params: {
     </div>
     <div style="background:#fffbf0;border:1px solid #c9a227;border-radius:12px;padding:18px;margin-bottom:20px">
       <p style="margin:0 0 8px;font-weight:700;color:#c9a227;font-size:14px">
-        ⏳ En attente de votre paiement
+        ⏳ En attente de confirmation de paiement
       </p>
-      <p style="margin:0;color:#555;font-size:14px;line-height:1.6">
-        Veuillez effectuer votre paiement par Orange Money ou MTN Mobile Money.
-        Dès réception, nous vous enverrons votre carte personnelle par retour de mail.
+      <p style="margin:0 0 14px;color:#555;font-size:14px;line-height:1.6">
+        Votre carte est prête — elle s'activera dès que votre paiement sera confirmé.
+      </p>
+      <a href="${pass_url}"
+         style="display:block;background:#c9a227;color:#1a1a1a;text-align:center;
+                padding:14px;border-radius:8px;font-weight:700;font-size:14px;
+                text-decoration:none">
+        ✦ Voir ma carte ${grade}
+      </a>
+      <p style="margin:10px 0 0;font-family:monospace;font-size:11px;color:#999;word-break:break-all;text-align:center">
+        ${pass_url}
       </p>
     </div>
     <p style="margin:0;font-size:12px;color:#aaa;text-align:center">

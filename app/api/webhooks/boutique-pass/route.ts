@@ -89,6 +89,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     })
 
     const pass_url = `${APP_URL}/pass/${token}`
+    const activation_url = `${APP_URL}/api/pass/activer/${token}?secret=${process.env.WEBHOOK_SECRET ?? ''}`
 
     // Emails Resend — non-bloquants
     sendPassVipEmails({
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       remise_min: gradeConfig.remise_min,
       ref_lisible,
       pass_url,
+      activation_url,
       contact: contact ?? null,
       email: email ?? null,
       prescripteur_nom: prescripteur_nom ?? null,
