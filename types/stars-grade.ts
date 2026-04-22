@@ -22,6 +22,7 @@ export interface GradeConfig {
   specialEffect: string
   nextGrade: StarsGrade | null
   nextThreshold: number | null
+  remise_min: number  // % remise minimale garantie chez les partenaires
 }
 
 export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
@@ -41,6 +42,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: '',
     nextGrade: 'BRONZE',
     nextThreshold: 100,
+    remise_min: 2,
   },
   BRONZE: {
     label: 'Bronze',
@@ -58,6 +60,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: 'bronze-shimmer',
     nextGrade: 'ARGENT',
     nextThreshold: 500,
+    remise_min: 4,
   },
   ARGENT: {
     label: 'Argent',
@@ -75,6 +78,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: 'silver-shine',
     nextGrade: 'OR',
     nextThreshold: 2000,
+    remise_min: 6,
   },
   OR: {
     label: 'Or',
@@ -92,6 +96,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: 'gold-glow',
     nextGrade: 'SAPHIR',
     nextThreshold: 5000,
+    remise_min: 8,
   },
   SAPHIR: {
     label: 'Saphir',
@@ -109,6 +114,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: 'sapphire-stars',
     nextGrade: 'DIAMANT',
     nextThreshold: 10000,
+    remise_min: 10,
   },
   DIAMANT: {
     label: 'Diamant',
@@ -126,6 +132,7 @@ export const GRADE_CONFIGS: Record<StarsGrade, GradeConfig> = {
     specialEffect: 'diamond-prism',
     nextGrade: null,
     nextThreshold: null,
+    remise_min: 15,
   },
 }
 

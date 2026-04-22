@@ -48,3 +48,15 @@ export interface PassVipActif {
   expires_at: string;
   expire_notifie_j3: boolean;
 }
+
+// Pass VIP anonyme — vendu via boutique Netlify, pas de client_uid
+export interface PassVipAnonyme {
+  id: string;             // = token Firestore doc ID
+  nom_usage: string;      // nom affiché sur la carte (uppercase)
+  grade_pass: PassVipGrade;
+  actif: boolean;
+  created_at: string;
+  expires_at: string;
+  nb_utilisations: number;
+  prescripteur_id: string | null;
+}

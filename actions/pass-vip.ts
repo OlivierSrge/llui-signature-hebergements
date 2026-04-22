@@ -11,6 +11,7 @@ import {
   GRADE_VIP_ORDER,
   TAUX_COMMISSION_PASS,
   type PassVipActif,
+  type PassVipAnonyme,
   type PassVipGrade,
 } from '@/types/pass-vip'
 
@@ -252,6 +253,26 @@ export async function notifierPassVipJ3(): Promise<{ notified_count: number }> {
   }
 
   return { notified_count: toNotify.length }
+}
+
+// ─── getPassVipParToken ───────────────────────────────────────────────────────
+// Lecture d'un Pass VIP anonyme par son token (= doc ID Firestore)
+
+export async function getPassVipParToken(token: string): Promise<PassVipAnonyme | null> {
+  if (!token || token.length < 4) return null
+  const doc = await db.collection('pass_vip_actifs').doc(token).get()
+  if (!doc.exists) return null
+  const d = serializeFirestoreDoc(doc.data()!)
+  return {
+    id: doc.id,
+    nom_usage: (d.nom_usage as string) ?? '',
+    grade_pass: (d.grade_pass as PassVipGrade) ?? 'ARGENT',
+    actif: (d.actif as boolean) ?? false,
+    created_at: (d.created_at as string) ?? '',
+    expires_at: (d.expires_at as string) ?? '',
+    nb_utilisations: (d.nb_utilisations as number) ?? 0,
+    prescripteur_id: (d.prescripteur_id as string) ?? null,
+  }
 }
 
 // ─── sauvegarderVipPartenaire ─────────────────────────────────────────────────
