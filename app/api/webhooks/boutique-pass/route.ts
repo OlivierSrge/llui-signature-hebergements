@@ -31,16 +31,21 @@ interface WebhookBody {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  console.log('[WEBHOOK PASS] Début réception')
+
   // Auth
   const authHeader = req.headers.get('authorization') ?? ''
   const secret = process.env.WEBHOOK_SECRET
+  console.log('[WEBHOOK PASS] Auth — secret configuré:', !!secret, '| header présent:', authHeader.startsWith('Bearer '))
   if (!secret || authHeader !== `Bearer ${secret}`) {
+    console.warn('[WEBHOOK PASS] Auth échouée')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   let body: WebhookBody
   try {
     body = (await req.json()) as WebhookBody
+    console.log('[WEBHOOK PASS] Body reçu:', JSON.stringify(body))
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
@@ -91,6 +96,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const pass_url = `${APP_URL}/pass/${token}`
     const activation_url = `${APP_URL}/api/pass/activer/${token}?secret=${process.env.WEBHOOK_SECRET ?? ''}`
 
+    console.log('[WEBHOOK PASS] Firestore OK — token:', token)
+    console.log('[WEBHOOK PASS] Lancement sendPassVipEmails — email client:', email ?? 'absent')
+
     // Emails Resend — non-bloquants
     sendPassVipEmails({
       nom_usage,
@@ -105,7 +113,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       contact: contact ?? null,
       email: email ?? null,
       prescripteur_nom: prescripteur_nom ?? null,
-    }).catch((e) => console.warn('[boutique-pass] email error:', e))
+    }).then(() => {
+      console.log('[WEBHOOK PASS] sendPassVipEmails terminé ✅')
+    }).catch((e) => console.error('[WEBHOOK PASS] sendPassVipEmails erreur ❌:', e))
 
     return NextResponse.json({
       success: true,

@@ -616,18 +616,36 @@ export async function sendPassVipEmails(params: {
     </p>
   `)
 
-  await Promise.allSettled([
-    getResend().emails.send({
+  console.log('[EMAIL PASS] sendPassVipEmails appelée')
+  console.log('[EMAIL PASS] RESEND_API_KEY configurée:', !!process.env.RESEND_API_KEY)
+  console.log('[EMAIL PASS] FROM:', FROM)
+  console.log('[EMAIL PASS] admin →', adminEmail, '| client →', email ?? 'absent')
+
+  // Email admin
+  try {
+    const adminResult = await getResend().emails.send({
       from: FROM,
       to: adminEmail,
       subject: `🆕 Commande Pass ${grade} — ${nom_usage}`,
       html: adminHtml,
-    }),
-    ...(email ? [getResend().emails.send({
-      from: FROM,
-      to: email,
-      subject: `✦ Votre commande Pass ${grade} — L&Lui Signature`,
-      html: clientHtmlContent,
-    })] : []),
-  ])
+    })
+    console.log('[EMAIL PASS] Admin envoyé ✅:', JSON.stringify(adminResult))
+  } catch (e) {
+    console.error('[EMAIL PASS] Admin erreur ❌:', e)
+  }
+
+  // Email client (optionnel)
+  if (email) {
+    try {
+      const clientResult = await getResend().emails.send({
+        from: FROM,
+        to: email,
+        subject: `✦ Votre commande Pass ${grade} — L&Lui Signature`,
+        html: clientHtmlContent,
+      })
+      console.log('[EMAIL PASS] Client envoyé ✅:', JSON.stringify(clientResult))
+    } catch (e) {
+      console.error('[EMAIL PASS] Client erreur ❌:', e)
+    }
+  }
 }
