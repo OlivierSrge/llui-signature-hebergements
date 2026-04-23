@@ -345,97 +345,139 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
               📖 Guide d&apos;utilisation des Pass VIP
             </a>
 
-            {/* 4 cartes Pass VIP */}
-            {([
-              {
-                grade: 'ARGENT',
-                emoji: '🥈',
-                duree: '7 jours',
-                prix: '3 500 FCFA',
-                remise: '6%',
-                bg: 'linear-gradient(135deg, #E8E8E8 0%, #A8A9AD 50%, #E8E8E8 100%)',
-                textColor: '#1A1A1A',
-                url: 'https://l-et-lui-signature.com/produit.html?id=29',
-              },
-              {
-                grade: 'OR',
-                emoji: '✦',
-                duree: '15 jours',
-                prix: '7 500 FCFA',
-                remise: '8%',
-                bg: 'linear-gradient(135deg, #C9A84C 0%, #F5D17A 40%, #C9A84C 70%, #A07830 100%)',
-                textColor: '#FFFFFF',
-                url: 'https://l-et-lui-signature.com/produit.html?id=30',
-              },
-              {
-                grade: 'SAPHIR',
-                emoji: '💎',
-                duree: '30 jours',
-                prix: '15 000 FCFA',
-                remise: '10%',
-                bg: 'linear-gradient(135deg, #0F3460 0%, #0F52BA 50%, #0F3460 100%)',
-                textColor: '#FFFFFF',
-                url: 'https://l-et-lui-signature.com/produit.html?id=31',
-              },
-              {
-                grade: 'DIAMANT',
-                emoji: '👑',
-                duree: '30 jours',
-                prix: '25 000 FCFA',
-                remise: '15%',
-                bg: 'linear-gradient(135deg, #1A1A2E 0%, #4A0E8F 40%, #1A1A2E 70%, #6C3483 100%)',
-                textColor: '#FFFFFF',
-                url: 'https://l-et-lui-signature.com/produit.html?id=32',
-              },
-            ] as const).map((pass) => (
-              <div
-                key={pass.grade}
-                style={{ background: pass.bg }}
-                className="rounded-2xl p-5 shadow-md"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xl">{pass.emoji}</span>
-                      <span className="font-bold text-sm tracking-wide" style={{ color: pass.textColor }}>
-                        {pass.grade}
-                      </span>
-                    </div>
-                    <p className="text-xs opacity-80" style={{ color: pass.textColor }}>
-                      {pass.duree}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold" style={{ color: pass.textColor }}>
-                      -{pass.remise}
-                    </p>
-                    <p className="text-xs opacity-80" style={{ color: pass.textColor }}>
-                      garanti
-                    </p>
-                  </div>
+            {/* Carte unique Pass VIP → boutique Netlify */}
+            <a
+              href="https://letlui-signature.netlify.app/?cat=Pass%20VIP"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                textDecoration: 'none',
+                background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 100%)',
+                border: '3px solid #C9A84C',
+                borderRadius: '20px',
+                padding: '40px 30px',
+                marginTop: '20px',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)'
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(201, 168, 76, 0.3)'
+                e.currentTarget.style.borderColor = '#D4AF37'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.borderColor = '#C9A84C'
+              }}
+            >
+              {/* Badge EXCLUSIF */}
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: '#27ae60',
+                color: 'white',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}>
+                ✨ EXCLUSIF
+              </div>
+
+              {/* Titre */}
+              <h3 style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                color: '#C9A84C',
+                marginBottom: '15px',
+                textAlign: 'center',
+              }}>
+                💎 Pass VIP Boutique L&amp;Lui
+              </h3>
+
+              <p style={{
+                fontSize: '16px',
+                color: '#666',
+                textAlign: 'center',
+                marginBottom: '30px',
+                lineHeight: 1.6,
+              }}>
+                Accédez à des <strong style={{ color: '#C9A84C' }}>réductions exclusives</strong> et des
+                privilèges premium dans notre boutique
+              </p>
+
+              {/* Aperçu 3 Pass */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                marginBottom: '30px',
+              }}>
+                {/* SAPHIR */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #0F52BA',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💎</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F52BA', marginBottom: '6px' }}>SAPHIR</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>10%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-semibold" style={{ color: pass.textColor }}>
-                    {pass.prix}
-                  </p>
-                  <a
-                    href={pass.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-white/20 backdrop-blur-sm"
-                    style={{ color: pass.textColor, border: `1px solid ${pass.textColor}44` }}
-                  >
-                    Obtenir ce Pass →
-                  </a>
+                {/* OR */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #C9A84C',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>🥇</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#C9A84C', marginBottom: '6px' }}>OR</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>12%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                </div>
+
+                {/* DIAMANT */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #B9F2FF',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💠</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e90ff', marginBottom: '6px' }}>DIAMANT</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>15%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
                 </div>
               </div>
-            ))}
 
-            {/* Note bas de section */}
-            <p className="text-xs text-gray-400 text-center pb-2">
-              Votre carte s&apos;affiche instantanément après l&apos;achat. Aucune inscription requise.
-            </p>
+              {/* CTA */}
+              <div style={{
+                background: 'linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%)',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center',
+                fontSize: '18px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+              }}>
+                Découvrir les Pass VIP <span style={{ fontSize: '20px' }}>→</span>
+              </div>
+            </a>
 
           </div>
         </div>
