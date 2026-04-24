@@ -184,31 +184,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log('[WEBHOOK PASS] Token généré:', token)
 
   try {
-    // ── Création Firestore statut pending ───────────────────────────
-    await db.collection('pass_vip_actifs').doc(token).set({
-      id: token,
-      nom_usage,
-      grade_pass: grade,
-      actif: false,
-      statut: 'pending',
-      prix_paye,
-      sku: config.sku,
-      created_at,
-      expires_at,
-      nb_utilisations: 0,
-      prescripteur_id: prescripteur_id ?? null,
-      ref_lisible,
-      email: email ?? null,
-      contact: contact ?? null,
+    // ── Création dans pass_vip_pending_orders (nouvelle archi confirm admin) ──
+    // La page /admin/confirm/[token] lit cette collection et appelle /api/admin/confirm-payment
+    await db.collection('pass_vip_pending_orders').add({
+      token,
+      nom_client: nom_usage,
+      email_client: email ?? null,
+      tel_client: contact ?? null,
+      type_pass: body.type_pass ?? `Pass VIP ${grade} ${config.duree_jours}j`,
+      montant: prix_paye,
       code_promo: code_promo ?? null,
+      nom_affilie: prescripteur_nom ?? null,
+      prescripteur_id: prescripteur_id ?? null,
+      commission_pourcent: null,
+      ref_lisible,
+      grade_pass: grade,
+      sku: config.sku,
       sheets_row: sheets_row ?? null,
       sheets_id: sheets_id ?? null,
+      statut: 'pending',
+      date_commande: created_at,
     })
 
-    console.log('[WEBHOOK PASS] Firestore créé avec statut pending — token:', token)
+    console.log('[WEBHOOK PASS] Firestore pass_vip_pending_orders créé — token:', token)
 
     const pass_url = `${APP_URL}/pass/${token}`
-    const activation_url = `${APP_URL}/api/pass/activer/${token}?secret=${process.env.WEBHOOK_SECRET ?? ''}`
+    // Lien de confirmation mobile pour l'admin — page publique sans session requise
+    const activation_url = `${APP_URL}/admin/confirm/${token}`
 
     console.log('[WEBHOOK PASS] Lancement sendPassVipEmails — email client:', email ?? 'absent')
 
