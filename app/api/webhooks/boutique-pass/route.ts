@@ -72,19 +72,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // On accepte donc 3 méthodes d'authentification :
   //   1. Authorization: Bearer <secret>
   //   2. X-Webhook-Secret: <secret>
-  //   3. ?secret=<secret> dans l'URL
+  //   3. ?secret=<secret> dans l'URL  ← req.nextUrl (plus fiable que new URL(req.url))
   const secret = process.env.WEBHOOK_SECRET
   const authHeader = req.headers.get('authorization') ?? ''
   const secretHeader = req.headers.get('x-webhook-secret') ?? ''
-  const secretQuery = new URL(req.url).searchParams.get('secret') ?? ''
+  // req.nextUrl est la propriété Next.js native qui gère correctement les query params
+  // même derrière le proxy Vercel (contrairement à new URL(req.url))
+  const secretQuery = req.nextUrl.searchParams.get('secret') ?? ''
 
   const tokenFromBearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
   const receivedSecret = tokenFromBearer || secretHeader || secretQuery
 
-  console.log('[WEBHOOK PASS] Auth — secret configuré:', !!secret,
-    '| Bearer:', !!tokenFromBearer,
-    '| X-Webhook-Secret:', !!secretHeader,
-    '| ?secret:', !!secretQuery)
+  // Log explicite de la méthode d'auth détectée
+  if (tokenFromBearer) {
+    console.log('[WEBHOOK PASS] Secret reçu via Authorization: Bearer ✅')
+  } else if (secretHeader) {
+    console.log('[WEBHOOK PASS] Secret reçu via X-Webhook-Secret ✅')
+  } else if (secretQuery) {
+    console.log('[WEBHOOK PASS] Secret reçu via query param ?secret= ✅')
+  } else {
+    console.warn('[WEBHOOK PASS] Aucun secret reçu — Bearer:', !!tokenFromBearer,
+      '| X-Webhook-Secret:', !!secretHeader, '| ?secret:', !!secretQuery)
+  }
 
   if (!secret || receivedSecret !== secret) {
     console.warn('[WEBHOOK PASS] Auth échouée — secret reçu absent ou invalide')
