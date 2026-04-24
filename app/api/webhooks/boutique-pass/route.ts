@@ -62,14 +62,36 @@ interface WebhookBody {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log('[WEBHOOK PASS] Début réception')
 
-  // ── Auth Bearer ──────────────────────────────────────────────────
-  const authHeader = req.headers.get('authorization') ?? ''
+  // ── Log diagnostic des headers (aide au debug GAS) ──────────────
+  const headersMap: Record<string, string> = {}
+  req.headers.forEach((v, k) => { headersMap[k] = v })
+  console.log('[WEBHOOK PASS] Headers reçus:', JSON.stringify(headersMap))
+
+  // ── Auth multi-méthode ───────────────────────────────────────────
+  // Google Apps Script peut stripper le header Authorization selon le contexte.
+  // On accepte donc 3 méthodes d'authentification :
+  //   1. Authorization: Bearer <secret>
+  //   2. X-Webhook-Secret: <secret>
+  //   3. ?secret=<secret> dans l'URL
   const secret = process.env.WEBHOOK_SECRET
-  console.log('[WEBHOOK PASS] Auth — secret configuré:', !!secret, '| header présent:', authHeader.startsWith('Bearer '))
-  if (!secret || authHeader !== `Bearer ${secret}`) {
-    console.warn('[WEBHOOK PASS] Auth échouée')
+  const authHeader = req.headers.get('authorization') ?? ''
+  const secretHeader = req.headers.get('x-webhook-secret') ?? ''
+  const secretQuery = new URL(req.url).searchParams.get('secret') ?? ''
+
+  const tokenFromBearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  const receivedSecret = tokenFromBearer || secretHeader || secretQuery
+
+  console.log('[WEBHOOK PASS] Auth — secret configuré:', !!secret,
+    '| Bearer:', !!tokenFromBearer,
+    '| X-Webhook-Secret:', !!secretHeader,
+    '| ?secret:', !!secretQuery)
+
+  if (!secret || receivedSecret !== secret) {
+    console.warn('[WEBHOOK PASS] Auth échouée — secret reçu absent ou invalide')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  console.log('[WEBHOOK PASS] Auth OK ✅')
 
   // ── Parse body ───────────────────────────────────────────────────
   let body: WebhookBody
