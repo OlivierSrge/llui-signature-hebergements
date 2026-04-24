@@ -24,6 +24,8 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { updateSyncStatus, getMontantFinalParCode, lireAffiliésCodes } from '@/lib/sheetsCanal2'
+import { PASS_VIP_CONFIGS } from '@/types/pass-vip'
+import type { PassVipGrade } from '@/types/pass-vip'
 
 export const dynamic = 'force-dynamic'
 
@@ -339,6 +341,41 @@ export async function POST(req: NextRequest) {
         adminPhone,
         `💰 Vente Canal 2 boutique confirmée !\nPartenaire : ${nomPartenaire}\nCode : ${codeStr}\nMontant : ${montantFcfa.toLocaleString('fr-FR')} FCFA\nCommission : ${commissionFcfa.toLocaleString('fr-FR')} FCFA\n— L&Lui Signature`
       ).catch(() => {})
+    }
+
+    // ── 9. Activation Pass VIP (si statut confirmé et code correspond à des Pass pending) ──
+    // Lorsque la boutique Netlify confirme un Pass VIP avec ce code_promo (col G Sheets),
+    // on active tous les Pass VIP pending qui ont ce même code_promo.
+    if (estConfirme) {
+      try {
+        const passSnap = await db.collection('pass_vip_actifs')
+          .where('code_promo', '==', codeStr)
+          .where('statut', '==', 'pending')
+          .get()
+
+        if (!passSnap.empty) {
+          const activationNow = new Date()
+          const activationIso = activationNow.toISOString()
+          const activations = passSnap.docs.map((doc) => {
+            const data = doc.data()
+            const grade = data.grade_pass as PassVipGrade
+            const config = PASS_VIP_CONFIGS[grade]
+            const newExpiresAt = new Date(
+              activationNow.getTime() + config.duree_jours * 86400000
+            ).toISOString()
+            return doc.ref.update({
+              statut: 'actif',
+              actif: true,
+              activated_at: activationIso,
+              expires_at: newExpiresAt,
+            })
+          })
+          await Promise.all(activations)
+          console.log(`[sheets-webhook] ✅ ${passSnap.docs.length} Pass VIP activés pour code_promo: ${codeStr}`)
+        }
+      } catch (passErr) {
+        console.warn('[sheets-webhook] Pass VIP activation non-bloquante — erreur:', passErr)
+      }
     }
 
     return NextResponse.json({

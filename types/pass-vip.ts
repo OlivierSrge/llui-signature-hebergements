@@ -66,4 +66,5 @@ export interface PassVipAnonyme {
   sheets_id?: string;     // ID du Google Sheet source
   email?: string;         // email client pour notifications
   contact?: string;       // WhatsApp client
+  code_promo?: string;    // code affilié ex: "MAMINDOR-2026" — pour activation via Sheets
 }

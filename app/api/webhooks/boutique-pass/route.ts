@@ -1,12 +1,20 @@
 // app/api/webhooks/boutique-pass/route.ts
-// POST depuis Netlify à chaque commande Pass VIP.
+// POST depuis la boutique Netlify (via Apps Script) à chaque commande Pass VIP.
 // Auth : Authorization: Bearer WEBHOOK_SECRET
 //
+// Accepte 2 formats :
+//
+// Format NOUVEAU (boutique Netlify / Apps Script) :
+//   { nom, type_pass, montant, code_promo, nom_affilie, tel, email, date }
+//
+// Format ANCIEN (intégration directe) :
+//   { sku, nom_usage, contact, email, prescripteur_id, prescripteur_nom, sheets_row, sheets_id }
+//
 // Flux :
-//   1. Créer le Pass en statut PENDING (actif: false)
-//   2. Envoyer mail admin (Olivier) avec lien + template
-//   3. Envoyer mail client (confirmation + instructions paiement)
-//   La commission prescripteur est créditée à l'activation (premier clic).
+//   1. Détecter le grade depuis type_pass (ou sku)
+//   2. Créer le Pass en statut pending (actif: false)
+//   3. Envoyer mail admin + mail client via Resend
+//   4. Retourner token + pass_url
 
 export const dynamic = 'force-dynamic'
 
@@ -19,21 +27,42 @@ import { sendPassVipEmails } from '@/lib/email'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
+// Parse le grade depuis le nom de produit envoyé par la boutique Netlify
+// Ex : "Pass VIP Saphir 10%" → "SAPHIR"
+function parseGradeFromTypePass(typePass: string): PassVipGrade | null {
+  const u = typePass.toUpperCase()
+  if (u.includes('DIAMANT')) return 'DIAMANT'
+  if (u.includes('SAPHIR')) return 'SAPHIR'
+  if (u.includes('OR'))     return 'OR'
+  if (u.includes('ARGENT')) return 'ARGENT'
+  return null
+}
+
 interface WebhookBody {
-  sku: string
-  nom_usage: string
-  contact?: string           // numéro WhatsApp client
-  email?: string             // email client pour notifications
+  // ── Format Netlify ──────────────────────────────────────
+  nom?: string
+  type_pass?: string     // ex: "Pass VIP Saphir 10%"
+  montant?: number
+  code_promo?: string    // code affilié ex: "MAMINDOR-2026"
+  nom_affilie?: string
+  tel?: string
+  date?: string
+  // ── Format ancien ───────────────────────────────────────
+  sku?: string
+  nom_usage?: string
+  contact?: string
   prescripteur_id?: string
-  prescripteur_nom?: string  // nom affiché dans le mail admin
-  sheets_row?: number        // numéro ligne Commandes Google Sheets (1-indexed)
-  sheets_id?: string         // ID Google Sheet (fallback : GOOGLE_SHEETS_CANAL2_ID)
+  prescripteur_nom?: string
+  sheets_row?: number
+  sheets_id?: string
+  // ── Commun ─────────────────────────────────────────────
+  email?: string
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log('[WEBHOOK PASS] Début réception')
 
-  // Auth
+  // ── Auth Bearer ──────────────────────────────────────────────────
   const authHeader = req.headers.get('authorization') ?? ''
   const secret = process.env.WEBHOOK_SECRET
   console.log('[WEBHOOK PASS] Auth — secret configuré:', !!secret, '| header présent:', authHeader.startsWith('Bearer '))
@@ -42,6 +71,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // ── Parse body ───────────────────────────────────────────────────
   let body: WebhookBody
   try {
     body = (await req.json()) as WebhookBody
@@ -50,38 +80,88 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { sku, nom_usage, contact, email, prescripteur_id, prescripteur_nom, sheets_row, sheets_id } = body
+  // ── Résoudre grade + champs selon le format ──────────────────────
+  let grade: PassVipGrade | undefined
+  let nom_usage: string
+  let contact: string | undefined
+  let email: string | undefined
+  let code_promo: string | undefined
+  let prescripteur_nom: string | undefined
+  let prescripteur_id: string | undefined
+  let sheets_row: number | undefined
+  let sheets_id: string | undefined
+  let prix_paye_override: number | undefined
 
-  if (!sku || !nom_usage) {
-    return NextResponse.json({ error: 'sku et nom_usage sont requis' }, { status: 400 })
+  if (body.type_pass) {
+    // Format Netlify
+    const upper = body.type_pass.toUpperCase()
+    if (!upper.includes('PASS VIP')) {
+      console.log('[WEBHOOK PASS] ❌ Produit non Pass VIP ignoré:', body.type_pass)
+      return NextResponse.json(
+        { ignored: true, reason: 'produit_non_pass_vip' },
+        { status: 400 }
+      )
+    }
+    grade = parseGradeFromTypePass(body.type_pass) ?? undefined
+    nom_usage = (body.nom ?? 'CLIENT').toUpperCase().trim()
+    contact = body.tel
+    email = body.email
+    code_promo = body.code_promo
+    prescripteur_nom = body.nom_affilie
+    prix_paye_override = body.montant
+    console.log('[WEBHOOK PASS] ✅ Pass VIP détecté:', body.type_pass, '→ grade:', grade)
+  } else if (body.sku) {
+    // Format ancien
+    grade = SKU_TO_GRADE[body.sku] as PassVipGrade | undefined
+    nom_usage = (body.nom_usage ?? 'CLIENT').toUpperCase().trim()
+    contact = body.contact
+    email = body.email
+    prescripteur_id = body.prescripteur_id
+    prescripteur_nom = body.prescripteur_nom
+    sheets_row = body.sheets_row
+    sheets_id = body.sheets_id
+    console.log('[WEBHOOK PASS] Format ancien — sku:', body.sku, '→ grade:', grade)
+  } else {
+    return NextResponse.json(
+      { error: 'type_pass (format Netlify) ou sku (format ancien) requis' },
+      { status: 400 }
+    )
   }
 
-  const grade = SKU_TO_GRADE[sku] as PassVipGrade | undefined
+  if (!nom_usage) {
+    return NextResponse.json({ error: 'nom ou nom_usage requis' }, { status: 400 })
+  }
+
   if (!grade) {
-    return NextResponse.json({ error: `SKU inconnu : ${sku}` }, { status: 400 })
+    return NextResponse.json(
+      { error: `Grade Pass VIP non reconnu — type_pass: "${body.type_pass ?? ''}" sku: "${body.sku ?? ''}"` },
+      { status: 400 }
+    )
   }
 
   const config = PASS_VIP_CONFIGS[grade]
   const gradeConfig = GRADE_CONFIGS[grade]
+  const prix_paye = prix_paye_override ?? config.prix_fcfa
 
   const token = crypto.randomUUID()
   const now = new Date()
   const created_at = now.toISOString()
   const ref_lisible = `L&Lui Signature-${grade}-${token.slice(0, 4).toUpperCase()}`
-
-  // expires_at provisoire — sera recalculé à l'activation depuis now
+  // expires_at provisoire — recalculé à l'activation
   const expires_at = new Date(now.getTime() + config.duree_jours * 86400000).toISOString()
 
+  console.log('[WEBHOOK PASS] Token généré:', token)
+
   try {
-    // Création du Pass VIP en statut PENDING
+    // ── Création Firestore statut pending ───────────────────────────
     await db.collection('pass_vip_actifs').doc(token).set({
       id: token,
-      nom_usage: nom_usage.toUpperCase().trim(),
+      nom_usage,
       grade_pass: grade,
       actif: false,
       statut: 'pending',
-      prix_paye: config.prix_fcfa,
-      sku,
+      prix_paye,
+      sku: config.sku,
       created_at,
       expires_at,
       nb_utilisations: 0,
@@ -89,22 +169,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ref_lisible,
       email: email ?? null,
       contact: contact ?? null,
+      code_promo: code_promo ?? null,
       sheets_row: sheets_row ?? null,
       sheets_id: sheets_id ?? null,
     })
 
+    console.log('[WEBHOOK PASS] Firestore créé avec statut pending — token:', token)
+
     const pass_url = `${APP_URL}/pass/${token}`
     const activation_url = `${APP_URL}/api/pass/activer/${token}?secret=${process.env.WEBHOOK_SECRET ?? ''}`
 
-    console.log('[WEBHOOK PASS] Firestore OK — token:', token)
     console.log('[WEBHOOK PASS] Lancement sendPassVipEmails — email client:', email ?? 'absent')
 
-    // Emails Resend — non-bloquants
+    // ── Emails Resend — non-bloquants ───────────────────────────────
     sendPassVipEmails({
       nom_usage,
       grade,
       duree: config.duree_jours,
-      prix: config.prix_fcfa,
+      prix: prix_paye,
       remise_min: gradeConfig.remise_min,
       ref_lisible,
       pass_url,
@@ -124,12 +206,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       grade,
       ref_lisible,
       statut: 'pending',
+      message: 'Pass VIP en attente de paiement',
     })
   } catch (e: unknown) {
     console.error('[boutique-pass webhook]', e)
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Erreur interne' },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
