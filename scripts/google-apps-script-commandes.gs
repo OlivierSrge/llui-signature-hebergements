@@ -268,30 +268,55 @@ function creerCommande(data) {
     "⏳ En attente",           // O(14) Sync_Firebase  ← COL_LOG
   ]);
 
-  envoyerEmailVendeur({
-    produit: data.produit_nom,
-    prix_original: prixOriginal,
-    prix_total: prixTotal,
-    quantite: quantite,
-    montant_final: montantFinal,
-    reduction_pourcent: reductionPourcent,
-    nom_client: data.nom_client.trim(),
-    tel_client: data.tel_client.trim(),
-    email_client: data.email_client.trim(),
-    code_promo: codePromo,
-    nom_affilie: nomAffilie,
-    email_affilie: emailAffilie,
-    commission: commission,
-    commission_pourcent: commissionPourcent,
-    date: dateFormatee,
-  });
+  // ── Pass VIP : webhook Vercel → email admin avec bouton de confirmation mobile
+  var estPassVip = data.produit_nom.toUpperCase().indexOf('PASS VIP') !== -1;
 
-  envoyerEmailClient({
-    nom_client: data.nom_client.trim(),
-    email_client: data.email_client.trim(),
-    produit: data.produit_nom,
-    montant_final: montantFinal,
-  });
+  if (estPassVip) {
+    // Le webhook Vercel gère : Firestore + email admin (bouton /admin/confirm/{token})
+    var webhookOk = envoyerWebhookBoutiquePass({
+      nom:        data.nom_client.trim(),
+      type_pass:  data.produit_nom,
+      montant:    montantFinal,
+      code_promo: codePromo || null,
+      nom_affilie: nomAffilie || null,
+      tel:        data.tel_client.trim(),
+      email:      data.email_client.trim(),
+      date:       dateFormatee,
+    });
+    Logger.log('[creerCommande] Pass VIP — webhook Vercel ok=' + webhookOk);
+    // Email client Orange Money envoyé quand même
+    envoyerEmailClient({
+      nom_client:   data.nom_client.trim(),
+      email_client: data.email_client.trim(),
+      produit:      data.produit_nom,
+      montant_final: montantFinal,
+    });
+  } else {
+    // Commande standard : email admin texte brut + email client
+    envoyerEmailVendeur({
+      produit: data.produit_nom,
+      prix_original: prixOriginal,
+      prix_total: prixTotal,
+      quantite: quantite,
+      montant_final: montantFinal,
+      reduction_pourcent: reductionPourcent,
+      nom_client: data.nom_client.trim(),
+      tel_client: data.tel_client.trim(),
+      email_client: data.email_client.trim(),
+      code_promo: codePromo,
+      nom_affilie: nomAffilie,
+      email_affilie: emailAffilie,
+      commission: commission,
+      commission_pourcent: commissionPourcent,
+      date: dateFormatee,
+    });
+    envoyerEmailClient({
+      nom_client:   data.nom_client.trim(),
+      email_client: data.email_client.trim(),
+      produit:      data.produit_nom,
+      montant_final: montantFinal,
+    });
+  }
 
   return {
     succes: true,
@@ -737,6 +762,42 @@ function envoyerWebhook(payload) {
     return code >= 200 && code < 300;
   } catch (err) {
     Logger.log('[envoyerWebhook] ERREUR fetch : ' + err.toString());
+    return false;
+  }
+}
+
+// ============================================================
+// WEBHOOK BOUTIQUE PASS VIP → /api/webhooks/boutique-pass
+// Crée le doc Firestore pending + envoie email admin avec bouton /admin/confirm/{token}
+// ============================================================
+function envoyerWebhookBoutiquePass(data) {
+  var secret = PropertiesService.getScriptProperties().getProperty('SHEETS_WEBHOOK_SECRET');
+  if (!secret) {
+    Logger.log('[WebhookPassVip] SHEETS_WEBHOOK_SECRET manquant dans les propriétés du script');
+    return false;
+  }
+
+  var url = 'https://llui-signature-hebergements.vercel.app/api/webhooks/boutique-pass';
+
+  var options = {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + secret,
+      'X-Webhook-Secret': secret,
+    },
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+    var body = response.getContentText().slice(0, 500);
+    Logger.log('[WebhookPassVip] HTTP ' + code + ' — ' + body);
+    return code >= 200 && code < 300;
+  } catch (err) {
+    Logger.log('[WebhookPassVip] ERREUR fetch : ' + err.toString());
     return false;
   }
 }

@@ -73,7 +73,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   //   1. Authorization: Bearer <secret>
   //   2. X-Webhook-Secret: <secret>
   //   3. ?secret=<secret> dans l'URL  ← req.nextUrl (plus fiable que new URL(req.url))
-  const secret = process.env.WEBHOOK_SECRET
+  // Accepte WEBHOOK_SECRET ou SHEETS_WEBHOOK_SECRET (déjà configuré dans Apps Script)
+  const secret = process.env.WEBHOOK_SECRET || process.env.SHEETS_WEBHOOK_SECRET
   const authHeader = req.headers.get('authorization') ?? ''
   const secretHeader = req.headers.get('x-webhook-secret') ?? ''
   // req.nextUrl est la propriété Next.js native qui gère correctement les query params
