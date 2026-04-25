@@ -272,8 +272,8 @@ function creerCommande(data) {
   var estPassVip = data.produit_nom.toUpperCase().indexOf('PASS VIP') !== -1;
 
   if (estPassVip) {
-    // Le webhook Vercel gère : Firestore + email admin (bouton /admin/confirm/{token})
-    var webhookOk = envoyerWebhookBoutiquePass({
+    // 1. Webhook Vercel : crée doc Firestore pending et retourne le token
+    var webhookResp = envoyerWebhookBoutiquePass({
       nom:        data.nom_client.trim(),
       type_pass:  data.produit_nom,
       montant:    montantFinal,
@@ -283,8 +283,22 @@ function creerCommande(data) {
       email:      data.email_client.trim(),
       date:       dateFormatee,
     });
-    Logger.log('[creerCommande] Pass VIP — webhook Vercel ok=' + webhookOk);
-    // Email client Orange Money envoyé quand même
+    Logger.log('[creerCommande] Pass VIP — webhook resp=' + JSON.stringify(webhookResp));
+
+    // 2. Email admin HTML avec bouton vert → toujours envoyé via MailApp
+    var passToken = webhookResp && webhookResp.token ? webhookResp.token : null;
+    envoyerEmailAdminPassVipHtml({
+      nom_client:   data.nom_client.trim(),
+      tel_client:   data.tel_client.trim(),
+      email_client: data.email_client.trim(),
+      produit:      data.produit_nom,
+      montant:      montantFinal,
+      code_promo:   codePromo || null,
+      nom_affilie:  nomAffilie || null,
+      token:        passToken,
+    });
+
+    // 3. Email client Orange Money
     envoyerEmailClient({
       nom_client:   data.nom_client.trim(),
       email_client: data.email_client.trim(),
@@ -793,12 +807,91 @@ function envoyerWebhookBoutiquePass(data) {
   try {
     var response = UrlFetchApp.fetch(url, options);
     var code = response.getResponseCode();
-    var body = response.getContentText().slice(0, 500);
-    Logger.log('[WebhookPassVip] HTTP ' + code + ' — ' + body);
-    return code >= 200 && code < 300;
+    var bodyText = response.getContentText();
+    Logger.log('[WebhookPassVip] HTTP ' + code + ' — ' + bodyText.slice(0, 500));
+    if (code >= 200 && code < 300) {
+      try { return JSON.parse(bodyText); } catch (e) { return { success: true }; }
+    }
+    return null;
   } catch (err) {
     Logger.log('[WebhookPassVip] ERREUR fetch : ' + err.toString());
-    return false;
+    return null;
+  }
+}
+
+// ============================================================
+// EMAIL ADMIN HTML — PASS VIP (via MailApp, sans Resend)
+// Envoyé systématiquement pour toute commande Pass VIP
+// ============================================================
+function envoyerEmailAdminPassVipHtml(info) {
+  var APP_URL = 'https://llui-signature-hebergements.vercel.app';
+  var confirmUrl = info.token
+    ? APP_URL + '/admin/confirm/' + info.token
+    : APP_URL + '/admin';
+
+  var montantFormate = info.montant
+    ? info.montant.toLocaleString('fr-FR') + ' FCFA'
+    : '—';
+
+  var lignesInfos = [
+    ['Client', info.nom_client],
+    ['Téléphone', info.tel_client || '—'],
+    ['Email', info.email_client || '—'],
+    ['Pass commandé', info.produit],
+    ['Montant', montantFormate],
+  ];
+  if (info.code_promo)  lignesInfos.push(['Code promo', info.code_promo]);
+  if (info.nom_affilie) lignesInfos.push(['Affilié', info.nom_affilie]);
+
+  var lignesHtml = lignesInfos.map(function(row) {
+    return '<tr style="border-bottom:1px solid #e8e0d5">'
+      + '<td style="padding:10px 0;color:#666;width:40%;font-size:14px">' + row[0] + '</td>'
+      + '<td style="padding:10px 0;font-weight:700;color:#1a1a1a;font-size:14px">' + row[1] + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var htmlBody =
+    '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>'
+    + '<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,sans-serif">'
+    + '<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">'
+
+    // Header
+    + '<div style="background:#1a1a1a;padding:28px 32px;text-align:center">'
+    + '<span style="font-family:Georgia,serif;font-size:24px;font-weight:600;color:#fff">L<span style="color:#c9a227">&amp;</span>Lui Signature</span>'
+    + '</div>'
+
+    // Body
+    + '<div style="padding:32px">'
+    + '<h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">Nouvelle commande Pass VIP</h2>'
+    + '<p style="margin:0 0 24px;color:#888;font-size:13px">' + info.produit + '</p>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:28px">' + lignesHtml + '</table>'
+
+    // Bouton vert
+    + '<div style="background:#10b981;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">'
+    + '<p style="margin:0 0 16px;color:#fff;font-size:15px;font-weight:700">Paiement re&#231;u ? Confirmez pour activer le Pass client.</p>'
+    + '<a href="' + confirmUrl + '" style="display:inline-block;padding:14px 32px;background:#fff;color:#10b981;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px">&#10003; Confirmer le paiement</a>'
+    + '</div>'
+
+    // Lien texte de secours
+    + '<p style="font-size:11px;color:#aaa;word-break:break-all;text-align:center;margin:0">' + confirmUrl + '</p>'
+    + '</div>'
+
+    // Footer
+    + '<div style="background:#f5f0eb;padding:20px 32px;text-align:center;font-size:12px;color:#999">'
+    + '&#169; L&amp;Lui Signature — Kribi, Cameroun'
+    + '</div>'
+    + '</div></body></html>';
+
+  try {
+    MailApp.sendEmail({
+      to: EMAIL_VENDEUR,
+      subject: '🆕 Commande Pass VIP — ' + info.nom_client,
+      body: 'Nouvelle commande Pass VIP de ' + info.nom_client + '. Lien confirmation : ' + confirmUrl,
+      htmlBody: htmlBody,
+    });
+    Logger.log('[EmailAdminPassVip] Email HTML envoyé à ' + EMAIL_VENDEUR);
+  } catch (err) {
+    Logger.log('[EmailAdminPassVip] ERREUR : ' + err.toString());
   }
 }
 
