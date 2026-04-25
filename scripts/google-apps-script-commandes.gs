@@ -857,3 +857,80 @@ function testManuel() {
 
   Logger.log('=== FIN TEST | webhook ok: ' + webhookOk + ' ===');
 }
+
+// ============================================================
+// TEST WEBHOOK PASS VIP — À lancer depuis l'éditeur Apps Script
+// ============================================================
+// USAGE :
+// 1. Sélectionner "testWebhookPassVip" dans le menu déroulant
+// 2. Cliquer ▶ Exécuter
+// 3. Ctrl+Entrée pour voir les logs
+// → Chercher : [TestPassVip] HTTP 200 = succès | HTTP 401 = secret invalide | HTTP 500 = erreur serveur
+// ============================================================
+function testWebhookPassVip() {
+  Logger.log('=== TEST WEBHOOK BOUTIQUE PASS VIP ===');
+
+  var secret = PropertiesService.getScriptProperties().getProperty('SHEETS_WEBHOOK_SECRET');
+  Logger.log('[TestPassVip] SHEETS_WEBHOOK_SECRET configuré : ' + (secret ? 'OUI (longueur=' + secret.length + ')' : 'NON ← PROBLÈME'));
+
+  if (!secret) {
+    Logger.log('[TestPassVip] ❌ ARRÊT : ajouter SHEETS_WEBHOOK_SECRET dans Project Settings > Script Properties');
+    return;
+  }
+
+  var payload = {
+    nom:         'TEST DIAGNOSTIC',
+    type_pass:   'Pass VIP OR - 30 jours',
+    montant:     7500,
+    code_promo:  null,
+    nom_affilie: null,
+    tel:         '+237600000000',
+    email:       'olivierfinestone@gmail.com',
+    date:        '2026-04-25 10:00',
+  };
+
+  Logger.log('[TestPassVip] Envoi vers /api/webhooks/boutique-pass...');
+  Logger.log('[TestPassVip] Payload : ' + JSON.stringify(payload));
+
+  var url = 'https://llui-signature-hebergements.vercel.app/api/webhooks/boutique-pass';
+
+  try {
+    var response = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      contentType: 'application/json',
+      headers: {
+        'Authorization': 'Bearer ' + secret,
+        'X-Webhook-Secret': secret,
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+
+    var code = response.getResponseCode();
+    var body = response.getContentText().slice(0, 1000);
+
+    Logger.log('[TestPassVip] HTTP ' + code);
+    Logger.log('[TestPassVip] Réponse : ' + body);
+
+    if (code === 200) {
+      Logger.log('[TestPassVip] ✅ SUCCÈS — Vérifier email admin olivierfinestone@gmail.com');
+      Logger.log('[TestPassVip] ✅ Vérifier Firestore collection pass_vip_pending_orders');
+    } else if (code === 401) {
+      Logger.log('[TestPassVip] ❌ ERREUR 401 — Secret invalide');
+      Logger.log('[TestPassVip]    → Vérifier que SHEETS_WEBHOOK_SECRET dans Apps Script = SHEETS_WEBHOOK_SECRET dans Vercel');
+    } else if (code === 400) {
+      Logger.log('[TestPassVip] ❌ ERREUR 400 — Body invalide : ' + body);
+    } else if (code === 500) {
+      Logger.log('[TestPassVip] ❌ ERREUR 500 — Erreur serveur Vercel : ' + body);
+      Logger.log('[TestPassVip]    → Vérifier variables Vercel : RESEND_API_KEY, FIREBASE_*');
+    } else {
+      Logger.log('[TestPassVip] ❌ Code inattendu ' + code + ' : ' + body);
+    }
+
+  } catch (err) {
+    Logger.log('[TestPassVip] ❌ ERREUR RÉSEAU : ' + err.toString());
+    Logger.log('[TestPassVip]    → Vérifier les autorisations UrlFetchApp du projet');
+  }
+
+  Logger.log('=== FIN TEST WEBHOOK PASS VIP ===');
+}
