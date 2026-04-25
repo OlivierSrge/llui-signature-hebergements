@@ -480,92 +480,66 @@ export async function sendPassVipEmails(params: {
         hour: '2-digit', minute: '2-digit',
       })
 
-  const adminHtml = `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif">
-  <div style="max-width:580px;margin:0 auto;padding:24px 16px">
+  const adminHtml = emailBase(`
+    <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Nouvelle commande Pass ${grade}
+    </h2>
+    <p style="margin:0 0 20px;color:#888;font-size:13px">
+      Réf. <span style="font-family:monospace">${ref_lisible}</span> &mdash; ${dateHeure}
+    </p>
 
-    <!-- Header -->
-    <div style="background:#1a1a1a;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center">
-      <p style="margin:0;color:#c9a227;font-size:12px;letter-spacing:.1em;text-transform:uppercase">L&amp;Lui ✦ Signature</p>
-      <h1 style="margin:8px 0 0;color:#fff;font-family:Georgia,serif;font-size:22px">Nouvelle commande Pass ${grade}</h1>
-    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666;width:40%">Client</td>
+        <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${nom_usage.toUpperCase()}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Téléphone</td>
+        <td style="padding:10px 0;color:#1a1a1a">${contact ?? 'Non renseigné'}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Email</td>
+        <td style="padding:10px 0;color:#1a1a1a">${email ?? 'Non renseigné'}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Pass commandé</td>
+        <td style="padding:10px 0;font-weight:700;color:#c9a227">Pass VIP ${grade} &mdash; ${duree} jours</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Montant</td>
+        <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${prixFormatted} FCFA</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#666">Affilié</td>
+        <td style="padding:10px 0;color:#1a1a1a">${prescripteur_nom ?? 'Aucun'}</td>
+      </tr>
+    </table>
 
-    <!-- Body -->
-    <div style="background:#fff;padding:28px 24px">
-
-      <p style="margin:0 0 20px;color:#555;font-size:14px">
-        Réf. <span style="font-family:monospace;color:#1a1a1a;font-weight:700">${ref_lisible}</span>
-        &nbsp;—&nbsp;${dateHeure}
+    <div style="background:#10b981;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
+      <p style="margin:0 0 16px;color:#fff;font-size:15px;font-weight:700">
+        Paiement reçu ? Confirmez pour activer le Pass client.
       </p>
-
-      <!-- Infos client -->
-      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
-        <tr style="border-bottom:1px solid #e8e0d5">
-          <td style="padding:10px 0;color:#666;width:40%">Client</td>
-          <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${nom_usage.toUpperCase()}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #e8e0d5">
-          <td style="padding:10px 0;color:#666">Téléphone</td>
-          <td style="padding:10px 0;color:#1a1a1a">${contact ?? '—'}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #e8e0d5">
-          <td style="padding:10px 0;color:#666">Email</td>
-          <td style="padding:10px 0;color:#1a1a1a">${email ?? '—'}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #e8e0d5">
-          <td style="padding:10px 0;color:#666">Pass commandé</td>
-          <td style="padding:10px 0;font-weight:700;color:#c9a227">Pass VIP ${grade} — ${duree} jours</td>
-        </tr>
-        <tr style="border-bottom:1px solid #e8e0d5">
-          <td style="padding:10px 0;color:#666">Montant</td>
-          <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${prixFormatted} FCFA</td>
-        </tr>
-        <tr>
-          <td style="padding:10px 0;color:#666">Affilié</td>
-          <td style="padding:10px 0;color:#1a1a1a">${prescripteur_nom ?? '—'}</td>
-        </tr>
-      </table>
-
-      <!-- Bouton confirmation -->
-      <div style="background:#10b981;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
-        <p style="margin:0 0 16px;color:#fff;font-size:15px;font-weight:700">
-          Paiement reçu ? Confirmez pour activer le Pass client.
-        </p>
-        <a href="${activation_url}"
-           style="display:inline-block;padding:14px 32px;background:#fff;color:#10b981;
-                  text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;
-                  letter-spacing:.01em">
-          ✓ Confirmer le paiement
-        </a>
-      </div>
-
-      <!-- Lien carte client -->
-      <div style="background:#fffbf0;border:1px solid #e8d5a3;border-radius:10px;padding:16px;margin-bottom:8px">
-        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em">
-          Lien carte client (à partager après confirmation)
-        </p>
-        <p style="margin:0 0 12px;font-family:monospace;font-size:12px;color:#7a6010;word-break:break-all;line-height:1.5">
-          ${pass_url}
-        </p>
-        <a href="${pass_url}"
-           style="display:block;background:#1a1a1a;color:#c9a227;text-align:center;
-                  padding:11px;border-radius:7px;font-weight:700;font-size:13px;text-decoration:none">
-          Ouvrir la carte ${grade}
-        </a>
-      </div>
-
+      <a href="${activation_url}"
+         style="display:inline-block;padding:14px 32px;background:#fff;color:#10b981;
+                text-decoration:none;border-radius:8px;font-weight:700;font-size:16px">
+        &#10003; Confirmer le paiement
+      </a>
     </div>
 
-    <!-- Footer -->
-    <div style="background:#f9f5ef;border-radius:0 0 12px 12px;padding:14px 24px;text-align:center">
-      <p style="margin:0;font-size:11px;color:#aaa">L&amp;Lui Signature — Kribi ✦ Portail Admin</p>
+    <div style="background:#fffbf0;border:1px solid #e8d5a3;border-radius:10px;padding:16px">
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em">
+        Lien carte client
+      </p>
+      <p style="margin:0 0 12px;font-family:monospace;font-size:11px;color:#7a6010;word-break:break-all;line-height:1.5">
+        ${pass_url}
+      </p>
+      <a href="${pass_url}"
+         style="display:block;background:#1a1a1a;color:#c9a227;text-align:center;
+                padding:12px;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none">
+        Ouvrir la carte ${grade}
+      </a>
     </div>
-
-  </div>
-</body>
-</html>`
+  `)
 
   const clientHtmlContent = emailBase(`
     <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
