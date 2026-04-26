@@ -16,8 +16,7 @@ export async function POST(req: NextRequest) {
     const expectedSecret = process.env.SHEETS_WEBHOOK_SECRET;
 
     if (!expectedSecret) {
-      console.error('[WEBHOOK PASS] Variable SHEETS_WEBHOOK_SECRET 
-manquante');
+      console.error('[WEBHOOK PASS] Variable SHEETS_WEBHOOK_SECRET manquante');
       return NextResponse.json(
         { error: 'Configuration serveur invalide' },
         { status: 500 }
