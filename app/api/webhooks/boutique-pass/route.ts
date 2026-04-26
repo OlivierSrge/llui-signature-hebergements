@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { getDb } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -81,7 +81,7 @@ date } = data;
       createdAt: new Date(),
     };
 
-    await adminDb.collection('pass_vip_pending').doc(token).set(passDoc);
+    await getDb().collection('pass_vip_pending').doc(token).set(passDoc);
 
     console.log('[WEBHOOK PASS] Pass VIP créé', { token, grade, nom });
 
