@@ -4,6 +4,20 @@ Instructions permanentes pour Claude Code sur ce projet.
 
 ---
 
+## RÈGLE GIT ABSOLUE — PRIORITÉ MAXIMALE
+
+- **TOUJOURS travailler sur `main` directement**
+- **JAMAIS créer de branches** (`git checkout -b`, `git branch` → interdit)
+- **JAMAIS créer de PR ou merge request**
+- Chaque commit va directement sur main :
+  ```
+  git add -A && git commit -m "message" && git push origin main
+  ```
+- Si tu constates que tu es sur une autre branche → `git checkout main` immédiatement
+- Si `git pull` échoue par divergence → `git reset --hard origin/main`
+
+---
+
 ## CONTEXTE PROJET
 
 Application Next.js 14 App Router de gestion de mariages, hébergements et partenaires prescripteurs à Kribi, Cameroun.

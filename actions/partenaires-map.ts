@@ -21,6 +21,7 @@ export async function getPartenairesGeolocalisees(): Promise<PartenaireAvecLocat
       const lng = s.longitude as number | undefined
       if (typeof lat !== 'number' || typeof lng !== 'number') continue
 
+      const avantages = Array.isArray(s.avantages_stars) ? s.avantages_stars : []
       results.push({
         id: doc.id,
         nom: (s.nom_etablissement as string) ?? '',
@@ -29,6 +30,8 @@ export async function getPartenairesGeolocalisees(): Promise<PartenaireAvecLocat
         latitude: lat,
         longitude: lng,
         adresse_gps: (s.adresse_gps as string) ?? '',
+        avantages_stars: avantages.filter((a: { actif?: boolean }) => a.actif),
+        accepte_pass_vip: (s.accepte_pass_vip as boolean) ?? false,
       })
     }
     return results

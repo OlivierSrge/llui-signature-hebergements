@@ -449,3 +449,178 @@ export async function sendPackRequestEmail(data: {
     }),
   ])
 }
+
+// ─── Pass VIP emails ───────────────────────────────────────────────────────
+
+export async function sendPassVipEmails(params: {
+  nom_usage: string
+  grade: string
+  duree: number
+  prix: number
+  remise_min: number
+  ref_lisible: string
+  pass_url: string
+  activation_url: string
+  created_at?: string
+  contact?: string | null
+  email?: string | null
+  prescripteur_nom?: string | null
+}): Promise<void> {
+  const { nom_usage, grade, duree, prix, remise_min, ref_lisible, pass_url, activation_url, created_at, contact, email, prescripteur_nom } = params
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const prixFormatted = new Intl.NumberFormat('fr-FR').format(prix)
+
+  const dateHeure = created_at
+    ? new Date(created_at).toLocaleString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : new Date().toLocaleString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+
+  const adminHtml = emailBase(`
+    <h2 style="margin:0 0 4px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Nouvelle commande Pass ${grade}
+    </h2>
+    <p style="margin:0 0 20px;color:#888;font-size:13px">
+      Réf. <span style="font-family:monospace">${ref_lisible}</span> &mdash; ${dateHeure}
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666;width:40%">Client</td>
+        <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${nom_usage.toUpperCase()}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Téléphone</td>
+        <td style="padding:10px 0;color:#1a1a1a">${contact ?? 'Non renseigné'}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Email</td>
+        <td style="padding:10px 0;color:#1a1a1a">${email ?? 'Non renseigné'}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Pass commandé</td>
+        <td style="padding:10px 0;font-weight:700;color:#c9a227">Pass VIP ${grade} &mdash; ${duree} jours</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e8e0d5">
+        <td style="padding:10px 0;color:#666">Montant</td>
+        <td style="padding:10px 0;font-weight:700;color:#1a1a1a">${prixFormatted} FCFA</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;color:#666">Affilié</td>
+        <td style="padding:10px 0;color:#1a1a1a">${prescripteur_nom ?? 'Aucun'}</td>
+      </tr>
+    </table>
+
+    <div style="background:#10b981;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
+      <p style="margin:0 0 16px;color:#fff;font-size:15px;font-weight:700">
+        Paiement reçu ? Confirmez pour activer le Pass client.
+      </p>
+      <a href="${activation_url}"
+         style="display:inline-block;padding:14px 32px;background:#fff;color:#10b981;
+                text-decoration:none;border-radius:8px;font-weight:700;font-size:16px">
+        &#10003; Confirmer le paiement
+      </a>
+    </div>
+
+    <div style="background:#fffbf0;border:1px solid #e8d5a3;border-radius:10px;padding:16px">
+      <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em">
+        Lien carte client
+      </p>
+      <p style="margin:0 0 12px;font-family:monospace;font-size:11px;color:#7a6010;word-break:break-all;line-height:1.5">
+        ${pass_url}
+      </p>
+      <a href="${pass_url}"
+         style="display:block;background:#1a1a1a;color:#c9a227;text-align:center;
+                padding:12px;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none">
+        Ouvrir la carte ${grade}
+      </a>
+    </div>
+  `)
+
+  const clientHtmlContent = emailBase(`
+    <h2 style="margin:0 0 8px;font-family:Georgia,serif;font-size:22px;color:#1a1a1a">
+      Merci pour votre commande !
+    </h2>
+    <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6">
+      Votre Pass VIP ${grade} a bien été enregistré.
+    </p>
+    <div style="background:#f5f0eb;border-radius:12px;padding:20px;margin-bottom:20px">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666;width:45%">Produit</td>
+          <td style="padding:8px 0;font-weight:700;color:#1a1a1a">Pass VIP ${grade} — ${duree} jours</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666">Montant</td>
+          <td style="padding:8px 0;font-weight:700;color:#c9a227">${prixFormatted} FCFA</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e8d9b0">
+          <td style="padding:8px 0;color:#666">Remise garantie</td>
+          <td style="padding:8px 0;font-weight:700;color:#1a1a1a">${remise_min}% minimum</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#666">Référence</td>
+          <td style="padding:8px 0;font-family:monospace;color:#1a1a1a">${ref_lisible}</td>
+        </tr>
+      </table>
+    </div>
+    <div style="background:#fffbf0;border:1px solid #c9a227;border-radius:12px;padding:18px;margin-bottom:20px">
+      <p style="margin:0 0 8px;font-weight:700;color:#c9a227;font-size:14px">
+        ⏳ En attente de confirmation de paiement
+      </p>
+      <p style="margin:0 0 14px;color:#555;font-size:14px;line-height:1.6">
+        Votre carte est prête — elle s'activera dès que votre paiement sera confirmé.
+      </p>
+      <a href="${pass_url}"
+         style="display:block;background:#c9a227;color:#1a1a1a;text-align:center;
+                padding:14px;border-radius:8px;font-weight:700;font-size:14px;
+                text-decoration:none">
+        ✦ Voir ma carte ${grade}
+      </a>
+      <p style="margin:10px 0 0;font-family:monospace;font-size:11px;color:#999;word-break:break-all;text-align:center">
+        ${pass_url}
+      </p>
+    </div>
+    <p style="margin:0;font-size:12px;color:#aaa;text-align:center">
+      Des questions ? Répondez directement à ce mail.<br>
+      ✦ L&amp;Lui Signature — Kribi, Cameroun
+    </p>
+  `)
+
+  console.log('[EMAIL PASS] sendPassVipEmails appelée')
+  console.log('[EMAIL PASS] RESEND_API_KEY configurée:', !!process.env.RESEND_API_KEY)
+  console.log('[EMAIL PASS] FROM:', FROM)
+  console.log('[EMAIL PASS] admin →', adminEmail, '| client →', email ?? 'absent')
+
+  // Email admin
+  try {
+    const adminResult = await getResend().emails.send({
+      from: FROM,
+      to: adminEmail,
+      subject: `🆕 Commande Pass ${grade} — ${nom_usage}`,
+      html: adminHtml,
+    })
+    console.log('[EMAIL PASS] Admin envoyé ✅:', JSON.stringify(adminResult))
+  } catch (e) {
+    console.error('[EMAIL PASS] Admin erreur ❌:', e)
+  }
+
+  // Email client (optionnel)
+  if (email) {
+    try {
+      const clientResult = await getResend().emails.send({
+        from: FROM,
+        to: email,
+        subject: `✦ Votre commande Pass ${grade} — L&Lui Signature`,
+        html: clientHtmlContent,
+      })
+      console.log('[EMAIL PASS] Client envoyé ✅:', JSON.stringify(clientResult))
+    } catch (e) {
+      console.error('[EMAIL PASS] Client erreur ❌:', e)
+    }
+  }
+}

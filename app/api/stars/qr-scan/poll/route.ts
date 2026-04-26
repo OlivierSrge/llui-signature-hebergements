@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { serializeFirestoreDoc } from '@/lib/serialization'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const clientTel = searchParams.get('client_tel')

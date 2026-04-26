@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPendingSpendForPartner } from '@/actions/stars'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const partnerId = req.nextUrl.searchParams.get('partnerId')

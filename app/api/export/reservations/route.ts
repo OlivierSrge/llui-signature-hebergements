@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
 
+export const dynamic = 'force-dynamic'
+
 function escapeCSV(val: unknown): string {
   if (val === null || val === undefined) return ''
   const str = String(val)

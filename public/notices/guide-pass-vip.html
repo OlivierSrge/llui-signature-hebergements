@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pass VIP L&Lui — Guide d'Utilisation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1A1A1A;
+            background: linear-gradient(135deg, #F9F5F2 0%, #FFF8E7 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '💎';
+            position: absolute;
+            font-size: 200px;
+            opacity: 0.1;
+            top: -50px;
+            right: -30px;
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #F9F5F2;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header .subtitle {
+            font-size: 20px;
+            font-weight: 300;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 50px 40px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #C9A84C;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-title .icon {
+            font-size: 40px;
+        }
+
+        .intro {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #555;
+            background: #FFF8E7;
+            padding: 30px;
+            border-radius: 16px;
+            border-left: 5px solid #C9A84C;
+        }
+
+        .pass-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .pass-card {
+            background: linear-gradient(135deg, #F9F5F2 0%, #FFF 100%);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            border: 3px solid;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            opacity: 0.05;
+            font-size: 80px;
+        }
+
+        .pass-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .pass-card.or {
+            border-color: #C9A84C;
+        }
+
+        .pass-card.or::before {
+            content: '🥇';
+        }
+
+        .pass-card.saphir {
+            border-color: #0F52BA;
+        }
+
+        .pass-card.saphir::before {
+            content: '💎';
+        }
+
+        .pass-card.diamant {
+            border-color: #B9F2FF;
+            background: linear-gradient(135deg, #E0F7FF 0%, #FFF 100%);
+        }
+
+        .pass-card.diamant::before {
+            content: '💠';
+        }
+
+        .pass-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .pass-name {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+
+        .pass-card.or .pass-name {
+            color: #C9A84C;
+        }
+
+        .pass-card.saphir .pass-name {
+            color: #0F52BA;
+        }
+
+        .pass-card.diamant .pass-name {
+            color: #1e90ff;
+        }
+
+        .pass-price {
+            font-size: 32px;
+            font-weight: 800;
+            color: #1A1A1A;
+            margin-bottom: 20px;
+        }
+
+        .pass-price span {
+            font-size: 16px;
+            font-weight: 400;
+            color: #888;
+        }
+
+        .pass-benefits {
+            text-align: left;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .pass-benefits li {
+            margin-bottom: 8px;
+            list-style: none;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .pass-benefits li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .step {
+            display: flex;
+            gap: 20px;
+            background: #F9F5F2;
+            padding: 25px;
+            border-radius: 16px;
+            align-items: start;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content h3 {
+            font-size: 20px;
+            color: #1A1A1A;
+            margin-bottom: 10px;
+        }
+
+        .step-content p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 100%);
+            border-left: 5px solid #C9A84C;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+
+        .highlight-box h3 {
+            color: #C9A84C;
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .highlight-box p {
+            color: #555;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+
+        .highlight-box ul {
+            margin-top: 15px;
+            padding-left: 20px;
+        }
+
+        .highlight-box li {
+            color: #555;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .warning-box {
+            background: #FFF0F0;
+            border-left: 5px solid #e74c3c;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 25px 0;
+        }
+
+        .warning-box h3 {
+            color: #e74c3c;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: #666;
+            font-size: 15px;
+        }
+
+        .footer {
+            background: #1A1A1A;
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .footer h3 {
+            color: #C9A84C;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .footer p {
+            opacity: 0.8;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        .footer .website {
+            color: #C9A84C;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 40px 25px;
+            }
+
+            .header h1 {
+                font-size: 36px;
+            }
+
+            .content {
+                padding: 30px 25px;
+            }
+
+            .pass-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- En-tête -->
+        <div class="header">
+            <div class="logo-text">L&Lui Signature</div>
+            <h1>Pass VIP Boutique</h1>
+            <div class="subtitle">Votre accès privilégié aux offres exclusives</div>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="content">
+            <!-- Introduction -->
+            <div class="section">
+                <div class="intro">
+                    <strong style="color: #C9A84C; font-size: 20px;">Qu'est-ce qu'un Pass VIP L&Lui ?</strong><br><br>
+                    Le Pass VIP vous donne un <strong>accès privilégié</strong> à des offres exclusives dans notre boutique pendant une durée limitée. Chaque Pass correspond à un niveau de privilèges et vous permet de bénéficier d'avantages réservés aux membres VIP.
+                </div>
+            </div>
+
+            <!-- Les Pass disponibles -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="icon">💎</span>
+                    Les Pass Disponibles
+                </h2>
+
+                <div class="pass-grid">
+                    <div class="pass-card saphir">
+                        <div class="pass-icon">💎</div>
+                        <div class="pass-name">SAPHIR</div>
+                        <div class="pass-price">10% <span>de réduction</span></div>
+                        <ul class="pass-benefits">
+                            <li>Réduction exclusive de 10% sur tous vos achats</li>
+                            <li>Accès prioritaire aux nouvelles collections</li>
+                            <li>Événements VIP réservés</li>
+                            <li>Support client prioritaire</li>
+                        </ul>
+                    </div>
+
+                    <div class="pass-card or">
+                        <div class="pass-icon">🥇</div>
+                        <div class="pass-name">OR</div>
+                        <div class="pass-price">12% <span>de réduction</span></div>
+                        <ul class="pass-benefits">
+                            <li>Réduction exclusive de 12% sur tous vos achats</li>
+                            <li>Tous les avantages SAPHIR</li>
+                            <li>Avant-première collections</li>
+                            <li>Conseils personnalisés</li>
+                            <li>Livraison prioritaire</li>
+                        </ul>
+                    </div>
+
+                    <div class="pass-card diamant">
+                        <div class="pass-icon">💠</div>
+                        <div class="pass-name">DIAMANT</div>
+                        <div class="pass-price">15% <span>de réduction</span></div>
+                        <ul class="pass-benefits">
+                            <li>Réduction exclusive de 15% sur tous vos achats</li>
+                            <li>Tous les avantages OR</li>
+                            <li>L'excellence absolue</li>
+                            <li>Accès aux ventes privées</li>
+                            <li>Créations sur-mesure prioritaires</li>
+                            <li>Service concierge dédié</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comment utiliser votre Pass -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="icon">📱</span>
+                    Comment utiliser votre Pass VIP
+                </h2>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Recevez votre Pass par email</h3>
+                            <p>Après votre achat, vous recevez immédiatement un email contenant votre carte Pass VIP personnalisée au format numérique.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Activez votre Pass</h3>
+                            <p>Cliquez sur le lien dans l'email pour activer votre Pass. Votre carte devient immédiatement valide et consultable en ligne.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Présentez votre Pass en boutique</h3>
+                            <p>Lors de vos achats, présentez votre carte Pass VIP (sur votre téléphone ou imprimée). Le vendeur vérifie votre statut et applique vos avantages.</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Profitez de vos privilèges</h3>
+                            <p>Accédez aux offres exclusives, bénéficiez de réductions spéciales et profitez du service VIP pendant toute la durée de votre Pass.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Avantages exclusifs -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="icon">🎁</span>
+                    Avantages Exclusifs
+                </h2>
+
+                <div class="highlight-box">
+                    <h3>✨ Ce que votre Pass vous offre</h3>
+                    <ul>
+                        <li><strong>Offres personnalisées :</strong> Recevez des propositions exclusives adaptées à vos préférences</li>
+                        <li><strong>Priorité absolue :</strong> Accès privilégié lors des lancements et ventes spéciales</li>
+                        <li><strong>Réductions cumulables :</strong> Vos avantages Pass se combinent avec d'autres promotions</li>
+                        <li><strong>Événements privés :</strong> Invitations aux soirées et événements réservés aux membres VIP</li>
+                        <li><strong>Service personnalisé :</strong> Un conseiller dédié pour vous accompagner dans vos choix</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Règles importantes -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="icon">ℹ️</span>
+                    Règles d'Utilisation
+                </h2>
+
+                <div class="warning-box">
+                    <h3>⚠️ Important à savoir</h3>
+                    <p><strong>• Validité stricte :</strong> Votre Pass est valable pour la durée indiquée à partir de la date d'activation. Au-delà, il expire automatiquement.<br><br>
+                    <strong>• Non transférable :</strong> Le Pass est nominatif et ne peut pas être utilisé par une autre personne.<br><br>
+                    <strong>• Un seul Pass actif :</strong> Vous ne pouvez détenir qu'un seul Pass VIP actif à la fois. Un nouveau Pass prolonge ou remplace l'ancien.<br><br>
+                    <strong>• Montée en gamme uniquement :</strong> Vous ne pouvez acheter qu'un Pass de niveau supérieur ou égal à votre statut actuel.</p>
+                </div>
+
+                <div class="highlight-box">
+                    <h3>💡 Conseil</h3>
+                    <p>Conservez votre email de confirmation et ajoutez le lien de votre Pass à vos favoris pour y accéder rapidement lors de vos visites en boutique.</p>
+                </div>
+            </div>
+
+            <!-- Avantages partenaires -->
+            <div class="section">
+                <div style="background: linear-gradient(135deg, #E8C4B8 0%, #D4A09A 100%); padding: 40px; border-radius: 16px;">
+                    <h3 style="color: white; font-size: 28px; margin-bottom: 20px; text-align: center;">
+                        🌟 Découvrez tous vos avantages
+                    </h3>
+                    <p style="color: white; font-size: 18px; text-align: center; line-height: 1.8;">
+                        Chaque niveau de Pass débloque des avantages spécifiques dans nos différents espaces partenaires.<br><br>
+                        <strong>Consultez l'espace de chaque partenaire pour voir en détail tous vos privilèges selon votre Pass VIP.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pied de page -->
+        <div class="footer">
+            <h3>L&Lui Signature</h3>
+            <p>Kribi, Cameroun</p>
+            <p>Programme Pass VIP Boutique</p>
+            <br>
+            <a href="https://llui-signature-hebergements.vercel.app" class="website">llui-signature-hebergements.vercel.app</a>
+        </div>
+    </div>
+</body>
+</html>

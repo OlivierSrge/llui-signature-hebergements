@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import type { CodeSession } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
-import type { ClientFidelite, TransactionFidelite, StarsMode } from '@/actions/stars'
-import { requestOtp, verifyOtpAndLinkClient, getPendingTransaction, spendPointsRequest } from '@/actions/stars'
-import ElectronicPass from '@/components/ElectronicPass'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { PartenaireAvecLocation } from '@/types/geolocation'
@@ -34,8 +31,6 @@ interface Props {
   partenaires?: PartenaireAvecLocation[]
 }
 
-type LoyaltyStep = 'idle' | 'phone' | 'otp_sent' | 'verified'
-
 function formatCode(code: string) {
   return code.slice(0, 3) + ' ' + code.slice(3)
 }
@@ -54,18 +49,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   const slides = session.carouselImages?.filter(Boolean) ?? []
   const [slideIdx, setSlideIdx] = useState(0)
 
-  // ── Stars — programme de fidélité ───────────────────────────────
-  const [loyaltyStep, setLoyaltyStep] = useState<LoyaltyStep>('idle')
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
-  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
-  const [loyaltyError, setLoyaltyError] = useState('')
-  const [clientData, setClientData] = useState<ClientFidelite | null>(null)
-  const [pendingTx, setPendingTx] = useState<TransactionFidelite | null>(null)
-  const [starsMode, setStarsMode] = useState<StarsMode>('earn')
-  const [pointsToSpend, setPointsToSpend] = useState('')
-  const [spendLoading, setSpendLoading] = useState(false)
-  const [spendResult, setSpendResult] = useState<{ success: boolean; reductionFcfa?: number; error?: string } | null>(null)
+  // ── QR scan partenaire depuis la carte ─────────────────────────
   const [showQrModal, setShowQrModal] = useState(false)
   const [qrPartenaire, setQrPartenaire] = useState<string | null>(null)
   const [qrPartenaireNom, setQrPartenaireNom] = useState<string | null>(null)
@@ -81,7 +65,8 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     const t = setInterval(() => setSlideIdx((i) => (i + 1) % slides.length), intervalMs)
     return () => clearInterval(t)
   }, [slides.length])
-  // ───────────────────────────────────────────────────────────────
+
+  // ── (countdown QR géré dans StarsQrCard via onExpired callback) ─
 
   const msRestants = Math.max(0, expireAt.getTime() - maintenant.getTime())
   const heuresRestantes = msRestants / 3600000
@@ -150,53 +135,6 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
         </div>
       </div>
     )
-  }
-
-  // ── Handlers Stars ─────────────────────────────────────────────
-
-  async function handleSendOtp() {
-    if (!phone.trim()) return
-    setLoyaltyLoading(true)
-    setLoyaltyError('')
-    const res = await requestOtp(phone.trim(), session.code)
-    setLoyaltyLoading(false)
-    if (res.success) {
-      setLoyaltyStep('otp_sent')
-    } else {
-      setLoyaltyError(res.error ?? 'Erreur lors de l\'envoi')
-    }
-  }
-
-  async function handleVerifyOtp() {
-    if (!otp.trim()) return
-    setLoyaltyLoading(true)
-    setLoyaltyError('')
-    const res = await verifyOtpAndLinkClient(phone.trim(), otp.trim(), session.code)
-    setLoyaltyLoading(false)
-    if (res.success && res.client) {
-      setClientData(res.client)
-      setLoyaltyStep('verified')
-      // Charger transaction pending éventuelle
-      const tx = await getPendingTransaction(session.code)
-      setPendingTx(tx)
-    } else {
-      setLoyaltyError(res.error ?? 'Code incorrect')
-    }
-  }
-
-  async function handleSpendRequest() {
-    if (!clientData || !session.prescripteur_partenaire_id) return
-    const pts = parseInt(pointsToSpend.replace(/\D/g, ''), 10)
-    if (!pts || pts <= 0) return
-    setSpendLoading(true)
-    setSpendResult(null)
-    const res = await spendPointsRequest({
-      clientId: clientData.telephone,
-      partnerId: session.prescripteur_partenaire_id,
-      pointsToUse: pts,
-    })
-    setSpendLoading(false)
-    setSpendResult(res)
   }
 
   // Écran — code actif
@@ -361,184 +299,187 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
         </div>
 
-        {/* ── L&Lui Stars — Programme de fidélité ──────────────── */}
+        {/* ── Club VIP L&Lui — Pass VIP ─────────────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl">⭐</span>
-            <div>
-              <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
-              <p className="text-xs text-[#1A1A1A]/50">Gagnez des points à chaque achat</p>
-            </div>
-          </div>
+          <div className="space-y-4">
 
-          {/* Étape 1 — Saisie téléphone */}
-          {loyaltyStep === 'idle' && (
-            <div className="space-y-3">
-              <p className="text-xs text-[#1A1A1A]/60">
-                Entrez votre numéro WhatsApp pour rejoindre le programme Stars et cumuler des avantages.
+            {/* Titre section */}
+            <div className="text-center mb-2">
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">
+                L&Lui ✦ Signature
               </p>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleSendOtp()}
-                placeholder="Ex : 6 XX XX XX XX"
-                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-              />
-              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
-              <button
-                onClick={handleSendOtp}
-                disabled={loyaltyLoading || !phone.trim()}
-                className="w-full py-2.5 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#333] transition-colors"
-              >
-                {loyaltyLoading ? 'Envoi...' : '📱 Recevoir mon code par WhatsApp'}
-              </button>
-            </div>
-          )}
-
-          {/* Étape 2 — Saisie OTP */}
-          {loyaltyStep === 'otp_sent' && (
-            <div className="space-y-3">
-              <p className="text-xs text-[#1A1A1A]/60">
-                Un code à 6 chiffres a été envoyé au <strong>{phone}</strong> via WhatsApp. Entrez-le ci-dessous.
+              <h3 className="text-lg font-bold text-[#1A1A1A]">Club VIP L&Lui</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Choisissez votre Pass et profitez de remises exclusives chez nos partenaires à Kribi.
               </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                onKeyDown={(e) => e.key === 'Enter' && !loyaltyLoading && handleVerifyOtp()}
-                placeholder="_ _ _ _ _ _"
-                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-center text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#C9A84C]"
-              />
-              {loyaltyError && <p className="text-xs text-red-500">{loyaltyError}</p>}
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loyaltyLoading || otp.length < 6}
-                className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-              >
-                {loyaltyLoading ? 'Vérification...' : '✅ Confirmer mon code'}
-              </button>
-              <button
-                onClick={() => { setLoyaltyStep('idle'); setOtp(''); setLoyaltyError('') }}
-                className="w-full py-2 text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-              >
-                Modifier le numéro
-              </button>
             </div>
-          )}
 
-          {/* Étape 3 — Pass affiché + mode earn/spend */}
-          {loyaltyStep === 'verified' && clientData && (
-            <div className="space-y-4">
-              {/* Sélecteur mode */}
-              <div className="flex rounded-xl overflow-hidden border border-[#F5F0E8]">
-                <button
-                  onClick={() => { setStarsMode('earn'); setSpendResult(null) }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                    starsMode === 'earn' ? 'bg-[#1A1A1A] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                  }`}
-                >
-                  ⭐ Mon Pass
-                </button>
-                <button
-                  onClick={() => { setStarsMode('spend'); setSpendResult(null); setPointsToSpend('') }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                    starsMode === 'spend' ? 'bg-[#C9A84C] text-white' : 'bg-white text-[#1A1A1A]/50 hover:bg-[#F5F0E8]'
-                  }`}
-                >
-                  🎁 Dépenser mes Stars
-                </button>
+            {/* Bouton guide d'utilisation */}
+            <a
+              href="/notices/guide-pass-vip.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '18px 24px',
+                marginBottom: '4px',
+                background: 'linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%)',
+                color: 'white',
+                textAlign: 'center',
+                textDecoration: 'none',
+                borderRadius: '12px',
+                fontSize: '18px',
+                fontWeight: 700,
+                boxShadow: '0 4px 12px rgba(201, 168, 76, 0.3)',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(201, 168, 76, 0.4)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(201, 168, 76, 0.3)'
+              }}
+            >
+              📖 Guide d&apos;utilisation des Pass VIP
+            </a>
+
+            {/* Carte unique Pass VIP → boutique Netlify (cat + code session pour identification) */}
+            <a
+              href={`https://letlui-signature.netlify.app/?cat=Pass%20VIP&code=${encodeURIComponent(session.code)}${session.code_promo_affilie ? `&promo=${encodeURIComponent(session.code_promo_affilie)}` : ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                textDecoration: 'none',
+                background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 100%)',
+                border: '3px solid #C9A84C',
+                borderRadius: '20px',
+                padding: '40px 30px',
+                marginTop: '20px',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)'
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(201, 168, 76, 0.3)'
+                e.currentTarget.style.borderColor = '#D4AF37'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.borderColor = '#C9A84C'
+              }}
+            >
+              {/* Badge EXCLUSIF */}
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: '#27ae60',
+                color: 'white',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}>
+                ✨ EXCLUSIF
               </div>
 
-              {/* Mode Earn : ElectronicPass */}
-              {starsMode === 'earn' && (
-                <ElectronicPass
-                  client={clientData}
-                  params={plateformeParams}
-                  pendingTx={pendingTx}
-                  avantages={session.avantages_hors_stars}
-                  onResendOtp={() => {
-                    setLoyaltyStep('idle')
-                    setOtp('')
-                    setLoyaltyError('')
-                  }}
-                />
-              )}
+              {/* Titre */}
+              <h3 style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                color: '#C9A84C',
+                marginBottom: '15px',
+                textAlign: 'center',
+              }}>
+                💎 Pass VIP Boutique L&amp;Lui
+              </h3>
 
-              {/* Mode Spend */}
-              {starsMode === 'spend' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-[#1A1A1A]/60">
-                    Solde disponible : <strong>{clientData.points_stars.toLocaleString('fr-FR')} ⭐</strong>
-                  </p>
+              <p style={{
+                fontSize: '16px',
+                color: '#666',
+                textAlign: 'center',
+                marginBottom: '30px',
+                lineHeight: 1.6,
+              }}>
+                Accédez à des <strong style={{ color: '#C9A84C' }}>réductions exclusives</strong> et des
+                privilèges premium dans notre boutique
+              </p>
 
-                  {/* Cas 1 — Avant envoi */}
-                  {spendResult === null && (
-                    <div className="space-y-3">
-                      <p className="text-xs text-[#1A1A1A]/60">
-                        Indiquez le nombre de Stars à utiliser. Le partenaire validera la réduction.
-                      </p>
-                      <input
-                        type="number"
-                        value={pointsToSpend}
-                        onChange={(e) => setPointsToSpend(e.target.value)}
-                        placeholder="Ex : 500"
-                        min={1}
-                        max={clientData.points_stars}
-                        className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
-                      />
-                      {parseInt(pointsToSpend) > 0 && (
-                        <p className="text-xs text-[#C9A84C] font-semibold">
-                          ≈ {(parseInt(pointsToSpend) * (plateformeParams.fidelite_valeur_star_fcfa ?? 1)).toLocaleString('fr-FR')} FCFA de réduction
-                        </p>
-                      )}
-                      <button
-                        onClick={handleSpendRequest}
-                        disabled={spendLoading || !pointsToSpend || parseInt(pointsToSpend) <= 0 || parseInt(pointsToSpend) > clientData.points_stars}
-                        className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-                      >
-                        {spendLoading ? 'Envoi en cours...' : '🎁 Envoyer la demande au partenaire'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Cas 2 — Succès */}
-                  {spendResult?.success && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center space-y-2">
-                      <div className="text-2xl">✅</div>
-                      <p className="text-sm font-bold text-green-700">Demande envoyée !</p>
-                      <p className="text-xs text-green-600">
-                        Réduction de <strong>{spendResult.reductionFcfa?.toLocaleString('fr-FR')} FCFA</strong> en attente de validation par le partenaire.
-                      </p>
-                      <button
-                        onClick={() => { setSpendResult(null); setPointsToSpend('') }}
-                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-                      >
-                        Nouvelle demande
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Cas 3 — Erreur */}
-                  {spendResult !== null && !spendResult.success && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center space-y-2">
-                      <div className="text-2xl">❌</div>
-                      <p className="text-xs text-red-600">{spendResult.error ?? 'Erreur lors de la demande'}</p>
-                      <button
-                        onClick={() => setSpendResult(null)}
-                        className="text-xs text-[#1A1A1A]/40 hover:text-[#1A1A1A] transition-colors"
-                      >
-                        Réessayer
-                      </button>
-                    </div>
-                  )}
+              {/* Aperçu 3 Pass */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                marginBottom: '30px',
+              }}>
+                {/* SAPHIR */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #0F52BA',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💎</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F52BA', marginBottom: '6px' }}>SAPHIR</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>10%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
                 </div>
-              )}
-            </div>
-          )}
 
+                {/* OR */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #C9A84C',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>🥇</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#C9A84C', marginBottom: '6px' }}>OR</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>12%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                </div>
+
+                {/* DIAMANT */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '16px 10px',
+                  textAlign: 'center',
+                  border: '2px solid #B9F2FF',
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💠</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e90ff', marginBottom: '6px' }}>DIAMANT</div>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>15%</div>
+                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div style={{
+                background: 'linear-gradient(135deg, #C9A84C 0%, #D4AF37 100%)',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '12px',
+                textAlign: 'center',
+                fontSize: '18px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+              }}>
+                Découvrir les Pass VIP <span style={{ fontSize: '20px' }}>→</span>
+              </div>
+            </a>
+
+          </div>
         </div>
 
         {/* ── Carte partenaires Stars ── carte visible à tous les visiteurs */}
@@ -555,7 +496,6 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           <PartenairesMap
             partenaires={partenaires}
             onScanRequest={(partenaire_id) => {
-              if (!clientData) { setLoyaltyStep('phone'); return }
               setQrPartenaire(partenaire_id)
               setQrPartenaireNom(partenaires.find(p => p.id === partenaire_id)?.nom ?? null)
               setShowQrModal(true)
@@ -565,11 +505,11 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
       </div>
 
-      {/* Modal QR Scan */}
-      {showQrModal && clientData && (
+      {/* Modal QR Scan partenaire */}
+      {showQrModal && (
         <QrScanModal
-          client_uid={clientData.telephone}
-          client_tel={clientData.telephone}
+          client_uid=""
+          client_tel=""
           partenaire_id_preselect={qrPartenaire}
           partenaire_nom_preselect={qrPartenaireNom}
           onClose={() => { setShowQrModal(false); setQrPartenaire(null); setQrPartenaireNom(null) }}

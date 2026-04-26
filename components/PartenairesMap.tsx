@@ -8,6 +8,15 @@ import type { PartenaireAvecLocation } from '@/types/geolocation'
 const KRIBI_CENTER = { lat: 2.9377, lng: 9.9087 }
 const GOLD = '#C9A84C'
 
+// Marqueur étoile dorée — SVG data URI
+const STAR_SVG = encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">` +
+  `<circle cx="20" cy="20" r="18" fill="#FFD700" stroke="#A07830" stroke-width="2.5"/>` +
+  `<polygon points="20,8 22.8,16.1 31.4,16.3 24.6,21.5 27.1,29.7 20,24.8 12.9,29.7 15.4,21.5 8.6,16.3 17.2,16.1" fill="#FFFFFF"/>` +
+  `</svg>`
+)
+const STAR_ICON_URL = `data:image/svg+xml;charset=UTF-8,${STAR_SVG}`
+
 let mapsLoaded = false
 let mapsLoadPromise: Promise<void> | null = null
 
@@ -83,14 +92,10 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
             map,
             title: p.nom,
             icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 14,
-              fillColor: GOLD,
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 2.5,
+              url: STAR_ICON_URL,
+              scaledSize: new google.maps.Size(40, 40),
+              anchor: new google.maps.Point(20, 20),
             },
-            label: { text: '⭐', fontSize: '12px' },
             zIndex: 5,
           })
           markersRef.current.push(marker)
@@ -102,19 +107,34 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
             const photo = p.photoUrl
               ? `<img src="${p.photoUrl}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px" />`
               : ''
+            const avantagesHtml = p.avantages_stars && p.avantages_stars.length > 0
+              ? `<div style="margin-top:6px;padding:6px 8px;background:#FFFBF0;border-radius:8px;border:1px solid #C9A84C33">
+                   <p style="font-size:10px;font-weight:700;color:#C9A84C;margin:0 0 4px 0">🎁 Avantages membres</p>
+                   ${p.avantages_stars.slice(0, 3).map((a) => `<p style="font-size:10px;color:#555;margin:2px 0">${a.emoji} ${a.label}</p>`).join('')}
+                   ${p.avantages_stars.length > 3 ? `<p style="font-size:10px;color:#C9A84C;margin-top:2px">+${p.avantages_stars.length - 3} autres avantages...</p>` : ''}
+                 </div>`
+              : ''
             const content = `
-              <div style="max-width:220px;font-family:sans-serif">
+              <div style="max-width:240px;font-family:sans-serif">
                 ${photo}
                 <p style="font-size:14px;font-weight:700;color:#1A1A1A;margin:0">${p.nom}</p>
                 <p style="font-size:11px;color:#888;margin:2px 0">🏷️ ${p.type}</p>
                 ${p.adresse_gps ? `<p style="font-size:11px;color:#888">📍 ${p.adresse_gps}</p>` : ''}
                 ${dist}
                 <p style="font-size:11px;color:${GOLD};margin-top:4px">⭐ Partenaire L&amp;Lui Stars</p>
+                ${p.accepte_pass_vip ? '<p style="font-size:11px;color:#7C3AED;margin-top:2px;font-weight:600">👑 Pass VIP accepté</p>' : ''}
+                ${avantagesHtml}
                 <button
                   onclick="window.__llui_scan_request__('${p.id}')"
                   style="margin-top:8px;width:100%;padding:8px;background:${GOLD};color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer"
                 >
                   📷 Scanner le QR
+                </button>
+                <button
+                  onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}','_blank')"
+                  style="margin-top:6px;width:100%;padding:8px;background:#4285F4;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer"
+                >
+                  🗺️ Y aller
                 </button>
               </div>
             `
@@ -237,7 +257,7 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
 
       {partenaires.length > 0 && (
         <p className="text-[11px] text-[#1A1A1A]/40 text-center">
-          {partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''} — cliquez sur ⭐ pour Scanner le QR
+          {partenaires.length} partenaire{partenaires.length > 1 ? 's' : ''} — touchez une étoile pour Scanner le QR ou obtenir l'itinéraire
         </p>
       )}
     </div>

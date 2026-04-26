@@ -113,6 +113,38 @@
         { "fieldPath": "statut", "order": "ASCENDING" },
         { "fieldPath": "latitude", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "prescripteurs_partenaires",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "code_promo_affilie", "order": "ASCENDING" },
+        { "fieldPath": "statut", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "stars_qr_tokens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "client_uid", "order": "ASCENDING" },
+        { "fieldPath": "used", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pass_vip_actifs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "client_uid", "order": "ASCENDING" },
+        { "fieldPath": "actif", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pass_vip_actifs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "expire_notifie_j3", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { LOYALTY_DEFAULTS, LOYALTY_LEVELS, PROMO_CODE_DEFAULTS } from '@/lib/loyaltyDefaults'
 import { generatePromoCode, addLoyaltyPoints, calculateLoyaltyLevel } from '@/lib/loyaltyUtils'
 import type { LoyaltyClient } from '@/lib/types'
+import { serializeFirestoreDoc } from '@/lib/serialization'
 import {
   buildLevelUpNotification,
   buildExpiringPromoNotification,
@@ -19,13 +20,13 @@ import {
 export async function getLoyaltyConfig() {
   const doc = await db.collection('settings').doc('loyaltyConfig').get()
   if (!doc.exists) return LOYALTY_DEFAULTS
-  return { ...LOYALTY_DEFAULTS, ...(doc.data() as any) }
+  return { ...LOYALTY_DEFAULTS, ...serializeFirestoreDoc(doc.data()!) }
 }
 
 export async function getLoyaltyLevelsConfig() {
   const doc = await db.collection('settings').doc('loyaltyLevels').get()
   if (!doc.exists) return LOYALTY_LEVELS
-  const data = doc.data() as any
+  const data = serializeFirestoreDoc(doc.data()!)
   // Fusion clé par clé pour ne jamais avoir de champ vide
   const merged: any = {}
   for (const key of Object.keys(LOYALTY_LEVELS)) {
@@ -99,7 +100,7 @@ export async function getDashboardStats() {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
 
   const snap = await db.collection('clients').get()
-  const clients = snap.docs.map((d) => ({ id: d.id, ...d.data() } as LoyaltyClient & any))
+  const clients = snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) } as LoyaltyClient & any))
 
   const totalClients = clients.length
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -189,7 +190,7 @@ export async function getDashboardChartData(year?: number) {
   // Compter les changements de niveau ce mois via levelChangedAt
   const snap = await db.collection('clients').get()
   for (const doc of snap.docs) {
-    const c = doc.data() as any
+    const c = serializeFirestoreDoc(doc.data())
     if (c.levelChangedAt) {
       const d = new Date(c.levelChangedAt)
       if (d.getFullYear() === targetYear) {
@@ -203,7 +204,7 @@ export async function getDashboardChartData(year?: number) {
 
 export async function getLevelDistributionStats() {
   const snap = await db.collection('clients').get()
-  const clients = snap.docs.map((d) => ({ id: d.id, ...d.data() } as LoyaltyClient & any))
+  const clients = snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) } as LoyaltyClient & any))
   const total = clients.length || 1
 
   return ['novice', 'explorateur', 'ambassadeur', 'excellence'].map((niveau) => {
@@ -232,7 +233,7 @@ export async function getActionsRequired() {
   const sevenDaysAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   const snap = await db.collection('clients').get()
-  const clients = snap.docs.map((d) => ({ id: d.id, ...d.data() } as LoyaltyClient & any))
+  const clients = snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) } as LoyaltyClient & any))
 
   // Clients ayant changé de niveau dans les 7 derniers jours sans code promo envoyé
   const levelUpWithoutPromo = clients.filter((c) =>
@@ -280,7 +281,7 @@ export async function getFideliteClients(options: {
   const snap = await db.collection('clients').get()
   const now = new Date()
 
-  let clients = snap.docs.map((d) => ({ id: d.id, ...d.data() } as LoyaltyClient & any))
+  let clients = snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) } as LoyaltyClient & any))
 
   if (niveau) clients = clients.filter((c) => (c.niveau || 'novice') === niveau)
 
@@ -393,7 +394,7 @@ export async function getClientPointsHistory(clientId: string) {
     .collection('pointsHistory')
     .orderBy('created_at', 'desc')
     .get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+  return snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) })) as any[]
 }
 
 export async function regenerateClientPromoCode(
@@ -553,7 +554,7 @@ export async function getAuditLog() {
       .orderBy('created_at', 'desc')
       .limit(50)
       .get()
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
+    return snap.docs.map((d) => ({ id: d.id, ...serializeFirestoreDoc(d.data()) })) as any[]
   } catch {
     return []
   }
@@ -728,7 +729,7 @@ export async function getPendingNotifications(limit = 50): Promise<any[]> {
     return snap.docs.map((d) => ({
       id: d.id,
       clientId: d.ref.parent.parent?.id,
-      ...d.data(),
+      ...serializeFirestoreDoc(d.data()),
     }))
   } catch {
     return []

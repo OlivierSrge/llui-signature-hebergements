@@ -74,6 +74,7 @@ export interface PrescripteurPartenaire {
   solde_provision?: number       // provision Stars disponible (FCFA)
   total_ca_stars_fcfa?: number   // CA total encaissé via Stars
   avantages_hors_stars?: string  // texte libre : petits plus de l'établissement
+  code_promo_affilie?: string    // code promo partenaire ex: "MAMINDOR-2026"
 }
 
 export interface CodeSession {
@@ -106,6 +107,7 @@ export interface CodeSession {
   // Stars fidélité (live depuis prescripteurs_partenaires)
   client_id?: string             // téléphone lié après OTP
   avantages_hors_stars?: string  // petits plus de l'établissement
+  code_promo_affilie?: string    // ex: "MAMINDOR-2026"
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -317,6 +319,7 @@ export async function getCodeSession(code: string): Promise<CodeSession | null> 
         session.subscriptionLevel = p.subscriptionLevel ?? 'free'
         session.carousel_interval_sec = typeof p.carousel_interval_sec === 'number' ? p.carousel_interval_sec : 6
         session.avantages_hors_stars = typeof p.avantages_hors_stars === 'string' ? p.avantages_hors_stars : undefined
+        session.code_promo_affilie = typeof p.code_promo_affilie === 'string' ? p.code_promo_affilie : undefined
       } else {
         console.warn(`[getCodeSession] ⚠️ partenaire "${session.prescripteur_partenaire_id}" introuvable dans Firestore`)
       }
