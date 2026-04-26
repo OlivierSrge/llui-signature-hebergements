@@ -37,7 +37,8 @@
     "resend": "^6.9.3",
     "sharp": "^0.33.5",
     "tailwind-merge": "^2.5.4",
-    "twilio": "^5.13.0"
+    "twilio": "^5.13.0",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",
@@ -46,6 +47,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.15",
