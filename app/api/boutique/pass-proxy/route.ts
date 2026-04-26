@@ -1,7 +1,7 @@
 // app/api/boutique/pass-proxy/route.ts
-// Proxy public CORS pour la boutique Netlify (l-et-lui-signature.com)
-// Reçoit les commandes Pass VIP sans secret exposé côté client,
-// ajoute SHEETS_WEBHOOK_SECRET côté serveur et appelle /api/webhooks/boutique-pass.
+// Proxy CORS public pour la boutique Netlify (l-et-lui-signature.com)
+// Reçoit les commandes Pass VIP sans secret exposé côté client.
+// Ajoute SHEETS_WEBHOOK_SECRET côté serveur et appelle /api/webhooks/boutique-pass.
 
 export const dynamic = 'force-dynamic'
 
@@ -13,14 +13,14 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-// Rate limiting simple en mémoire (reset automatique à chaque cold start)
+// Rate limiting simple en mémoire (5 commandes/heure par IP)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
   const entry = rateLimitMap.get(ip)
   if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + 3_600_000 }) // 1h
+    rateLimitMap.set(ip, { count: 1, resetTime: now + 3_600_000 })
     return true
   }
   if (entry.count >= 5) return false
@@ -44,21 +44,7 @@ interface ProxyPayload {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  console.log('[PASS PROXY] Requête reçue')
-
-  // ── Vérification origine ─────────────────────────────────────────
-  const origin = req.headers.get('origin') ?? ''
-  const allowedOrigins = [
-    'l-et-lui-signature.com',
-    'letlui-signature.netlify.app',
-    'localhost',
-    '127.0.0.1',
-  ]
-  const originOk = allowedOrigins.some((o) => origin.includes(o))
-  if (!originOk) {
-    console.warn('[PASS PROXY] Origine refusée:', origin)
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 403, headers: CORS_HEADERS })
-  }
+  console.log('[PASS PROXY] Requête reçue — origin:', req.headers.get('origin') ?? 'absent')
 
   // ── Rate limiting ────────────────────────────────────────────────
   const ip =
@@ -67,7 +53,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     'unknown'
   if (!checkRateLimit(ip)) {
     console.warn('[PASS PROXY] Rate limit dépassé:', ip)
-    return NextResponse.json({ error: 'Trop de requêtes — réessayez dans 1 heure' }, { status: 429, headers: CORS_HEADERS })
+    return NextResponse.json(
+      { error: 'Trop de requêtes — réessayez dans 1 heure' },
+      { status: 429, headers: CORS_HEADERS }
+    )
   }
 
   // ── Parse body ───────────────────────────────────────────────────
@@ -87,18 +76,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
 
-  // ── Vérification secret configuré ───────────────────────────────
+  // ── Vérification secret ──────────────────────────────────────────
   const secret = process.env.SHEETS_WEBHOOK_SECRET ?? process.env.WEBHOOK_SECRET
   if (!secret) {
     console.error('[PASS PROXY] SHEETS_WEBHOOK_SECRET non configuré')
-    return NextResponse.json({ error: 'Configuration serveur manquante' }, { status: 500, headers: CORS_HEADERS })
+    return NextResponse.json(
+      { error: 'Configuration serveur manquante' },
+      { status: 500, headers: CORS_HEADERS }
+    )
   }
+  console.log('[PASS PROXY] Secret présent ✅ | appel endpoint privé...')
 
-  // ── Appel endpoint privé (serveur → serveur, pas de CORS) ────────
+  // ── Appel endpoint privé (serveur → serveur) ─────────────────────
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
   const privateUrl = `${APP_URL}/api/webhooks/boutique-pass`
-
-  console.log('[PASS PROXY] → appel', privateUrl, '| client:', data.nom, data.type_pass)
 
   try {
     const response = await fetch(privateUrl, {
@@ -109,19 +100,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        nom:        data.nom,
-        type_pass:  data.type_pass,
-        montant:    data.montant,
-        code_promo: data.code_promo ?? null,
+        nom:         data.nom,
+        type_pass:   data.type_pass,
+        montant:     data.montant,
+        code_promo:  data.code_promo ?? null,
         nom_affilie: data.nom_affilie ?? null,
-        tel:        data.tel,
-        email:      data.email,
-        date:       data.date ?? new Date().toISOString(),
+        tel:         data.tel,
+        email:       data.email,
+        date:        data.date ?? new Date().toISOString(),
       }),
     })
 
-    const result = await response.json()
-    console.log('[PASS PROXY] Réponse endpoint privé HTTP', response.status, ':', JSON.stringify(result).slice(0, 300))
+    const result = await response.json() as Record<string, unknown>
+    console.log('[PASS PROXY] Réponse endpoint privé HTTP', response.status, ':', JSON.stringify(result).slice(0, 200))
 
     return NextResponse.json(result, {
       status: response.ok ? 200 : response.status,
