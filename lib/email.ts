@@ -519,7 +519,7 @@ export async function sendPassVipEmails(params: {
       <p style="margin:0 0 16px;color:#fff;font-size:15px;font-weight:700">
         Paiement reçu ? Confirmez pour activer le Pass client.
       </p>
-      <a href="${activation_url}"
+      <a href="${activation_url}/go"
          style="display:inline-block;padding:14px 32px;background:#fff;color:#10b981;
                 text-decoration:none;border-radius:8px;font-weight:700;font-size:16px">
         &#10003; Confirmer le paiement
