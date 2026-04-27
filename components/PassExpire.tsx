@@ -15,7 +15,7 @@ export default function PassExpire({ pass }: { pass: PassVipAnonyme }) {
           Renouvelez dès maintenant pour continuer à profiter du Club L&amp;Lui Signature.
         </p>
         <a
-          href="https://l-et-lui-signature.com"
+          href="https://letlui-signature.netlify.app/?cat=PASS%20VIP"
           className="inline-block bg-[#C9A84C] text-white px-6 py-3 rounded-xl text-sm font-medium"
         >
           Renouveler mon Pass →

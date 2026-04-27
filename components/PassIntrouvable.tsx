@@ -10,7 +10,7 @@ export default function PassIntrouvable() {
           Ce lien n&apos;est pas valide. Vérifiez votre message ou contactez L&amp;Lui Signature.
         </p>
         <a
-          href="https://l-et-lui-signature.com"
+          href="https://letlui-signature.netlify.app/?cat=PASS%20VIP"
           className="inline-block bg-[#C9A84C] text-white px-6 py-3 rounded-xl text-sm font-medium"
         >
           Obtenir un Pass VIP →

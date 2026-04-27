@@ -347,7 +347,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
             {/* Carte unique Pass VIP → boutique Netlify (cat + code session pour identification) */}
             <a
-              href={`https://letlui-signature.netlify.app/?cat=Pass%20VIP&code=${encodeURIComponent(session.code)}${session.code_promo_affilie ? `&promo=${encodeURIComponent(session.code_promo_affilie)}` : ''}`}
+              href={`https://letlui-signature.netlify.app/?cat=PASS%20VIP&code=${encodeURIComponent(session.code)}${session.code_promo_affilie ? `&promo=${encodeURIComponent(session.code_promo_affilie)}` : ''}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
