@@ -102,7 +102,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     code_promo = body.code_promo ?? undefined
     prescripteur_nom = body.nom_affilie ?? undefined
     prix_paye_override = body.montant
-    console.log('[WEBHOOK PASS] ✅ Pass VIP détecté:', body.type_pass, '→ grade:', grade)
+    sheets_row = body.sheets_row
+    sheets_id = body.sheets_id
+    console.log('[WEBHOOK PASS] ✅ Pass VIP détecté:', body.type_pass, '→ grade:', grade, '| sheets_row:', sheets_row)
   } else if (body.sku) {
     // Format ancien (Apps Script)
     grade = SKU_TO_GRADE[body.sku] as PassVipGrade | undefined

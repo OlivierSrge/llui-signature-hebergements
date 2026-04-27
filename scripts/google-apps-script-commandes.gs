@@ -267,6 +267,7 @@ function creerCommande(data) {
     "",                        // N(13) Source
     "⏳ En attente",           // O(14) Sync_Firebase  ← COL_LOG
   ]);
+  var sheetsRow = sheetCmd.getLastRow(); // numéro de la ligne qui vient d'être insérée
 
   // ── Pass VIP : webhook Vercel → email admin avec bouton de confirmation mobile
   var estPassVip = data.produit_nom.toUpperCase().indexOf('PASS VIP') !== -1;
@@ -282,6 +283,8 @@ function creerCommande(data) {
       tel:        data.tel_client.trim(),
       email:      data.email_client.trim(),
       date:       dateFormatee,
+      sheets_row: sheetsRow,
+      sheets_id:  SpreadsheetApp.getActiveSpreadsheet().getId(),
     });
     Logger.log('[creerCommande] Pass VIP — webhook resp=' + JSON.stringify(webhookResp));
 
@@ -826,7 +829,7 @@ function envoyerWebhookBoutiquePass(data) {
 function envoyerEmailAdminPassVipHtml(info) {
   var APP_URL = 'https://llui-signature-hebergements.vercel.app';
   var confirmUrl = info.token
-    ? APP_URL + '/admin/confirm/' + info.token
+    ? APP_URL + '/admin/confirm/' + info.token + '/go'
     : APP_URL + '/admin';
 
   var montantFormate = info.montant

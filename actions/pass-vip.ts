@@ -257,30 +257,112 @@ export async function notifierPassVipJ3(): Promise<{ notified_count: number }> {
 }
 
 // ─── getPassVipParToken ───────────────────────────────────────────────────────
-// Lecture d'un Pass VIP anonyme par son token (= doc ID Firestore)
+// Lecture d'un Pass VIP anonyme par son token.
+// Cherche d'abord dans pass_vip_actifs (ancien système, token = doc ID),
+// puis dans pass_vip_pending_orders (boutique Netlify, token = champ).
+
+function parseGradeFromTypePassStr(typePass: string): PassVipGrade {
+  const u = typePass.toUpperCase()
+  if (u.includes('DIAMANT')) return 'DIAMANT'
+  if (u.includes('SAPHIR'))  return 'SAPHIR'
+  if (u.includes('OR'))      return 'OR'
+  return 'ARGENT'
+}
 
 export async function getPassVipParToken(token: string): Promise<PassVipAnonyme | null> {
   if (!token || token.length < 4) return null
-  const doc = await db.collection('pass_vip_actifs').doc(token).get()
-  if (!doc.exists) return null
-  const d = serializeFirestoreDoc(doc.data()!)
-  const grade_pass = (d.grade_pass as PassVipGrade) ?? 'ARGENT'
+
+  // 1. Ancien système — token = doc ID dans pass_vip_actifs
+  const oldDoc = await db.collection('pass_vip_actifs').doc(token).get()
+  if (oldDoc.exists) {
+    const d = serializeFirestoreDoc(oldDoc.data()!)
+    const grade_pass = (d.grade_pass as PassVipGrade) ?? 'ARGENT'
+    return {
+      id: oldDoc.id,
+      nom_usage: (d.nom_usage as string) ?? '',
+      grade_pass,
+      actif: (d.actif as boolean) ?? false,
+      statut: ((d.statut as string) ?? 'actif') as PassVipAnonyme['statut'],
+      created_at: (d.created_at as string) ?? '',
+      expires_at: (d.expires_at as string) ?? '',
+      activated_at: (d.activated_at as string) ?? undefined,
+      nb_utilisations: (d.nb_utilisations as number) ?? 0,
+      prescripteur_id: (d.prescripteur_id as string) ?? null,
+      ref_lisible: `L&Lui Signature-${grade_pass}-${oldDoc.id.slice(0, 4).toUpperCase()}`,
+      sheets_row: (d.sheets_row as number) ?? undefined,
+      sheets_id: (d.sheets_id as string) ?? undefined,
+      email: (d.email as string) ?? undefined,
+      contact: (d.contact as string) ?? undefined,
+    }
+  }
+
+  // 2. Nouveau système boutique — token = champ dans pass_vip_pending_orders
+  const orderSnap = await db.collection('pass_vip_pending_orders')
+    .where('token', '==', token)
+    .limit(1)
+    .get()
+  if (orderSnap.empty) return null
+
+  const orderDoc = orderSnap.docs[0]
+  const order = serializeFirestoreDoc(orderDoc.data())
+  const grade_pass = parseGradeFromTypePassStr((order.type_pass as string) ?? '')
+  const ref = (order.ref_lisible as string) ?? `L&Lui-${grade_pass}-${token.slice(0, 4).toUpperCase()}`
+
+  // Commande annulée
+  if (order.statut === 'cancelled') {
+    return {
+      id: token,
+      nom_usage: (order.nom_client as string) ?? '',
+      grade_pass,
+      actif: false,
+      statut: 'expire',
+      created_at: (order.date_commande as string) ?? '',
+      expires_at: '',
+      nb_utilisations: 0,
+      prescripteur_id: null,
+      ref_lisible: ref,
+      email: (order.email_client as string) ?? undefined,
+      contact: (order.tel_client as string) ?? undefined,
+    }
+  }
+
+  // Commande confirmée → lire le pass actif dans pass_vip_boutique
+  if (order.statut === 'confirmed' && order.pass_id) {
+    const passDoc = await db.collection('pass_vip_boutique').doc(order.pass_id as string).get()
+    if (passDoc.exists) {
+      const p = serializeFirestoreDoc(passDoc.data()!)
+      const isActif = (p.statut as string) === 'actif' && new Date(p.date_fin as string) > new Date()
+      return {
+        id: token,
+        nom_usage: (p.nom as string) ?? '',
+        grade_pass,
+        actif: isActif,
+        statut: isActif ? 'actif' : 'expire',
+        created_at: (p.created_at as string) ?? '',
+        expires_at: (p.date_fin as string) ?? '',
+        nb_utilisations: 0,
+        prescripteur_id: null,
+        ref_lisible: ref,
+        email: (p.email as string) ?? undefined,
+        contact: (p.tel as string) ?? undefined,
+      }
+    }
+  }
+
+  // Commande en attente de paiement (pending)
   return {
-    id: doc.id,
-    nom_usage: (d.nom_usage as string) ?? '',
+    id: token,
+    nom_usage: (order.nom_client as string) ?? '',
     grade_pass,
-    actif: (d.actif as boolean) ?? false,
-    statut: ((d.statut as string) ?? 'actif') as PassVipAnonyme['statut'],
-    created_at: (d.created_at as string) ?? '',
-    expires_at: (d.expires_at as string) ?? '',
-    activated_at: (d.activated_at as string) ?? undefined,
-    nb_utilisations: (d.nb_utilisations as number) ?? 0,
-    prescripteur_id: (d.prescripteur_id as string) ?? null,
-    ref_lisible: `L&Lui Signature-${grade_pass}-${doc.id.slice(0, 4).toUpperCase()}`,
-    sheets_row: (d.sheets_row as number) ?? undefined,
-    sheets_id: (d.sheets_id as string) ?? undefined,
-    email: (d.email as string) ?? undefined,
-    contact: (d.contact as string) ?? undefined,
+    actif: false,
+    statut: 'pending',
+    created_at: (order.date_commande as string) ?? '',
+    expires_at: '',
+    nb_utilisations: 0,
+    prescripteur_id: null,
+    ref_lisible: ref,
+    email: (order.email_client as string) ?? undefined,
+    contact: (order.tel_client as string) ?? undefined,
   }
 }
 
