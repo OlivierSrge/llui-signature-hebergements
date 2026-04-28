@@ -124,7 +124,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const passUrl       = `${APP_URL}/pass/${token}`
   const activationUrl = `${APP_URL}/admin/confirm/${token}`
 
-  sendPassVipEmails({
+  await sendPassVipEmails({
     nom_usage:        nom.toUpperCase(),
     grade,
     duree:            config.duree_jours,
