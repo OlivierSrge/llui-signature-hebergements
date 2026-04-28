@@ -117,10 +117,15 @@ function doPost(e) {
 
   var resultat;
 
-  if (data.action === "commande") {
-    resultat = creerCommande(data);
-  } else {
-    resultat = { succes: false, message: "Action inconnue" };
+  try {
+    if (data.action === "commande") {
+      resultat = creerCommande(data);
+    } else {
+      resultat = { succes: false, message: "Action inconnue" };
+    }
+  } catch (err) {
+    Logger.log('[doPost] ERREUR inattendue : ' + err.toString());
+    resultat = { succes: false, message: "Erreur serveur : " + err.toString() };
   }
 
   return ContentService
