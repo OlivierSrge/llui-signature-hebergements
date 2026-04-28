@@ -2486,3 +2486,45 @@ validated_at?, rejected_at?, validated_by?
 
 ### Règle WhatsApp respectée
 Toutes les notifs WhatsApp de `actions/qr-scan.ts` passent par `fetch /api/whatsapp/send`.
+
+---
+
+## 2026-04-28 — Régression Pass VIP "Erreur de connexion" — Diagnostic & Fix
+
+### Problème
+Depuis le déploiement de la boutique Netlify sans commit `3dee5f2` (jamais poussé sur GitHub),
+les commandes Pass VIP échouaient avec "Erreur de connexion".
+
+### Diagnostic
+1. **Boutique Netlify** déployait `3959c53` (code manuel GitHub) avec :
+   - `prixFinal` → undefined (JavaScript plantait AVANT le fetch)
+   - `nomAffilie` → undefined
+   - `afficherConfirmation(data)` pour Pass VIP → données manquantes (`data.client`, `data.montant_final`)
+2. **Proxy Vercel** (`/api/boutique/pass-proxy`) : retourne 403 depuis IPs cloud/CI
+   (Vercel WAF bloque les serveurs CI — les vrais navigateurs ne sont PAS bloqués)
+3. **Apps Script** (`doPost()`) : manquait try-catch autour de `creerCommande()` 
+   → exceptions non gérées → réponse HTML 500 → `resp.json()` throws → "Erreur de connexion"
+
+### Fixes appliqués
+
+**Vercel repo (`llui-signature-hebergements`) :**
+- `731ca22` — `doPost()` try-catch dans `google-apps-script-commandes.gs`
+- `d392942` — sw.js régénéré post build-check
+
+**Boutique (`letlui`) app.js — fix en working tree (push manuel requis) :**
+- `prixFinal` → `montantFinal` (calculé depuis `produitActuel.prix × quantiteSelectionnee` - promo)
+- `nomAffilie || null` → `null`
+- `Content-Type: application/json` → `text/plain` (supprime CORS preflight OPTIONS)
+- Confirmation Pass VIP dédiée avec `nom`/`produitActuel.nom`/`montantFinal` au lieu de `afficherConfirmation(data)`
+
+### Scripts de diagnostic créés dans `/home/user/letlui/`
+- `test-proxy-direct.sh` — teste le proxy Vercel directement (POST text/plain)
+- `verify-pass-vip.sh` — vérifie 2 points automatisables + instructions test manuel
+
+### Commandes pour déployer le fix boutique
+```bash
+cd /home/user/letlui
+git add app.js test-proxy-direct.sh verify-pass-vip.sh
+git commit -m "fix(pass-vip): prixFinal/nomAffilie undefined + text/plain + confirmation dédiée"
+git push origin main
+```
