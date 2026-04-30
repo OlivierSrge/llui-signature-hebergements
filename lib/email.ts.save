@@ -2,7 +2,6 @@ import { Resend } from 'resend'
 import { sendBrevoEmail } from './email-brevo'
 
 let _resend: Resend | null = null
-
 function getResend(): Resend {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY)
   return _resend
@@ -611,16 +610,16 @@ export async function sendPassVipEmails(params: {
     console.error('[EMAIL PASS] Admin erreur ❌:', e)
   }
 
-  // Email client (optionnel) - via Brevo
+  // Email client (optionnel)
   if (email) {
     try {
-      const clientSent = await sendBrevoEmail({
+      const clientResult = await getResend().emails.send({
+        from: FROM,
         to: email,
-        toName: nom_usage,
         subject: `✦ Votre commande Pass ${grade} — L&Lui Signature`,
-        htmlContent: clientHtmlContent,
+        html: clientHtmlContent,
       })
-      console.log('[EMAIL PASS] Client envoyé ✅ (Brevo):', clientSent)
+      console.log('[EMAIL PASS] Client envoyé ✅:', JSON.stringify(clientResult))
     } catch (e) {
       console.error('[EMAIL PASS] Client erreur ❌:', e)
     }

@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { sendPassVipEmails } from '@/lib/email'
+import { sendBrevoEmail } from '@/lib/email-brevo';
 import { PASS_VIP_CONFIGS } from '@/types/pass-vip'
 import { GRADE_CONFIGS } from '@/types/stars-grade'
 import type { PassVipGrade } from '@/types/pass-vip'
