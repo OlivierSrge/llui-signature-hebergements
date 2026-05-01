@@ -397,7 +397,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 marginBottom: '15px',
                 textAlign: 'center',
               }}>
-                💎 Pass VIP Boutique L&amp;Lui
+                💎 Pass VIP L&amp;Lui Signature
               </h3>
 
               <p style={{
@@ -408,7 +408,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 lineHeight: 1.6,
               }}>
                 Accédez à des <strong style={{ color: '#C9A84C' }}>réductions exclusives</strong> et des
-                privilèges premium dans notre boutique
+                offres privilégiées chez nos partenaires Kribi
               </p>
 
               {/* Aperçu 3 Pass */}
