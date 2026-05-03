@@ -134,6 +134,28 @@ export interface AllianceChatMessage {
   created_at: string
 }
 
+// ─── Carte + Portrait fusionnés (pour affichage) ─────────────────────────────
+
+export interface CardDetails {
+  // Carte
+  card_id: string
+  card_number: string
+  tier: AllianceCardTier
+  status: CardStatus
+  activated_at: string
+  expires_at: string
+  prix_paye_fcfa: number
+  partenaire_id: string
+  // Portrait
+  prenom: string
+  age: number
+  ville: string
+  profession: string
+  photo_url?: string
+  // Partenaire
+  nom_etablissement: string
+}
+
 // ─── Configs UI ──────────────────────────────────────────────────────────────
 
 export interface TierConfig {

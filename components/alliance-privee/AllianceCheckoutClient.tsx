@@ -27,9 +27,12 @@ export default function AllianceCheckoutClient({ partner, tier, partenaireId }: 
   const prix = prixMap[tier]
   const revolutLink = revolutLinkMap[tier]
 
+  const [paidViaRevolut, setPaidViaRevolut] = useState(false)
+
   function handlePayer() {
     if (revolutLink) {
-      window.location.href = revolutLink
+      setPaidViaRevolut(true)
+      window.open(revolutLink, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -95,15 +98,31 @@ export default function AllianceCheckoutClient({ partner, tier, partenaireId }: 
           </p>
 
           {revolutLink ? (
-            <button
-              onClick={handlePayer}
-              className="w-full py-3.5 rounded-xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
-              Payer {config.prix_eur}€ — {prix.toLocaleString('fr-FR')} FCFA
-            </button>
+            <>
+              <button
+                onClick={handlePayer}
+                className="w-full py-3.5 rounded-xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                Payer {config.prix_eur}€ — {prix.toLocaleString('fr-FR')} FCFA
+              </button>
+              {paidViaRevolut && (
+                <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+                  <p className="text-amber-300 text-xs mb-3">
+                    ✓ Paiement initié — complétez maintenant votre candidature.<br/>
+                    Votre carte sera activée dès confirmation du règlement.
+                  </p>
+                  <button
+                    onClick={handleContinuerSansPaiement}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 text-black font-semibold text-xs hover:bg-amber-400 transition-colors"
+                  >
+                    Continuer ma candidature →
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-3 text-white/30 text-xs border border-dashed border-white/10 rounded-xl">
               Lien de paiement non configuré — contactez l&apos;établissement

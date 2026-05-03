@@ -15,9 +15,11 @@ import {
   type AllianceChatMessage,
   type AllianceCardTier,
   type ApplicationStatus,
+  type CardDetails,
   analyserMessageSentinelle,
   TIER_CONFIGS,
 } from '@/types/alliance-privee'
+import { sendBrevoEmail } from '@/lib/email-brevo'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
@@ -210,11 +212,22 @@ export async function traiterCandidature(
       await cardRef.update({ portrait_id: portraitRef.id })
       portrait_id = portraitRef.id
 
-      // Notif candidat
+      // Lien vers la carte
+      const carteUrl = `${APP_URL}/alliance-privee/carte?card_id=${cardRef.id}`
+
+      // Notif candidat WhatsApp avec lien carte
       await sendWhatsApp(
         app.telephone,
-        `✦ *Alliance Privée L&Lui* — Félicitations !\n\nVotre candidature ${app.tier_souhaite} a été *approuvée*.\nVotre carte membre *${cardNumber}* est active.\n\nBienvenue dans le cercle sélectif.`
+        `✦ *Alliance Privée L&Lui* — Félicitations !\n\nVotre candidature ${app.tier_souhaite} a été *approuvée*.\nVotre carte membre *${cardNumber}* est active.\n\n🎴 Accédez à votre carte :\n${carteUrl}\n\nBienvenue dans le cercle sélectif.`
       )
+
+      // Email si fourni
+      if (app.email) {
+        const cardDetails = await getMemberCardDetails(cardRef.id)
+        if (cardDetails) {
+          await sendCardByEmail(cardRef.id, app.email, cardDetails)
+        }
+      }
     } else if (decision === 'refuse') {
       await sendWhatsApp(
         app.telephone,
@@ -228,6 +241,124 @@ export async function traiterCandidature(
     const msg = e instanceof Error ? e.message : String(e)
     return { success: false, error: msg }
   }
+}
+
+// ─── Carte membre — lecture + email ───────────────────────────────────────────
+
+export async function getMemberCardDetails(cardId: string): Promise<CardDetails | null> {
+  const cardSnap = await db.collection(COL_CARDS).doc(cardId).get()
+  if (!cardSnap.exists) return null
+  const card = { id: cardSnap.id, ...cardSnap.data() } as AllianceMemberCard
+
+  const [portraitSnap, partnerSnap] = await Promise.all([
+    card.portrait_id ? db.collection(COL_PORTRAITS).doc(card.portrait_id).get() : Promise.resolve(null),
+    db.collection(COL_PARTNERS).doc(card.partenaire_id).get(),
+  ])
+
+  const portrait = portraitSnap?.exists ? portraitSnap.data() as AlliancePortraitVerified : null
+  const partner = partnerSnap.exists ? partnerSnap.data() as AlliancePartner : null
+
+  return {
+    card_id: card.id,
+    card_number: card.card_number,
+    tier: card.tier,
+    status: card.status,
+    activated_at: card.activated_at,
+    expires_at: card.expires_at,
+    prix_paye_fcfa: card.prix_paye_fcfa,
+    partenaire_id: card.partenaire_id,
+    prenom: portrait?.prenom ?? 'Membre',
+    age: portrait?.age ?? 0,
+    ville: portrait?.ville ?? '',
+    profession: portrait?.profession ?? '',
+    photo_url: portrait?.photo_url,
+    nom_etablissement: partner?.nom_etablissement ?? 'Alliance Privée',
+  }
+}
+
+export async function sendCardByEmail(
+  cardId: string,
+  email: string,
+  cardDetails: CardDetails
+): Promise<{ success: boolean; error?: string }> {
+  const cardUrl = `${APP_URL}/alliance-privee/carte?card_id=${cardId}`
+  const config = TIER_CONFIGS[cardDetails.tier]
+  const expiresFormatted = new Date(cardDetails.expires_at).toLocaleDateString('fr-FR', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  })
+
+  const gradientMap: Record<string, string> = {
+    PRESTIGE: 'linear-gradient(135deg, #1a0e00 0%, #2d1a00 50%, #1a0e00 100%)',
+    EXCELLENCE: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)',
+    ELITE: 'linear-gradient(135deg, #0a0010 0%, #1a0030 50%, #0a0010 100%)',
+  }
+  const accentMap: Record<string, string> = {
+    PRESTIGE: '#C9A84C',
+    EXCELLENCE: '#E8E8E8',
+    ELITE: '#B9F2FF',
+  }
+  const gradient = gradientMap[cardDetails.tier] ?? gradientMap.PRESTIGE
+  const accent = accentMap[cardDetails.tier] ?? accentMap.PRESTIGE
+
+  const html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;padding:0 20px;">
+
+    <!-- En-tête -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <p style="color:#C9A84C;font-size:11px;letter-spacing:4px;text-transform:uppercase;margin:0 0 8px;">✦ Alliance Privée ✦</p>
+      <h1 style="color:#ffffff;font-size:22px;font-weight:300;margin:0;">Votre carte membre est prête</h1>
+    </div>
+
+    <!-- Carte digitale -->
+    <div style="background:${gradient};border:1px solid ${accent}33;border-radius:20px;padding:32px;margin-bottom:24px;position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;">
+        <div>
+          <p style="color:${accent};font-size:10px;letter-spacing:3px;text-transform:uppercase;margin:0 0 4px;">Alliance Privée</p>
+          <p style="color:${accent};font-size:16px;font-weight:600;margin:0;">${config.emoji} ${config.label}</p>
+        </div>
+        <p style="color:${accent}99;font-size:11px;margin:0;font-family:monospace;">${cardDetails.card_number}</p>
+      </div>
+      <p style="color:#ffffff;font-size:24px;font-weight:300;letter-spacing:2px;margin:0 0 4px;">${cardDetails.prenom}</p>
+      <p style="color:#ffffff66;font-size:12px;margin:0 0 24px;">${cardDetails.profession} · ${cardDetails.ville}</p>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <p style="color:#ffffff44;font-size:9px;text-transform:uppercase;letter-spacing:2px;margin:0 0 2px;">Expire le</p>
+          <p style="color:#ffffff88;font-size:12px;margin:0;">${expiresFormatted}</p>
+        </div>
+        <p style="color:${accent}88;font-size:22px;margin:0;">♛</p>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <a href="${cardUrl}" style="display:inline-block;background:${accent};color:#000000;font-size:13px;font-weight:600;padding:14px 32px;border-radius:12px;text-decoration:none;letter-spacing:0.5px;">
+        Voir ma carte en ligne →
+      </a>
+    </div>
+
+    <!-- Pied de page -->
+    <div style="border-top:1px solid #ffffff0f;padding-top:24px;text-align:center;">
+      <p style="color:#ffffff33;font-size:11px;line-height:1.6;margin:0;">
+        ${cardDetails.nom_etablissement} · Alliance Privée L&Lui<br>
+        Toutes vos informations sont traitées avec la plus stricte confidentialité.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+
+  const ok = await sendBrevoEmail({
+    to: email,
+    toName: cardDetails.prenom,
+    subject: `✦ Votre carte Alliance Privée ${config.label} — ${cardDetails.card_number}`,
+    htmlContent: html,
+  })
+
+  return ok ? { success: true } : { success: false, error: 'Échec envoi Brevo' }
 }
 
 // ─── Portraits ────────────────────────────────────────────────────────────────
