@@ -51,15 +51,12 @@ async function sendWhatsApp(telephone: string, message: string): Promise<void> {
 // ─── Partenaires Alliance ─────────────────────────────────────────────────────
 
 export async function getAlliancePartner(partenaireId: string): Promise<AlliancePartner | null> {
-  const snap = await db
-    .collection(COL_PARTNERS)
-    .where('partenaire_id', '==', partenaireId)
-    .where('alliance_active', '==', true)
-    .limit(1)
-    .get()
-  if (snap.empty) return null
-  const doc = snap.docs[0]
-  return { id: doc.id, ...doc.data() } as AlliancePartner
+  // pid dans l'URL = doc ID Firestore (pas un champ partenaire_id)
+  const snap = await db.collection(COL_PARTNERS).doc(partenaireId).get()
+  if (!snap.exists) return null
+  const data = snap.data()!
+  if (!data.alliance_active) return null
+  return { id: snap.id, ...data } as AlliancePartner
 }
 
 export async function getAllAlliancePartners(): Promise<AlliancePartner[]> {
