@@ -68,8 +68,8 @@ export default function AllianceCheckoutClient({ partner, tier, partenaireId }: 
               <p className="text-white/40 text-xs mt-1">{config.tagline}</p>
             </div>
             <div className="text-right">
-              <div className="text-amber-400 font-bold text-xl">{prix.toLocaleString('fr-FR')}</div>
-              <div className="text-white/30 text-xs">FCFA</div>
+              <div className="text-amber-400 font-bold text-xl">{config.prix_eur}€</div>
+              <div className="text-white/40 text-xs">{prix.toLocaleString('fr-FR')} FCFA</div>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -102,7 +102,7 @@ export default function AllianceCheckoutClient({ partner, tier, partenaireId }: 
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
               </svg>
-              Payer {prix.toLocaleString('fr-FR')} FCFA
+              Payer {config.prix_eur}€ — {prix.toLocaleString('fr-FR')} FCFA
             </button>
           ) : (
             <div className="text-center py-3 text-white/30 text-xs border border-dashed border-white/10 rounded-xl">

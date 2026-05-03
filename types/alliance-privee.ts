@@ -145,6 +145,7 @@ export interface TierConfig {
   border: string                  // Tailwind border classes
   badge: string                   // Tailwind badge classes
   prix_defaut_fcfa: number
+  prix_eur: number                // tarif en euros (paiement Revolut)
   avantages: string[]
 }
 
@@ -157,7 +158,8 @@ export const TIER_CONFIGS: Record<AllianceCardTier, TierConfig> = {
     gradient: 'from-amber-950 via-amber-900 to-amber-950',
     border: 'border-amber-500/40',
     badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-    prix_defaut_fcfa: 25000,
+    prix_defaut_fcfa: 50000,
+    prix_eur: 150,
     avantages: [
       'Accès au club Alliance Privée',
       'Portrait vérifié publié',
@@ -174,7 +176,8 @@ export const TIER_CONFIGS: Record<AllianceCardTier, TierConfig> = {
     gradient: 'from-slate-900 via-slate-800 to-slate-900',
     border: 'border-slate-400/40',
     badge: 'bg-slate-400/20 text-slate-200 border border-slate-400/30',
-    prix_defaut_fcfa: 50000,
+    prix_defaut_fcfa: 100000,
+    prix_eur: 250,
     avantages: [
       'Tout Prestige +',
       'Jusqu\'à 8 propositions de rencontres / mois',
@@ -191,7 +194,8 @@ export const TIER_CONFIGS: Record<AllianceCardTier, TierConfig> = {
     gradient: 'from-black via-purple-950 to-black',
     border: 'border-purple-400/40',
     badge: 'bg-purple-500/20 text-purple-200 border border-purple-400/30',
-    prix_defaut_fcfa: 100000,
+    prix_defaut_fcfa: 200000,
+    prix_eur: 500,
     avantages: [
       'Tout Excellence +',
       'Propositions illimitées',

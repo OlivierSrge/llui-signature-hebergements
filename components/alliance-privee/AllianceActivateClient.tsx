@@ -99,9 +99,11 @@ export default function AllianceActivateClient({ partner, partenaireId }: Props)
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-amber-400 font-semibold text-lg">
-                      {prix.toLocaleString('fr-FR')}
+                      {config.prix_eur}€
                     </div>
-                    <div className="text-white/30 text-xs">FCFA</div>
+                    <div className="text-white/40 text-xs">
+                      {prix.toLocaleString('fr-FR')} FCFA
+                    </div>
                   </div>
                 </div>
               </button>
