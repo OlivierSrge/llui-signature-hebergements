@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import {
   type AlliancePartner,
   type AllianceApplication,
@@ -13,6 +14,27 @@ import {
   upsertAlliancePartner,
   traiterCandidature,
 } from '@/actions/alliance-privee'
+
+const BASE_URL = 'https://llui-signature-hebergements.vercel.app'
+
+function slugifyNom(nom: string): string {
+  return nom
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // accents
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+}
+
+function getQrPath(p: AlliancePartner): string {
+  const slug = slugifyNom(p.nom_etablissement || p.id)
+  return `/qr-codes/alliance/${slug}.png`
+}
+
+function getActivateUrl(p: AlliancePartner): string {
+  return `${BASE_URL}/alliance-privee/activate?pid=${p.id}`
+}
 
 interface Props {
   partners: AlliancePartner[]
@@ -146,8 +168,9 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
                 {partners.map((p) => (
                   <div key={p.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                     <div className="flex items-start justify-between gap-4 mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
+                      {/* Infos + actions */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="font-semibold text-white">{p.nom_etablissement}</span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full border ${
@@ -159,27 +182,35 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
                             {p.alliance_active ? '● Actif' : '○ Inactif'}
                           </span>
                         </div>
-                        <p className="text-white/30 text-xs font-mono">{p.partenaire_id}</p>
+                        <p className="text-white/30 text-xs font-mono truncate">{p.id}</p>
+
+                        {/* URL d'activation + copie */}
+                        <QrUrlRow activateUrl={getActivateUrl(p)} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => (editPartnerId === p.id ? setEditPartnerId(null) : startEdit(p))}
-                          className="px-3 py-1.5 rounded-lg border border-white/10 text-white/50 text-xs hover:border-white/20 transition-colors"
-                        >
-                          {editPartnerId === p.id ? 'Annuler' : 'Modifier'}
-                        </button>
-                        <button
-                          onClick={() => handleToggle(p)}
-                          disabled={loadingId === p.id}
-                          className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-                            p.alliance_active
-                              ? 'bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30'
-                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
-                          }`}
-                        >
-                          {loadingId === p.id ? '...' : p.alliance_active ? 'Désactiver' : 'Activer'}
-                        </button>
-                      </div>
+
+                      {/* QR code */}
+                      <QrBlock qrPath={getQrPath(p)} activateUrl={getActivateUrl(p)} nom={p.nom_etablissement} />
+                    </div>
+
+                    {/* Boutons Modifier / Activer */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={() => (editPartnerId === p.id ? setEditPartnerId(null) : startEdit(p))}
+                        className="px-3 py-1.5 rounded-lg border border-white/10 text-white/50 text-xs hover:border-white/20 transition-colors"
+                      >
+                        {editPartnerId === p.id ? 'Annuler' : 'Modifier'}
+                      </button>
+                      <button
+                        onClick={() => handleToggle(p)}
+                        disabled={loadingId === p.id}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+                          p.alliance_active
+                            ? 'bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                        }`}
+                      >
+                        {loadingId === p.id ? '...' : p.alliance_active ? 'Désactiver' : 'Activer'}
+                      </button>
                     </div>
 
                     {editPartnerId === p.id && (
@@ -366,6 +397,93 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── QR Code block ────────────────────────────────────────────────────────────
+
+function QrBlock({ qrPath, activateUrl, nom }: { qrPath: string; activateUrl: string; nom: string }) {
+  const [enlarged, setEnlarged] = useState(false)
+
+  return (
+    <>
+      <div className="shrink-0 flex flex-col items-center gap-2">
+        <button
+          onClick={() => setEnlarged(true)}
+          title="Agrandir le QR code"
+          className="w-20 h-20 rounded-xl border border-amber-500/20 bg-white p-1.5 hover:border-amber-500/50 transition-colors overflow-hidden"
+        >
+          <Image
+            src={qrPath}
+            alt={`QR ${nom}`}
+            width={80}
+            height={80}
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              // QR pas encore généré — affiche placeholder
+              (e.target as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        </button>
+        <a
+          href={qrPath}
+          download
+          className="text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors"
+        >
+          ↓ Télécharger
+        </a>
+      </div>
+
+      {/* Modale agrandissement */}
+      {enlarged && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setEnlarged(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-black text-center text-sm font-semibold mb-4">{nom}</p>
+            <Image src={qrPath} alt={`QR ${nom}`} width={300} height={300} className="w-full h-auto" />
+            <div className="flex gap-2 mt-4">
+              <a
+                href={qrPath}
+                download
+                className="flex-1 py-2 rounded-xl bg-black text-white text-xs text-center font-medium hover:bg-gray-800 transition-colors"
+              >
+                ↓ Télécharger PNG
+              </a>
+              <button
+                onClick={() => setEnlarged(false)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-xs hover:bg-gray-50 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function QrUrlRow({ activateUrl }: { activateUrl: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    await navigator.clipboard.writeText(activateUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <span className="text-white/25 text-[10px] truncate max-w-[220px]">{activateUrl}</span>
+      <button
+        onClick={copy}
+        className="shrink-0 text-[10px] px-2 py-0.5 rounded-md border border-amber-500/20 text-amber-400/70 hover:text-amber-400 hover:border-amber-500/40 transition-colors"
+      >
+        {copied ? '✓ Copié' : 'Copier'}
+      </button>
     </div>
   )
 }
