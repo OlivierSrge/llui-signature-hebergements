@@ -470,6 +470,21 @@ export async function getPortraitsVerifies(
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as AlliancePortraitVerified)
 }
 
+export async function togglePortraitActif(
+  portraitId: string,
+  actif: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(COL_PORTRAITS).doc(portraitId).update({
+      actif,
+      updated_at: new Date().toISOString(),
+    })
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 // ─── Matches ──────────────────────────────────────────────────────────────────
 
 export async function getMatchesPourPortrait(portraitId: string): Promise<AllianceMatch[]> {

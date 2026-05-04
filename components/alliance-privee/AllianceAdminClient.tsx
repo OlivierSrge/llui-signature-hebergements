@@ -15,6 +15,7 @@ import {
   upsertAlliancePartner,
   traiterCandidature,
   verifierPaiement,
+  togglePortraitActif,
 } from '@/actions/alliance-privee'
 import { fermerMatch, type MatchDoc } from '@/actions/alliance-privee-matching'
 
@@ -39,17 +40,37 @@ function getActivateUrl(p: AlliancePartner): string {
   return `${BASE_URL}/alliance-privee/activate?pid=${p.id}`
 }
 
+// Type local portrait admin (plus souple que AlliancePortraitVerified)
+interface PortraitAdmin {
+  id: string
+  prenom: string
+  age: number
+  ville: string
+  profession: string
+  gender?: string
+  location?: string
+  tier: AllianceCardTier
+  actif?: boolean
+  is_demo?: boolean
+  photo_principale_floutee?: string
+  photo_url?: string
+  nombre_interets?: number
+  nombre_vues?: number
+  created_at?: string
+}
+
 interface Props {
   partners: AlliancePartner[]
   candidatures: AllianceApplication[]
   stats: AllianceStats
   paiements: AlliancePayment[]
   matchs?: MatchDoc[]
+  portraits?: PortraitAdmin[]
 }
 
-type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures' | 'matchs'
+type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures' | 'matchs' | 'profils'
 
-export default function AllianceAdminClient({ partners, candidatures, stats, paiements, matchs = [] }: Props) {
+export default function AllianceAdminClient({ partners, candidatures, stats, paiements, matchs = [], portraits = [] }: Props) {
   const [tab, setTab] = useState<Tab>('stats')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [editPartnerId, setEditPartnerId] = useState<string | null>(null)
@@ -122,7 +143,7 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
             <span className="font-semibold text-white">Alliance Privée — Admin</span>
           </div>
           <div className="flex items-center gap-1 flex-wrap">
-            {(['stats', 'partenaires', 'paiements', 'candidatures', 'matchs'] as Tab[]).map((t) => (
+            {(['stats', 'profils', 'partenaires', 'paiements', 'candidatures', 'matchs'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -130,7 +151,12 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
                   tab === t ? 'bg-amber-500/20 text-amber-300' : 'text-white/40 hover:text-white/60'
                 }`}
               >
-                {t === 'matchs' ? '💎 Matchs' : t}
+                {t === 'matchs' ? '💎 Matchs' : t === 'profils' ? `◈ Profils` : t}
+                {t === 'profils' && portraits.length > 0 && (
+                  <span className="ml-1.5 bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {portraits.length}
+                  </span>
+                )}
                 {t === 'candidatures' && pendingCandidatures.length > 0 && (
                   <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                     {pendingCandidatures.length}
@@ -153,6 +179,11 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
       </div>
 
       <div className="max-w-5xl mx-auto px-5 py-8">
+        {/* ─── Onglet Profils ───────────────────────────────────────── */}
+        {tab === 'profils' && (
+          <ProfilsAdminPanel portraits={portraits} />
+        )}
+
         {/* Onglet Stats */}
         {tab === 'stats' && (
           <div>
@@ -625,6 +656,232 @@ function MatchAdminRow({ match, onClose }: { match: MatchDoc; onClose: (id: stri
             </button>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Profils Admin Panel ──────────────────────────────────────────────────────
+
+function ProfilsAdminPanel({ portraits }: { portraits: PortraitAdmin[] }) {
+  const [filterGender, setFilterGender] = useState<string>('TOUS')
+  const [filterTier, setFilterTier] = useState<string>('TOUS')
+  const [filterLocation, setFilterLocation] = useState<string>('TOUS')
+  const [disabledIds, setDisabledIds] = useState<Set<string>>(new Set())
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  const filtered = portraits.filter((p) => {
+    if (filterGender !== 'TOUS' && (p.gender ?? 'HOMME') !== filterGender) return false
+    if (filterTier !== 'TOUS' && p.tier !== filterTier) return false
+    if (filterLocation !== 'TOUS' && (p.location ?? 'LOCAL') !== filterLocation) return false
+    return true
+  })
+
+  async function handleToggleActif(p: PortraitAdmin) {
+    setLoadingId(p.id)
+    const nowActif = p.actif !== false && !disabledIds.has(p.id)
+    await togglePortraitActif(p.id, !nowActif)
+    setDisabledIds((prev) => {
+      const next = new Set(prev)
+      if (nowActif) next.add(p.id)
+      else next.delete(p.id)
+      return next
+    })
+    setLoadingId(null)
+  }
+
+  const tierColors: Record<string, string> = {
+    PRESTIGE: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
+    EXCELLENCE: 'text-slate-300 border-slate-400/30 bg-slate-400/10',
+    ELITE: 'text-purple-300 border-purple-400/30 bg-purple-500/10',
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h2 className="text-xl font-serif font-light text-white">
+          Portraits membres
+          <span className="ml-3 text-sm text-amber-400">{portraits.length} total · {filtered.length} affichés</span>
+        </h2>
+
+        {/* Filtres */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filterGender}
+            onChange={(e) => setFilterGender(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40"
+          >
+            <option value="TOUS">Genre : Tous</option>
+            <option value="HOMME">Homme</option>
+            <option value="FEMME">Femme</option>
+          </select>
+
+          <select
+            value={filterTier}
+            onChange={(e) => setFilterTier(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40"
+          >
+            <option value="TOUS">Tier : Tous</option>
+            <option value="PRESTIGE">Prestige</option>
+            <option value="EXCELLENCE">Excellence</option>
+            <option value="ELITE">Elite</option>
+          </select>
+
+          <select
+            value={filterLocation}
+            onChange={(e) => setFilterLocation(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/40"
+          >
+            <option value="TOUS">Localisation : Tous</option>
+            <option value="DIASPORA">Diaspora</option>
+            <option value="LOCAL">Local</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-white/30 border border-white/5 rounded-2xl">
+          <p className="text-4xl mb-3">◈</p>
+          <p>Aucun profil ne correspond aux filtres.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-white/10">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/10 bg-white/[0.02]">
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Profil</th>
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Tier</th>
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Genre</th>
+                <th className="text-left px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Lieu</th>
+                <th className="text-right px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Intérêts</th>
+                <th className="text-right px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Vues</th>
+                <th className="text-right px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Statut</th>
+                <th className="text-right px-4 py-3 text-white/40 text-xs font-normal uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filtered.map((p) => {
+                const isActif = p.actif !== false && !disabledIds.has(p.id)
+                const photo = p.photo_principale_floutee ?? p.photo_url
+
+                return (
+                  <tr key={p.id} className={`hover:bg-white/[0.02] transition-colors ${!isActif ? 'opacity-40' : ''}`}>
+                    {/* Profil */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className="w-9 h-9 rounded-full bg-white/5 flex-shrink-0 overflow-hidden flex items-center justify-center border border-white/10">
+                          {photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={photo}
+                              alt={p.prenom}
+                              className="w-full h-full object-cover blur-[3px]"
+                            />
+                          ) : (
+                            <span
+                              className="text-sm font-semibold"
+                              style={{ color: TIER_CONFIGS[p.tier]?.color ?? '#D4AF37' }}
+                            >
+                              {p.prenom.charAt(0)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-medium truncate">
+                            {p.prenom}
+                            {p.is_demo && (
+                              <span className="ml-1.5 text-[9px] text-white/25 border border-white/10 rounded px-1">démo</span>
+                            )}
+                          </p>
+                          <p className="text-white/40 text-xs">{p.age} ans · {p.profession.length > 25 ? p.profession.substring(0, 23) + '…' : p.profession}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Tier */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${tierColors[p.tier] ?? ''}`}>
+                        {TIER_CONFIGS[p.tier]?.emoji} {p.tier}
+                      </span>
+                    </td>
+
+                    {/* Genre */}
+                    <td className="px-4 py-3 text-white/60 text-xs">
+                      {p.gender === 'FEMME' ? '👩 F' : '👨 H'}
+                    </td>
+
+                    {/* Localisation */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-white/50">
+                        {p.location === 'DIASPORA' ? '✈️ ' : '📍 '}
+                        {p.ville}
+                      </span>
+                    </td>
+
+                    {/* Intérêts */}
+                    <td className="px-4 py-3 text-right text-white/60 text-xs tabular-nums">
+                      {p.nombre_interets ?? 0}
+                    </td>
+
+                    {/* Vues */}
+                    <td className="px-4 py-3 text-right text-white/60 text-xs tabular-nums">
+                      {p.nombre_vues ?? 0}
+                    </td>
+
+                    {/* Statut */}
+                    <td className="px-4 py-3 text-right">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                        isActif
+                          ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                          : 'text-white/30 border-white/10 bg-white/5'
+                      }`}>
+                        {isActif ? '● Actif' : '○ Inactif'}
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <a
+                          href={`/alliance-privee/dashboard?demo=${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] border border-white/15 text-white/50 rounded-lg px-2.5 py-1 hover:border-amber-500/30 hover:text-amber-400 transition-all"
+                        >
+                          Voir
+                        </a>
+                        <button
+                          onClick={() => handleToggleActif(p)}
+                          disabled={loadingId === p.id}
+                          className={`text-[10px] border rounded-lg px-2.5 py-1 transition-all disabled:opacity-40 ${
+                            isActif
+                              ? 'border-red-500/20 text-red-400/70 hover:bg-red-500/10'
+                              : 'border-emerald-500/20 text-emerald-400/70 hover:bg-emerald-500/10'
+                          }`}
+                        >
+                          {loadingId === p.id ? '…' : isActif ? 'Désactiver' : 'Réactiver'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Résumé stats inline */}
+      <div className="mt-5 flex flex-wrap gap-4 text-xs text-white/30">
+        <span>Hommes : {portraits.filter((p) => (p.gender ?? 'HOMME') === 'HOMME').length}</span>
+        <span>Femmes : {portraits.filter((p) => p.gender === 'FEMME').length}</span>
+        <span>Diaspora : {portraits.filter((p) => p.location === 'DIASPORA').length}</span>
+        <span>Local : {portraits.filter((p) => (p.location ?? 'LOCAL') === 'LOCAL').length}</span>
+        <span>PRESTIGE : {portraits.filter((p) => p.tier === 'PRESTIGE').length}</span>
+        <span>EXCELLENCE : {portraits.filter((p) => p.tier === 'EXCELLENCE').length}</span>
+        <span>ELITE : {portraits.filter((p) => p.tier === 'ELITE').length}</span>
+        <span>Démo : {portraits.filter((p) => p.is_demo).length}</span>
       </div>
     </div>
   )
