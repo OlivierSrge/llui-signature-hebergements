@@ -1,0 +1,107 @@
+[
+  {
+    "nom": "Hôtel Ilomba Kribi",
+    "ville": "Kribi",
+    "id": "sHgwSBFtNs57BgKL8QlL",
+    "slug": "hotel-ilomba-kribi",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=sHgwSBFtNs57BgKL8QlL"
+  },
+  {
+    "nom": "Tara Plage Restaurant",
+    "ville": "Kribi",
+    "id": "4EysLErFStdIMyqTIGHT",
+    "slug": "tara-plage-restaurant",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=4EysLErFStdIMyqTIGHT"
+  },
+  {
+    "nom": "Gîtes de Kribi",
+    "ville": "Kribi",
+    "id": "gDxwUzPngXVqgtCMEhTZ",
+    "slug": "gites-de-kribi",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=gDxwUzPngXVqgtCMEhTZ"
+  },
+  {
+    "nom": "Le Paradis des Plongeurs",
+    "ville": "Kribi",
+    "id": "t0lHLv5JcI0iauet86uy",
+    "slug": "le-paradis-des-plongeurs",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=t0lHLv5JcI0iauet86uy"
+  },
+  {
+    "nom": "Restaurant Le Phare",
+    "ville": "Kribi",
+    "id": "8rsLFwihAYJ2Y5opdQCC",
+    "slug": "restaurant-le-phare",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=8rsLFwihAYJ2Y5opdQCC"
+  },
+  {
+    "nom": "Hôtel Pullman Douala Rabingha",
+    "ville": "Douala",
+    "id": "CMC4Yu8hiPOPIK5xJhy3",
+    "slug": "hotel-pullman-douala-rabingha",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=CMC4Yu8hiPOPIK5xJhy3"
+  },
+  {
+    "nom": "Le Méridien Douala",
+    "ville": "Douala",
+    "id": "F8P3ybcCfQ0HR8QoLkvl",
+    "slug": "le-meridien-douala",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=F8P3ybcCfQ0HR8QoLkvl"
+  },
+  {
+    "nom": "Bar Le 360° Akwa",
+    "ville": "Douala",
+    "id": "cHD6B12CHaYtyuz3wIIq",
+    "slug": "bar-le-360-akwa",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=cHD6B12CHaYtyuz3wIIq"
+  },
+  {
+    "nom": "Restaurant La Fourchette",
+    "ville": "Douala",
+    "id": "65cBldFQA11MtWxUARad",
+    "slug": "restaurant-la-fourchette",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=65cBldFQA11MtWxUARad"
+  },
+  {
+    "nom": "Le Carré VIP Lounge",
+    "ville": "Douala",
+    "id": "O7lUKddysXJRwIDkjtLt",
+    "slug": "le-carre-vip-lounge",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=O7lUKddysXJRwIDkjtLt"
+  },
+  {
+    "nom": "Hôtel Hilton Yaoundé",
+    "ville": "Yaoundé",
+    "id": "dzTRG25iPKDNA4O8h2yv",
+    "slug": "hotel-hilton-yaounde",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=dzTRG25iPKDNA4O8h2yv"
+  },
+  {
+    "nom": "Bar Le Privilège Bastos",
+    "ville": "Yaoundé",
+    "id": "rBavmtzofGC17T2aN1H3",
+    "slug": "bar-le-privilege-bastos",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=rBavmtzofGC17T2aN1H3"
+  },
+  {
+    "nom": "Restaurant Mont Fébé",
+    "ville": "Yaoundé",
+    "id": "kr6CQDvyExiJBJRJtcNH",
+    "slug": "restaurant-mont-febe",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=kr6CQDvyExiJBJRJtcNH"
+  },
+  {
+    "nom": "Hôtel Azur Paradise",
+    "ville": "Yaoundé",
+    "id": "g9kTVW0Dz5ZECKMAmbCr",
+    "slug": "hotel-azur-paradise",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=g9kTVW0Dz5ZECKMAmbCr"
+  },
+  {
+    "nom": "Le Diplomate Lounge",
+    "ville": "Yaoundé",
+    "id": "0JvxhRsR8AoyWnkz3Niq",
+    "slug": "le-diplomate-lounge",
+    "url": "https://llui-signature-hebergements.vercel.app/alliance-privee/activate?pid=0JvxhRsR8AoyWnkz3Niq"
+  }
+]
