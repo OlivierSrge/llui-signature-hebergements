@@ -16,6 +16,7 @@ import {
   traiterCandidature,
   verifierPaiement,
 } from '@/actions/alliance-privee'
+import { fermerMatch, type MatchDoc } from '@/actions/alliance-privee-matching'
 
 const BASE_URL = 'https://llui-signature-hebergements.vercel.app'
 
@@ -43,11 +44,12 @@ interface Props {
   candidatures: AllianceApplication[]
   stats: AllianceStats
   paiements: AlliancePayment[]
+  matchs?: MatchDoc[]
 }
 
-type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures'
+type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures' | 'matchs'
 
-export default function AllianceAdminClient({ partners, candidatures, stats, paiements }: Props) {
+export default function AllianceAdminClient({ partners, candidatures, stats, paiements, matchs = [] }: Props) {
   const [tab, setTab] = useState<Tab>('stats')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [editPartnerId, setEditPartnerId] = useState<string | null>(null)
@@ -120,7 +122,7 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
             <span className="font-semibold text-white">Alliance Privée — Admin</span>
           </div>
           <div className="flex items-center gap-1 flex-wrap">
-            {(['stats', 'partenaires', 'paiements', 'candidatures'] as Tab[]).map((t) => (
+            {(['stats', 'partenaires', 'paiements', 'candidatures', 'matchs'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -128,7 +130,7 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
                   tab === t ? 'bg-amber-500/20 text-amber-300' : 'text-white/40 hover:text-white/60'
                 }`}
               >
-                {t}
+                {t === 'matchs' ? '💎 Matchs' : t}
                 {t === 'candidatures' && pendingCandidatures.length > 0 && (
                   <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                     {pendingCandidatures.length}
@@ -137,6 +139,11 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
                 {t === 'paiements' && paiementsEnAttente.length > 0 && (
                   <span className="ml-1.5 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                     {paiementsEnAttente.length}
+                  </span>
+                )}
+                {t === 'matchs' && matchs.length > 0 && (
+                  <span className="ml-1.5 bg-emerald-500/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {matchs.length}
                   </span>
                 )}
               </button>
@@ -509,6 +516,115 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
             )}
           </div>
         )}
+
+        {/* ─── Onglet Matchs & Conversations ───────────────────────── */}
+        {tab === 'matchs' && (
+          <div>
+            <h2 className="text-xl font-serif font-light text-white mb-6">
+              Matchs &amp; Conversations
+              {matchs.length > 0 && (
+                <span className="ml-3 text-sm text-emerald-400">{matchs.length} actif{matchs.length > 1 ? 's' : ''}</span>
+              )}
+            </h2>
+
+            {matchs.length === 0 ? (
+              <div className="text-center py-16 text-white/30">
+                <div className="text-4xl mb-3">💎</div>
+                <p>Aucun match pour le moment</p>
+                <p className="text-xs mt-2 text-white/20">Les matchs apparaissent dès qu'il y a un intérêt mutuel entre deux membres.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {matchs.map((m) => (
+                  <MatchAdminRow
+                    key={m.id}
+                    match={m}
+                    onClose={async (id) => {
+                      await fermerMatch(id)
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Match Admin Row ──────────────────────────────────────────────────────────
+
+function MatchAdminRow({ match, onClose }: { match: MatchDoc; onClose: (id: string) => Promise<void> }) {
+  const [closing, setClosing] = useState(false)
+  const [closed, setClosed] = useState(match.status === 'CLOSED')
+
+  const statusColors: Record<string, string> = {
+    CHAT_ENABLED: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+    ACTIVE: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+    MEETING_SCHEDULED: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+    CLOSED: 'text-white/30 bg-white/5 border-white/10',
+  }
+
+  async function handleClose() {
+    if (!confirm('Fermer cette conversation ? Les deux membres n\'auront plus accès au chat.')) return
+    setClosing(true)
+    await onClose(match.id)
+    setClosed(true)
+    setClosing(false)
+  }
+
+  return (
+    <div className={`border rounded-2xl p-5 ${closed ? 'border-white/10 opacity-50' : 'border-white/10 hover:border-emerald-500/20'} transition-all`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 space-y-2">
+          {/* IDs membres */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-mono text-xs text-white/50 bg-white/5 px-2 py-1 rounded">
+              A: {match.member_a_id.substring(0, 8)}…
+            </span>
+            <span className="text-amber-400">⇄</span>
+            <span className="font-mono text-xs text-white/50 bg-white/5 px-2 py-1 rounded">
+              B: {match.member_b_id.substring(0, 8)}…
+            </span>
+          </div>
+
+          {/* Méta */}
+          <div className="flex items-center gap-4 flex-wrap text-xs text-white/40">
+            <span>💎 Compatibilité : <strong className="text-white/70">{match.compatibility_score}%</strong></span>
+            <span>💬 {match.messages_count} message{match.messages_count !== 1 ? 's' : ''}</span>
+            <span>📅 {new Date(match.date_matched).toLocaleDateString('fr-FR')}</span>
+          </div>
+
+          {/* Statut */}
+          <span className={`inline-flex items-center text-xs px-2.5 py-0.5 rounded-full border ${statusColors[match.status] ?? 'text-white/30 border-white/10'}`}>
+            {match.status === 'CHAT_ENABLED' ? '💬 Chat actif'
+              : match.status === 'ACTIVE' ? '✓ Actif'
+              : match.status === 'MEETING_SCHEDULED' ? '📅 RDV prévu'
+              : '🔒 Fermé'}
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <a
+            href={`/alliance-privee/chat/${match.id}?demo=${match.member_a_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs border border-white/15 text-white/50 rounded-lg px-3 py-1.5 hover:border-white/30 hover:text-white/70 transition-all text-center"
+          >
+            👁 Voir chat
+          </a>
+          {!closed && match.status !== 'CLOSED' && (
+            <button
+              onClick={handleClose}
+              disabled={closing}
+              className="text-xs border border-red-500/30 text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-all disabled:opacity-50"
+            >
+              {closing ? '…' : '🔒 Fermer'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
