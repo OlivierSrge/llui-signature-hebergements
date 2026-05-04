@@ -7,12 +7,14 @@ import {
   type AllianceApplication,
   type AllianceStats,
   type AllianceCardTier,
+  type AlliancePayment,
   TIER_CONFIGS,
 } from '@/types/alliance-privee'
 import {
   toggleAllianceActive,
   upsertAlliancePartner,
   traiterCandidature,
+  verifierPaiement,
 } from '@/actions/alliance-privee'
 
 const BASE_URL = 'https://llui-signature-hebergements.vercel.app'
@@ -40,17 +42,19 @@ interface Props {
   partners: AlliancePartner[]
   candidatures: AllianceApplication[]
   stats: AllianceStats
+  paiements: AlliancePayment[]
 }
 
-type Tab = 'stats' | 'partenaires' | 'candidatures'
+type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures'
 
-export default function AllianceAdminClient({ partners, candidatures, stats }: Props) {
+export default function AllianceAdminClient({ partners, candidatures, stats, paiements }: Props) {
   const [tab, setTab] = useState<Tab>('stats')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [editPartnerId, setEditPartnerId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<AlliancePartner>>({})
   const [decisionId, setDecisionId] = useState<string | null>(null)
   const [moderNotes, setModerNotes] = useState('')
+  const [decisionError, setDecisionError] = useState('')
 
   // ─── Partenaires ───────────────────────────────────────────────
 
@@ -84,11 +88,24 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
 
   async function handleDecision(appId: string, decision: 'approuve' | 'refuse' | 'en_revision') {
     setLoadingId(appId)
-    await traiterCandidature(appId, decision, moderNotes)
-    setDecisionId(null)
-    setModerNotes('')
+    setDecisionError('')
+    const res = await traiterCandidature(appId, decision, moderNotes)
+    if (!res.success && res.error) {
+      setDecisionError(res.error)
+    } else {
+      setDecisionId(null)
+      setModerNotes('')
+    }
     setLoadingId(null)
   }
+
+  async function handleVerifierPaiement(payId: string, decision: 'VERIFIED' | 'REJECTED') {
+    setLoadingId(payId)
+    await verifierPaiement(payId, decision, 'admin')
+    setLoadingId(null)
+  }
+
+  const paiementsEnAttente = paiements.filter((p) => p.statut === 'PENDING')
 
   const pendingCandidatures = candidatures.filter((c) => c.status === 'en_attente')
   const treatedCandidatures = candidatures.filter((c) => c.status !== 'en_attente')
@@ -102,12 +119,12 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
             <span className="text-amber-400">✦</span>
             <span className="font-semibold text-white">Alliance Privée — Admin</span>
           </div>
-          <div className="flex items-center gap-1">
-            {(['stats', 'partenaires', 'candidatures'] as Tab[]).map((t) => (
+          <div className="flex items-center gap-1 flex-wrap">
+            {(['stats', 'partenaires', 'paiements', 'candidatures'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-1.5 rounded-lg text-xs capitalize transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs capitalize transition-colors ${
                   tab === t ? 'bg-amber-500/20 text-amber-300' : 'text-white/40 hover:text-white/60'
                 }`}
               >
@@ -115,6 +132,11 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
                 {t === 'candidatures' && pendingCandidatures.length > 0 && (
                   <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                     {pendingCandidatures.length}
+                  </span>
+                )}
+                {t === 'paiements' && paiementsEnAttente.length > 0 && (
+                  <span className="ml-1.5 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {paiementsEnAttente.length}
                   </span>
                 )}
               </button>
@@ -282,6 +304,87 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
           </div>
         )}
 
+        {/* Onglet Paiements */}
+        {tab === 'paiements' && (
+          <div>
+            <h2 className="text-xl font-serif font-light text-white mb-6">
+              Justificatifs de paiement
+              {paiementsEnAttente.length > 0 && (
+                <span className="ml-3 text-sm text-orange-400">{paiementsEnAttente.length} en attente</span>
+              )}
+            </h2>
+
+            {paiements.length === 0 ? (
+              <div className="text-center py-16 text-white/30">
+                <div className="text-4xl mb-3">💳</div>
+                <p>Aucun justificatif reçu</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paiements.map((p) => (
+                  <div key={p.id} className={`rounded-2xl border p-5 ${p.statut === 'PENDING' ? 'border-orange-500/30 bg-orange-500/5' : p.statut === 'VERIFIED' ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${TIER_CONFIGS[p.tier].badge}`}>
+                            {TIER_CONFIGS[p.tier].emoji} {p.tier}
+                          </span>
+                          <span className="text-white/50 text-xs">{p.gender} · {p.location}</span>
+                          <span className="text-amber-400 text-xs font-semibold">
+                            {p.montant.toLocaleString('fr-FR')} {p.devise}
+                          </span>
+                          <span className="text-white/30 text-xs">{p.methode}</span>
+                        </div>
+                        <p className="text-white/30 text-[10px] font-mono">{p.id}</p>
+                        <p className="text-white/20 text-[10px]">
+                          {new Date(p.date_creation).toLocaleString('fr-FR')}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 ${
+                        p.statut === 'PENDING' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+                        : p.statut === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                        : 'bg-red-500/20 text-red-300 border-red-500/30'
+                      }`}>
+                        {p.statut === 'PENDING' ? '⏳ En attente' : p.statut === 'VERIFIED' ? '✓ Vérifié' : '✗ Rejeté'}
+                      </span>
+                    </div>
+
+                    {/* Screenshot */}
+                    {p.proof_url && (
+                      <a href={p.proof_url} target="_blank" rel="noopener noreferrer"
+                        className="block rounded-xl border border-white/10 overflow-hidden mb-3 hover:border-amber-500/30 transition-colors">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.proof_url} alt="Justificatif" className="w-full max-h-48 object-contain bg-white/5" />
+                        <p className="text-white/30 text-[10px] text-center py-1.5">Cliquer pour agrandir</p>
+                      </a>
+                    )}
+
+                    {/* Actions */}
+                    {p.statut === 'PENDING' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleVerifierPaiement(p.id, 'VERIFIED')}
+                          disabled={loadingId === p.id}
+                          className="flex-1 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-medium hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                        >
+                          {loadingId === p.id ? '...' : '✅ Vérifier'}
+                        </button>
+                        <button
+                          onClick={() => handleVerifierPaiement(p.id, 'REJECTED')}
+                          disabled={loadingId === p.id}
+                          className="flex-1 py-2 rounded-xl bg-red-500/10 text-red-300 border border-red-500/20 text-xs font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        >
+                          ❌ Rejeter
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Onglet Candidatures */}
         {tab === 'candidatures' && (
           <div>
@@ -319,6 +422,11 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
                             {TIER_CONFIGS[c.tier_souhaite].emoji} {c.tier_souhaite}
                           </span>
                           <StatusBadge status={c.status} />
+                          {!c.payment_proof_verified && (
+                            <span className="text-xs px-2 py-0.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-300">
+                              ⚠️ Paiement non vérifié
+                            </span>
+                          )}
                         </div>
                         <p className="text-white/40 text-xs">{c.profession}</p>
                         <p className="text-white/60 text-xs mt-2 line-clamp-2">{c.bio}</p>
@@ -337,6 +445,11 @@ export default function AllianceAdminClient({ partners, candidatures, stats }: P
                       <div className="mt-4 pt-4 border-t border-white/5">
                         {decisionId === c.id ? (
                           <div className="space-y-3">
+                            {decisionError && (
+                              <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-orange-300 text-xs">
+                                ⚠️ {decisionError}
+                              </div>
+                            )}
                             <textarea
                               value={moderNotes}
                               onChange={(e) => setModerNotes(e.target.value)}

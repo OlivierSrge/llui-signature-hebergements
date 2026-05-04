@@ -16,8 +16,12 @@ import {
   type AllianceCardTier,
   type ApplicationStatus,
   type CardDetails,
+  type AlliancePayment,
+  type GenderType,
+  type LocationType,
   analyserMessageSentinelle,
   TIER_CONFIGS,
+  getPrixPourProfil,
 } from '@/types/alliance-privee'
 import { sendBrevoEmail } from '@/lib/email-brevo'
 
@@ -32,6 +36,7 @@ const COL_PORTRAITS = 'alliance_privee_portraits_verified'
 const COL_MATCHES = 'alliance_privee_matches'
 const COL_CHATS = 'alliance_privee_private_chats'
 const COL_MESSAGES = 'alliance_privee_chat_messages'
+const COL_PAYMENTS = 'alliance_privee_payments'
 
 // ─── Helper WhatsApp ──────────────────────────────────────────────────────────
 
@@ -107,6 +112,78 @@ export async function toggleAllianceActive(
   return upsertAlliancePartner(partenaireId, { alliance_active: active })
 }
 
+// ─── Paiements ────────────────────────────────────────────────────────────────
+
+export async function enregistrerPaiement(data: {
+  tier: AllianceCardTier
+  gender: GenderType
+  location: LocationType
+  partenaire_id: string
+  proof_url: string
+}): Promise<{ success: boolean; payment_id?: string; error?: string }> {
+  try {
+    const { montant, devise, methode } = getPrixPourProfil(data.tier, data.gender, data.location)
+    const now = new Date().toISOString()
+    const ref = await db.collection(COL_PAYMENTS).add({
+      tier: data.tier,
+      gender: data.gender,
+      location: data.location,
+      partenaire_id: data.partenaire_id,
+      montant,
+      devise,
+      methode,
+      proof_url: data.proof_url,
+      statut: 'PENDING',
+      date_creation: now,
+    } as Omit<AlliancePayment, 'id'>)
+    return { success: true, payment_id: ref.id }
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+export async function getPaiementsEnAttente(): Promise<AlliancePayment[]> {
+  const snap = await db
+    .collection(COL_PAYMENTS)
+    .orderBy('date_creation', 'desc')
+    .get()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as AlliancePayment)
+}
+
+export async function verifierPaiement(
+  paymentId: string,
+  decision: 'VERIFIED' | 'REJECTED',
+  adminId: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const now = new Date().toISOString()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const update: any = { statut: decision, verified_by: adminId, date_verification: now }
+    if (reason) update.rejection_reason = reason
+    await db.collection(COL_PAYMENTS).doc(paymentId).update(update)
+
+    // Répercuter sur la candidature liée
+    const appSnap = await db
+      .collection(COL_APPLICATIONS)
+      .where('payment_id', '==', paymentId)
+      .limit(1)
+      .get()
+    if (!appSnap.empty) {
+      await appSnap.docs[0].ref.update({
+        payment_proof_verified: decision === 'VERIFIED',
+        updated_at: now,
+      })
+    }
+
+    revalidatePath('/admin/alliance-privee')
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 // ─── Candidatures ─────────────────────────────────────────────────────────────
 
 export async function soumettreCandidat(
@@ -116,6 +193,9 @@ export async function soumettreCandidat(
     const now = new Date().toISOString()
     const ref = await db.collection(COL_APPLICATIONS).add({
       ...data,
+      payment_proof_verified: false,
+      charte_acceptee: data.charte_acceptee ?? false,
+      charte_date_acceptation: data.charte_acceptee ? now : null,
       status: 'en_attente' as ApplicationStatus,
       created_at: now,
       updated_at: now,
@@ -163,6 +243,22 @@ export async function traiterCandidature(
 
     const app = { id: appSnap.id, ...appSnap.data() } as AllianceApplication
     const now = new Date().toISOString()
+
+    // Bloquer approbation si paiement non vérifié
+    if (decision === 'approuve' && !app.payment_proof_verified) {
+      // Vérifier directement dans la collection paiements
+      if (app.payment_id) {
+        const paySnap = await db.collection(COL_PAYMENTS).doc(app.payment_id).get()
+        const payData = paySnap.exists ? paySnap.data() : null
+        if (!payData || payData.statut !== 'VERIFIED') {
+          return { success: false, error: 'Impossible — paiement non vérifié. Vérifiez le justificatif dans l\'onglet Paiements.' }
+        }
+        // Mettre à jour le flag sur la candidature
+        await appRef.update({ payment_proof_verified: true })
+      } else {
+        return { success: false, error: 'Impossible — aucun paiement lié à cette candidature.' }
+      }
+    }
 
     await appRef.update({
       status: decision,

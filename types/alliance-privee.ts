@@ -6,6 +6,74 @@ export type MatchStatus = 'propose' | 'accepte' | 'refuse' | 'expire'
 export type MatchGlobalStatus = 'propose' | 'mutuel' | 'refuse' | 'expire'
 export type ChatMessageStatus = 'ok' | 'bloque' | 'signale'
 export type CardStatus = 'active' | 'expired' | 'suspended'
+export type GenderType = 'HOMME' | 'FEMME'
+export type LocationType = 'DIASPORA' | 'LOCAL'
+export type PaymentStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
+export type PaymentMethod = 'REVOLUT' | 'ORANGE_MONEY'
+
+// ─── Tarification bimodale genre/localisation ────────────────────────────────
+
+export interface TierPricing {
+  homme_diaspora_eur: number
+  homme_local_fcfa: number
+  femme_local_fcfa: number
+  validite_mois: number
+}
+
+export const TIER_PRICING: Record<AllianceCardTier, TierPricing> = {
+  PRESTIGE: {
+    homme_diaspora_eur: 150,
+    homme_local_fcfa: 50000,
+    femme_local_fcfa: 10000,
+    validite_mois: 6,
+  },
+  EXCELLENCE: {
+    homme_diaspora_eur: 250,
+    homme_local_fcfa: 100000,
+    femme_local_fcfa: 25000,
+    validite_mois: 12,
+  },
+  ELITE: {
+    homme_diaspora_eur: 500,
+    homme_local_fcfa: 200000,
+    femme_local_fcfa: 50000,
+    validite_mois: 12,
+  },
+}
+
+export function getPrixPourProfil(
+  tier: AllianceCardTier,
+  gender: GenderType,
+  location: LocationType
+): { montant: number; devise: 'EUR' | 'FCFA'; methode: PaymentMethod } {
+  const pricing = TIER_PRICING[tier]
+  if (gender === 'HOMME') {
+    if (location === 'DIASPORA') {
+      return { montant: pricing.homme_diaspora_eur, devise: 'EUR', methode: 'REVOLUT' }
+    }
+    return { montant: pricing.homme_local_fcfa, devise: 'FCFA', methode: 'ORANGE_MONEY' }
+  }
+  return { montant: pricing.femme_local_fcfa, devise: 'FCFA', methode: 'ORANGE_MONEY' }
+}
+
+// ─── Paiement (nouvelle collection) ──────────────────────────────────────────
+
+export interface AlliancePayment {
+  id: string
+  tier: AllianceCardTier
+  gender: GenderType
+  location: LocationType
+  partenaire_id: string
+  montant: number
+  devise: 'EUR' | 'FCFA'
+  methode: PaymentMethod
+  proof_url: string
+  statut: PaymentStatus
+  date_creation: string
+  verified_by?: string
+  date_verification?: string
+  rejection_reason?: string
+}
 
 // ─── Partenaire Alliance ──────────────────────────────────────────────────────
 
@@ -48,6 +116,13 @@ export interface AllianceApplication {
   partenaire_id: string
   tier_souhaite: AllianceCardTier
   status: ApplicationStatus
+  // Profil tarification
+  gender: GenderType
+  location: LocationType
+  payment_id?: string             // ref alliance_privee_payments
+  payment_proof_verified: boolean
+  charte_acceptee: boolean
+  charte_date_acceptation?: string
   // Portrait
   prenom: string
   age: number
@@ -57,7 +132,7 @@ export interface AllianceApplication {
   bio: string
   valeurs: string[]
   loisirs: string[]
-  recherche: string               // ce que le candidat recherche
+  recherche: string
   genre: 'homme' | 'femme' | 'autre'
   genre_recherche: 'homme' | 'femme' | 'les deux'
   // Contact (confidentiel, admin seulement)

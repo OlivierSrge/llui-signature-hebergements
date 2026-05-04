@@ -1,5 +1,5 @@
 import { getAlliancePartner } from '@/actions/alliance-privee'
-import AllianceActivateClient from '@/components/alliance-privee/AllianceActivateClient'
+import AllianceGenderClient from '@/components/alliance-privee/AllianceGenderClient'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +23,7 @@ export default async function AllianceActivatePage({ searchParams }: Props) {
     )
   }
 
-  return <AllianceActivateClient partner={partner} partenaireId={pid} />
+  return <AllianceGenderClient partenaireId={pid} nomEtablissement={partner.nom_etablissement} description={partner.description_club ?? null} />
 }
 
 function AllianceError({ message }: { message: string }) {
