@@ -18,6 +18,7 @@ import {
   togglePortraitActif,
 } from '@/actions/alliance-privee'
 import { fermerMatch, type MatchDoc } from '@/actions/alliance-privee-matching'
+import MarkdownRenderer from '@/components/MarkdownRenderer'
 
 const BASE_URL = 'https://llui-signature-hebergements.vercel.app'
 
@@ -68,7 +69,7 @@ interface Props {
   portraits?: PortraitAdmin[]
 }
 
-type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures' | 'matchs' | 'profils'
+type Tab = 'stats' | 'partenaires' | 'paiements' | 'candidatures' | 'matchs' | 'profils' | 'guide'
 
 export default function AllianceAdminClient({ partners, candidatures, stats, paiements, matchs = [], portraits = [] }: Props) {
   const [tab, setTab] = useState<Tab>('stats')
@@ -143,7 +144,7 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
             <span className="font-semibold text-white">Alliance Privée — Admin</span>
           </div>
           <div className="flex items-center gap-1 flex-wrap">
-            {(['stats', 'profils', 'partenaires', 'paiements', 'candidatures', 'matchs'] as Tab[]).map((t) => (
+            {(['stats', 'profils', 'partenaires', 'paiements', 'candidatures', 'matchs', 'guide'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -151,7 +152,7 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
                   tab === t ? 'bg-amber-500/20 text-amber-300' : 'text-white/40 hover:text-white/60'
                 }`}
               >
-                {t === 'matchs' ? '💎 Matchs' : t === 'profils' ? `◈ Profils` : t}
+                {t === 'matchs' ? '💎 Matchs' : t === 'profils' ? '◈ Profils' : t === 'guide' ? '📖 Guide' : t}
                 {t === 'profils' && portraits.length > 0 && (
                   <span className="ml-1.5 bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                     {portraits.length}
@@ -182,6 +183,24 @@ export default function AllianceAdminClient({ partners, candidatures, stats, pai
         {/* ─── Onglet Profils ───────────────────────────────────────── */}
         {tab === 'profils' && (
           <ProfilsAdminPanel portraits={portraits} />
+        )}
+
+        {/* ─── Onglet Guide Admin ─────────────────────────────────────── */}
+        {tab === 'guide' && (
+          <div className="pb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">📖 Guide Administrateur</h2>
+              <a
+                href="/admin/alliance-privee/guide-admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-400/60 hover:text-amber-400 transition-colors"
+              >
+                Ouvrir en pleine page ↗
+              </a>
+            </div>
+            <MarkdownRenderer filename="ALLIANCE_ADMIN.md" theme="admin" showTOC={true} />
+          </div>
         )}
 
         {/* Onglet Stats */}

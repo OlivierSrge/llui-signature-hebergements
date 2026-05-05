@@ -287,7 +287,17 @@ export default function AllianceCandidatureClient({
                   )}
                 </div>
                 <span className="text-white/70 text-xs leading-relaxed">
-                  J&apos;ai lu et j&apos;accepte la Charte de l&apos;Alliance Privée. Je comprends que mon adhésion sera conditionnée à la vérification de mon paiement et de mon profil.
+                  J&apos;ai lu et j&apos;accepte la{' '}
+                  <a
+                    href="/alliance-privee/charte"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-400 underline underline-offset-2 hover:text-amber-300 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Charte de l&apos;Alliance Privée
+                  </a>
+                  . Je comprends que mon adhésion sera conditionnée à la vérification de mon paiement et de mon profil.
                 </span>
               </label>
             </div>

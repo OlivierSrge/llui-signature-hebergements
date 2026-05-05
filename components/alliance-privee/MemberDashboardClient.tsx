@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { key: 'interets', label: 'Mes intérêts', icon: '⭐', href: '/alliance-privee/mes-interets' },
   { key: 'recus', label: 'Intérêts reçus', icon: '🌟', href: '/alliance-privee/interets-recus' },
   { key: 'conversations', label: 'Conversations', icon: '💬', href: '/alliance-privee/conversations' },
+  { key: 'guide', label: 'Guide', icon: '📖', href: '/alliance-privee/guide-membre' },
 ]
 
 export default function MemberDashboardClient({ memberId, prenom, tier, stats, profilsCompatibles }: Props) {

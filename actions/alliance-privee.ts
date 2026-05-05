@@ -429,11 +429,31 @@ export async function sendCardByEmail(
       </div>
     </div>
 
-    <!-- CTA -->
-    <div style="text-align:center;margin-bottom:32px;">
+    <!-- CTA principal -->
+    <div style="text-align:center;margin-bottom:16px;">
       <a href="${cardUrl}" style="display:inline-block;background:${accent};color:#000000;font-size:13px;font-weight:600;padding:14px 32px;border-radius:12px;text-decoration:none;letter-spacing:0.5px;">
         Voir ma carte en ligne →
       </a>
+    </div>
+
+    <!-- CTA secondaire — Guide membre -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <a href="${APP_URL}/alliance-privee/guide-membre" style="display:inline-block;background:transparent;color:${accent};font-size:12px;font-weight:500;padding:10px 24px;border-radius:10px;text-decoration:none;border:1px solid ${accent}44;">
+        📖 Lire le guide membre
+      </a>
+    </div>
+
+    <!-- Encart guide -->
+    <div style="background:${accent}08;border:1px solid ${accent}22;border-radius:16px;padding:20px;margin-bottom:32px;">
+      <p style="color:${accent};font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px;">Ce guide vous explique</p>
+      <div style="space:0;">
+        ${[
+          '✦ Trouver des profils compatibles',
+          '✦ Marquer votre intérêt',
+          '✦ Utiliser la messagerie sécurisée',
+          '✦ Organiser un rendez-vous officiel',
+        ].map(item => `<p style="color:#ffffff66;font-size:12px;margin:0 0 6px;line-height:1.5;">${item}</p>`).join('')}
+      </div>
     </div>
 
     <!-- Pied de page -->
