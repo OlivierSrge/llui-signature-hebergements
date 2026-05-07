@@ -12,7 +12,7 @@ export default function AllianceGenderClient({ partenaireId, nomEtablissement, d
   const router = useRouter()
 
   function handleSelect(gender: 'HOMME' | 'FEMME') {
-    router.push(`/alliance-privee/tiers?pid=${partenaireId}&gender=${gender}`)
+    router.push(`/alliance-privee/decouverte?pid=${partenaireId}&gender=${gender}`)
   }
 
   return (
