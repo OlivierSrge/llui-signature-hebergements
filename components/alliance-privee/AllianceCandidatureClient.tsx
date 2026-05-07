@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { type AllianceCardTier, type GenderType, type LocationType, TIER_CONFIGS } from '@/types/alliance-privee'
 import { soumettreCandidat } from '@/actions/alliance-privee'
@@ -65,6 +65,20 @@ export default function AllianceCandidatureClient({
     loisirs: [] as string[],
     charte_acceptee: false,
   })
+
+  // Pré-cocher si la charte a déjà été acceptée sur la page /charte-acceptation
+  const [charteDejaAcceptee, setCharteDejaAcceptee] = useState(false)
+  useEffect(() => {
+    try {
+      const acceptedAt = localStorage.getItem('alliance_charte_accepted_at')
+      if (acceptedAt) {
+        setCharteDejaAcceptee(true)
+        setForm((prev) => ({ ...prev, charte_acceptee: true }))
+      }
+    } catch {
+      // localStorage indisponible
+    }
+  }, [])
 
   function update(field: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -277,9 +291,9 @@ export default function AllianceCandidatureClient({
                 ))}
               </div>
 
-              <label className="flex items-start gap-3 cursor-pointer group">
+              <label className={`flex items-start gap-3 ${charteDejaAcceptee ? 'cursor-default' : 'cursor-pointer group'}`}>
                 <div className={`mt-0.5 w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${form.charte_acceptee ? 'bg-amber-500 border-amber-500' : 'border-amber-500/40 bg-transparent group-hover:border-amber-500/60'}`}
-                  onClick={() => update('charte_acceptee', !form.charte_acceptee)}>
+                  onClick={() => !charteDejaAcceptee && update('charte_acceptee', !form.charte_acceptee)}>
                   {form.charte_acceptee && (
                     <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
@@ -287,17 +301,35 @@ export default function AllianceCandidatureClient({
                   )}
                 </div>
                 <span className="text-white/70 text-xs leading-relaxed">
-                  J&apos;ai lu et j&apos;accepte la{' '}
-                  <a
-                    href="/alliance-privee/charte"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-amber-400 underline underline-offset-2 hover:text-amber-300 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Charte de l&apos;Alliance Privée
-                  </a>
-                  . Je comprends que mon adhésion sera conditionnée à la vérification de mon paiement et de mon profil.
+                  {charteDejaAcceptee ? (
+                    <>
+                      <span className="text-amber-400/80">✓ Charte acceptée</span> — Vous avez accepté la{' '}
+                      <a
+                        href="/alliance-privee/charte"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-amber-400 underline underline-offset-2 hover:text-amber-300 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Charte de l&apos;Alliance Privée
+                      </a>{' '}
+                      lors de votre inscription. Votre adhésion sera activée après vérification du paiement et du profil.
+                    </>
+                  ) : (
+                    <>
+                      J&apos;ai lu et j&apos;accepte la{' '}
+                      <a
+                        href="/alliance-privee/charte"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-amber-400 underline underline-offset-2 hover:text-amber-300 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Charte de l&apos;Alliance Privée
+                      </a>
+                      . Je comprends que mon adhésion sera conditionnée à la vérification de mon paiement et de mon profil.
+                    </>
+                  )}
                 </span>
               </label>
             </div>

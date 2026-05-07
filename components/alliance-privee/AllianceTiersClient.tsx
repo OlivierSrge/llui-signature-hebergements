@@ -32,7 +32,7 @@ export default function AllianceTiersClient({ partenaireId, gender, nomEtablisse
   function handleContinuer() {
     if (!selectedTier || !selectedLocation) return
     router.push(
-      `/alliance-privee/paiement?pid=${partenaireId}&tier=${selectedTier}&gender=${gender}&location=${selectedLocation}`
+      `/alliance-privee/charte-acceptation?pid=${partenaireId}&tier=${selectedTier}&gender=${gender}&location=${selectedLocation}`
     )
   }
 
