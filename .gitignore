@@ -36,3 +36,7 @@ Thumbs.db
 next-env.d.ts
 .vercel
 .env*.local
+service-account.json
+test-db.js
+service-account.json
+test-db.js
