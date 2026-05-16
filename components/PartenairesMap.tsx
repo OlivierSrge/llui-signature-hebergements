@@ -77,7 +77,7 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
           center: KRIBI_CENTER,
           zoom: 13,
           mapTypeId: 'roadmap',
-          fullscreenControl: false,
+          fullscreenControl: true,
           streetViewControl: false,
           mapTypeControl: false,
           zoomControl: true,
@@ -229,7 +229,7 @@ export default function PartenairesMap({ partenaires, onScanRequest }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-2xl overflow-hidden border border-[#F5F0E8]" style={{ height: 380 }}>
+      <div className="relative rounded-2xl overflow-hidden border border-[#F5F0E8]" style={{ height: 480 }}>
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {chargement && (

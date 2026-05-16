@@ -48,6 +48,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── Tous les hooks ici, avant tout return conditionnel ──────────
   const slides = session.carouselImages?.filter(Boolean) ?? []
   const [slideIdx, setSlideIdx] = useState(0)
+  const [copied, setCopied] = useState(false)
 
   // ── QR scan partenaire depuis la carte ─────────────────────────
   const [showQrModal, setShowQrModal] = useState(false)
@@ -254,9 +255,13 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           {/* Actions */}
           <div className="flex gap-2">
             <button
-              onClick={() => navigator.clipboard.writeText(session.code)}
-              className="flex-1 py-2 bg-[#F5F0E8] text-[#1A1A1A] text-sm font-medium rounded-xl hover:bg-[#ece7db] transition-colors">
-              📋 Copier
+              onClick={() => {
+                navigator.clipboard.writeText(session.code)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }}
+              className={`flex-1 py-2 text-sm font-medium rounded-xl transition-colors ${copied ? 'bg-green-100 text-green-700' : 'bg-[#F5F0E8] text-[#1A1A1A] hover:bg-[#ece7db]'}`}>
+              {copied ? '✅ Copié !' : '📋 Copier'}
             </button>
             <a href={`https://wa.me/?text=${msgWhatsApp}`} target="_blank" rel="noreferrer"
               className="flex-1 py-2 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 transition-colors text-center">
@@ -356,8 +361,8 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
                 background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE4B5 100%)',
                 border: '3px solid #C9A84C',
                 borderRadius: '20px',
-                padding: '40px 30px',
-                marginTop: '20px',
+                padding: '24px 20px',
+                marginTop: '12px',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer',
                 position: 'relative',
@@ -391,21 +396,21 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
               {/* Titre */}
               <h3 style={{
-                fontSize: '28px',
+                fontSize: '22px',
                 fontWeight: 800,
                 color: '#C9A84C',
-                marginBottom: '15px',
+                marginBottom: '8px',
                 textAlign: 'center',
               }}>
                 💎 Pass VIP L&amp;Lui Signature
               </h3>
 
               <p style={{
-                fontSize: '16px',
+                fontSize: '14px',
                 color: '#666',
                 textAlign: 'center',
-                marginBottom: '30px',
-                lineHeight: 1.6,
+                marginBottom: '16px',
+                lineHeight: 1.4,
               }}>
                 Accédez à des <strong style={{ color: '#C9A84C' }}>réductions exclusives</strong> et des
                 offres privilégiées chez nos partenaires Kribi
@@ -415,49 +420,49 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px',
-                marginBottom: '30px',
+                gap: '8px',
+                marginBottom: '16px',
               }}>
                 {/* SAPHIR */}
                 <div style={{
                   background: 'white',
                   borderRadius: '12px',
-                  padding: '16px 10px',
+                  padding: '12px 8px',
                   textAlign: 'center',
                   border: '2px solid #0F52BA',
                 }}>
-                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💎</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F52BA', marginBottom: '6px' }}>SAPHIR</div>
-                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>10%</div>
-                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                  <div style={{ fontSize: '22px', marginBottom: '2px' }}>💎</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F52BA', marginBottom: '2px' }}>SAPHIR</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#1A1A1A' }}>10%</div>
+                  <div style={{ fontSize: '10px', color: '#888' }}>de réduction</div>
                 </div>
 
                 {/* OR */}
                 <div style={{
                   background: 'white',
                   borderRadius: '12px',
-                  padding: '16px 10px',
+                  padding: '12px 8px',
                   textAlign: 'center',
                   border: '2px solid #C9A84C',
                 }}>
-                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>🥇</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#C9A84C', marginBottom: '6px' }}>OR</div>
-                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>12%</div>
-                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                  <div style={{ fontSize: '22px', marginBottom: '2px' }}>🥇</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#C9A84C', marginBottom: '2px' }}>OR</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#1A1A1A' }}>12%</div>
+                  <div style={{ fontSize: '10px', color: '#888' }}>de réduction</div>
                 </div>
 
                 {/* DIAMANT */}
                 <div style={{
                   background: 'white',
                   borderRadius: '12px',
-                  padding: '16px 10px',
+                  padding: '12px 8px',
                   textAlign: 'center',
                   border: '2px solid #B9F2FF',
                 }}>
-                  <div style={{ fontSize: '28px', marginBottom: '6px' }}>💠</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e90ff', marginBottom: '6px' }}>DIAMANT</div>
-                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A' }}>15%</div>
-                  <div style={{ fontSize: '11px', color: '#888' }}>de réduction</div>
+                  <div style={{ fontSize: '22px', marginBottom: '2px' }}>💠</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e90ff', marginBottom: '2px' }}>DIAMANT</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#1A1A1A' }}>15%</div>
+                  <div style={{ fontSize: '10px', color: '#888' }}>de réduction</div>
                 </div>
               </div>
 
