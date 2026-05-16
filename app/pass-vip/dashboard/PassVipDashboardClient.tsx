@@ -156,6 +156,77 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
         )}
       </div>
 
+      {/* Services VIP */}
+      <div style={{ marginBottom: '32px' }}>
+        <p style={{ margin: '0 0 16px', fontSize: '11px', fontWeight: 600, color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '.1em', textAlign: 'center' }}>
+          Privilèges & Services
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          
+          {/* Boutique */}
+          <a href="https://gemini.google.com/app/3cdaab4766cceb15" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,168,76,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A84C' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, color: '#fff' }}>Boutique Signature</p>
+                <p style={{ margin: 0, fontSize: '11px', color: '#888' }}>Découvrez nos articles exclusifs</p>
+              </div>
+              <div style={{ color: '#666' }}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+          </a>
+
+          {/* Calendrier Kribi */}
+          <div className="glass-panel" onClick={() => document.dispatchEvent(new Event('openCalendrier'))} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,168,76,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A84C' }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, color: '#fff' }}>Agenda de Kribi</p>
+              <p style={{ margin: 0, fontSize: '11px', color: '#888' }}>Événements et recommandations</p>
+            </div>
+            <div style={{ color: '#666' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </div>
+
+          {/* Offrir le Pass */}
+          <a href="https://gemini.google.com/app/3cdaab4766cceb15" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(201,168,76,0.15)', background: 'rgba(201,168,76,0.05)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #C9A84C, #D4AF37)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 12 20 22 4 22 4 12"></polyline>
+                  <rect x="2" y="7" width="20" height="5"></rect>
+                  <line x1="12" y1="22" x2="12" y2="7"></line>
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path>
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, color: '#C9A84C' }}>Offrir un Pass</p>
+                <p style={{ margin: 0, fontSize: '11px', color: '#888' }}>Parrainez ou gâtez un proche</p>
+              </div>
+              <div style={{ color: '#C9A84C' }}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+          </a>
+
+        </div>
+      </div>
+
       {/* Bouton déconnexion */}
       <div style={{ textAlign: 'center' }}>
         <button
