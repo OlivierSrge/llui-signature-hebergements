@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { Resend } from 'resend'
+import { sendBrevoEmail } from '@/lib/email-brevo'
 import {
   extraireTypePass,
   extraireDuree,
@@ -19,11 +19,6 @@ import {
 import { getPassVipActivationEmailHtml } from '@/lib/email-templates/pass-vip-activation'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
-const FROM = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY)
-}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let body: { token?: string; action?: string }
@@ -111,13 +106,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       login_url: loginUrl,
     })
 
-    await getResend().emails.send({
-      from: FROM,
+    await sendBrevoEmail({
       to: email_client as string,
+      toName: nom_client as string,
       subject: `✅ Votre Pass VIP ${passType} est activé — L&Lui Signature`,
-      html,
-    }).then((r) => console.log('[CONFIRM PAYMENT] Email client envoyé ✅', JSON.stringify(r)))
-     .catch((e) => console.error('[CONFIRM PAYMENT] Email client erreur ❌', e))
+      htmlContent: html,
+    })
 
     // ── 3. Mise à jour Google Sheets (non bloquant) ─────────────────
     if (sheets_row) {
