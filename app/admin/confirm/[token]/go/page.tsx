@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { Resend } from 'resend'
+import { sendBrevoEmail } from '@/lib/email-brevo'
 import {
   extraireTypePass,
   extraireDuree,
@@ -18,7 +18,6 @@ import {
 import { getPassVipActivationEmailHtml } from '@/lib/email-templates/pass-vip-activation'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
-const FROM = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
 
 interface Props {
   params: Promise<{ token: string }>
@@ -139,14 +138,13 @@ export default async function AutoConfirmPage({ params }: Props) {
       password,
       login_url: loginUrl,
     })
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    resend.emails.send({
-      from: FROM,
+    await sendBrevoEmail({
       to: email_client as string,
+      toName: nom_client as string,
       subject: `✅ Votre Pass VIP ${passType} est activé — L&Lui Signature`,
-      html,
-    }).then(() => console.log('[AUTO-CONFIRM] Email client envoyé ✅'))
-      .catch((e) => console.error('[AUTO-CONFIRM] Email client erreur ❌', e))
+      htmlContent: html,
+    }).then(() => console.log('[AUTO-CONFIRM] Email client envoyé via Brevo ✅'))
+      .catch((e) => console.error('[AUTO-CONFIRM] Email client erreur via Brevo ❌', e))
 
     // 3. Mise à jour Sheets (non bloquant)
     if (sheets_row) {
