@@ -64,38 +64,75 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
 
   return (
     <div>
-      {/* Zone QR Code */}
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '16px', boxShadow: '0 2px 12px rgba(0,0,0,.06)', textAlign: 'center' }}>
-        <p style={{ margin: '0 0 16px', fontSize: '12px', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-          Mon code QR Pass VIP
+      <style>{`
+        @keyframes pulse-gold {
+          0% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(201, 168, 76, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+        }
+        .btn-gold {
+          animation: pulse-gold 2s infinite;
+        }
+      `}</style>
+
+      {/* Zone QR Code (Glassmorphism) */}
+      <div className="glass-panel" style={{ padding: '32px 24px', marginBottom: '24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <p style={{ margin: '0 0 24px', fontSize: '11px', fontWeight: 600, color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '.1em' }}>
+          Mon code d'accès partenaire
         </p>
 
         {qrData && !isExpired ? (
           <>
-            <div style={{ display: 'inline-block', padding: '16px', background: '#fff', border: '3px solid #C9A84C', borderRadius: '12px', marginBottom: '12px' }}>
-              <QRCodeSVG value={qrData.url} size={180} fgColor="#1a1a1a" bgColor="#ffffff" />
+            <div style={{ display: 'inline-block', padding: '16px', background: '#fff', borderRadius: '16px', marginBottom: '24px', boxShadow: '0 0 20px rgba(201,168,76,0.2)' }}>
+              <QRCodeSVG value={qrData.url} size={200} fgColor="#0A0A0A" bgColor="#ffffff" />
             </div>
-            <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '8px 16px', display: 'inline-block', marginBottom: '12px' }}>
-              <p style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: '#166534', fontFamily: 'monospace' }}>
-                {mm}:{ss}
-              </p>
+            
+            <div style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.05em' }}>Expiration</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#C9A84C', fontFamily: 'monospace' }}>
+                  {mm}:{ss}
+                </span>
+              </div>
+              
+              {/* Barre de progression fluide */}
+              <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${(secondsLeft / QR_LIFETIME_SEC) * 100}%`,
+                  background: 'linear-gradient(90deg, #C9A84C, #D4AF37)',
+                  transition: 'width 0.5s linear'
+                }} />
+              </div>
             </div>
-            <p style={{ margin: 0, fontSize: '13px', color: '#888' }}>
-              Présentez ce QR au partenaire — usage unique, expire dans {mm}:{ss}
+            
+            <p style={{ margin: 0, fontSize: '12px', color: '#999', lineHeight: 1.6 }}>
+              Présentez ce QR au partenaire.<br />Usage unique et strictement personnel.
             </p>
           </>
         ) : (
-          <div style={{ padding: '32px 0' }}>
-            <div style={{ fontSize: '64px', marginBottom: '12px', opacity: 0.3 }}>📱</div>
-            <p style={{ margin: '0 0 4px', color: '#888', fontSize: '14px' }}>
-              {isExpired ? 'Code expiré — générez-en un nouveau' : 'Aucun code actif'}
+          <div style={{ padding: '40px 0' }}>
+            <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', color: 'rgba(201,168,76,0.3)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+              </svg>
+            </div>
+            <p style={{ margin: '0 0 8px', color: '#fff', fontSize: '16px', fontWeight: 300 }}>
+              {isExpired ? 'Code de sécurité expiré' : 'Aucun code actif'}
+            </p>
+            <p style={{ margin: 0, color: '#888', fontSize: '12px' }}>
+              Générez un nouveau code à présenter lors de votre passage en caisse.
             </p>
           </div>
         )}
 
         {error && (
-          <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#dc2626' }}>{error}</p>
+          <div style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: '#ef4444' }}>{error}</p>
           </div>
         )}
 
@@ -103,30 +140,39 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
           <button
             onClick={generateQR}
             disabled={loading}
+            className={!loading ? "btn-gold" : ""}
             style={{
-              width: '100%', padding: '14px',
-              background: loading ? '#e5c882' : 'linear-gradient(135deg, #C9A84C, #D4AF37)',
-              color: '#fff', border: 'none', borderRadius: '10px',
-              fontSize: '16px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+              width: '100%', padding: '16px', marginTop: '16px',
+              background: loading ? 'rgba(201,168,76,0.5)' : 'linear-gradient(135deg, #C9A84C, #D4AF37)',
+              color: loading ? 'rgba(255,255,255,0.7)' : '#0A0A0A', 
+              border: 'none', borderRadius: '12px',
+              fontSize: '15px', fontWeight: 600, letterSpacing: '.05em',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease'
             }}
           >
-            {loading ? '⏳ Génération...' : '📲 Générer mon code QR'}
+            {loading ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER MON CODE SÉCURISÉ'}
           </button>
         )}
       </div>
 
       {/* Bouton déconnexion */}
-      <button
-        onClick={logout}
-        style={{
-          width: '100%', padding: '12px',
-          background: 'transparent', color: '#888',
-          border: '1px solid #ddd', borderRadius: '10px',
-          fontSize: '14px', cursor: 'pointer',
-        }}
-      >
-        Se déconnecter
-      </button>
+      <div style={{ textAlign: 'center' }}>
+        <button
+          onClick={logout}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent', color: '#666',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px',
+            fontSize: '11px', fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase',
+            cursor: 'pointer', transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+        >
+          Se déconnecter
+        </button>
+      </div>
     </div>
   )
 }

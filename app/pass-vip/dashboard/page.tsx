@@ -60,44 +60,91 @@ export default async function PassVipDashboardPage() {
   ))
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F0E8', padding: '20px 16px' }}>
-      <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: '#0A0A0A', padding: '24px 16px', position: 'relative', overflow: 'hidden' }}>
+      
+      {/* Lueur de fond dorée subtile */}
+      <div style={{
+        position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
+        width: '100vw', height: '400px', background: 'radial-gradient(ellipse at top, rgba(201,168,76,0.15) 0%, transparent 70%)',
+        zIndex: 0, pointerEvents: 'none'
+      }} />
+
+      <style>{`
+        .vip-card {
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .vip-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: -100%; width: 50%; height: 100%;
+          background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+          transform: skewX(-25deg);
+          animation: shine 6s infinite;
+        }
+        @keyframes shine {
+          0% { left: -100%; }
+          20% { left: 200%; }
+          100% { left: 200%; }
+        }
+        .glass-panel {
+          background: rgba(20, 20, 20, 0.6);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(201, 168, 76, 0.2);
+          border-radius: 16px;
+        }
+      `}</style>
+
+      <div style={{ maxWidth: '480px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '.1em' }}>L&Lui ✦ Signature</p>
-          <h1 style={{ margin: 0, fontFamily: 'Georgia,serif', fontSize: '20px', color: '#1a1a1a' }}>Mon Pass VIP</h1>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '.15em' }}>L&Lui ✦ Signature</p>
+          <h1 style={{ margin: 0, fontFamily: 'Georgia,serif', fontSize: '22px', color: '#fff', fontWeight: 400 }}>Mon Pass VIP</h1>
         </div>
 
-        {/* Carte Pass */}
-        <div style={{
-          background: `linear-gradient(135deg, ${badgeColor.bg}, ${badgeColor.bg}cc)`,
+        {/* Carte Pass (Glass & Shine) */}
+        <div className="vip-card" style={{
+          background: `linear-gradient(135deg, ${badgeColor.bg}, #111)`,
           borderRadius: '20px',
-          padding: '24px',
-          marginBottom: '16px',
-          boxShadow: '0 8px 24px rgba(0,0,0,.15)',
-          position: 'relative',
-          overflow: 'hidden',
+          padding: '28px',
+          marginBottom: '24px',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+          border: '1px solid rgba(255,255,255,0.1)'
         }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <p style={{ margin: '0 0 4px', fontSize: '11px', color: badgeColor.text, opacity: 0.75, textTransform: 'uppercase', letterSpacing: '.08em' }}>
-              Club VIP L&Lui Signature
-            </p>
-            <p style={{ margin: '0 0 8px', fontSize: '28px', fontWeight: 700, color: badgeColor.text }}>
-              {passLabel}
-            </p>
-            <p style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600, color: badgeColor.text }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+              <div>
+                <p style={{ margin: '0 0 4px', fontSize: '10px', color: badgeColor.text, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '.1em' }}>
+                  Club Privilège
+                </p>
+                <p style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: badgeColor.text, fontFamily: 'Georgia,serif' }}>
+                  {passLabel}
+                </p>
+              </div>
+              <div style={{ width: '32px', height: '32px', opacity: 0.8 }}>
+                {/* Icône étoile filante premium */}
+                <svg viewBox="0 0 24 24" fill="none" stroke={badgeColor.text} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+            </div>
+            
+            <p style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: 300, color: badgeColor.text, letterSpacing: '.05em', textTransform: 'uppercase' }}>
               {pass.nom}
             </p>
+            
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <div>
-                <p style={{ margin: '0 0 2px', fontSize: '11px', color: badgeColor.text, opacity: 0.7 }}>Valide jusqu'au</p>
-                <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: badgeColor.text }}>{dateFinDisplay}</p>
+                <p style={{ margin: '0 0 2px', fontSize: '10px', color: badgeColor.text, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '.05em' }}>Valide jusqu'au</p>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: badgeColor.text }}>{dateFinDisplay}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '20px', padding: '4px 12px' }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: badgeColor.text }}>
-                    {joursRestants}j restants
+                <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(4px)', borderRadius: '12px', padding: '6px 12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: badgeColor.text, letterSpacing: '.05em' }}>
+                    {joursRestants} JOURS
                   </p>
                 </div>
               </div>
@@ -105,25 +152,39 @@ export default async function PassVipDashboardPage() {
           </div>
         </div>
 
-        {/* Avantages */}
-        <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', marginBottom: '16px', boxShadow: '0 2px 12px rgba(0,0,0,.06)' }}>
-          <p style={{ margin: '0 0 12px', fontSize: '12px', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+        {/* Avantages Glassmorphism */}
+        <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+          <p style={{ margin: '0 0 16px', fontSize: '11px', fontWeight: 600, color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '.1em', textAlign: 'center' }}>
             Mes réductions garanties
           </p>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {[
-              { label: '🏠 Hébergement', value: reductions.hebergement },
-              { label: '🍽️ Restaurant', value: reductions.restaurant },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ flex: 1, background: '#F5F0E8', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
-                <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#888' }}>{label}</p>
-                <p style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#C9A84C' }}>{value}</p>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            {/* Hébergement */}
+            <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width: '24px', height: '24px', margin: '0 auto 8px', color: '#C9A84C' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
               </div>
-            ))}
+              <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#999', textTransform: 'uppercase', letterSpacing: '.05em' }}>Hébergement</p>
+              <p style={{ margin: 0, fontSize: '24px', fontWeight: 300, color: '#fff' }}>{reductions.hebergement}</p>
+            </div>
+            
+            {/* Restaurant */}
+            <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width: '24px', height: '24px', margin: '0 auto 8px', color: '#C9A84C' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v20"></path>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#999', textTransform: 'uppercase', letterSpacing: '.05em' }}>Restaurant</p>
+              <p style={{ margin: 0, fontSize: '24px', fontWeight: 300, color: '#fff' }}>{reductions.restaurant}</p>
+            </div>
           </div>
         </div>
 
-        {/* QR Code + actions */}
+        {/* QR Code + actions (Client Component) */}
         <PassVipDashboardClient pass={{
           id: pass.id,
           nom: pass.nom,
