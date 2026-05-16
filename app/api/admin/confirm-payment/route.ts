@@ -106,12 +106,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       login_url: loginUrl,
     })
 
-    await sendBrevoEmail({
+    const emailSent = await sendBrevoEmail({
       to: email_client as string,
       toName: nom_client as string,
       subject: `✅ Votre Pass VIP ${passType} est activé — L&Lui Signature`,
       htmlContent: html,
     })
+
+    if (!emailSent) {
+      console.error('[CONFIRM PAYMENT] Echec envoi Brevo pour', email_client);
+      return NextResponse.json({ error: "L'email d'activation n'a pas pu être envoyé via Brevo. Vérifiez l'adresse email client ou les logs serveur." }, { status: 500 })
+    }
 
     // ── 3. Mise à jour Google Sheets (non bloquant) ─────────────────
     if (sheets_row) {
