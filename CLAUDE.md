@@ -7,6 +7,7 @@ Instructions permanentes pour Claude Code sur ce projet.
 ## RÈGLE GIT ABSOLUE — PRIORITÉ MAXIMALE
 
 - **TOUJOURS travailler sur `main` directement**
+- **OBLIGATION ABSOLUE** : Après toute modification de code validée ou demandée par l'utilisateur, tu DOIS IMMÉDIATEMENT lancer la commande de commit et de push sans attendre de rappel, afin de déclencher le déploiement sur Vercel.
 - **JAMAIS créer de branches** (`git checkout -b`, `git branch` → interdit)
 - **JAMAIS créer de PR ou merge request**
 - Chaque commit va directement sur main :
