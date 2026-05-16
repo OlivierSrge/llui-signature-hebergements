@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import PopupCalendrier from '@/components/calendrier/PopupCalendrier'
 
 interface PassData {
   id: string
@@ -12,12 +13,14 @@ interface PassData {
 }
 
 const QR_LIFETIME_SEC = 300 // 5 minutes
+const BOUTIQUE_URL = 'https://l-et-lui-signature.netlify.app'
 
 export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
   const [qrData, setQrData] = useState<{ url: string; expiresAt: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isCalendrierOpen, setIsCalendrierOpen] = useState(false)
 
   // Countdown timer
   useEffect(() => {
@@ -52,6 +55,13 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
       setLoading(false)
     }
   }, [pass.id])
+
+  // Listener global pour le calendrier (au cas où d'autres composants déclenchent l'événement)
+  useEffect(() => {
+    const handler = () => setIsCalendrierOpen(true)
+    document.addEventListener('openCalendrier', handler)
+    return () => document.removeEventListener('openCalendrier', handler)
+  }, [])
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
   const ss = String(secondsLeft % 60).padStart(2, '0')
@@ -164,7 +174,7 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
           {/* Boutique */}
-          <a href="https://gemini.google.com/app/3cdaab4766cceb15" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <a href={BOUTIQUE_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
             <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,168,76,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A84C' }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -203,7 +213,7 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
           </div>
 
           {/* Offrir le Pass */}
-          <a href="https://gemini.google.com/app/3cdaab4766cceb15" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <a href={BOUTIQUE_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
             <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(201,168,76,0.15)', background: 'rgba(201,168,76,0.05)' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #C9A84C, #D4AF37)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -244,6 +254,9 @@ export default function PassVipDashboardClient({ pass }: { pass: PassData }) {
           Se déconnecter
         </button>
       </div>
+
+      {/* Rendu de la popup calendrier pour l'espace VIP */}
+      <PopupCalendrier isOpen={isCalendrierOpen} onClose={() => setIsCalendrierOpen(false)} />
     </div>
   )
 }
