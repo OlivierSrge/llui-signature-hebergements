@@ -20,32 +20,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Email et mot de passe requis' }, { status: 400 })
   }
 
-  // Rechercher le Pass VIP actif par email
-  const snap = await db.collection('pass_vip_boutique')
-    .where('email', '==', email.trim().toLowerCase())
+  const cleanEmail = email.trim()
+  const cleanEmailLower = cleanEmail.toLowerCase()
+  const cleanPassword = password.trim()
+
+  // Rechercher tous les Pass VIP actifs possibles pour cet email (gestion des tests multiples et de la casse)
+  const snapExact = await db.collection('pass_vip_boutique')
+    .where('email', '==', cleanEmail)
     .where('statut', '==', 'actif')
-    .limit(1)
     .get()
 
-  if (snap.empty) {
+  let docs = snapExact.docs
+
+  if (cleanEmail !== cleanEmailLower) {
+    const snapLower = await db.collection('pass_vip_boutique')
+      .where('email', '==', cleanEmailLower)
+      .where('statut', '==', 'actif')
+      .get()
+    docs = [...docs, ...snapLower.docs]
+  }
+
+  if (docs.length === 0) {
     return NextResponse.json({ error: 'Aucun Pass VIP actif pour cet email' }, { status: 401 })
   }
 
-  const doc = snap.docs[0]
-  const pass = doc.data()
+  // Chercher le pass qui correspond au mot de passe saisi (évite l'erreur si un email a plusieurs pass de test)
+  let validDoc = null
 
-  // Vérifier que le pass n'est pas expiré
-  if (pass.date_fin && new Date(pass.date_fin as string) < new Date()) {
-    return NextResponse.json({ error: 'Votre Pass VIP a expiré' }, { status: 401 })
+  for (const doc of docs) {
+    const pass = doc.data()
+    // Ignorer si expiré
+    if (pass.date_fin && new Date(pass.date_fin as string) < new Date()) {
+      continue
+    }
+    if (verifyPassword(cleanPassword, pass.password_hash as string)) {
+      validDoc = doc
+      break
+    }
   }
 
-  // Vérifier le mot de passe
-  if (!verifyPassword(password, pass.password_hash as string)) {
+  if (!validDoc) {
     return NextResponse.json({ error: 'Mot de passe incorrect' }, { status: 401 })
   }
 
   // Créer la session cookie (7 jours)
-  const sessionValue = makeSessionValue(doc.id)
+  const sessionValue = makeSessionValue(validDoc.id)
   const res = NextResponse.json({ success: true })
   res.cookies.set(PASS_VIP_COOKIE, sessionValue, {
     httpOnly: true,
