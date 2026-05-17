@@ -1,0 +1,540 @@
+{
+  "schema_reference": {
+    "_description": "Schéma de référence pour la collection Firestore \"villas\" — L&Lui Signature",
+    "_collection": "villas",
+    "_environnement": "dev",
+    "_genere_le": "2026-05-17T13:04:00.104Z",
+    "_source_scrape": "https://kribiholidays.com/",
+    "champs": {
+      "id": {
+        "type": "string",
+        "note": "Auto — doc.id Firestore"
+      },
+      "slug": {
+        "type": "string",
+        "note": "URL-friendly, unique par établissement"
+      },
+      "nom": {
+        "type": "string",
+        "required": true
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "suite",
+          "chambre",
+          "bungalow",
+          "chalet",
+          "cabane",
+          "appartement",
+          "suite_familiale",
+          "villa"
+        ],
+        "required": true
+      },
+      "etablissement_id": {
+        "type": "string",
+        "note": "Ref doc prescripteurs_partenaires",
+        "required": true
+      },
+      "etablissement_nom": {
+        "type": "string",
+        "note": "Dénormalisé pour affichage rapide"
+      },
+      "description_llui": {
+        "type": "string",
+        "note": "Description éditoriale L&Lui Signature",
+        "required": true
+      },
+      "description_brute": {
+        "type": "string",
+        "note": "Description d'origine scrappée"
+      },
+      "atouts": {
+        "type": "string[]",
+        "note": "Liste des points forts (max 6)"
+      },
+      "tags": {
+        "type": "string[]",
+        "note": "Tags de recherche / filtrage"
+      },
+      "image_principale": {
+        "type": "string",
+        "note": "URL image principale (Firebase Storage ou CDN)"
+      },
+      "images_galerie": {
+        "type": "string[]",
+        "note": "URLs galerie — max premium_nb_images"
+      },
+      "surface_m2": {
+        "type": "number|null"
+      },
+      "capacite_personnes": {
+        "type": "number|null"
+      },
+      "prix_nuit_fcfa": {
+        "type": "number|null",
+        "note": "Null si prix non public / sur devis"
+      },
+      "disponible": {
+        "type": "boolean",
+        "default": true
+      },
+      "localisation": {
+        "ville": {
+          "type": "string",
+          "default": "Kribi"
+        },
+        "pays": {
+          "type": "string",
+          "default": "Cameroun"
+        },
+        "coordonnees": {
+          "lat": {
+            "type": "number|null"
+          },
+          "lng": {
+            "type": "number|null"
+          }
+        }
+      },
+      "services_inclus": {
+        "type": "string[]",
+        "note": "Services compris dans l'hébergement"
+      },
+      "services_etablissement": {
+        "type": "string[]",
+        "note": "Services globaux de l'établissement"
+      },
+      "source_url": {
+        "type": "string",
+        "note": "URL d'origine du scrape"
+      },
+      "statut": {
+        "type": "string",
+        "enum": [
+          "actif",
+          "inactif",
+          "draft"
+        ],
+        "default": "draft",
+        "required": true
+      },
+      "created_at": {
+        "type": "Timestamp",
+        "note": "Firestore ServerTimestamp"
+      },
+      "updated_at": {
+        "type": "Timestamp",
+        "note": "Firestore ServerTimestamp"
+      },
+      "created_by": {
+        "type": "string",
+        "default": "setup-database.js"
+      }
+    }
+  },
+  "documents_dev": [
+    {
+      "_id_suggestion": "gites-kribi-ocean-pearl-suite",
+      "slug": "ocean-pearl-suite",
+      "nom": "Ocean Pearl Suite",
+      "type": "suite",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "Une parenthèse hors du temps pour les amoureux du grand large. La Ocean Pearl Suite enveloppe ses hôtes dans 75 m² de luxe discret où le jacuzzi extérieur dialogue avec l'horizon marin, le lit Queen invite à une nuit de velours et le balcon privé déroule une vue spectaculaire sur l'océan Atlantique. Ici, chaque coucher de soleil devient un souvenir que l'on grave.",
+      "description_brute": "Échappée romantique pour couples en quête d'intimité. Suite premium de 75m² avec jacuzzi extérieur face à la mer, lit Queen et balcon privé vue océan.",
+      "atouts": [
+        "Jacuzzi extérieur vue mer",
+        "Balcon privé panoramique",
+        "Lit Queen confort premium",
+        "75 m² — suite romantique",
+        "Idéal couples & lune de miel"
+      ],
+      "tags": [
+        "romantique",
+        "couples",
+        "vue mer",
+        "jacuzzi",
+        "suite",
+        "lune de miel"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/caf649c27ea9608b71ca4a5db968a563f60f74b3.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/caf649c27ea9608b71ca4a5db968a563f60f74b3.png"
+      ],
+      "surface_m2": 75,
+      "capacite_personnes": 2,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Jacuzzi extérieur vue mer",
+        "Balcon privé panoramique",
+        "Lit Queen confort premium",
+        "75 m² — suite romantique",
+        "Idéal couples & lune de miel"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    },
+    {
+      "_id_suggestion": "gites-kribi-cabane-dans-les-arbres",
+      "slug": "cabane-dans-les-arbres",
+      "nom": "Cabane dans les Arbres",
+      "type": "cabane",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "Perchée dans les bras d'un manguier centenaire, cette cabane est une invitation à réenchanter son rapport au monde. À mi-chemin entre la canopée tropicale et le bleu de l'Atlantique, elle conjugue l'âme d'une aventure authentique et tout le confort que l'on est en droit d'exiger. Une nuit ici, c'est une histoire que l'on raconte toute sa vie.",
+      "description_brute": "Charmante cabane perchée dans un manguier centenaire avec vue mer. Expérience unique au cœur de la nature avec tout le confort moderne.",
+      "atouts": [
+        "Cabane perchée dans un manguier centenaire",
+        "Vue mer depuis la cime",
+        "Confort moderne en pleine nature",
+        "Expérience rare & mémorable"
+      ],
+      "tags": [
+        "nature",
+        "insolite",
+        "vue mer",
+        "éco-luxe",
+        "cabane",
+        "arbre"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/7d779a0a2bcc66641674f0c2bd857ee1f641065e.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/7d779a0a2bcc66641674f0c2bd857ee1f641065e.png"
+      ],
+      "surface_m2": null,
+      "capacite_personnes": 2,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Cabane perchée dans un manguier centenaire",
+        "Vue mer depuis la cime",
+        "Confort moderne en pleine nature",
+        "Expérience rare & mémorable"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    },
+    {
+      "_id_suggestion": "gites-kribi-chambre-premium",
+      "slug": "chambre-premium",
+      "nom": "Chambre Premium Vue Mer",
+      "type": "chambre",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "L'éveil face à l'océan. La Chambre Premium s'ouvre sur une vue mer panoramique qui capte la lumière dorée du matin et les teintes cuivrées du soir. Balcon privé, literie Queen 160 cm, climatisation silencieuse — chaque détail est pensé pour que le confort devienne un art de vivre. L'accès à la piscine et à la salle de sport complète une expérience où le corps et les sens sont également choyés.",
+      "description_brute": "Chambre spacieuse avec vue mer panoramique et balcon privé. Lit Queen 160cm, climatisation, piscine et salle de sport inclus.",
+      "atouts": [
+        "Vue mer panoramique",
+        "Balcon privé",
+        "Lit Queen 160 cm",
+        "Accès piscine inclus",
+        "Climatisation",
+        "Salle de sport incluse"
+      ],
+      "tags": [
+        "vue mer",
+        "balcon",
+        "confort premium",
+        "piscine",
+        "chambre"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/afc8c91c23a760f508d1b6babe6259050cca16b7.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/afc8c91c23a760f508d1b6babe6259050cca16b7.png"
+      ],
+      "surface_m2": null,
+      "capacite_personnes": 2,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Vue mer panoramique",
+        "Balcon privé",
+        "Lit Queen 160 cm",
+        "Accès piscine inclus",
+        "Climatisation",
+        "Salle de sport incluse"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    },
+    {
+      "_id_suggestion": "gites-kribi-chambre-standard-confort",
+      "slug": "chambre-standard-confort",
+      "nom": "Chambre Standard Confort",
+      "type": "chambre",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "Le confort essentiel, sans compromis sur l'élégance. Nichée au cœur de Kribi, la Chambre Standard Confort est un refuge intime où la literie soignée, la climatisation maîtrisée et la connexion Wi-Fi garantissent un séjour sans friction. Pour les voyageurs qui veulent profiter de chaque heure en ville sans se soucier du reste.",
+      "description_brute": "Chambre Standard Confort au cœur de Kribi. Literie de qualité, climatisation, TV écran plat, Wi-Fi gratuit et salle de bain privative.",
+      "atouts": [
+        "Literie de qualité",
+        "Climatisation",
+        "TV écran plat",
+        "Wi-Fi gratuit",
+        "Salle de bain privative",
+        "Idéal voyageurs d'affaires"
+      ],
+      "tags": [
+        "confort",
+        "standard",
+        "wifi",
+        "affaires",
+        "centre kribi"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/7f2d8b3984cc7bafd39308a2ef38fe8e4631cce0.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/7f2d8b3984cc7bafd39308a2ef38fe8e4631cce0.png"
+      ],
+      "surface_m2": null,
+      "capacite_personnes": 2,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Literie de qualité",
+        "Climatisation",
+        "TV écran plat",
+        "Wi-Fi gratuit",
+        "Salle de bain privative",
+        "Idéal voyageurs d'affaires"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    },
+    {
+      "_id_suggestion": "gites-kribi-chambres-communicantes-familiales",
+      "slug": "chambres-communicantes-familiales",
+      "nom": "Chambres Communicantes Familiales",
+      "type": "suite_familiale",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "Parce que les plus beaux voyages se vivent ensemble. Les Chambres Communicantes offrent aux familles l'espace nécessaire pour que chacun trouve son territoire sans perdre la chaleur du collectif. Deux univers reliés, un seul moment partagé — la formule idéale pour que parents et enfants se retrouvent au même rythme, sans jamais se marcher dessus.",
+      "description_brute": "Chambre communicante familiale. Parfait pour les familles nombreuses en quête de confort.",
+      "atouts": [
+        "Configuration communicante",
+        "Parfait pour familles nombreuses",
+        "Espaces privatifs réunis",
+        "Capacité jusqu'à 5 personnes"
+      ],
+      "tags": [
+        "famille",
+        "communicant",
+        "enfants",
+        "groupe",
+        "spacieux"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/fc6f480d9bb410ece698e477c9fae02f664acb7c.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/fc6f480d9bb410ece698e477c9fae02f664acb7c.png"
+      ],
+      "surface_m2": null,
+      "capacite_personnes": 5,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Configuration communicante",
+        "Parfait pour familles nombreuses",
+        "Espaces privatifs réunis",
+        "Capacité jusqu'à 5 personnes"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    },
+    {
+      "_id_suggestion": "gites-kribi-chalet-familial-magnolia",
+      "slug": "chalet-familial-magnolia",
+      "nom": "Chalet Familial Magnolia",
+      "type": "chalet",
+      "etablissement_id": "gites-de-kribi-DEV",
+      "etablissement_nom": "Les Gîtes de Kribi",
+      "description_llui": "L'art de recevoir la grande famille, dans la noblesse du bois azobé. Le Chalet Magnolia est une maison dans la maison : trois chambres indépendantes, un salon généreux où les récits de la journée se prolongent, une kitchenette pour les petits-déjeuners en pyjama et un balcon ouvert sur la rivière — tableau vivant qui change d'heure en heure. Le séjour idéal pour les réunions de famille dont on parle encore des années plus tard.",
+      "description_brute": "Chalet Familial construit en bois azobé. 3 chambres, salon spacieux, kitchenette équipée et balcon vue rivière. Confort supérieur pour familles nombreuses.",
+      "atouts": [
+        "Construction en bois azobé",
+        "3 chambres indépendantes",
+        "Salon & kitchenette équipée",
+        "Balcon vue rivière",
+        "Jusqu'à 8 personnes",
+        "Petit-déjeuner buffet mentionné"
+      ],
+      "tags": [
+        "famille",
+        "chalet",
+        "bois",
+        "kitchenette",
+        "rivière",
+        "groupe",
+        "grand espace"
+      ],
+      "image_principale": "https://kribiholidays.com/_assets/v11/906decc8e5e78601d30da193541c9c9d983bb3fd.png",
+      "images_galerie": [
+        "https://kribiholidays.com/_assets/v11/906decc8e5e78601d30da193541c9c9d983bb3fd.png"
+      ],
+      "surface_m2": null,
+      "capacite_personnes": 8,
+      "prix_nuit_fcfa": null,
+      "disponible": true,
+      "localisation": {
+        "ville": "Kribi",
+        "pays": "Cameroun",
+        "coordonnees": {
+          "lat": null,
+          "lng": null
+        }
+      },
+      "services_inclus": [
+        "Construction en bois azobé",
+        "3 chambres indépendantes",
+        "Salon & kitchenette équipée",
+        "Balcon vue rivière",
+        "Jusqu'à 8 personnes",
+        "Petit-déjeuner buffet mentionné"
+      ],
+      "services_etablissement": [
+        "Restaurant \"Au Plaisir du Goût\" — cuisine locale et internationale",
+        "Spa : massages, hammam, salon de coiffure",
+        "2 piscines extérieures",
+        "Terrain de sport & activités nautiques",
+        "Excursions : Chutes de la Lobé, Plage de Grand Batanga",
+        "Séminaires et réceptions sur mesure",
+        "Service 24h/24"
+      ],
+      "source_url": "https://kribiholidays.com/",
+      "statut": "draft",
+      "created_at": "__SERVER_TIMESTAMP__",
+      "updated_at": "__SERVER_TIMESTAMP__",
+      "created_by": "setup-database.js"
+    }
+  ],
+  "index_recommandes": [
+    {
+      "collection": "villas",
+      "fields": [
+        "etablissement_id",
+        "statut",
+        "created_at"
+      ],
+      "ordre": "ASC"
+    },
+    {
+      "collection": "villas",
+      "fields": [
+        "type",
+        "statut",
+        "disponible"
+      ],
+      "ordre": "ASC"
+    },
+    {
+      "collection": "villas",
+      "fields": [
+        "tags",
+        "statut"
+      ],
+      "ordre": "ASC",
+      "note": "Array contains queries"
+    }
+  ]
+}
