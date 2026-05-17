@@ -1,0 +1,23 @@
+
+> llui-signature@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:3005
+  - Environments: .env.local
+
+ ✓ Starting...
+> [PWA] PWA support is disabled
+> [PWA] PWA support is disabled
+ ✓ Ready in 10.9s
+ ○ Compiling /hebergements/[slug] ...
+ ✓ Compiled /hebergements/[slug] in 14.9s (3109 modules)
+ ✓ Compiled in 1583ms (1332 modules)
+ ⨯ Error: Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported.
+    at stringify (<anonymous>)
+digest: "124821124"
+ ⨯ Error: Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported.
+    at stringify (<anonymous>)
+digest: "124821124"
+ GET /hebergements/residence-signature-trois-chambres-six-personnes 500 in 22549ms
+[?25h

@@ -14,7 +14,12 @@ async function getAccommodation(slug: string) {
   const snap = await db.collection('hebergements').where('slug', '==', slug).where('status', '==', 'active').limit(1).get()
   if (snap.empty) return null
   const doc = snap.docs[0]
-  return { id: doc.id, ...doc.data() } as any
+  const data = doc.data()
+  
+  if (data.created_at && typeof data.created_at.toDate === 'function') data.created_at = data.created_at.toDate().toISOString()
+  if (data.updated_at && typeof data.updated_at.toDate === 'function') data.updated_at = data.updated_at.toDate().toISOString()
+  
+  return { id: doc.id, ...data } as any
 }
 
 async function getClientPrefill(): Promise<{ firstName: string; lastName: string; email: string; phone: string } | null> {
