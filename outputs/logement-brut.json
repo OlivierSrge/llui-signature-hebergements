@@ -1,18 +1,87 @@
 {
-  "url_source": "https://example.com",
-  "extrait_le": "2026-05-17T12:31:33.981Z",
-  "titre": "Example Domain",
-  "meta_description": null,
-  "og_image": null,
+  "url_source": "https://kribiholidays.com/",
+  "extrait_le": "2026-05-17T12:41:34.754Z",
+  "titre": "Les Gîtes de Kribi - Votre havre de paix en bord de mer",
+  "meta_description": "Confort tropical en bord de mer • Kribi, Cameroun",
+  "og_image": "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&h=630&fit=crop",
   "h1": [
-    "Example Domain"
+    "Les Gîtes de Kribi"
   ],
-  "h2": [],
+  "h2": [
+    "Nos Hébergements les Plus Réservés",
+    "Nos Services",
+    "Pourquoi Choisir Les Gîtes de Kribi ?",
+    "Avis de nos Clients",
+    "Prêt pour une Expérience Inoubliable ?"
+  ],
   "paragraphes": [
-    "This domain is for use in documentation examples without needing permission. Avoid use in operations."
+    "\"Confort tropical en bord de mer • Kribi, Cameroun\"",
+    "\"Vivez une expérience hôtelière d'exception où le confort rencontre la nature. Détente, gastronomie, bien-être et aventures vous attendent dans notre paradis côtier.\"",
+    "Échappée romantique pour couples en quête d'intimité. Cette suite premium de 75m² invite à la détente avec son jacuzzi extérieur face à la mer, son lit Queen confortable et son balcon privé offrant une vue spectaculaire sur l'océan. L'endroit idéal pour créer des souvenirs inoubliables à deux.",
+    "Charmante cabane perchée dans un manguier centenaire avec vue mer. Expérience unique au cœur de la nature avec tout le confort moderne.",
+    "Chambre spacieuse avec vue mer panoramique et balcon privé. Lit Queen 160cm, climatisation, piscine et salle de sport inclus pour un séjour face à l'océan.",
+    "Chambre Standard Confort située au cœur de Kribi. Literie de qualité, climatisation, TV écran plat, Wi-Fi gratuit et salle de bain privative avec douche.",
+    "Chambre communicante familiale. Parfait pour les familles nombreuses en quête de confort.",
+    "Chalet Familial construit en bois azobé. 3 chambres, salon spacieux, kitchenette équipée et balcon vue rivière. Confort supérieur pour familles nombreuses.",
+    "Chambres, suites, bungalows et appartements raffinés",
+    "Cuisine locale et internationale raffinée",
+    "Massages, spa, sauna et salon de coiffure",
+    "Piscine, terrain de sport et activités nautiques",
+    "Excursions, visites et découvertes locales",
+    "Séminaires, réceptions et événements sur mesure",
+    "Un établissement unique qui allie authenticité camerounaise et confort tropical",
+    "Directement en bord de mer, à Kribi, destination balnéaire prisée du Cameroun avec ses plages de sable fin",
+    "Un complexe étendu avec hébergements indépendants disséminés dans un cadre tropical luxuriant, 2 piscines, restaurant et espaces bien-être en harmonie avec la nature",
+    "Une équipe attentionnée et professionnelle à votre écoute 24h/24 pour un séjour personnalisé",
+    "Restaurant \"Au Plaisir du Goût\" avec spécialités de la mer fraîches et cuisine camerounaise authentique",
+    "Spa avec soins professionnels, massages relaxants, hammam et salon de coiffure dans un cadre apaisant",
+    "Accès privilégié aux sites naturels emblématiques : Chutes de la Lobé, Plage de Grand Batanga et plus",
+    "Ce que disent nos clients",
+    "\"Séjour magnifique ! L'Ocean Pearl Suite offre une vue à couper le souffle. Le personnel est adorable et le restaurant Au Plaisir du Goût nous a régalés. Je recommande sans hésiter.\"",
+    "\"J'ai organisé notre séminaire d'entreprise ici. Salle de conférence parfaite, service impeccable et les chambres sont très confortables. L'équipe est vraiment professionnelle.\"",
+    "\"Vacances en famille absolument réussies ! Les enfants ont adoré les piscines et l'excursion aux Chutes de la Lobé était spectaculaire. Le Chalet Magnolia est spacieux et le petit-déjeuner buffet excellent. On revient l'année prochaine !\"",
+    "Réservez votre séjour",
+    "Hôtel en bord de mer à Kribi, Cameroun. 67 hébergements variés, restaurant gastronomique, spa et piscines dans un cadre tropical exceptionnel.",
+    "Restaurant les pieds dans l'eau",
+    "© 2026 Les Gîtes de Kribi. Tous droits réservés.",
+    "Meilleurs tarifs garantis sur notre site officiel",
+    "Nous utilisons des cookies pour améliorer votre expérience sur notre site, analyser le trafic et personnaliser le contenu. En cliquant sur \"Accepter tout\", vous consentez à notre utilisation des cookies."
   ],
   "images": {
-    "total": 0,
-    "liste": []
+    "total": 8,
+    "liste": [
+      {
+        "src": "https://kribiholidays.com/_assets/v11/e646dac996fbde39b15738a4e201b20f96f1de4f.png",
+        "alt": "Les Gîtes de Kribi"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/86def31e2e9e08ebc72cd60213f572f82b237bda.png",
+        "alt": "Les Gîtes de Kribi"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/caf649c27ea9608b71ca4a5db968a563f60f74b3.png",
+        "alt": "Ocean Pearl Suite Jacuzzi Balcon vue Mer"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/7d779a0a2bcc66641674f0c2bd857ee1f641065e.png",
+        "alt": "Cabane dans les Arbres"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/afc8c91c23a760f508d1b6babe6259050cca16b7.png",
+        "alt": "Chambre Premium"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/7f2d8b3984cc7bafd39308a2ef38fe8e4631cce0.png",
+        "alt": "Chambre Standard Confort"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/fc6f480d9bb410ece698e477c9fae02f664acb7c.png",
+        "alt": "Chambres Communicantes Familiales"
+      },
+      {
+        "src": "https://kribiholidays.com/_assets/v11/906decc8e5e78601d30da193541c9c9d983bb3fd.png",
+        "alt": "Chalets Familiaux"
+      }
+    ]
   }
 }
