@@ -1,0 +1,18 @@
+{
+  "url_source": "https://example.com",
+  "extrait_le": "2026-05-17T12:31:33.981Z",
+  "titre": "Example Domain",
+  "meta_description": null,
+  "og_image": null,
+  "h1": [
+    "Example Domain"
+  ],
+  "h2": [],
+  "paragraphes": [
+    "This domain is for use in documentation examples without needing permission. Avoid use in operations."
+  ],
+  "images": {
+    "total": 0,
+    "liste": []
+  }
+}
