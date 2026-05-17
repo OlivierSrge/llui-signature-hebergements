@@ -1,0 +1,22 @@
+{
+  "date": "2026-05-17T15:13:22.821Z",
+  "source": "moteur-prestige.json",
+  "firestore_crees": 18,
+  "firestore_maj": 0,
+  "firestore_erreurs": 0,
+  "hebergements_traites": 18,
+  "meta_scrape": {
+    "url_source": "https://via.eviivo.com/GitesDeKribi",
+    "date_arrivee": "2026-05-18",
+    "date_depart": "2026-05-19",
+    "extrait_le": "2026-05-17T14:17:11.308Z",
+    "embelli_le": "2026-05-17T00:00:00.000Z",
+    "modele": "claude-sonnet-4-6 (inline)",
+    "erreurs": 0,
+    "prix_obtenus": true,
+    "total_hebergements": 18,
+    "avec_prix": 18,
+    "disponibles": 18,
+    "indisponibles": 0
+  }
+}

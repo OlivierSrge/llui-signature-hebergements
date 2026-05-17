@@ -1,9 +1,10 @@
 {
-  "date": "2026-05-17T14:26:35.114Z",
+  "date": "2026-05-17T15:13:04.873Z",
   "base_id": "app4xCy2vSCp8rW13",
   "table_id": "tblk1eTmcnnjO7hfT",
-  "source": "/Users/olivierserge/Desktop/llui-signature-hebergements/outputs/moteur-brut.json",
-  "inseres": [
+  "source": "/Users/olivierserge/Desktop/llui-signature-hebergements/outputs/moteur-prestige.json",
+  "inseres": [],
+  "mis_a_jour": [
     "Cosy Confort Budget 2P · Plage & Accès Resort",
     "2 - Standard New 2P - Plage & Piscines - Accès Resort",
     "22 - Bungalow Plage et Nature - Piscine & Accès Resort",
@@ -23,6 +24,5 @@
     "Appart' Premium 3 Ch 6P Premium RDC accès resort",
     "Chalet Famille equipé 3ch/6p · Plage Accès Resort"
   ],
-  "mis_a_jour": [],
   "erreurs": []
 }
