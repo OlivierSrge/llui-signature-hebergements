@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   const snap = await db.collection('reservations').get()
   let reservations = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0) as any[]
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at)) as any[]
 
   if (status && ['demande', 'en_attente', 'confirmee', 'annulee'].includes(status)) {
     reservations = reservations.filter((r) => r.reservation_status === status)

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import { Plus, Users, Mail, Phone, MapPin, FileSignature, AlertTriangle } from 'lucide-react'
 import type { Partner } from '@/lib/types'
 import { initializeMissingContracts, getContractStats } from '@/actions/contract'
@@ -27,7 +28,7 @@ async function getPartners(): Promise<PartnerWithContract[]> {
         signedAt: data.contract?.signedAt || null,
       } as PartnerWithContract
     })
-    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    .sort((a, b) => compareTimestamp(b.created_at, a.created_at))
 }
 
 export const metadata = { title: 'Partenaires – Admin' }

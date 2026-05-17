@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, TrendingUp, CheckCircle2, Clock, DollarSign, Download } from 'lucide-react'
 import { RevenueBarChart, ReservationsLineChart } from '@/components/partner/PartnerRevenueCharts'
@@ -109,7 +110,7 @@ async function getRecentReservations(partnerId: string) {
     s.docs.forEach((d) => results.push({ id: d.id, ...d.data() }))
   }
   return results
-    .sort((a, b) => (b.confirmed_at || b.created_at || '').localeCompare(a.confirmed_at || a.created_at || ''))
+    .sort((a, b) => compareTimestamp(b.confirmed_at ?? b.created_at, a.confirmed_at ?? a.created_at))
     .slice(0, 8)
 }
 

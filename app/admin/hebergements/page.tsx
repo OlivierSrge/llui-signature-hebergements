@@ -12,7 +12,7 @@ async function getAccommodations() {
   const snap = await db.collection('hebergements').get()
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0) as any[]
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at)) as any[]
 }
 
 export const metadata = { title: 'Hébergements' }

@@ -27,7 +27,7 @@ async function getAccommodations(filters: SearchParams) {
   results.sort((a, b) => {
     if (a.featured && !b.featured) return -1
     if (!a.featured && b.featured) return 1
-    return (b.created_at || '').localeCompare(a.created_at || '')
+    return compareTimestamp(b.created_at, a.created_at)
   })
 
   if (filters.type) {

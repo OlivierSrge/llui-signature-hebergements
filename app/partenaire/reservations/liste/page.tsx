@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import Link from 'next/link'
 import { Plus, ArrowRight, Filter } from 'lucide-react'
 
@@ -23,7 +24,7 @@ async function getPartnerReservations(partnerId: string) {
       // Legacy (partenaire/admin) : toujours visible
       return true
     })
-    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? '')) as any[]
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at)) as any[]
 }
 
 const STATUS_LABEL: Record<string, string> = {

@@ -17,7 +17,7 @@ async function getPacks(): Promise<Pack[]> {
   const snap = await db.collection('packs').get()
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }) as Pack)
-    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    .sort((a, b) => compareTimestamp(b.created_at, a.created_at))
 }
 
 export const metadata = { title: 'Packs – Admin' }

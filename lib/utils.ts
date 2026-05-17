@@ -161,3 +161,19 @@ export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str
   return str.slice(0, maxLength) + '…'
 }
+
+// ============================================================
+// compareTimestamp — tri robuste pour Firestore Timestamp OU string ISO
+// Gère : Timestamp Firestore (.toDate()), string ISO, number (epoch), null/undefined
+// Usage : .sort((a, b) => compareTimestamp(b.created_at, a.created_at))  // desc
+// ============================================================
+export function compareTimestamp(b: unknown, a: unknown): number {
+  const toMs = (v: unknown): number => {
+    if (!v) return 0
+    if (typeof (v as any).toDate === 'function') return (v as any).toDate().getTime()
+    if (typeof v === 'string') return new Date(v).getTime()
+    if (typeof v === 'number') return v
+    return 0
+  }
+  return toMs(b) - toMs(a)
+}

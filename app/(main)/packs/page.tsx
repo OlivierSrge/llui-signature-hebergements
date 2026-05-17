@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import PackCard from '@/components/packs/PackCard'
 import type { Pack } from '@/lib/types'
 import { Building2, Star, Crown } from 'lucide-react'
@@ -11,7 +12,7 @@ async function getPacks(): Promise<Pack[]> {
   return packs.sort((a, b) => {
     if (a.featured && !b.featured) return -1
     if (!a.featured && b.featured) return 1
-    return (b.created_at || '').localeCompare(a.created_at || '')
+    return compareTimestamp(b.created_at, a.created_at)
   })
 }
 

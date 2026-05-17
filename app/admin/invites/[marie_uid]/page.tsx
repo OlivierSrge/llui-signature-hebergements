@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import Link from 'next/link'
+import { compareTimestamp } from '@/lib/utils'
 
 interface Invite {
   id: string
@@ -151,7 +152,7 @@ export default function AdminInvitesPage() {
   filtered = [...filtered].sort((a, b) => {
     if (sortBy === 'nom') return a.nom.localeCompare(b.nom)
     if (sortBy === 'statut') return a.statut.localeCompare(b.statut)
-    if (sortBy === 'date') return (a.created_at ?? '').localeCompare(b.created_at ?? '')
+    if (sortBy === 'date') return compareTimestamp(a.created_at, b.created_at)
     return 0
   })
 

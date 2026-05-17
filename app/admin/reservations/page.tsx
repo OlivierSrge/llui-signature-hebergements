@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import Link from 'next/link'
 import { Filter, Plus, Download } from 'lucide-react'
 import ReservationsTable from '@/components/admin/ReservationsTable'
@@ -9,7 +10,7 @@ async function getReservations(status?: string, source?: string) {
   const snap = await db.collection('reservations').get()
   let reservations = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0) as any[]
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at)) as any[]
 
   if (status && ['demande', 'en_attente', 'confirmee', 'annulee'].includes(status)) {
     reservations = reservations.filter((r) => r.reservation_status === status)

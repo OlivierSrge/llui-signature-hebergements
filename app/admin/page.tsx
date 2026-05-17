@@ -61,7 +61,7 @@ async function getRecentReservations() {
   const snap = await db.collection('reservations').get()
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0)
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at))
     .slice(0, 6) as any[]
 }
 
@@ -71,7 +71,7 @@ async function getPendingDemands() {
 
   const pending = allDocs
     .filter((d) => d.status === 'en_attente')
-    .sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at) || 0)
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at))
 
   const cutoff3h = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
   const unhandledOver3h = pending.filter(
@@ -90,7 +90,7 @@ async function getPendingDemands() {
 async function getPackRequestsData() {
   const snap = await db.collection('pack_requests').get()
   const all = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[]
-  const sorted = all.sort((a, b) => b.created_at?.localeCompare(a.created_at) || 0)
+  const sorted = all.sort((a, b) => compareTimestamp(b.created_at, a.created_at))
   return {
     nouveau: all.filter((r) => r.status === 'nouveau').length,
     recent: sorted.slice(0, 3),

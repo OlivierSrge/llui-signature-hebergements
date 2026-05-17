@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/firebase'
+import { compareTimestamp } from '@/lib/utils'
 import Link from 'next/link'
 import { LogOut, Calendar, Home, Plus, QrCode, Star, ArrowRight, BarChart2, FileSignature, AlertTriangle, Bell, Settings, TrendingUp, Users, BookOpen } from 'lucide-react'
 import { logoutPartner } from '@/actions/partners'
@@ -87,7 +88,7 @@ async function getPartnerReservations(accommodationIds: string[]) {
     snap.docs.forEach((d) => results.push({ id: d.id, ...d.data() }))
   }
   return results
-    .sort((a: any, b: any) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    .sort((a: any, b: any) => compareTimestamp(b.created_at, a.created_at))
     .slice(0, 10)
 }
 
