@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 /**
- * sync-airtable.js
- * Lit outputs/schema-firestore-villas.json (source principale)
- * ou outputs/import-airtable.csv (fallback)
- * → Insère / met à jour les 6 hébergements des Gîtes de Kribi dans Airtable
- *
- * Credentials câblés directement — à déplacer en .env après usage.
+ * sync-airtable.js — v2
+ * Source   : outputs/moteur-brut.json  (scrape eviivo, 18 hébergements)
+ * Cible    : Airtable base app4xCy2vSCp8rW13, table tblk1eTmcnnjO7hfT
+ * Mode     : UPSERT par Name (met à jour les existants, insère les nouveaux)
  *
  * Usage :
- *   node sync-airtable.js             → insertion normale
- *   node sync-airtable.js --dry-run   → aperçu sans écriture
- *   node sync-airtable.js --upsert    → met à jour si Nom existe déjà
+ *   AIRTABLE_TOKEN=pat… node sync-airtable.js
+ *   AIRTABLE_TOKEN=pat… node sync-airtable.js --dry-run
  */
 
 const fs       = require('fs');
@@ -18,276 +15,189 @@ const path     = require('path');
 const Airtable = require('airtable');
 
 // ─── CREDENTIALS ─────────────────────────────────────────────────────────────
-// Passe les valeurs via variables d'environnement :
-//   AIRTABLE_TOKEN=pat…   AIRTABLE_BASE_ID=app…   AIRTABLE_TABLE_ID=tbl…
-//   node sync-airtable.js
-// Ou crée un fichier .env et charge-le avec : node -r dotenv/config sync-airtable.js
-const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE_ID        = process.env.AIRTABLE_BASE_ID  || 'app4xCy2vSCp8rW13';
-const TABLE_ID       = process.env.AIRTABLE_TABLE_ID || 'tblk1eTmcnnjO7hfT';
+const TOKEN    = process.env.AIRTABLE_TOKEN;
+const BASE_ID  = process.env.AIRTABLE_BASE_ID  || 'app4xCy2vSCp8rW13';
+const TABLE_ID = process.env.AIRTABLE_TABLE_ID || 'tblk1eTmcnnjO7hfT';
+const DRY_RUN  = process.argv.includes('--dry-run');
 
-if (!AIRTABLE_TOKEN) {
+if (!TOKEN) {
   console.error('Token manquant. Lance avec :');
   console.error('  AIRTABLE_TOKEN=pat… node sync-airtable.js');
   process.exit(1);
 }
 
-// ─── CLI FLAGS ────────────────────────────────────────────────────────────────
-const args    = process.argv.slice(2);
-const DRY_RUN = args.includes('--dry-run');
-const UPSERT  = args.includes('--upsert');
-
 // ─── LECTURE SOURCE ───────────────────────────────────────────────────────────
-const JSON_PATH = path.join(__dirname, 'outputs', 'schema-firestore-villas.json');
-const CSV_PATH  = path.join(__dirname, 'outputs', 'import-airtable.csv');
-
-function chargerDepuisJSON() {
-  const raw = JSON.parse(fs.readFileSync(JSON_PATH, 'utf-8'));
-  return raw.documents_dev.map(doc => ({
-    Nom:              doc.nom,
-    Slug:             doc.slug,
-    Type:             doc.type,
-    Surface_m2:       doc.surface_m2,
-    Capacite:         doc.capacite_personnes,
-    Description_LLui: doc.description_llui,
-    Description_Brute:doc.description_brute,
-    Atouts:           (doc.atouts || []).join(' | '),
-    Tags:             (doc.tags  || []).join(' | '),
-    Image_Principale: doc.image_principale || '',
-    Etablissement:    doc.etablissement_nom || '',
-    Ville:            doc.localisation?.ville || '',
-    Pays:             doc.localisation?.pays  || '',
-    Source_URL:       doc.source_url || '',
-    Statut:           doc.statut || 'draft',
-  }));
-}
-
-function parseLigneCsv(line) {
-  const result = [];
-  let cur = '', inQuote = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQuote = !inQuote;
-    } else if (c === ',' && !inQuote) {
-      result.push(cur); cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  result.push(cur);
-  return result;
-}
-
-function chargerDepuisCSV() {
-  const lines   = fs.readFileSync(CSV_PATH, 'utf-8').split('\n').filter(Boolean);
-  const headers = parseLigneCsv(lines[0]);
-  return lines.slice(1).map(line => {
-    const vals = parseLigneCsv(line);
-    const obj  = {};
-    headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
-    return {
-      Nom:              obj['Nom'],
-      Slug:             obj['Slug'],
-      Type:             obj['Type'],
-      Surface_m2:       obj['Surface_m2'] ? Number(obj['Surface_m2']) : null,
-      Capacite:         obj['Capacite_personnes'] ? Number(obj['Capacite_personnes']) : null,
-      Description_LLui: obj['Description_LLui'],
-      Description_Brute:obj['Description_Brute'],
-      Atouts:           obj['Atouts'],
-      Tags:             obj['Tags'],
-      Image_Principale: obj['Image_Principale'],
-      Etablissement:    obj['Etablissement'],
-      Ville:            obj['Ville'],
-      Pays:             obj['Pays'],
-      Source_URL:       obj['Source_URL'],
-      Statut:           obj['Statut'] || 'draft',
-    };
-  });
-}
-
-let hebergements;
-if (fs.existsSync(JSON_PATH)) {
-  hebergements = chargerDepuisJSON();
-  console.log(`Source : outputs/schema-firestore-villas.json  (${hebergements.length} hébergements)`);
-} else if (fs.existsSync(CSV_PATH)) {
-  hebergements = chargerDepuisCSV();
-  console.log(`Source : outputs/import-airtable.csv  (${hebergements.length} hébergements)`);
-} else {
-  console.error('Aucun fichier source. Lance d\'abord : node setup-database.js');
+const srcPath = path.join(__dirname, 'outputs', 'moteur-brut.json');
+if (!fs.existsSync(srcPath)) {
+  console.error('Source introuvable : outputs/moteur-brut.json');
+  console.error('Lance d\'abord : node scrape-moteur.js');
   process.exit(1);
+}
+const { meta, hebergements } = JSON.parse(fs.readFileSync(srcPath, 'utf-8'));
+
+// ─── NETTOYAGE DES ÉQUIPEMENTS ────────────────────────────────────────────────
+// Retire les doublons, les lignes bruitées (taille, "Maximum de:X") et les virgules
+function nettoyerEquipements(liste) {
+  const vus = new Set();
+  return liste
+    .map(e => e.replace(/,$/, '').replace(/\n/g, ' ').trim())
+    .filter(e => {
+      if (!e || e.length < 3) return false;
+      if (/^\d+\s*m²/.test(e)) return false;          // "18 m² / 194 ft²"
+      if (/^Taille:/i.test(e)) return false;           // "Taille:18 m² / 194 ft²"
+      if (/^Maximum de:/i.test(e)) return false;       // "Maximum de: 2"
+      if (/^\d+$/.test(e)) return false;               // chiffres isolés
+      if (vus.has(e)) return false;
+      vus.add(e);
+      return true;
+    });
+}
+
+// ─── CONSTRUCTION DU CHAMP Notes ─────────────────────────────────────────────
+function construireNotes(h) {
+  const cap = h.capacite_max
+    || (h.equipements.find(e => /Maximum de/i.test(e))?.match(/\d+/) || [])[0]
+    || '—';
+  const prix = h.prix_sejour_xaf
+    ? h.prix_sejour_xaf.toLocaleString('fr-FR') + ' XAF / nuit'
+    : '— (prix non disponible)';
+  const frais = h.frais_sup_xaf
+    ? '+ ' + h.frais_sup_xaf.toLocaleString('fr-FR') + ' XAF en sus'
+    : '';
+  const dispo = h.disponibilite === 'disponible'
+    ? `Disponible${h.chambres_dispos ? ' (' + h.chambres_dispos + ' unité(s))' : ''}`
+    : h.disponibilite;
+
+  const equip = nettoyerEquipements(h.equipements);
+
+  const lignes = [
+    `━━━ ${h.nom} ━━━`,
+    ``,
+    `📍 Les Gîtes de Kribi — Kribi, Cameroun`,
+    `🔢 ID eviivo    : ${h.eviivo_id || '—'}`,
+    `📐 Surface      : ${h.surface || '—'}`,
+    `👥 Capacité max : ${cap} pers.`,
+    ``,
+    `💰 Tarif        : ${prix}`,
+    frais ? `   Frais sup.   : ${frais}` : '',
+    `🏷  Label        : ${h.label_tarif || 'Meilleur Tarif'}`,
+    `✅ Disponibilité: ${dispo}`,
+    ``,
+    `📝 Description`,
+    h.description || '—',
+    ``,
+    `🛎  Équipements (${equip.length})`,
+    equip.map(e => `• ${e}`).join('\n'),
+    ``,
+    `📅 Données extraites le : ${meta.extrait_le?.slice(0, 10) || '—'}`,
+    `🔗 Source : ${meta.url_source || '—'}`,
+  ].filter(l => l !== '');
+
+  return lignes.join('\n');
 }
 
 // ─── CONVERSION → CHAMPS AIRTABLE ────────────────────────────────────────────
-// Champs disponibles dans cette table (sondés via l'API) :
-//   Name          → texte court (champ primaire)
-//   Notes         → texte long  (on y concentre toutes les métadonnées)
-//   Attachments   → pièces jointes (image principale)
-
+// Champs confirmés dans cette table : Name, Notes, Attachments
 function versChamps(h) {
-  const lignes = [
-    `🏡 ${h.Nom}`,
-    ``,
-    `📍 ${h.Etablissement} — ${h.Ville}, ${h.Pays}`,
-    `🏷  Type : ${h.Type}${h.Surface_m2 ? `  |  Surface : ${h.Surface_m2} m²` : ''}${h.Capacite ? `  |  Capacité : ${h.Capacite} pers.` : ''}`,
-    ``,
-    `✨ Description L&Lui Signature`,
-    h.Description_LLui,
-    ``,
-    `📝 Description d'origine`,
-    h.Description_Brute,
-    ``,
-    `✅ Atouts`,
-    (h.Atouts || '').split(' | ').map(a => `• ${a}`).join('\n'),
-    ``,
-    `🏷  Tags : ${h.Tags}`,
-    ``,
-    `🔗 Source : ${h.Source_URL}`,
-    `📌 Statut : ${h.Statut}`,
-    `🔑 Slug   : ${h.Slug}`,
-  ];
-
   const champs = {
-    'Name':  h.Nom,
-    'Notes': lignes.join('\n'),
+    'Name':  h.nom,
+    'Notes': construireNotes(h),
   };
-
-  if (h.Image_Principale) {
-    champs['Attachments'] = [{ url: h.Image_Principale }];
+  if (h.image_principale) {
+    champs['Attachments'] = [{ url: h.image_principale }];
   }
-
   return champs;
 }
 
-// ─── UPSERT helper ───────────────────────────────────────────────────────────
-async function trouverExistant(table, nom) {
+// ─── UPSERT : cherche un record existant par Name ─────────────────────────────
+function trouverParNom(table, nom) {
   return new Promise((resolve, reject) => {
     let found = null;
     table.select({
-      filterByFormula: `{Nom} = "${nom.replace(/"/g, '\\"')}"`,
+      filterByFormula: `{Name} = "${nom.replace(/"/g, '\\"')}"`,
       maxRecords: 1,
     }).eachPage(
-      (records, next) => { if (records.length) found = records[0]; next(); },
+      (recs, next) => { if (recs.length) found = recs[0]; next(); },
       (err) => err ? reject(err) : resolve(found)
     );
   });
 }
 
-function chunker(arr, size) {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
-  return chunks;
-}
+const pause = ms => new Promise(r => setTimeout(r, ms));
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 (async () => {
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  Sync Airtable — Les Gîtes de Kribi');
+  console.log('  Sync Airtable v2 — Les Gîtes de Kribi (eviivo)');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`  Base            : ${BASE_ID}`);
-  console.log(`  Table           : ${TABLE_ID}`);
-  console.log(`  Mode            : ${DRY_RUN ? 'DRY-RUN' : UPSERT ? 'UPSERT' : 'INSERT'}`);
-  console.log(`  Hébergements    : ${hebergements.length}`);
+  console.log(`  Source   : outputs/moteur-brut.json`);
+  console.log(`  Base     : ${BASE_ID}`);
+  console.log(`  Table    : ${TABLE_ID}`);
+  console.log(`  Records  : ${hebergements.length}`);
+  console.log(`  Dates    : ${meta.date_arrivee} → ${meta.date_depart}`);
+  console.log(`  Mode     : ${DRY_RUN ? 'DRY-RUN (aucune écriture)' : 'UPSERT'}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-  // ── Dry-run ────────────────────────────────────────────────────────────────
   if (DRY_RUN) {
     hebergements.forEach((h, i) => {
-      console.log(`  [${i + 1}] ${h.Nom}`);
-      console.log(`       Type        : ${h.Type}`);
-      console.log(`       Capacité    : ${h.Capacite || '—'} pers.`);
-      console.log(`       Image       : ${h.Image_Principale ? 'OK' : 'manquante'}`);
-      console.log(`       Description : ${h.Description_LLui.slice(0, 80)}…\n`);
+      const cap = (h.equipements.find(e => /Maximum de/i.test(e))?.match(/\d+/) || [])[0] || '—';
+      console.log(`  [${String(i+1).padStart(2)}] ${h.nom.slice(0, 50).padEnd(50)} ${String(h.prix_sejour_xaf || 0).padStart(7)} XAF  cap:${cap}`);
     });
-    console.log('  Dry-run OK. Relance sans --dry-run pour insérer.\n');
+    console.log('\n  Dry-run OK. Relance sans --dry-run pour écrire.\n');
     return;
   }
 
-  // ── Connexion Airtable ─────────────────────────────────────────────────────
-  Airtable.configure({ apiKey: AIRTABLE_TOKEN });
-  const base  = Airtable.base(BASE_ID);
-  const table = base(TABLE_ID);
+  Airtable.configure({ apiKey: TOKEN });
+  const table = Airtable.base(BASE_ID)(TABLE_ID);
 
-  const resultats = { inseres: [], mis_a_jour: [], erreurs: [] };
+  const res = { inseres: [], mis_a_jour: [], erreurs: [] };
 
-  if (UPSERT) {
-    // Un par un pour vérifier l'existence
-    for (const h of hebergements) {
-      try {
-        const existant = await trouverExistant(table, h.Nom);
-        const champs   = versChamps(h);
-        if (existant) {
-          await table.update(existant.id, champs);
-          console.log(`  ↻  Mis à jour  : ${h.Nom}`);
-          resultats.mis_a_jour.push(h.Nom);
-        } else {
-          const rec = await table.create(champs);
-          console.log(`  ✔  Inséré      : ${h.Nom}  (${rec.id})`);
-          resultats.inseres.push(h.Nom);
-        }
-      } catch (err) {
-        console.error(`  ✗  Erreur "${h.Nom}" : ${err.message}`);
-        resultats.erreurs.push({ nom: h.Nom, erreur: err.message });
+  for (const h of hebergements) {
+    try {
+      const existant = await trouverParNom(table, h.nom);
+      const champs   = versChamps(h);
+
+      if (existant) {
+        await table.update(existant.id, champs);
+        console.log(`  ↻  MAJ      : ${h.nom.slice(0, 55)}`);
+        res.mis_a_jour.push(h.nom);
+      } else {
+        const rec = await table.create(champs);
+        console.log(`  ✔  Inséré   : ${h.nom.slice(0, 55)}  (${rec.id})`);
+        res.inseres.push(h.nom);
       }
-      await new Promise(r => setTimeout(r, 250));
+    } catch (err) {
+      console.error(`  ✗  Erreur   : ${h.nom.slice(0, 45)} → ${err.message}`);
+      res.erreurs.push({ nom: h.nom, erreur: err.message });
     }
-  } else {
-    // Batch de 10 max (limite Airtable)
-    for (const lot of chunker(hebergements, 10)) {
-      const payload = lot.map(h => ({ fields: versChamps(h) }));
-      try {
-        const created = await table.create(payload);
-        created.forEach(r => {
-          console.log(`  ✔  Inséré : ${r.fields['Name']}  (${r.id})`);
-          resultats.inseres.push(r.fields['Nom']);
-        });
-      } catch (err) {
-        console.error(`  ✗  Erreur lot : ${err.message}`);
-        // Réessai un par un pour identifier le record problématique
-        console.log('     Réessai un par un…');
-        for (const h of lot) {
-          try {
-            const rec = await table.create(versChamps(h));
-            console.log(`  ✔  Inséré (retry) : ${h.Nom}  (${rec.id})`);
-            resultats.inseres.push(h.Nom);
-          } catch (e2) {
-            console.error(`  ✗  Échec définitif "${h.Nom}" : ${e2.message}`);
-            resultats.erreurs.push({ nom: h.Nom, erreur: e2.message });
-          }
-          await new Promise(r => setTimeout(r, 300));
-        }
-      }
-      await new Promise(r => setTimeout(r, 250));
-    }
+    // Respecte la limite 5 req/s d'Airtable
+    await pause(220);
   }
 
-  // ── Rapport ────────────────────────────────────────────────────────────────
+  // ─ Rapport ──────────────────────────────────────────────────────────────────
   const rapport = {
     date:       new Date().toISOString(),
     base_id:    BASE_ID,
     table_id:   TABLE_ID,
-    mode:       UPSERT ? 'upsert' : 'insert',
-    inseres:    resultats.inseres,
-    mis_a_jour: resultats.mis_a_jour,
-    erreurs:    resultats.erreurs,
+    source:     srcPath,
+    inseres:    res.inseres,
+    mis_a_jour: res.mis_a_jour,
+    erreurs:    res.erreurs,
   };
-  const rapportPath = path.join(__dirname, 'outputs', 'sync-airtable-rapport.json');
-  fs.writeFileSync(rapportPath, JSON.stringify(rapport, null, 2), 'utf-8');
+  fs.writeFileSync(
+    path.join(__dirname, 'outputs', 'sync-airtable-rapport.json'),
+    JSON.stringify(rapport, null, 2)
+  );
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  RÉSUMÉ');
-  console.log(`  ✔  Insérés    : ${resultats.inseres.length}`);
-  console.log(`  ↻  Maj        : ${resultats.mis_a_jour.length}`);
-  console.log(`  ✗  Erreurs    : ${resultats.erreurs.length}`);
-  console.log(`  Rapport       : outputs/sync-airtable-rapport.json`);
-
-  if (resultats.erreurs.length) {
+  console.log(`  ✔  Insérés    : ${res.inseres.length}`);
+  console.log(`  ↻  Mis à jour : ${res.mis_a_jour.length}`);
+  console.log(`  ✗  Erreurs    : ${res.erreurs.length}`);
+  console.log('  Rapport       : outputs/sync-airtable-rapport.json');
+  if (res.erreurs.length) {
     console.log('\n  Détail erreurs :');
-    resultats.erreurs.forEach(e => console.log(`    • ${e.nom} → ${e.erreur}`));
-    console.log('\n  Si erreur 422 "Unknown field name" :');
-    console.log('  Les noms de colonnes dans versChamps() doivent correspondre exactement');
-    console.log('  à ceux visibles dans ta table Airtable (casse et espaces inclus).');
+    res.erreurs.forEach(e => console.log(`    • ${e.nom} → ${e.erreur}`));
   }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 })().catch(err => {
