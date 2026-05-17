@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * sync-airtable.js — v2
- * Source   : outputs/moteur-brut.json  (scrape eviivo, 18 hébergements)
+ * sync-airtable.js — v3
+ * Source   : outputs/moteur-prestige.json  (si disponible, sinon moteur-brut.json)
  * Cible    : Airtable base app4xCy2vSCp8rW13, table tblk1eTmcnnjO7hfT
  * Mode     : UPSERT par Name (met à jour les existants, insère les nouveaux)
  *
@@ -26,11 +26,20 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-// ─── LECTURE SOURCE ───────────────────────────────────────────────────────────
-const srcPath = path.join(__dirname, 'outputs', 'moteur-brut.json');
-if (!fs.existsSync(srcPath)) {
-  console.error('Source introuvable : outputs/moteur-brut.json');
-  console.error('Lance d\'abord : node scrape-moteur.js');
+// ─── LECTURE SOURCE (prestige en priorité, fallback brut) ─────────────────────
+const prestigePath = path.join(__dirname, 'outputs', 'moteur-prestige.json');
+const brutPath     = path.join(__dirname, 'outputs', 'moteur-brut.json');
+
+let srcPath;
+if (fs.existsSync(prestigePath)) {
+  srcPath = prestigePath;
+  console.log('  [info] Source : moteur-prestige.json (descriptions L&Lui)');
+} else if (fs.existsSync(brutPath)) {
+  srcPath = brutPath;
+  console.log('  [info] Source : moteur-brut.json (descriptions brutes eviivo)');
+} else {
+  console.error('Source introuvable : outputs/moteur-prestige.json ou moteur-brut.json');
+  console.error('Lance d\'abord : node scrape-moteur.js  (puis optionnel : node embellir-descriptions.js)');
   process.exit(1);
 }
 const { meta, hebergements } = JSON.parse(fs.readFileSync(srcPath, 'utf-8'));
@@ -70,8 +79,14 @@ function construireNotes(h) {
 
   const equip = nettoyerEquipements(h.equipements);
 
+  // Utilise la description prestige si disponible, sinon la description brute
+  const nomAffiche         = h.nom_prestige || h.nom;
+  const descriptionAffiche = h.description_prestige || h.description || '—';
+  const estPrestige        = !!h.nom_prestige;
+
   const lignes = [
-    `━━━ ${h.nom} ━━━`,
+    `━━━ ${nomAffiche} ━━━`,
+    estPrestige ? `✨ Nom original : ${h.nom}` : '',
     ``,
     `📍 Les Gîtes de Kribi — Kribi, Cameroun`,
     `🔢 ID eviivo    : ${h.eviivo_id || '—'}`,
@@ -83,13 +98,16 @@ function construireNotes(h) {
     `🏷  Label        : ${h.label_tarif || 'Meilleur Tarif'}`,
     `✅ Disponibilité: ${dispo}`,
     ``,
-    `📝 Description`,
-    h.description || '—',
+    `📝 Description${estPrestige ? ' (L&Lui Prestige)' : ''}`,
+    descriptionAffiche,
     ``,
     `🛎  Équipements (${equip.length})`,
     equip.map(e => `• ${e}`).join('\n'),
     ``,
     `📅 Données extraites le : ${meta.extrait_le?.slice(0, 10) || '—'}`,
+    estPrestige && meta.embelli_le
+      ? `✨ Embelli le    : ${meta.embelli_le.slice(0, 10)}`
+      : '',
     `🔗 Source : ${meta.url_source || '—'}`,
   ].filter(l => l !== '');
 
@@ -100,7 +118,7 @@ function construireNotes(h) {
 // Champs confirmés dans cette table : Name, Notes, Attachments
 function versChamps(h) {
   const champs = {
-    'Name':  h.nom,
+    'Name':  h.nom_prestige || h.nom,   // nom prestige si dispo
     'Notes': construireNotes(h),
   };
   if (h.image_principale) {
@@ -110,6 +128,7 @@ function versChamps(h) {
 }
 
 // ─── UPSERT : cherche un record existant par Name ─────────────────────────────
+// Essaie nom_prestige en premier (nouveau nom), puis nom original (ancien)
 function trouverParNom(table, nom) {
   return new Promise((resolve, reject) => {
     let found = null;
@@ -120,6 +139,18 @@ function trouverParNom(table, nom) {
       (recs, next) => { if (recs.length) found = recs[0]; next(); },
       (err) => err ? reject(err) : resolve(found)
     );
+  });
+}
+
+function trouverParNomOuOriginal(table, nomPrestige, nomOriginal) {
+  // Si pas de nom prestige, recherche simple
+  if (!nomPrestige || nomPrestige === nomOriginal) {
+    return trouverParNom(table, nomOriginal);
+  }
+  // Sinon cherche d'abord le nom prestige, puis le nom original (migration)
+  return trouverParNom(table, nomPrestige).then(found => {
+    if (found) return found;
+    return trouverParNom(table, nomOriginal);
   });
 }
 
@@ -154,7 +185,7 @@ const pause = ms => new Promise(r => setTimeout(r, ms));
 
   for (const h of hebergements) {
     try {
-      const existant = await trouverParNom(table, h.nom);
+      const existant = await trouverParNomOuOriginal(table, h.nom_prestige, h.nom);
       const champs   = versChamps(h);
 
       if (existant) {
