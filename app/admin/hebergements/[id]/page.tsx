@@ -13,7 +13,12 @@ import { getSeasonalPricing } from '@/actions/seasonal-pricing'
 async function getAccommodation(id: string) {
   const doc = await db.collection('hebergements').doc(id).get()
   if (!doc.exists) return null
-  return { id: doc.id, ...doc.data() } as any
+  const data = doc.data()
+  
+  if (data?.created_at && typeof data.created_at.toDate === 'function') data.created_at = data.created_at.toDate().toISOString()
+  if (data?.updated_at && typeof data.updated_at.toDate === 'function') data.updated_at = data.updated_at.toDate().toISOString()
+  
+  return { id: doc.id, ...data } as any
 }
 
 async function getPartners(): Promise<Partner[]> {
