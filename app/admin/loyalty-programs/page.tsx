@@ -52,10 +52,16 @@ export default async function AdminLoyaltyProgramsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <span className="text-[#F5F0E8]/40 text-xs">
                     {p.niveaux?.length ?? 0} niveaux
                   </span>
+                  <Link
+                    href={`/admin/loyalty-programs/${p.program_id}/configure`}
+                    className="bg-[#C9A84C]/10 hover:bg-[#C9A84C]/20 border border-[#C9A84C]/30 text-[#C9A84C] text-xs font-medium px-3 py-1.5 rounded-lg transition"
+                  >
+                    ⚙️ Configurer
+                  </Link>
                 </div>
               </div>
             ))}

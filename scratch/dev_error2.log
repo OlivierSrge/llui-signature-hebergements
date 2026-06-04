@@ -1,0 +1,17 @@
+
+> llui-signature@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:3005
+  - Environments: .env.local
+
+ ✓ Starting...
+> [PWA] PWA support is disabled
+> [PWA] PWA support is disabled
+ ✓ Ready in 11.2s
+ ○ Compiling /hebergements/[slug] ...
+ ✓ Compiled /hebergements/[slug] in 26.5s (3109 modules)
+ ✓ Compiled in 2.5s (1332 modules)
+ GET /hebergements/residence-signature-trois-chambres-six-personnes 200 in 47245ms
+[?25h

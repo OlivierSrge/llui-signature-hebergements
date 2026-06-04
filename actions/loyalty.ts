@@ -93,6 +93,72 @@ export async function createLoyaltyProgram(params: {
   }
 }
 
+// ─── Mettre à jour un programme (admin configure) ────────────────────────────
+
+export async function updateLoyaltyProgram(
+  program_id: string,
+  updates: {
+    prix_fcfa?: number
+    prix_eur?: number
+    duree_validite_mois?: number
+    commission_lui_percent?: number
+    commission_partner_percent?: number
+    niveaux?: Niveau[]
+    statut?: 'DRAFT' | 'ACTIVE' | 'PAUSED'
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .collection('loyalty_programs')
+      .doc(program_id)
+      .update({ ...updates, updated_at: Timestamp.now() })
+    return { success: true }
+  } catch (error) {
+    console.error('[Loyalty] Erreur mise à jour programme:', error)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
+// ─── Récupérer programme par ID (admin) ──────────────────────────────────────
+
+export async function getLoyaltyProgramById(program_id: string): Promise<{
+  success: boolean
+  program?: LoyaltyProgram
+  error?: string
+}> {
+  try {
+    const doc = await db.collection('loyalty_programs').doc(program_id).get()
+    if (!doc.exists) return { success: false, error: 'Programme non trouvé' }
+    return { success: true, program: { program_id: doc.id, ...(doc.data() as Omit<LoyaltyProgram, 'program_id'>) } }
+  } catch (error) {
+    console.error('[Loyalty] Erreur lecture programme:', error)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
+// ─── Récupérer programme actif d'un partenaire (mini site) ───────────────────
+
+export async function getLoyaltyProgramForPartenaire(partenaire_id: string): Promise<{
+  success: boolean
+  program?: LoyaltyProgram
+  error?: string
+}> {
+  try {
+    const snap = await db
+      .collection('loyalty_programs')
+      .where('partenaire_id', '==', partenaire_id)
+      .where('statut', '==', 'ACTIVE')
+      .limit(1)
+      .get()
+    if (snap.empty) return { success: false }
+    const doc = snap.docs[0]
+    return { success: true, program: { program_id: doc.id, ...(doc.data() as Omit<LoyaltyProgram, 'program_id'>) } }
+  } catch (error) {
+    console.error('[Loyalty] Erreur lecture programme partenaire:', error)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
 // ─── Récupérer les programmes d'un partenaire ────────────────────────────────
 
 export async function getLoyaltyPrograms(partenaire_id: string): Promise<{

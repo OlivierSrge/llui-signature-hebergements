@@ -7,6 +7,8 @@ import type { ParametresPlateforme } from '@/actions/parametres'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { PartenaireAvecLocation } from '@/types/geolocation'
+import type { LoyaltyProgram } from '@/types/loyalty'
+import BuyCardSection from '@/components/loyalty/BuyCardSection'
 
 const PartenairesMap = dynamic(
   () => import('@/components/PartenairesMap'),
@@ -29,6 +31,7 @@ interface Props {
   session: CodeSession
   plateformeParams: ParametresPlateforme
   partenaires?: PartenaireAvecLocation[]
+  loyaltyProgram?: LoyaltyProgram | null
 }
 
 function formatCode(code: string) {
@@ -41,7 +44,7 @@ function getBarreColor(heures: number) {
   return 'bg-red-500'
 }
 
-export default function SejourClient({ session, plateformeParams, partenaires = [] }: Props) {
+export default function SejourClient({ session, plateformeParams, partenaires = [], loyaltyProgram }: Props) {
   const expireAt = new Date(session.expire_at)
   const [maintenant, setMaintenant] = useState(new Date())
 
@@ -486,6 +489,14 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
           </div>
         </div>
+
+        {/* ── Carte de fidélité partenaire ── si programme actif */}
+        {loyaltyProgram && session.prescripteur_partenaire_id && (
+          <BuyCardSection
+            program={loyaltyProgram}
+            partenaireId={session.prescripteur_partenaire_id}
+          />
+        )}
 
         {/* ── Carte partenaires Stars ── carte visible à tous les visiteurs */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">

@@ -1,6 +1,7 @@
 import { getCodeSession } from '@/actions/codes-sessions'
 import { getParametresPlateforme } from '@/actions/parametres'
 import { getPartenairesGeolocalisees } from '@/actions/partenaires-map'
+import { getLoyaltyProgramForPartenaire } from '@/actions/loyalty'
 import { serialize } from '@/lib/serialize'
 import SejourClient from './SejourClient'
 import Link from 'next/link'
@@ -18,6 +19,12 @@ export default async function SejourPage({ params }: Props) {
     getPartenairesGeolocalisees(),
   ])
 
+  // Récupérer le programme de fidélité actif du partenaire (si session valide)
+  const loyaltyResult = session?.prescripteur_partenaire_id
+    ? await getLoyaltyProgramForPartenaire(session.prescripteur_partenaire_id)
+    : null
+  const loyaltyProgram = loyaltyResult?.program ?? null
+
   if (!session) {
     return (
       <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center px-4">
@@ -33,5 +40,12 @@ export default async function SejourPage({ params }: Props) {
     )
   }
 
-  return <SejourClient session={serialize(session)} plateformeParams={serialize(plateformeParams)} partenaires={serialize(partenaires)} />
+  return (
+    <SejourClient
+      session={serialize(session)}
+      plateformeParams={serialize(plateformeParams)}
+      partenaires={serialize(partenaires)}
+      loyaltyProgram={loyaltyProgram ? serialize(loyaltyProgram) : null}
+    />
+  )
 }
