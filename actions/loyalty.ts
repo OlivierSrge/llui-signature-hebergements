@@ -7,6 +7,16 @@ import { calculerPoints, determinerNiveau } from '@/lib/loyalty-logic'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
+// ─── Brevo Template IDs ───────────────────────────────────────────────────────
+// Remplacer les 0 par les vrais IDs après création dans https://app.brevo.com
+const BREVO_TEMPLATE_WELCOME     = Number(process.env.BREVO_TEMPLATE_WELCOME     ?? 0)
+const BREVO_TEMPLATE_POINTS      = Number(process.env.BREVO_TEMPLATE_POINTS      ?? 0)
+const BREVO_TEMPLATE_LEVEL_UP    = Number(process.env.BREVO_TEMPLATE_LEVEL_UP    ?? 0)
+const BREVO_TEMPLATE_PAY_REQUEST = Number(process.env.BREVO_TEMPLATE_PAY_REQUEST ?? 0)
+const BREVO_TEMPLATE_PAY_APPROVE = Number(process.env.BREVO_TEMPLATE_PAY_APPROVE ?? 0)
+
+const ADMIN_EMAIL = 'olivier@l-et-lui.com'
+
 async function sendWhatsApp(to: string, message: string): Promise<void> {
   await fetch(`${APP_URL}/api/whatsapp/send`, {
     method: 'POST',
@@ -71,6 +81,9 @@ export async function createLoyaltyProgram(params: {
       created_by: 'admin',
       updated_at: Timestamp.now(),
     })
+
+    // Notifier admin (fire-and-forget)
+    void envoyerEmailCreationProgram(params.nom, params.partenaire_id)
 
     console.log(`[Loyalty] Programme créé: ${ref.id} (${params.nom})`)
     return { success: true, program_id: ref.id }
@@ -204,6 +217,9 @@ export async function createLoyaltyCardAfterPurchase(params: {
     // Créditer wallet partenaire
     await crediterWalletPartenaire(program.partenaire_id, commission_partner, `Vente carte ${program.nom}`)
 
+    // Email bienvenue client (fire-and-forget)
+    void envoyerEmailBienvenueLoyalty(cardId, params.client_email, params.client_nom, program)
+
     console.log(`[Loyalty] Carte créée: ${cardId} pour ${params.client_email}`)
     return { success: true, card_id: cardId }
   } catch (error) {
@@ -254,6 +270,14 @@ export async function addPointsToCard(params: {
       created_at: Timestamp.now(),
       created_by: 'partenaire',
     })
+
+    // Emails client (fire-and-forget)
+    void envoyerEmailPointsAjoutes(
+      card.client_email, card.client_nom, pointsAjoutes, nouveauxPoints, program, nouveauNiveau,
+    )
+    if (levelChanged) {
+      void envoyerEmailLevelUp(card.client_email, card.client_nom, program, nouveauNiveau)
+    }
 
     console.log(`[Loyalty] +${pointsAjoutes} pts sur ${params.card_id} (${card.client_email})`)
     return {
@@ -380,13 +404,16 @@ export async function requestLoyaltyPayment(partenaire_id: string): Promise<{
 
     if (solde <= 0) return { success: false, error: 'Solde insuffisant' }
 
-    await db.collection('loyalty_payment_requests').add({
+    const reqRef = await db.collection('loyalty_payment_requests').add({
       partenaire_id,
       montant: solde,
       statut: 'PENDING',
       requested_at: Timestamp.now(),
       processed_at: null,
     })
+
+    // Notifier admin (fire-and-forget)
+    void envoyerEmailDemandePayment(partenaire_id, solde, reqRef.id)
 
     console.log(`[Loyalty] Demande paiement: ${partenaire_id} (${solde} FCFA)`)
     return { success: true, montant_total: solde }
@@ -429,6 +456,11 @@ export async function approveLoyaltyPayment(params: {
     if (!walletSnap.empty) {
       await walletSnap.docs[0].ref.update({ solde_cash: 0, derniere_maj: Timestamp.now() })
     }
+
+    // Email confirmation partenaire (fire-and-forget) — on utilise l'email admin si pas d'email partenaire
+    const partenaireDoc = await db.collection('prescripteurs_partenaires').doc(params.partenaire_id).get()
+    const partenaireEmail: string = (partenaireDoc.data()?.email as string) ?? ADMIN_EMAIL
+    void envoyerEmailPaiementApprouve(partenaireEmail, params.montant)
 
     console.log(`[Loyalty] Paiement approuvé: ${params.partenaire_id} (${params.montant} FCFA)`)
     return { success: true }
@@ -484,6 +516,136 @@ export async function getLoyaltyWallet(partenaire_id: string): Promise<{
 }
 
 // ─── Helpers internes ────────────────────────────────────────────────────────
+
+// ── Brevo email sender ────────────────────────────────────────────────────────
+
+async function brevoSend(payload: object): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY
+  if (!apiKey) { console.warn('[Loyalty:email] BREVO_API_KEY manquant'); return }
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch((e) => { console.error('[Loyalty:email] fetch error', e); return null })
+  if (res && !res.ok) console.error('[Loyalty:email] Brevo error', await res.text())
+}
+
+async function envoyerEmailBienvenueLoyalty(
+  card_id: string,
+  client_email: string,
+  client_nom: string,
+  program: LoyaltyProgram,
+): Promise<void> {
+  if (!BREVO_TEMPLATE_WELCOME) return
+  await brevoSend({
+    to: [{ email: client_email }],
+    templateId: BREVO_TEMPLATE_WELCOME,
+    params: {
+      program_nom: program.nom,
+      client_nom,
+      card_url: `${APP_URL}/loyalty/card/${card_id}`,
+    },
+  })
+}
+
+async function envoyerEmailPointsAjoutes(
+  client_email: string,
+  client_nom: string,
+  points_ajoutes: number,
+  points_total: number,
+  program: LoyaltyProgram,
+  niveau_id: string,
+): Promise<void> {
+  if (!BREVO_TEMPLATE_POINTS) return
+  const niveau = program.niveaux.find((n) => n.id === niveau_id) ?? program.niveaux[0]
+  const nextIdx = program.niveaux.indexOf(niveau) + 1
+  const nextNiveau = nextIdx < program.niveaux.length ? program.niveaux[nextIdx] : null
+  await brevoSend({
+    to: [{ email: client_email }],
+    templateId: BREVO_TEMPLATE_POINTS,
+    params: {
+      client_nom,
+      points_ajoutes,
+      program_nom: program.nom,
+      points_total,
+      niveau_nom: niveau.nom,
+      niveau_emoji: niveau.emoji,
+      points_jusqua_prochain: nextNiveau ? Math.max(0, nextNiveau.seuil_points - points_total) : 0,
+      card_url: `${APP_URL}/loyalty/dashboard`,
+    },
+  })
+}
+
+async function envoyerEmailLevelUp(
+  client_email: string,
+  client_nom: string,
+  program: LoyaltyProgram,
+  nouveau_niveau_id: string,
+): Promise<void> {
+  if (!BREVO_TEMPLATE_LEVEL_UP) return
+  const niveau = program.niveaux.find((n) => n.id === nouveau_niveau_id) ?? program.niveaux[0]
+  await brevoSend({
+    to: [{ email: client_email }],
+    templateId: BREVO_TEMPLATE_LEVEL_UP,
+    params: {
+      client_nom,
+      nouveau_niveau: niveau.nom,
+      emoji: niveau.emoji,
+      program_nom: program.nom,
+      card_url: `${APP_URL}/loyalty/dashboard`,
+    },
+  })
+}
+
+async function envoyerEmailCreationProgram(
+  nom_programme: string,
+  partenaire_id: string,
+): Promise<void> {
+  await brevoSend({
+    to: [{ email: ADMIN_EMAIL }],
+    subject: `✅ Nouveau programme fidélité : ${nom_programme}`,
+    htmlContent: `<h2>Nouveau programme créé</h2>
+      <p><strong>${nom_programme}</strong> — partenaire <code>${partenaire_id}</code></p>
+      <p>Le programme est actif et disponible en boutique.</p>`,
+    sender: { name: 'L&Lui Signature', email: ADMIN_EMAIL },
+  })
+}
+
+async function envoyerEmailDemandePayment(
+  partenaire_id: string,
+  montant: number,
+  request_id: string,
+): Promise<void> {
+  if (!BREVO_TEMPLATE_PAY_REQUEST) return
+  await brevoSend({
+    to: [{ email: ADMIN_EMAIL }],
+    templateId: BREVO_TEMPLATE_PAY_REQUEST,
+    params: {
+      partenaire_nom: partenaire_id,
+      montant: montant.toLocaleString('fr-FR'),
+      date_demande: new Date().toLocaleDateString('fr-FR'),
+      om_number: '693407964',
+      approve_url: `${APP_URL}/admin/loyalty/approve/${request_id}`,
+      deny_url: `${APP_URL}/admin/loyalty/deny/${request_id}`,
+    },
+  })
+}
+
+async function envoyerEmailPaiementApprouve(
+  partenaire_email: string,
+  montant: number,
+): Promise<void> {
+  if (!BREVO_TEMPLATE_PAY_APPROVE) return
+  await brevoSend({
+    to: [{ email: partenaire_email }],
+    templateId: BREVO_TEMPLATE_PAY_APPROVE,
+    params: {
+      montant: montant.toLocaleString('fr-FR'),
+      om_number: '693407964',
+      date_virement: new Date(Date.now() + 2 * 86400000).toLocaleDateString('fr-FR'),
+    },
+  })
+}
 
 async function crediterWalletPartenaire(
   partenaire_id: string,
