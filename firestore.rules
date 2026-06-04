@@ -89,6 +89,46 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── Loyalty programs ────────────────────────────────
+    match /loyalty_programs/{programId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Loyalty cards ────────────────────────────────────
+    match /loyalty_cards/{cardId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.client_id == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Loyalty transactions ─────────────────────────────
+    match /loyalty_transactions/{txId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.partenaire_id == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Loyalty wallets ──────────────────────────────────
+    match /loyalty_wallets/{walletId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.partenaire_id == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ─── Loyalty payment requests ─────────────────────────
+    match /loyalty_payment_requests/{reqId} {
+      allow read: if isAdmin()
+                  || (isAuth() && resource.data.partenaire_id == request.auth.uid);
+      allow create: if isAuth()
+                    && request.resource.data.partenaire_id == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
     // ─── Collections existantes (hébergements, réservations, etc.) ──
     // Règle catch-all : admin only
     // Note : le champ prescripteur_id sur reservations/ est modifié

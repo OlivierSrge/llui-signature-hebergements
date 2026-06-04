@@ -388,6 +388,12 @@ export default async function PartnerDashboardPage() {
           >
             <Settings size={15} /> Paramètres de paiement
           </Link>
+          <Link
+            href="/partenaire/loyalty"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gold-50 border border-gold-300 text-gold-700 rounded-xl text-sm font-medium hover:bg-gold-100 transition-colors"
+          >
+            🎫 Cartes fidélité
+          </Link>
         </div>
 
         {/* ── QR Prescripteur ── */}

@@ -4,146 +4,380 @@
       "collectionGroup": "prescripteur_sessions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "prescripteur_id", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "statut", "order": "ASCENDING" },
-        { "fieldPath": "expire_at", "order": "ASCENDING" }
+        {
+          "fieldPath": "prescripteur_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expire_at",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prescripteur_sessions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "statut", "order": "ASCENDING" },
-        { "fieldPath": "expire_at", "order": "ASCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expire_at",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prescripteur_sessions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "statut", "order": "ASCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reservations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partner_id", "order": "ASCENDING" },
-        { "fieldPath": "statut_prescription", "order": "ASCENDING" }
+        {
+          "fieldPath": "partner_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut_prescription",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "employes_partenaire",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transactions_fidelite",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "code_session", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "code_session",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transactions_fidelite",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "confirmation_token", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "confirmation_token",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transactions_fidelite",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transactions_fidelite",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transactions_fidelite",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "expires_at", "order": "ASCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expires_at",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "qr_scan_requests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "partenaire_id", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "expires_at", "order": "ASCENDING" }
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expires_at",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "qr_scan_requests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "client_uid", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "expires_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "client_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expires_at",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prescripteurs_partenaires",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "statut", "order": "ASCENDING" },
-        { "fieldPath": "latitude", "order": "ASCENDING" }
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "latitude",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "prescripteurs_partenaires",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "code_promo_affilie", "order": "ASCENDING" },
-        { "fieldPath": "statut", "order": "ASCENDING" }
+        {
+          "fieldPath": "code_promo_affilie",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "stars_qr_tokens",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "client_uid", "order": "ASCENDING" },
-        { "fieldPath": "used", "order": "ASCENDING" }
+        {
+          "fieldPath": "client_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "used",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "pass_vip_actifs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "client_uid", "order": "ASCENDING" },
-        { "fieldPath": "actif", "order": "ASCENDING" }
+        {
+          "fieldPath": "client_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "actif",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "pass_vip_actifs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "actif", "order": "ASCENDING" },
-        { "fieldPath": "expire_notifie_j3", "order": "ASCENDING" }
+        {
+          "fieldPath": "actif",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expire_notifie_j3",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_programs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "program_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "program_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "client_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "card_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "partenaire_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loyalty_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "program_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
