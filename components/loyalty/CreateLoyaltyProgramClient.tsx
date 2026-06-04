@@ -4,14 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createLoyaltyProgram } from '@/actions/loyalty'
 import { NIVEAUX_DEFAUT } from '@/lib/loyalty-logic'
+import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 
-const PARTENAIRES = [
-  { id: 'nana_beach', nom: 'NaNa Beach' },
-  { id: 'hotel_ilomba', nom: 'Hôtel Ilomba' },
-  { id: 'spa_elegance', nom: 'Spa Élégance' },
-]
+interface Props {
+  partenaires: PrescripteurPartenaire[]
+}
 
-export default function CreateLoyaltyProgramClient() {
+export default function CreateLoyaltyProgramClient({ partenaires }: Props) {
+  const partenairesActifs = partenaires.filter((p) => p.statut === 'actif')
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,9 +81,9 @@ export default function CreateLoyaltyProgramClient() {
               className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
               required
             >
-              <option value="">Sélectionnez un partenaire</option>
-              {PARTENAIRES.map((p) => (
-                <option key={p.id} value={p.id}>{p.nom}</option>
+              <option value="">— Sélectionnez un partenaire ({partenairesActifs.length} actifs) —</option>
+              {partenairesActifs.map((p) => (
+                <option key={p.uid} value={p.uid}>{p.nom_etablissement}</option>
               ))}
             </select>
           </div>

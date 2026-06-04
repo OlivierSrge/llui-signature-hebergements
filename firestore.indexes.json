@@ -73,6 +73,14 @@
       ]
     },
     {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reservation_status", "order": "ASCENDING" },
+        { "fieldPath": "confirmed_at", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "employes_partenaire",
       "queryScope": "COLLECTION",
       "fields": [
