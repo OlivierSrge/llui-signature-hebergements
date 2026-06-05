@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { LoyaltyCard, LoyaltyProgram } from '@/types/loyalty'
+import { generateQRData } from '@/lib/generate-qr-data'
 
 interface Props {
   card: LoyaltyCard
@@ -8,6 +11,8 @@ interface Props {
 }
 
 export default function LoyaltyCardDisplay({ card, program }: Props) {
+  const [showQR, setShowQR] = useState(false)
+
   const currentNiveau =
     program.niveaux.find((n) => n.id === card.niveau_actuel) ?? program.niveaux[0]
   const nextNiveauIdx = program.niveaux.indexOf(currentNiveau) + 1
@@ -28,7 +33,13 @@ export default function LoyaltyCardDisplay({ card, program }: Props) {
   const expiresAt =
     card.expires_at instanceof Date
       ? card.expires_at
-      : new Date((card.expires_at as any)?.seconds ? (card.expires_at as any).seconds * 1000 : card.expires_at)
+      : new Date(
+          (card.expires_at as any)?.seconds
+            ? (card.expires_at as any).seconds * 1000
+            : card.expires_at
+        )
+
+  const qrData = generateQRData(card, program)
 
   return (
     <div className="bg-gradient-to-br from-[#C9A84C] to-[#8B6914] rounded-2xl p-6 text-black shadow-xl max-w-sm mx-auto">
@@ -92,6 +103,28 @@ export default function LoyaltyCardDisplay({ card, program }: Props) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* QR Code toggle */}
+      <button
+        onClick={() => setShowQR((v) => !v)}
+        className="w-full bg-black/20 hover:bg-black/30 rounded-xl py-2.5 text-sm font-semibold transition mb-3"
+      >
+        {showQR ? '🔒 Masquer le QR Code' : '📱 Afficher le QR Code'}
+      </button>
+
+      {showQR && (
+        <div className="bg-white rounded-xl p-4 mb-3 flex flex-col items-center">
+          <QRCodeSVG
+            value={qrData}
+            size={180}
+            level="H"
+            includeMargin={false}
+          />
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Présentez ce code au partenaire
+          </p>
         </div>
       )}
 

@@ -587,13 +587,23 @@ export async function getLoyaltyWallet(partenaire_id: string): Promise<{
 
 async function brevoSend(payload: object): Promise<void> {
   const apiKey = process.env.BREVO_API_KEY
-  if (!apiKey) { console.warn('[Loyalty:email] BREVO_API_KEY manquant'); return }
+  if (!apiKey) {
+    console.warn('[Loyalty:email] ⚠️ BREVO_API_KEY manquant — email non envoyé')
+    return
+  }
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }).catch((e) => { console.error('[Loyalty:email] fetch error', e); return null })
-  if (res && !res.ok) console.error('[Loyalty:email] Brevo error', await res.text())
+  if (res) {
+    if (res.ok) {
+      console.log('[Loyalty:email] ✅ Email envoyé avec succès')
+    } else {
+      const errText = await res.text()
+      console.error(`[Loyalty:email] ❌ Brevo HTTP ${res.status}:`, errText)
+    }
+  }
 }
 
 async function envoyerEmailBienvenueLoyalty(
@@ -602,14 +612,19 @@ async function envoyerEmailBienvenueLoyalty(
   client_nom: string,
   program: LoyaltyProgram,
 ): Promise<void> {
-  if (!BREVO_TEMPLATE_WELCOME) return
+  const cardUrl = `${APP_URL}/loyalty/card/${card_id}`
+  console.log(`[Loyalty:email] 📧 Bienvenue — to:${client_email} template:${BREVO_TEMPLATE_WELCOME} card:${cardUrl}`)
+  if (!BREVO_TEMPLATE_WELCOME) {
+    console.warn('[Loyalty:email] ⚠️ BREVO_TEMPLATE_WELCOME=0 — email bienvenue ignoré')
+    return
+  }
   await brevoSend({
     to: [{ email: client_email }],
     templateId: BREVO_TEMPLATE_WELCOME,
     params: {
       program_nom: program.nom,
       client_nom,
-      card_url: `${APP_URL}/loyalty/card/${card_id}`,
+      card_url: cardUrl,
     },
   })
 }
