@@ -583,25 +583,26 @@ export async function getLoyaltyWallet(partenaire_id: string): Promise<{
 
 // ─── Helpers internes ────────────────────────────────────────────────────────
 
-// ── Brevo email sender ────────────────────────────────────────────────────────
+// ── Resend email sender (remplace Brevo — clés Brevo révoquées automatiquement) ─
 
-async function brevoSend(payload: object): Promise<void> {
-  const apiKey = process.env.BREVO_API_KEY
-  if (!apiKey) {
-    console.warn('[Loyalty:email] ⚠️ BREVO_API_KEY manquant — email non envoyé')
+async function resendSend(to: string, subject: string, html: string): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey || apiKey === 're_XXXXXXXXXXXXX') {
+    console.warn('[Loyalty:email] ⚠️ RESEND_API_KEY manquant — email non envoyé')
     return
   }
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const from = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to, subject, html }),
   }).catch((e) => { console.error('[Loyalty:email] fetch error', e); return null })
   if (res) {
     if (res.ok) {
-      console.log('[Loyalty:email] ✅ Email envoyé avec succès')
+      console.log(`[Loyalty:email] ✅ Email envoyé via Resend → ${to}`)
     } else {
       const errText = await res.text()
-      console.error(`[Loyalty:email] ❌ Brevo HTTP ${res.status}:`, errText)
+      console.error(`[Loyalty:email] ❌ Resend HTTP ${res.status}:`, errText)
     }
   }
 }
@@ -613,20 +614,22 @@ async function envoyerEmailBienvenueLoyalty(
   program: LoyaltyProgram,
 ): Promise<void> {
   const cardUrl = `${APP_URL}/loyalty/card/${card_id}`
-  console.log(`[Loyalty:email] 📧 Bienvenue — to:${client_email} template:${BREVO_TEMPLATE_WELCOME} card:${cardUrl}`)
-  if (!BREVO_TEMPLATE_WELCOME) {
-    console.warn('[Loyalty:email] ⚠️ BREVO_TEMPLATE_WELCOME=0 — email bienvenue ignoré')
-    return
-  }
-  await brevoSend({
-    to: [{ email: client_email }],
-    templateId: BREVO_TEMPLATE_WELCOME,
-    params: {
-      program_nom: program.nom,
-      client_nom,
-      card_url: cardUrl,
-    },
-  })
+  console.log(`[Loyalty:email] 📧 Bienvenue — to:${client_email} card:${cardUrl}`)
+  await resendSend(
+    client_email,
+    `🎉 Votre carte ${program.nom} est prête !`,
+    `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px">
+      <h2 style="color:#C9A84C">Bienvenue dans le programme ${program.nom} !</h2>
+      <p>Bonjour ${client_nom},</p>
+      <p>Votre carte de fidélité est activée. Accédez-y à tout moment via ce lien :</p>
+      <a href="${cardUrl}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#C9A84C;color:#000;font-weight:bold;border-radius:8px;text-decoration:none">
+        Voir ma carte →
+      </a>
+      <p style="color:#888;font-size:12px">Conservez ce lien — il est personnel et ne nécessite pas de compte.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+      <p style="color:#888;font-size:11px">L&Lui Signature · Kribi, Cameroun</p>
+    </div>`
+  )
 }
 
 async function envoyerEmailPointsAjoutes(

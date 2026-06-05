@@ -75,12 +75,8 @@ function testEnvVars(): boolean {
     'FIREBASE_STORAGE_BUCKET',
   ]
   const brevo = [
-    'BREVO_API_KEY',
-    'BREVO_TEMPLATE_WELCOME',
-    'BREVO_TEMPLATE_POINTS',
-    'BREVO_TEMPLATE_LEVEL_UP',
-    'BREVO_TEMPLATE_PAY_REQUEST',
-    'BREVO_TEMPLATE_PAY_APPROVE',
+    'RESEND_API_KEY',
+    'FROM_EMAIL',
   ]
 
   let ok = true
@@ -99,7 +95,7 @@ function testEnvVars(): boolean {
   for (const v of brevo) {
     const val = process.env[v]
     if (val) {
-      const masked = v === 'BREVO_API_KEY' ? val.slice(0, 12) + '…' : val
+      const masked = v === 'RESEND_API_KEY' ? val.slice(0, 10) + '…' : val
       log('ok', `${v} = ${masked}`)
     } else {
       log('warn', `${v} = non définie (emails désactivés pour cette clé)`)
@@ -209,53 +205,46 @@ async function testCreateCard(db: ReturnType<typeof getFirestore>, program: any)
 // TEST 5 — Envoi email Brevo
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function testBrevoEmail(cardId: string, programNom: string): Promise<boolean> {
-  sep('TEST 5 — Envoi email Brevo')
+async function testResendEmail(cardId: string, programNom: string): Promise<boolean> {
+  sep('TEST 5 — Envoi email Resend')
 
-  const apiKey      = process.env.BREVO_API_KEY
-  const templateId  = Number(process.env.BREVO_TEMPLATE_WELCOME ?? 0)
-  const cardUrl     = `https://llui-signature-hebergements.vercel.app/loyalty/card/${cardId}`
+  const apiKey  = process.env.RESEND_API_KEY
+  const from    = process.env.FROM_EMAIL ?? 'onboarding@resend.dev'
+  const cardUrl = `https://llui-signature-hebergements.vercel.app/loyalty/card/${cardId}`
 
-  log('info', `Cible : ${TEST_EMAIL}`)
-  log('info', `Template ID : ${templateId || '(non défini)'}`)
-  log('info', `Card URL : ${cardUrl}`)
+  log('info', `Cible  : ${TEST_EMAIL}`)
+  log('info', `From   : ${from}`)
+  log('info', `Card   : ${cardUrl}`)
 
-  if (!apiKey) {
-    log('err', 'BREVO_API_KEY absente — ajoutez-la dans .env.local ou Vercel')
-    return false
-  }
-  if (!templateId) {
-    log('warn', 'BREVO_TEMPLATE_WELCOME=0 — test ignoré (ajoutez l\'ID template Brevo)')
+  if (!apiKey || apiKey === 're_XXXXXXXXXXXXX') {
+    log('err', 'RESEND_API_KEY absente ou placeholder — ajoutez-la dans .env.local')
     return false
   }
 
   try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to: [{ email: TEST_EMAIL }],
-        templateId,
-        params: {
-          program_nom: programNom,
-          client_nom: 'Client Test Script',
-          card_url: cardUrl,
-        },
+        from,
+        to: TEST_EMAIL,
+        subject: `🎉 Test carte ${programNom}`,
+        html: `<p>Test script loyalty — <a href="${cardUrl}">Voir la carte</a></p>`,
       }),
     })
 
     const body = await res.json() as any
 
     if (res.ok) {
-      log('ok', 'Email envoyé', { messageId: body.messageId, to: TEST_EMAIL })
+      log('ok', 'Email envoyé via Resend', { id: body.id, to: TEST_EMAIL })
       console.log(`   ${C.cyan}→ Vérifiez la boîte ${TEST_EMAIL}${C.reset}`)
       return true
     } else {
-      log('err', `Brevo HTTP ${res.status}`, body)
+      log('err', `Resend HTTP ${res.status}`, body)
       return false
     }
   } catch (e: any) {
-    log('err', 'Exception fetch Brevo', e?.message)
+    log('err', 'Exception fetch Resend', e?.message)
     return false
   }
 }
@@ -320,7 +309,7 @@ async function main() {
   const cardId = await testCreateCard(db, program)
 
   if (cardId) {
-    await testBrevoEmail(cardId, program.nom)
+    await testResendEmail(cardId, program.nom)
   } else if (!SKIP_CREATE) {
     log('warn', 'Carte non créée — test email ignoré')
   }
