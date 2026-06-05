@@ -273,6 +273,14 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
         </div>
 
+        {/* ── Carte de fidélité partenaire ── après code promo, avant avantage */}
+        {loyaltyProgram && session.prescripteur_partenaire_id && (
+          <BuyCardSection
+            program={loyaltyProgram}
+            partenaireId={session.prescripteur_partenaire_id}
+          />
+        )}
+
         {/* Avantage */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <p className="text-xs font-semibold text-[#1A1A1A]/50 uppercase tracking-widest mb-2">Votre avantage</p>
@@ -489,14 +497,6 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
           </div>
         </div>
-
-        {/* ── Carte de fidélité partenaire ── si programme actif */}
-        {loyaltyProgram && session.prescripteur_partenaire_id && (
-          <BuyCardSection
-            program={loyaltyProgram}
-            partenaireId={session.prescripteur_partenaire_id}
-          />
-        )}
 
         {/* ── Carte partenaires Stars ── carte visible à tous les visiteurs */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
