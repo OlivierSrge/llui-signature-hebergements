@@ -7,7 +7,7 @@ import { calculerPoints, determinerNiveau } from '@/lib/loyalty-logic'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+const ADMIN_EMAIL = process.env.LOYALTY_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
 
 async function sendWhatsApp(to: string, message: string): Promise<void> {
   await fetch(`${APP_URL}/api/whatsapp/send`, {
@@ -675,7 +675,7 @@ async function envoyerEmailCreationProgram(
   nom_programme: string,
   partenaire_id: string,
 ): Promise<void> {
-  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const adminEmail = process.env.LOYALTY_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   await resendSend(
     adminEmail,
     `Nouveau programme fidélité : ${nom_programme}`,
@@ -692,7 +692,7 @@ async function envoyerEmailDemandePayment(
   montant: number,
   request_id: string,
 ): Promise<void> {
-  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const adminEmail = process.env.LOYALTY_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   await resendSend(
     adminEmail,
     `Demande de virement — ${montant.toLocaleString('fr-FR')} FCFA`,
@@ -935,7 +935,7 @@ async function envoyerEmailAdminValidation(
   },
   program: LoyaltyProgram,
 ): Promise<void> {
-  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const adminEmail = process.env.LOYALTY_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   const confirmUrl = `${APP_URL}/admin/loyalty-confirmations?card_id=${card_id}&token=${token}`
   await resendSend(
     adminEmail,
