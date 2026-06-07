@@ -6,15 +6,24 @@ import { createLoyaltyProgram } from '@/actions/loyalty'
 import { NIVEAUX_DEFAUT } from '@/lib/loyalty-logic'
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 
-interface Props {
-  partenaires: PrescripteurPartenaire[]
+type PartenaireType = 'hebergement' | 'prescripteur'
+
+interface Hebergement {
+  uid: string
+  nom: string
 }
 
-export default function CreateLoyaltyProgramClient({ partenaires }: Props) {
+interface Props {
+  partenaires: PrescripteurPartenaire[]
+  hebergements: Hebergement[]
+}
+
+export default function CreateLoyaltyProgramClient({ partenaires, hebergements }: Props) {
   const partenairesActifs = partenaires.filter((p) => p.statut === 'actif')
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [partenaireType, setPartenaireType] = useState<PartenaireType>('prescripteur')
 
   const [form, setForm] = useState({
     partenaire_id: '',
@@ -37,12 +46,21 @@ export default function CreateLoyaltyProgramClient({ partenaires }: Props) {
   const setCommissionLui = (v: number) =>
     setForm((f) => ({ ...f, commission_lui_percent: v, commission_partner_percent: 100 - v }))
 
+  // Réinitialiser la sélection de partenaire quand le type change
+  function handleTypeChange(type: PartenaireType) {
+    setPartenaireType(type)
+    setForm((f) => ({ ...f, partenaire_id: '' }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
     try {
-      const result = await createLoyaltyProgram(form)
+      const result = await createLoyaltyProgram({
+        ...form,
+        partenaire_type: partenaireType,
+      })
       if (result.success) {
         router.push('/admin/loyalty-programs')
       } else {
@@ -72,20 +90,61 @@ export default function CreateLoyaltyProgramClient({ partenaires }: Props) {
 
         <form onSubmit={handleSubmit} className="bg-[#1A1A1A] border border-[#C9A84C]/20 rounded-xl p-6 space-y-6">
 
-          {/* Partenaire */}
+          {/* Type de partenaire */}
           <div>
-            <label className="block text-[#F5F0E8] text-sm mb-1.5">Partenaire *</label>
-            <select
-              value={form.partenaire_id}
-              onChange={(e) => setForm({ ...form, partenaire_id: e.target.value })}
-              className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
-              required
-            >
-              <option value="">— Sélectionnez un partenaire ({partenairesActifs.length} actifs) —</option>
-              {partenairesActifs.map((p) => (
-                <option key={p.uid} value={p.uid}>{p.nom_etablissement}</option>
+            <label className="block text-[#F5F0E8] text-sm mb-1.5">Type de partenaire *</label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ['prescripteur', '🏍️ Prescripteur', 'Moto-taxi, Bar, Resto, Agence'],
+                ['hebergement', '🏨 Hébergement', 'Gîte, Hôtel, Villa'],
+              ] as const).map(([type, label, sub]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleTypeChange(type)}
+                  className={`flex flex-col items-start px-4 py-3 rounded-lg border transition text-left ${
+                    partenaireType === type
+                      ? 'border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]'
+                      : 'border-[#C9A84C]/20 text-[#F5F0E8]/60 hover:border-[#C9A84C]/40'
+                  }`}
+                >
+                  <span className="font-semibold text-sm">{label}</span>
+                  <span className="text-xs mt-0.5 opacity-70">{sub}</span>
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {/* Sélection du partenaire */}
+          <div>
+            <label className="block text-[#F5F0E8] text-sm mb-1.5">
+              {partenaireType === 'hebergement' ? 'Hébergement' : 'Prescripteur'} *
+            </label>
+            {partenaireType === 'prescripteur' ? (
+              <select
+                value={form.partenaire_id}
+                onChange={(e) => setForm({ ...form, partenaire_id: e.target.value })}
+                className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
+                required
+              >
+                <option value="">— Sélectionnez un prescripteur ({partenairesActifs.length} actifs) —</option>
+                {partenairesActifs.map((p) => (
+                  <option key={p.uid} value={p.uid}>{p.nom_etablissement}</option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={form.partenaire_id}
+                onChange={(e) => setForm({ ...form, partenaire_id: e.target.value })}
+                className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
+                required
+              >
+                <option value="">— Sélectionnez un hébergement ({hebergements.length} disponibles) —</option>
+                {hebergements.map((h) => (
+                  <option key={h.uid} value={h.uid}>{h.nom}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Nom */}

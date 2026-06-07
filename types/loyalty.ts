@@ -15,6 +15,10 @@ export interface Niveau {
 export interface LoyaltyProgram {
   program_id: string
   partenaire_id: string
+  /** Type de partenaire propriétaire du programme. Défaut : 'prescripteur' (rétro-compatibilité) */
+  partenaire_type?: 'hebergement' | 'prescripteur'
+  /** Nom du partenaire — cache Firestore pour éviter une requête supplémentaire */
+  partenaire_name?: string
   nom: string
   description: string
   logo_url?: string

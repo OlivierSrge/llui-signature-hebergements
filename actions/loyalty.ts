@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import type { LoyaltyProgram, LoyaltyCard, Niveau } from '@/types/loyalty'
 import { calculerPoints, determinerNiveau } from '@/lib/loyalty-logic'
+import { getPartnerInfo, getPartnerName } from '@/lib/loyalty-partner'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
@@ -24,6 +25,7 @@ async function sendWhatsApp(to: string, message: string): Promise<void> {
 
 export async function createLoyaltyProgram(params: {
   partenaire_id: string
+  partenaire_type?: 'hebergement' | 'prescripteur'
   nom: string
   description: string
   logo_url?: string
@@ -57,8 +59,14 @@ export async function createLoyaltyProgram(params: {
       avantages: n.avantages,
     }))
 
+    // Charger le nom du partenaire pour le cache Firestore
+    const partenaireType = params.partenaire_type ?? 'prescripteur'
+    const partenaireName = await getPartnerName(params.partenaire_id, partenaireType)
+
     const ref = await db.collection('loyalty_programs').add({
       partenaire_id: params.partenaire_id,
+      partenaire_type: partenaireType,
+      partenaire_name: partenaireName,
       nom: params.nom,
       description: params.description,
       logo_url: params.logo_url ?? null,
@@ -77,7 +85,7 @@ export async function createLoyaltyProgram(params: {
     // Notifier admin (fire-and-forget)
     void envoyerEmailCreationProgram(params.nom, params.partenaire_id)
 
-    console.log(`[Loyalty] Programme créé: ${ref.id} (${params.nom})`)
+    console.log(`[Loyalty] Programme créé: ${ref.id} (${params.nom}) — type: ${partenaireType}`)
     return { success: true, program_id: ref.id }
   } catch (error) {
     console.error('[Loyalty] Erreur création programme:', error)
@@ -168,8 +176,10 @@ export async function getLoyaltyPrograms(partenaire_id: string): Promise<{
       .where('partenaire_id', '==', partenaire_id)
       .get()
 
+    // Rétro-compatibilité : partenaire_type absent sur anciens docs → défaut 'prescripteur'
     const programs = snap.docs.map((d: any) => ({
       program_id: d.id,
+      partenaire_type: 'prescripteur' as const,
       ...(d.data() as Omit<LoyaltyProgram, 'program_id'>),
     }))
 
@@ -520,9 +530,9 @@ export async function approveLoyaltyPayment(params: {
       await walletSnap.docs[0].ref.update({ solde_cash: 0, derniere_maj: Timestamp.now() })
     }
 
-    // Email confirmation partenaire (fire-and-forget) — on utilise l'email admin si pas d'email partenaire
-    const partenaireDoc = await db.collection('prescripteurs_partenaires').doc(params.partenaire_id).get()
-    const partenaireEmail: string = (partenaireDoc.data()?.email as string) ?? ADMIN_EMAIL
+    // Email confirmation partenaire (fire-and-forget) — résout l'email depuis les deux collections
+    const partenaireInfo = await getPartnerInfo(params.partenaire_id).catch(() => null)
+    const partenaireEmail: string = (partenaireInfo?.email as string | undefined) ?? ADMIN_EMAIL
     void envoyerEmailPaiementApprouve(partenaireEmail, params.montant)
 
     console.log(`[Loyalty] Paiement approuvé: ${params.partenaire_id} (${params.montant} FCFA)`)
