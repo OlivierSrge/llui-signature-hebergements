@@ -44,6 +44,12 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
     })
 
     if (result.success && result.card_id) {
+      // Sauvegarder en localStorage pour récupération future
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('loyalty_card_id', result.card_id)
+        localStorage.setItem('loyalty_card_program', program.program_id)
+      }
+
       const expiresAt = new Date(
         Date.now() + program.duree_validite_mois * 30 * 24 * 60 * 60 * 1000
       )
