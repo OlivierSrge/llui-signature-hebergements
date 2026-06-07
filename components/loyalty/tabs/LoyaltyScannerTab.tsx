@@ -39,8 +39,12 @@ export default function LoyaltyScannerTab({
     setLoading(true)
     setResult(null)
 
+    // Extraire l'ID brut : accepte "loyalty://xxx" ou juste "xxx"
+    const rawId = cardId.trim()
+    const resolvedId = rawId.startsWith('loyalty://') ? rawId.slice('loyalty://'.length) : rawId
+
     const res = await addPointsToCard({
-      card_id: cardId.trim(),
+      card_id: resolvedId,
       montant_depense: Number(montant),
       description: description || undefined,
     })

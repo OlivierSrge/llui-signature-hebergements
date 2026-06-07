@@ -6,6 +6,7 @@ import { updateVitrine, actualiserStatsPartenaire } from '@/actions/codes-sessio
 import type { PrescripteurPartenaire } from '@/actions/codes-sessions'
 import type { ParametresPlateforme } from '@/actions/parametres'
 import StarTerminal from '@/components/StarTerminal'
+import LoyaltyDashboardClient from '@/components/loyalty/LoyaltyDashboardClient'
 import {
   getWalletPartenaire,
   getCommissionsPartenaire,
@@ -80,7 +81,7 @@ interface Props {
 
 export default function DashboardPartenaireClient({ partenaire, codesActifs, transactions, commissionsDues, commissionsVersees, ventesEnCours = 0, plateformeParams, starsStats }: Props) {
   const [tick, setTick] = useState(0)
-  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars' | 'reduction' | 'scan' | 'wallet'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'vitrine' | 'forfait' | 'stars' | 'reduction' | 'scan' | 'wallet' | 'fidelite'>('stats')
   const [refreshing, setRefreshing] = useState(false)
   const [localStats, setLocalStats] = useState({
     total_ca_boutique_fcfa: partenaire.total_ca_boutique_fcfa ?? 0,
@@ -179,7 +180,7 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
 
       {/* Navigation onglets */}
       <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
-        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['wallet', '💰 Wallet'], ['reduction', '🎁 Réduction'], ['scan', '📱 Scan QR'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
+        {([['stats', '📊 Stats'], ['stars', '⭐ Stars'], ['fidelite', '🎫 Fidélité'], ['wallet', '💰 Wallet'], ['reduction', '🎁 Réduction'], ['scan', '📱 Scan QR'], ['vitrine', '🖼️ Vitrine'], ['forfait', '🔑 Forfait']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 min-w-[72px] py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap ${
               activeTab === tab
@@ -273,6 +274,11 @@ export default function DashboardPartenaireClient({ partenaire, codesActifs, tra
           </div>
         )
       })()}
+
+      {/* ─── Onglet Fidélité ────────────────────────────────── */}
+      {activeTab === 'fidelite' && (
+        <LoyaltyDashboardClient partenaireId={partenaire.uid} />
+      )}
 
       {/* ─── Onglet Stars ───────────────────────────────────── */}
       {activeTab === 'stars' && (() => {
