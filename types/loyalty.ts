@@ -1,6 +1,6 @@
 export type NiveauLoyalte = 'bronze' | 'argent' | 'or'
 export type StatutProgram = 'DRAFT' | 'ACTIVE' | 'PAUSED'
-export type StatutCard = 'ACTIVE' | 'EXPIRED' | 'CANCELLED'
+export type StatutCard = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED'
 export type TypeTransaction = 'ACHAT_CARTE' | 'POINTS_AJOUTES' | 'RENOUVELLEMENT' | 'PAIEMENT'
 
 export interface Niveau {
@@ -34,10 +34,13 @@ export interface LoyaltyProgram {
 export interface LoyaltyCard {
   card_id: string
   program_id: string
+  programme_nom?: string
   partenaire_id: string
   client_id: string
   client_email: string
   client_nom: string
+  client_prenom?: string
+  client_phone?: string
   niveau_actuel: string
   points_cumules: number
   nombre_utilisations: number
@@ -51,6 +54,11 @@ export interface LoyaltyCard {
   order_id?: string
   montant_achat: number
   updated_at: Date
+  // Champs validation PENDING → ACTIVE
+  confirmation_token?: string
+  confirmation_token_expires_at?: Date
+  confirmed_at?: Date | null
+  confirmed_by_admin?: string | null
 }
 
 export interface LoyaltyTransaction {

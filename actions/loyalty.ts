@@ -7,15 +7,7 @@ import { calculerPoints, determinerNiveau } from '@/lib/loyalty-logic'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
-// ─── Brevo Template IDs ───────────────────────────────────────────────────────
-// Remplacer les 0 par les vrais IDs après création dans https://app.brevo.com
-const BREVO_TEMPLATE_WELCOME     = Number(process.env.BREVO_TEMPLATE_WELCOME     ?? 0)
-const BREVO_TEMPLATE_POINTS      = Number(process.env.BREVO_TEMPLATE_POINTS      ?? 0)
-const BREVO_TEMPLATE_LEVEL_UP    = Number(process.env.BREVO_TEMPLATE_LEVEL_UP    ?? 0)
-const BREVO_TEMPLATE_PAY_REQUEST = Number(process.env.BREVO_TEMPLATE_PAY_REQUEST ?? 0)
-const BREVO_TEMPLATE_PAY_APPROVE = Number(process.env.BREVO_TEMPLATE_PAY_APPROVE ?? 0)
-
-const ADMIN_EMAIL = 'olivier@l-et-lui.com'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
 
 async function sendWhatsApp(to: string, message: string): Promise<void> {
   await fetch(`${APP_URL}/api/whatsapp/send`, {
@@ -640,24 +632,22 @@ async function envoyerEmailPointsAjoutes(
   program: LoyaltyProgram,
   niveau_id: string,
 ): Promise<void> {
-  if (!BREVO_TEMPLATE_POINTS) return
   const niveau = program.niveaux.find((n) => n.id === niveau_id) ?? program.niveaux[0]
   const nextIdx = program.niveaux.indexOf(niveau) + 1
   const nextNiveau = nextIdx < program.niveaux.length ? program.niveaux[nextIdx] : null
-  await brevoSend({
-    to: [{ email: client_email }],
-    templateId: BREVO_TEMPLATE_POINTS,
-    params: {
-      client_nom,
-      points_ajoutes,
-      program_nom: program.nom,
-      points_total,
-      niveau_nom: niveau.nom,
-      niveau_emoji: niveau.emoji,
-      points_jusqua_prochain: nextNiveau ? Math.max(0, nextNiveau.seuil_points - points_total) : 0,
-      card_url: `${APP_URL}/loyalty/dashboard`,
-    },
-  })
+  await resendSend(
+    client_email,
+    `${niveau.emoji} +${points_ajoutes} points — ${program.nom}`,
+    `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:28px">
+      <h2 style="color:#C9A84C">${niveau.emoji} Vous avez gagné des points !</h2>
+      <p>Bonjour ${client_nom},</p>
+      <p>Vous venez de gagner <strong>+${points_ajoutes} points</strong> (total : ${points_total.toLocaleString('fr-FR')} pts).</p>
+      <p>Niveau actuel : <strong>${niveau.nom}</strong></p>
+      ${nextNiveau ? `<p>Plus que <strong>${(nextNiveau.seuil_points - points_total).toLocaleString('fr-FR')} pts</strong> pour atteindre ${nextNiveau.nom} ${nextNiveau.emoji}</p>` : '<p>Vous avez atteint le niveau maximum !</p>'}
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+      <p style="color:#888;font-size:11px">L&Lui Signature · Kribi, Cameroun</p>
+    </div>`
+  )
 }
 
 async function envoyerEmailLevelUp(
@@ -666,33 +656,35 @@ async function envoyerEmailLevelUp(
   program: LoyaltyProgram,
   nouveau_niveau_id: string,
 ): Promise<void> {
-  if (!BREVO_TEMPLATE_LEVEL_UP) return
   const niveau = program.niveaux.find((n) => n.id === nouveau_niveau_id) ?? program.niveaux[0]
-  await brevoSend({
-    to: [{ email: client_email }],
-    templateId: BREVO_TEMPLATE_LEVEL_UP,
-    params: {
-      client_nom,
-      nouveau_niveau: niveau.nom,
-      emoji: niveau.emoji,
-      program_nom: program.nom,
-      card_url: `${APP_URL}/loyalty/dashboard`,
-    },
-  })
+  await resendSend(
+    client_email,
+    `${niveau.emoji} Félicitations — niveau ${niveau.nom} atteint !`,
+    `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:28px">
+      <h2 style="color:#C9A84C">${niveau.emoji} Nouveau niveau : ${niveau.nom} !</h2>
+      <p>Bravo ${client_nom},</p>
+      <p>Vous venez de passer au niveau <strong>${niveau.nom}</strong> dans le programme <strong>${program.nom}</strong>.</p>
+      <p>De nouveaux avantages vous attendent.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+      <p style="color:#888;font-size:11px">L&Lui Signature · Kribi, Cameroun</p>
+    </div>`
+  )
 }
 
 async function envoyerEmailCreationProgram(
   nom_programme: string,
   partenaire_id: string,
 ): Promise<void> {
-  await brevoSend({
-    to: [{ email: ADMIN_EMAIL }],
-    subject: `✅ Nouveau programme fidélité : ${nom_programme}`,
-    htmlContent: `<h2>Nouveau programme créé</h2>
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  await resendSend(
+    adminEmail,
+    `Nouveau programme fidélité : ${nom_programme}`,
+    `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:28px">
+      <h2 style="color:#C9A84C">Nouveau programme créé</h2>
       <p><strong>${nom_programme}</strong> — partenaire <code>${partenaire_id}</code></p>
-      <p>Le programme est actif et disponible en boutique.</p>`,
-    sender: { name: 'L&Lui Signature', email: ADMIN_EMAIL },
-  })
+      <p>Le programme est actif et disponible en boutique.</p>
+    </div>`
+  )
 }
 
 async function envoyerEmailDemandePayment(
@@ -700,35 +692,273 @@ async function envoyerEmailDemandePayment(
   montant: number,
   request_id: string,
 ): Promise<void> {
-  if (!BREVO_TEMPLATE_PAY_REQUEST) return
-  await brevoSend({
-    to: [{ email: ADMIN_EMAIL }],
-    templateId: BREVO_TEMPLATE_PAY_REQUEST,
-    params: {
-      partenaire_nom: partenaire_id,
-      montant: montant.toLocaleString('fr-FR'),
-      date_demande: new Date().toLocaleDateString('fr-FR'),
-      om_number: '693407964',
-      approve_url: `${APP_URL}/admin/loyalty/approve/${request_id}`,
-      deny_url: `${APP_URL}/admin/loyalty/deny/${request_id}`,
-    },
-  })
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  await resendSend(
+    adminEmail,
+    `Demande de virement — ${montant.toLocaleString('fr-FR')} FCFA`,
+    `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:28px">
+      <h2 style="color:#C9A84C">Demande de virement commission</h2>
+      <p>Partenaire : <strong>${partenaire_id}</strong></p>
+      <p>Montant : <strong>${montant.toLocaleString('fr-FR')} FCFA</strong></p>
+      <p>OM : <strong>693407964</strong></p>
+      <p>Demande ID : <code>${request_id}</code></p>
+    </div>`
+  )
 }
 
 async function envoyerEmailPaiementApprouve(
   partenaire_email: string,
   montant: number,
 ): Promise<void> {
-  if (!BREVO_TEMPLATE_PAY_APPROVE) return
-  await brevoSend({
-    to: [{ email: partenaire_email }],
-    templateId: BREVO_TEMPLATE_PAY_APPROVE,
-    params: {
-      montant: montant.toLocaleString('fr-FR'),
-      om_number: '693407964',
-      date_virement: new Date(Date.now() + 2 * 86400000).toLocaleDateString('fr-FR'),
-    },
-  })
+  await resendSend(
+    partenaire_email,
+    `Virement ${montant.toLocaleString('fr-FR')} FCFA en cours`,
+    `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:28px">
+      <h2 style="color:#C9A84C">Votre virement est en cours</h2>
+      <p>Montant : <strong>${montant.toLocaleString('fr-FR')} FCFA</strong> sur Orange Money 693407964</p>
+      <p>Date estimée : ${new Date(Date.now() + 2 * 86400000).toLocaleDateString('fr-FR')}</p>
+    </div>`
+  )
+}
+
+// ─── Créer une carte PENDING (avant validation admin) ────────────────────────
+
+export async function createLoyaltyCardPending(params: {
+  program_id: string
+  client_email: string
+  client_nom: string
+  client_prenom: string
+  client_phone: string
+  montant_achat: number
+}): Promise<{ success: boolean; card_id?: string; error?: string }> {
+  try {
+    const programDoc = await db.collection('loyalty_programs').doc(params.program_id).get()
+    if (!programDoc.exists) return { success: false, error: 'Programme non trouvé' }
+    const program = programDoc.data() as LoyaltyProgram
+
+    const token = crypto.randomUUID()
+    const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const cardExpiresAt = new Date(Date.now() + program.duree_validite_mois * 30 * 24 * 60 * 60 * 1000)
+
+    const cardRef = db.collection('loyalty_cards').doc()
+    const cardId = cardRef.id
+
+    await cardRef.set({
+      card_id: cardId,
+      program_id: params.program_id,
+      programme_nom: program.nom,
+      partenaire_id: program.partenaire_id,
+      client_id: `guest_${Date.now()}`,
+      client_email: params.client_email,
+      client_nom: params.client_nom,
+      client_prenom: params.client_prenom,
+      client_phone: params.client_phone,
+      niveau_actuel: program.niveaux[0]?.id ?? 'bronze',
+      points_cumules: 0,
+      nombre_utilisations: 0,
+      qr_code_data: `loyalty://${cardId}`,
+      qr_code_url: null,
+      commission_lui_percent: program.commission_lui_percent,
+      commission_partner_percent: program.commission_partner_percent,
+      created_at: Timestamp.now(),
+      expires_at: Timestamp.fromDate(cardExpiresAt),
+      statut: 'PENDING',
+      montant_achat: params.montant_achat,
+      updated_at: Timestamp.now(),
+      confirmation_token: token,
+      confirmation_token_expires_at: Timestamp.fromDate(tokenExpiresAt),
+      confirmed_at: null,
+      confirmed_by_admin: null,
+    })
+
+    void envoyerEmailAdminValidation(cardId, token, params, program)
+
+    console.log(`[Loyalty] Carte PENDING créée: ${cardId} pour ${params.client_email}`)
+    return { success: true, card_id: cardId }
+  } catch (error) {
+    console.error('[Loyalty] Erreur création carte pending:', error)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
+// ─── Confirmer une carte (PENDING → ACTIVE) ───────────────────────────────────
+
+export async function confirmLoyaltyCard(
+  card_id: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  const cardRef = db.collection('loyalty_cards').doc(card_id)
+  let savedCardData: any = null
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const cardDoc = await tx.get(cardRef)
+      if (!cardDoc.exists) throw new Error('Carte non trouvée')
+
+      const card = cardDoc.data()!
+      if (card.confirmation_token !== token) throw new Error('Token invalide')
+      if (card.statut !== 'PENDING') throw new Error(`Carte déjà traitée (statut : ${card.statut})`)
+
+      const tokenExp = card.confirmation_token_expires_at?.toDate?.()
+        ?? new Date((card.confirmation_token_expires_at?.seconds ?? 0) * 1000)
+      if (tokenExp < new Date()) throw new Error('Lien de confirmation expiré (24h)')
+
+      savedCardData = card
+
+      tx.update(cardRef, {
+        statut: 'ACTIVE',
+        confirmation_token: FieldValue.delete(),
+        confirmation_token_expires_at: FieldValue.delete(),
+        confirmed_at: Timestamp.now(),
+        confirmed_by_admin: 'admin',
+        updated_at: Timestamp.now(),
+      })
+    })
+  } catch (e: any) {
+    console.error('[Loyalty] confirmLoyaltyCard error:', e.message)
+    return { success: false, error: e.message ?? 'Erreur serveur' }
+  }
+
+  // Actions post-confirmation (fire-and-forget)
+  if (savedCardData) {
+    const card = savedCardData
+    try {
+      const programDoc = await db.collection('loyalty_programs').doc(card.program_id).get()
+      const program = programDoc.data() as LoyaltyProgram
+
+      const commission_partner = Math.round(card.montant_achat * (program.commission_partner_percent / 100))
+      const commission_lui = card.montant_achat - commission_partner
+
+      void Promise.all([
+        db.collection('loyalty_transactions').add({
+          card_id,
+          program_id: card.program_id,
+          partenaire_id: program.partenaire_id,
+          type: 'ACHAT_CARTE',
+          points_ajoutes: 0,
+          commission_lui,
+          commission_partner,
+          description: `Achat carte ${program.nom}`,
+          created_at: Timestamp.now(),
+          created_by: 'admin',
+        }),
+        crediterWalletPartenaire(program.partenaire_id, commission_partner, `Vente carte ${program.nom}`),
+        envoyerEmailBienvenueLoyalty(
+          card_id,
+          card.client_email,
+          `${card.client_prenom ?? ''} ${card.client_nom}`.trim(),
+          program
+        ),
+      ])
+    } catch (e) {
+      console.error('[Loyalty] Post-confirm error:', e)
+    }
+  }
+
+  console.log(`[Loyalty] Carte confirmée: ${card_id}`)
+  return { success: true }
+}
+
+// ─── Rejeter une carte (PENDING → REJECTED) ───────────────────────────────────
+
+export async function rejectLoyaltyCard(
+  card_id: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  const cardRef = db.collection('loyalty_cards').doc(card_id)
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const cardDoc = await tx.get(cardRef)
+      if (!cardDoc.exists) throw new Error('Carte non trouvée')
+
+      const card = cardDoc.data()!
+      if (card.confirmation_token !== token) throw new Error('Token invalide')
+      if (card.statut !== 'PENDING') throw new Error(`Carte déjà traitée (statut : ${card.statut})`)
+
+      tx.update(cardRef, {
+        statut: 'REJECTED',
+        confirmation_token: FieldValue.delete(),
+        confirmation_token_expires_at: FieldValue.delete(),
+        updated_at: Timestamp.now(),
+      })
+    })
+
+    console.log(`[Loyalty] Carte rejetée: ${card_id}`)
+    return { success: true }
+  } catch (e: any) {
+    console.error('[Loyalty] rejectLoyaltyCard error:', e.message)
+    return { success: false, error: e.message ?? 'Erreur serveur' }
+  }
+}
+
+// ─── Récupérer les cartes PENDING (admin) ────────────────────────────────────
+
+export async function getPendingLoyaltyCards(): Promise<{
+  success: boolean
+  cards?: any[]
+  error?: string
+}> {
+  try {
+    const snap = await db
+      .collection('loyalty_cards')
+      .where('statut', '==', 'PENDING')
+      .get()
+
+    const cards = snap.docs.map((d) => ({
+      card_id: d.id,
+      ...d.data(),
+      created_at: (d.data().created_at?.toDate?.() ?? new Date()).toISOString(),
+      expires_at: (d.data().expires_at?.toDate?.() ?? new Date()).toISOString(),
+      confirmation_token_expires_at:
+        (d.data().confirmation_token_expires_at?.toDate?.() ?? new Date()).toISOString(),
+    }))
+
+    return { success: true, cards }
+  } catch (error) {
+    console.error('[Loyalty] Erreur getPendingLoyaltyCards:', error)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
+// ─── Email admin : validation demande ────────────────────────────────────────
+
+async function envoyerEmailAdminValidation(
+  card_id: string,
+  token: string,
+  params: {
+    client_nom: string
+    client_prenom: string
+    client_email: string
+    client_phone: string
+    montant_achat: number
+  },
+  program: LoyaltyProgram,
+): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
+  const confirmUrl = `${APP_URL}/admin/loyalty-confirmations?card_id=${card_id}&token=${token}`
+  await resendSend(
+    adminEmail,
+    `🎫 Demande carte ${program.nom} — ${params.montant_achat.toLocaleString('fr-FR')} FCFA`,
+    `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px;background:#fff">
+      <h2 style="color:#C9A84C;margin-bottom:4px">Nouvelle demande de carte fidélité</h2>
+      <p style="color:#888;margin-top:0;font-size:13px">Action requise : valider le paiement Orange Money</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">
+        <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666;width:40%">Programme</td><td style="padding:10px 8px;font-weight:600">${program.nom}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Client</td><td style="padding:10px 8px;font-weight:600">${params.client_prenom} ${params.client_nom}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Email</td><td style="padding:10px 8px">${params.client_email}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Téléphone</td><td style="padding:10px 8px">${params.client_phone}</td></tr>
+        <tr><td style="padding:10px 8px;color:#666">Montant</td><td style="padding:10px 8px;font-weight:700;color:#C9A84C;font-size:18px">${params.montant_achat.toLocaleString('fr-FR')} FCFA</td></tr>
+      </table>
+      <a href="${confirmUrl}" style="display:inline-block;margin:8px 0 16px;padding:16px 32px;background:#22c55e;color:#fff;font-weight:700;border-radius:10px;text-decoration:none;font-size:16px">
+        ✅ Confirmer le paiement
+      </a>
+      <p style="color:#888;font-size:12px;margin-top:8px">
+        Ce lien est valable <strong>24h</strong>.<br>
+        Il ouvre la page admin de confirmation sécurisée.
+      </p>
+    </div>`
+  )
 }
 
 async function crediterWalletPartenaire(

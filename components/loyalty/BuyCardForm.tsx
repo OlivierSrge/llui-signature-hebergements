@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { LoyaltyProgram, LoyaltyCard } from '@/types/loyalty'
-import { createLoyaltyCardAfterPurchase } from '@/actions/loyalty'
+import { createLoyaltyCardPending } from '@/actions/loyalty'
 import LoyaltyCardDisplay from './LoyaltyCardDisplay'
 
 const ORANGE_MONEY_NUMBER = '693407964'
@@ -18,7 +18,9 @@ type Step = 'form' | 'payment' | 'processing' | 'done'
 export default function BuyCardForm({ program, partenaireId, onCancel }: Props) {
   const [step, setStep] = useState<Step>('form')
   const [nom, setNom] = useState('')
+  const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
+  const [telephone, setTelephone] = useState('')
   const [error, setError] = useState('')
   const [card, setCard] = useState<LoyaltyCard | null>(null)
 
@@ -32,31 +34,29 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
     setStep('processing')
     setError('')
 
-    console.log('🔄 [Loyalty] Création carte après paiement confirmé...')
-
-    const result = await createLoyaltyCardAfterPurchase({
+    const result = await createLoyaltyCardPending({
       program_id: program.program_id,
-      client_id: `guest_${Date.now()}`,
       client_email: email,
       client_nom: nom,
+      client_prenom: prenom,
+      client_phone: telephone,
       montant_achat: program.prix_fcfa,
-      order_id: `LOYALTY_${program.program_id}_${Date.now()}`,
     })
 
-    console.log('✅ [Loyalty] Résultat:', result)
-
     if (result.success && result.card_id) {
-      console.log(`📧 [Loyalty] Email envoyé à ${email} — lien: /loyalty/card/${result.card_id}`)
       const expiresAt = new Date(
         Date.now() + program.duree_validite_mois * 30 * 24 * 60 * 60 * 1000
       )
       setCard({
         card_id: result.card_id,
         program_id: program.program_id,
+        programme_nom: program.nom,
         partenaire_id: partenaireId,
         client_id: `guest_${Date.now()}`,
         client_email: email,
         client_nom: nom,
+        client_prenom: prenom,
+        client_phone: telephone,
         niveau_actuel: program.niveaux[0]?.id ?? 'bronze',
         points_cumules: 0,
         nombre_utilisations: 0,
@@ -65,13 +65,12 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
         commission_partner_percent: program.commission_partner_percent,
         created_at: new Date(),
         expires_at: expiresAt,
-        statut: 'ACTIVE',
+        statut: 'PENDING',
         montant_achat: program.prix_fcfa,
         updated_at: new Date(),
       })
       setStep('done')
     } else {
-      console.error('❌ [Loyalty] Erreur:', result.error)
       setError(result.error ?? 'Erreur lors de la création de la carte')
       setStep('payment')
     }
@@ -89,16 +88,29 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
           </div>
         )}
 
-        <div>
-          <label className="block text-[#1A1A1A]/70 text-sm mb-1">Prénom &amp; Nom *</label>
-          <input
-            type="text"
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            required
-            placeholder="Ex : Marie Dupont"
-            className="w-full border border-[#DDD] rounded-xl px-4 py-2.5 text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C]"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[#1A1A1A]/70 text-sm mb-1">Prénom *</label>
+            <input
+              type="text"
+              value={prenom}
+              onChange={(e) => setPrenom(e.target.value)}
+              required
+              placeholder="Marie"
+              className="w-full border border-[#DDD] rounded-xl px-4 py-2.5 text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C]"
+            />
+          </div>
+          <div>
+            <label className="block text-[#1A1A1A]/70 text-sm mb-1">Nom *</label>
+            <input
+              type="text"
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              required
+              placeholder="Dupont"
+              className="w-full border border-[#DDD] rounded-xl px-4 py-2.5 text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C]"
+            />
+          </div>
         </div>
 
         <div>
@@ -114,6 +126,18 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
           <p className="text-xs text-[#1A1A1A]/40 mt-1">
             Le lien vers votre carte sera envoyé à cette adresse.
           </p>
+        </div>
+
+        <div>
+          <label className="block text-[#1A1A1A]/70 text-sm mb-1">Téléphone *</label>
+          <input
+            type="tel"
+            value={telephone}
+            onChange={(e) => setTelephone(e.target.value)}
+            required
+            placeholder="+237 6XX XXX XXX"
+            className="w-full border border-[#DDD] rounded-xl px-4 py-2.5 text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C]"
+          />
         </div>
 
         <div className="bg-[#F9F5F2] rounded-xl p-4 text-sm">
@@ -159,7 +183,6 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
           </div>
         )}
 
-        {/* Instructions */}
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
           <p className="font-semibold text-[#333] text-sm">📱 Instructions Orange Money</p>
           <ol className="space-y-2 text-sm text-[#555]">
@@ -187,20 +210,19 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-[#C9A84C]">4.</span>
-              <span>Revenez ici et cliquez <strong>«&nbsp;Confirmer le paiement&nbsp;»</strong></span>
+              <span>Revenez ici et cliquez <strong>«&nbsp;J&apos;ai payé&nbsp;»</strong></span>
             </li>
           </ol>
         </div>
 
-        {/* Récap commande */}
         <div className="bg-[#F9F5F2] rounded-xl p-4 text-sm space-y-1.5 border border-[#DDD]">
           <div className="flex justify-between">
             <span className="text-[#1A1A1A]/60">Client</span>
-            <span className="font-medium text-[#1A1A1A]">{nom}</span>
+            <span className="font-medium text-[#1A1A1A]">{prenom} {nom}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#1A1A1A]/60">Email</span>
-            <span className="font-medium text-[#1A1A1A]">{email}</span>
+            <span className="text-[#1A1A1A]/60">Téléphone</span>
+            <span className="font-medium text-[#1A1A1A]">{telephone}</span>
           </div>
           <div className="flex justify-between border-t border-[#DDD] pt-2 mt-1">
             <span className="text-[#1A1A1A]/60">Montant</span>
@@ -219,7 +241,7 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
             onClick={handleConfirmPayment}
             className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition text-sm"
           >
-            ✅ Confirmer le paiement
+            ✅ J&apos;ai payé — Soumettre ma demande
           </button>
           <button
             onClick={() => { setError(''); setStep('form') }}
@@ -239,21 +261,21 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
     return (
       <div className="text-center py-8 space-y-4">
         <div className="text-4xl animate-pulse">⏳</div>
-        <p className="font-semibold text-[#1A1A1A]">Génération de votre carte…</p>
+        <p className="font-semibold text-[#1A1A1A]">Envoi de votre demande…</p>
         <p className="text-sm text-[#1A1A1A]/50">Ne fermez pas cette page.</p>
       </div>
     )
   }
 
-  // ── ÉTAPE 4 : Carte prête ────────────────────────────────────────────────────
+  // ── ÉTAPE 4 : Carte en attente ───────────────────────────────────────────────
   if (step === 'done' && card) {
     return (
       <div className="space-y-4">
-        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm">
-          <p className="text-green-800 font-semibold">✅ Paiement confirmé — votre carte est prête !</p>
-          <p className="text-green-700 text-xs mt-1">
-            Un email contenant le lien permanent vers votre carte a été envoyé à{' '}
-            <strong>{email}</strong>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm">
+          <p className="text-blue-800 font-semibold">📨 Demande envoyée avec succès !</p>
+          <p className="text-blue-700 text-xs mt-1">
+            L&apos;admin va vérifier votre paiement Orange Money et activer votre carte sous 24h.
+            Un email vous sera envoyé à <strong>{email}</strong> à l&apos;activation.
           </p>
         </div>
         <LoyaltyCardDisplay card={card} program={program} />

@@ -41,6 +41,81 @@ export default function LoyaltyCardDisplay({ card, program }: Props) {
 
   const qrData = generateQRData(card, program)
 
+  // ── État PENDING ─────────────────────────────────────────────────────────────
+  if (card.statut === 'PENDING') {
+    return (
+      <div className="bg-gradient-to-br from-[#C9A84C] to-[#8B6914] rounded-2xl p-6 text-black shadow-xl max-w-sm mx-auto">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p className="text-xs font-medium opacity-60 uppercase tracking-widest mb-1">
+              Carte de fidélité
+            </p>
+            <h3 className="text-xl font-serif font-bold">{program.nom}</h3>
+          </div>
+          <span className="text-3xl opacity-40">{currentNiveau.emoji}</span>
+        </div>
+
+        <div className="bg-black/15 rounded-xl px-4 py-2 mb-5 font-mono text-sm tracking-widest opacity-50">
+          {card.card_id.slice(0, 4).toUpperCase()}{' '}
+          {card.card_id.slice(4, 8).toUpperCase()}{' '}
+          {card.card_id.slice(8, 12).toUpperCase()}
+        </div>
+
+        {/* Badge EN ATTENTE */}
+        <div className="bg-blue-500/20 border border-blue-300/40 rounded-xl p-4 mb-4 text-center">
+          <p className="text-base font-bold">⏳ EN ATTENTE DE VALIDATION</p>
+          <p className="text-sm opacity-80 mt-1">Votre paiement est en cours de vérification</p>
+          <p className="text-xs opacity-60 mt-1">L&apos;admin activera votre carte sous 24h</p>
+        </div>
+
+        {/* QR grisé */}
+        <div
+          className="bg-white rounded-xl p-4 mb-4 flex flex-col items-center"
+          style={{ filter: 'grayscale(1)', opacity: 0.35 }}
+        >
+          <div className="w-[120px] h-[120px] bg-gray-200 rounded flex items-center justify-center">
+            <span className="text-5xl">🔒</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">QR Code disponible après validation</p>
+        </div>
+
+        {/* Titulaire */}
+        <div className="flex items-end justify-between border-t border-black/15 pt-4 mb-4">
+          <div>
+            <p className="text-xs opacity-50 mb-0.5">Titulaire</p>
+            <p className="text-sm font-semibold">
+              {card.client_prenom ? `${card.client_prenom} ` : ''}{card.client_nom}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs opacity-50 mb-0.5">Programme</p>
+            <p className="text-sm font-semibold">{program.nom}</p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full bg-black/20 hover:bg-black/30 rounded-xl py-2.5 text-sm font-semibold transition"
+        >
+          🔄 Vérifier l&apos;état de ma carte
+        </button>
+      </div>
+    )
+  }
+
+  // ── État REJECTED ────────────────────────────────────────────────────────────
+  if (card.statut === 'REJECTED') {
+    return (
+      <div className="bg-gradient-to-br from-gray-500 to-gray-700 rounded-2xl p-6 text-white shadow-xl max-w-sm mx-auto">
+        <div className="text-center py-4">
+          <div className="text-4xl mb-3">❌</div>
+          <h3 className="text-lg font-bold mb-2">Demande rejetée</h3>
+          <p className="text-sm opacity-70">Cette demande de carte a été rejetée. Contactez-nous pour plus d&apos;informations.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gradient-to-br from-[#C9A84C] to-[#8B6914] rounded-2xl p-6 text-black shadow-xl max-w-sm mx-auto">
       {/* Header */}
