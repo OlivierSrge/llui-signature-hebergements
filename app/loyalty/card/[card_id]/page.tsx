@@ -42,5 +42,18 @@ export default async function LoyaltyCardPage({
   const card = serialize({ card_id: params.card_id, ...cardData }) as LoyaltyCard
   const program = serialize({ program_id: programDoc.id, ...programDoc.data() }) as LoyaltyProgram
 
-  return <LoyaltyCardPageClient card={card} program={program} />
+  // Récupérer le nom de l'établissement partenaire
+  let nomEtablissement = 'L&Lui'
+  if (cardData.partenaire_id) {
+    const partenaireDoc = await db
+      .collection('prescripteurs_partenaires')
+      .doc(cardData.partenaire_id)
+      .get()
+    if (partenaireDoc.exists) {
+      const p = partenaireDoc.data()!
+      nomEtablissement = p.nom_etablissement ?? p.nom ?? p.name ?? 'L&Lui'
+    }
+  }
+
+  return <LoyaltyCardPageClient card={card} program={program} nomEtablissement={nomEtablissement} />
 }

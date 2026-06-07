@@ -9,9 +9,10 @@ import Link from 'next/link'
 interface Props {
   card: LoyaltyCard
   program: LoyaltyProgram
+  nomEtablissement?: string
 }
 
-export default function LoyaltyCardPageClient({ card, program }: Props) {
+export default function LoyaltyCardPageClient({ card, program, nomEtablissement = 'L&Lui' }: Props) {
   const [showCreateAccount, setShowCreateAccount] = useState(false)
 
   const isExpired =
@@ -46,7 +47,7 @@ export default function LoyaltyCardPageClient({ card, program }: Props) {
             Que faire avec ma carte ?
           </h3>
           <p className="text-[#F5F0E8]/60 text-sm">
-            • Présentez cette page à chaque visite chez <strong className="text-[#F5F0E8]">{program.partenaire_id}</strong>
+            • Présentez cette page à chaque visite chez <strong className="text-[#F5F0E8]">{nomEtablissement}</strong>
           </p>
           <p className="text-[#F5F0E8]/60 text-sm">
             • Des points sont ajoutés à chaque achat
