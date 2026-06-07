@@ -7,9 +7,14 @@ export function determinerNiveau(points: number, niveaux: Niveau[]): string {
   return niveaux[0].id
 }
 
-export function calculerPoints(montant: number): number {
-  // 1 point = 10 000 FCFA
-  return Math.floor(montant / 10000)
+/**
+ * Calcule les points à créditer.
+ * @param montant       Montant dépensé en FCFA
+ * @param tauxFcfaParPoint  FCFA nécessaires pour 1 point (défaut 10 000)
+ */
+export function calculerPoints(montant: number, tauxFcfaParPoint = 10000): number {
+  if (tauxFcfaParPoint <= 0) return 0
+  return Math.floor(montant / tauxFcfaParPoint)
 }
 
 export function calculerProgression(

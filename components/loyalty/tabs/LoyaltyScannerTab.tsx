@@ -29,7 +29,8 @@ export default function LoyaltyScannerTab({
     points_ajoutes?: number
   } | null>(null)
 
-  const pointsPreview = montant ? calculerPoints(Number(montant)) : 0
+  const taux = program?.taux_fcfa_par_point ?? 10000
+  const pointsPreview = montant ? calculerPoints(Number(montant), taux) : 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,7 +73,7 @@ export default function LoyaltyScannerTab({
         <div className="bg-[#0A0A0A] border border-[#C9A84C]/10 rounded-lg px-4 py-3 mb-6">
           <p className="text-[#C9A84C] text-xs font-semibold">{program.nom}</p>
           <p className="text-[#F5F0E8]/50 text-xs mt-0.5">
-            1 point = 10 000 FCFA
+            1 point = {taux.toLocaleString('fr-FR')} FCFA
           </p>
         </div>
       )}
@@ -112,7 +113,8 @@ export default function LoyaltyScannerTab({
           />
           {montant && Number(montant) > 0 && (
             <p className="text-[#C9A84C] text-xs mt-1">
-              → {pointsPreview} point{pointsPreview > 1 ? 's' : ''} à créditer
+              → {pointsPreview} point{pointsPreview > 1 ? 's' : ''} à créditer{' '}
+              <span className="text-[#F5F0E8]/30">(1 pt = {taux.toLocaleString('fr-FR')} FCFA)</span>
             </p>
           )}
         </div>

@@ -13,6 +13,7 @@ export default function PricingConfigurator({ program }: Props) {
   const [prixEur, setPrixEur] = useState(program.prix_eur ?? 0)
   const [duree, setDuree] = useState(program.duree_validite_mois)
   const [commissionLui, setCommissionLui] = useState(program.commission_lui_percent)
+  const [tauxFcfaParPoint, setTauxFcfaParPoint] = useState(program.taux_fcfa_par_point ?? 10000)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -25,6 +26,7 @@ export default function PricingConfigurator({ program }: Props) {
       duree_validite_mois: duree,
       commission_lui_percent: commissionLui,
       commission_partner_percent: 100 - commissionLui,
+      taux_fcfa_par_point: tauxFcfaParPoint,
     })
     setMessage(result.success ? '✅ Tarification mise à jour' : `❌ ${result.error}`)
     setSaving(false)
@@ -78,6 +80,34 @@ export default function PricingConfigurator({ program }: Props) {
           onChange={(e) => setDuree(Number(e.target.value))}
           className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
         />
+      </div>
+
+      <div>
+        <label className="block text-[#F5F0E8] text-sm mb-1.5">
+          Conversion points — 1 point = <span className="text-[#C9A84C] font-bold">{tauxFcfaParPoint.toLocaleString('fr-FR')} FCFA</span>
+        </label>
+        <input
+          type="number"
+          min="500"
+          step="500"
+          value={tauxFcfaParPoint}
+          onChange={(e) => setTauxFcfaParPoint(Number(e.target.value))}
+          className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg"
+        />
+        <p className="text-[#F5F0E8]/30 text-xs mt-1">
+          Exemple : 10 000 → 1 point par 10 000 FCFA dépensés · 5 000 → 2 points par 10 000 FCFA
+        </p>
+        {/* Preview exemples */}
+        <div className="mt-2 bg-[#0A0A0A] border border-[#C9A84C]/10 rounded-lg px-3 py-2 text-xs text-[#F5F0E8]/50 space-y-0.5">
+          {[10000, 25000, 50000, 100000].map((m) => (
+            <p key={m}>
+              {m.toLocaleString('fr-FR')} FCFA →{' '}
+              <span className="text-[#C9A84C] font-semibold">
+                {Math.floor(m / tauxFcfaParPoint)} pt{Math.floor(m / tauxFcfaParPoint) > 1 ? 's' : ''}
+              </span>
+            </p>
+          ))}
+        </div>
       </div>
 
       <div>

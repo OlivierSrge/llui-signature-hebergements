@@ -29,6 +29,8 @@ export interface LoyaltyProgram {
   created_by: string
   paused_at?: Date
   updated_at: Date
+  /** FCFA nécessaires pour obtenir 1 point. Défaut : 10 000 */
+  taux_fcfa_par_point?: number
 }
 
 export interface LoyaltyCard {

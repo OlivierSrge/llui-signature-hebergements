@@ -97,8 +97,12 @@ export async function updateLoyaltyProgram(
     commission_partner_percent?: number
     niveaux?: Niveau[]
     statut?: 'DRAFT' | 'ACTIVE' | 'PAUSED'
+    taux_fcfa_par_point?: number
   }
 ): Promise<{ success: boolean; error?: string }> {
+  if (updates.taux_fcfa_par_point !== undefined && updates.taux_fcfa_par_point <= 0) {
+    return { success: false, error: 'Le taux doit être un nombre positif' }
+  }
   try {
     await db
       .collection('loyalty_programs')
@@ -304,7 +308,8 @@ export async function addPointsToCard(params: {
     if (!programDoc.exists) return { success: false, error: 'Programme non trouvé' }
     const program = programDoc.data() as LoyaltyProgram
 
-    const pointsAjoutes = calculerPoints(params.montant_depense)
+    const taux = program.taux_fcfa_par_point ?? 10000
+    const pointsAjoutes = calculerPoints(params.montant_depense, taux)
     const nouveauxPoints = card.points_cumules + pointsAjoutes
     const ancienNiveau = card.niveau_actuel
     const nouveauNiveau = determinerNiveau(nouveauxPoints, program.niveaux)
