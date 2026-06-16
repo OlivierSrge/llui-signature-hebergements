@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: '/admin/promo-codes', label: 'Codes promo', icon: Tag },
   { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
   { href: '/admin/fidelite', label: '⭐ Fidélité L&Lui Stars', icon: Star },
+  { href: '/admin/loyalty-confirmations', label: '✅ Cartes à confirmer', icon: CreditCard },
   { href: '/admin/stars-mlm', label: '💰 Stars & MLM Wallets', icon: Wallet },
   { href: '/admin/devis', label: '💍 Mariages & Devis', icon: Gem },
   { href: '/admin/mariage', label: '📋 Dossiers Mariés', icon: Users },
@@ -102,7 +103,7 @@ export default function AdminSidebar() {
             )}>
             <Icon size={18} />
             <span className="flex-1">{label}</span>
-            {href === '/admin/fidelite' && loyaltyBadge > 0 && (
+            {href === '/admin/loyalty-confirmations' && loyaltyBadge > 0 && (
               <span className="ml-auto w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                 {loyaltyBadge > 9 ? '9+' : loyaltyBadge}
               </span>
@@ -117,9 +118,9 @@ export default function AdminSidebar() {
                 {invitesBadge > 99 ? '99+' : invitesBadge}
               </span>
             )}
-            {isActive(href, exact) && href !== '/admin/mariage' && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && href !== '/admin/mariage' && href !== '/admin/loyalty-confirmations' && <ChevronRight size={14} className="ml-auto" />}
             {isActive(href, exact) && href === '/admin/mariage' && dossiersBadge === 0 && invitesBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
-            {isActive(href, exact) && href === '/admin/fidelite' && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
+            {isActive(href, exact) && href === '/admin/loyalty-confirmations' && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
           </Link>
         ))}
       </nav>
@@ -193,7 +194,7 @@ export default function AdminSidebar() {
                   )}>
                   <Icon size={18} />
                   <span className="flex-1">{label}</span>
-                  {href === '/admin/fidelite' && loyaltyBadge > 0 && (
+                  {href === '/admin/loyalty-confirmations' && loyaltyBadge > 0 && (
                     <span className="ml-auto w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                       {loyaltyBadge > 9 ? '9+' : loyaltyBadge}
                     </span>
@@ -208,9 +209,9 @@ export default function AdminSidebar() {
                       {invitesBadge > 99 ? '99+' : invitesBadge}
                     </span>
                   )}
-                  {isActive(href, exact) && href !== '/admin/mariage' && href !== '/admin/fidelite' && <ChevronRight size={14} className="ml-auto" />}
+                  {isActive(href, exact) && href !== '/admin/mariage' && href !== '/admin/loyalty-confirmations' && <ChevronRight size={14} className="ml-auto" />}
                   {isActive(href, exact) && href === '/admin/mariage' && dossiersBadge === 0 && invitesBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
-                  {isActive(href, exact) && href === '/admin/fidelite' && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
+                  {isActive(href, exact) && href === '/admin/loyalty-confirmations' && loyaltyBadge === 0 && <ChevronRight size={14} className="ml-auto" />}
                 </Link>
               ))}
             </nav>
