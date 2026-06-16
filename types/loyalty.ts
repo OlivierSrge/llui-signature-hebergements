@@ -1,4 +1,4 @@
-export type NiveauLoyalte = 'bronze' | 'argent' | 'or'
+export type NiveauLoyalte = 'bronze' | 'argent' | 'or' | 'diamant'
 export type StatutProgram = 'DRAFT' | 'ACTIVE' | 'PAUSED'
 export type StatutCard = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED'
 export type TypeTransaction = 'ACHAT_CARTE' | 'POINTS_AJOUTES' | 'RENOUVELLEMENT' | 'PAIEMENT'
@@ -10,6 +10,9 @@ export interface Niveau {
   emoji: string
   seuil_points: number
   avantages: string[]
+  /** Prix d'achat de la carte à ce niveau */
+  prix_fcfa?: number
+  prix_eur?: number
 }
 
 export interface LoyaltyProgram {
@@ -65,6 +68,11 @@ export interface LoyaltyCard {
   confirmation_token_expires_at?: Date
   confirmed_at?: Date | null
   confirmed_by_admin?: string | null
+  /** Niveau choisi par le client à l'achat */
+  niveau_initial?: string
+  /** Prix payé pour ce niveau */
+  prix_achat_fcfa?: number
+  prix_achat_eur?: number
 }
 
 export interface LoyaltyTransaction {

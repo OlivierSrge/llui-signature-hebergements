@@ -745,11 +745,15 @@ export async function createLoyaltyCardPending(params: {
   client_prenom: string
   client_phone: string
   montant_achat: number
+  /** Niveau choisi par le client à l'achat */
+  niveau_choisi?: string
 }): Promise<{ success: boolean; card_id?: string; error?: string }> {
   try {
     const programDoc = await db.collection('loyalty_programs').doc(params.program_id).get()
     if (!programDoc.exists) return { success: false, error: 'Programme non trouvé' }
     const program = programDoc.data() as LoyaltyProgram
+
+    const niveauInitial = params.niveau_choisi ?? program.niveaux[0]?.id ?? 'bronze'
 
     const token = crypto.randomUUID()
     const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -768,7 +772,8 @@ export async function createLoyaltyCardPending(params: {
       client_nom: params.client_nom,
       client_prenom: params.client_prenom,
       client_phone: params.client_phone,
-      niveau_actuel: program.niveaux[0]?.id ?? 'bronze',
+      niveau_initial: niveauInitial,
+      niveau_actuel: niveauInitial,
       points_cumules: 0,
       nombre_utilisations: 0,
       qr_code_data: `loyalty://${cardId}`,
@@ -779,6 +784,7 @@ export async function createLoyaltyCardPending(params: {
       expires_at: Timestamp.fromDate(cardExpiresAt),
       statut: 'PENDING',
       montant_achat: params.montant_achat,
+      prix_achat_fcfa: params.montant_achat,
       updated_at: Timestamp.now(),
       confirmation_token: token,
       confirmation_token_expires_at: Timestamp.fromDate(tokenExpiresAt),
@@ -786,7 +792,7 @@ export async function createLoyaltyCardPending(params: {
       confirmed_by_admin: null,
     })
 
-    void envoyerEmailAdminValidation(cardId, token, params, program)
+    void envoyerEmailAdminValidation(cardId, token, { ...params, niveau_choisi: niveauInitial }, program)
 
     console.log(`[Loyalty] Carte PENDING créée: ${cardId} pour ${params.client_email}`)
     return { success: true, card_id: cardId }
@@ -947,19 +953,25 @@ async function envoyerEmailAdminValidation(
     client_email: string
     client_phone: string
     montant_achat: number
+    niveau_choisi?: string
   },
   program: LoyaltyProgram,
 ): Promise<void> {
   const adminEmail = process.env.LOYALTY_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'olivierfinestone@gmail.com'
   const confirmUrl = `${APP_URL}/admin/loyalty-confirmations?card_id=${card_id}&token=${token}`
+  const niveauObj = params.niveau_choisi
+    ? program.niveaux.find((n) => n.id === params.niveau_choisi)
+    : program.niveaux[0]
+  const niveauLabel = niveauObj ? `${niveauObj.emoji} ${niveauObj.nom}` : params.niveau_choisi ?? '—'
   await resendSend(
     adminEmail,
-    `🎫 Demande carte ${program.nom} — ${params.montant_achat.toLocaleString('fr-FR')} FCFA`,
+    `🎫 Demande carte ${niveauLabel} — ${program.nom} — ${params.montant_achat.toLocaleString('fr-FR')} FCFA`,
     `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px;background:#fff">
       <h2 style="color:#C9A84C;margin-bottom:4px">Nouvelle demande de carte fidélité</h2>
       <p style="color:#888;margin-top:0;font-size:13px">Action requise : valider le paiement Orange Money</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">
         <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666;width:40%">Programme</td><td style="padding:10px 8px;font-weight:600">${program.nom}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Niveau choisi</td><td style="padding:10px 8px;font-weight:700;font-size:15px">${niveauLabel}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Client</td><td style="padding:10px 8px;font-weight:600">${params.client_prenom} ${params.client_nom}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Email</td><td style="padding:10px 8px">${params.client_email}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 8px;color:#666">Téléphone</td><td style="padding:10px 8px">${params.client_phone}</td></tr>

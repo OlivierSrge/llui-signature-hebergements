@@ -108,6 +108,23 @@ export default function NiveauxConfigurator({ program }: Props) {
               />
             </div>
           </div>
+
+          <div className="mt-3 pt-3 border-t border-[#C9A84C]/10">
+            <label className="block text-[#F5F0E8]/60 text-xs mb-1">💰 Prix d&apos;achat (FCFA)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={n.prix_fcfa ?? ''}
+                onChange={(e) => update(idx, 'prix_fcfa', Number(e.target.value))}
+                placeholder="Laisser vide = prix du programme"
+                className="flex-1 bg-[#1A1A1A] border border-[#C9A84C]/20 text-[#F5F0E8] px-2 py-1.5 rounded text-sm placeholder-[#F5F0E8]/20"
+              />
+              <span className="text-[#F5F0E8]/40 text-xs shrink-0">FCFA</span>
+            </div>
+            <p className="text-[#F5F0E8]/30 text-[10px] mt-1">
+              Si vide, le prix du programme ({program.prix_fcfa.toLocaleString('fr-FR')} FCFA) s&apos;applique.
+            </p>
+          </div>
         </div>
       ))}
 

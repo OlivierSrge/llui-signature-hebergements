@@ -38,8 +38,10 @@ export default function LoyaltyCardDisplay({ card, program }: Props) {
     }
   }
 
+  // Utilise niveau_initial si disponible (niveau choisi à l'achat), sinon niveau_actuel
+  const niveauAffiche = card.niveau_initial ?? card.niveau_actuel
   const currentNiveau =
-    program.niveaux.find((n) => n.id === card.niveau_actuel) ?? program.niveaux[0]
+    program.niveaux.find((n) => n.id === niveauAffiche) ?? program.niveaux[0]
   const nextNiveauIdx = program.niveaux.indexOf(currentNiveau) + 1
   const nextNiveau =
     nextNiveauIdx < program.niveaux.length ? program.niveaux[nextNiveauIdx] : null
@@ -117,6 +119,17 @@ export default function LoyaltyCardDisplay({ card, program }: Props) {
           {card.card_id.slice(0, 4).toUpperCase()}{' '}
           {card.card_id.slice(4, 8).toUpperCase()}{' '}
           {card.card_id.slice(8, 12).toUpperCase()}
+        </div>
+
+        {/* Niveau choisi */}
+        <div className="text-center mb-3">
+          <span className="text-3xl">{currentNiveau.emoji}</span>
+          <p className="font-bold text-sm mt-1">{currentNiveau.nom}</p>
+          {card.prix_achat_fcfa && (
+            <p className="text-xs opacity-70 mt-0.5">
+              Investissement : {card.prix_achat_fcfa.toLocaleString('fr-FR')} FCFA
+            </p>
+          )}
         </div>
 
         {/* Badge EN ATTENTE */}

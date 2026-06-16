@@ -13,16 +13,21 @@ interface Props {
   onCancel: () => void
 }
 
-type Step = 'form' | 'payment' | 'processing' | 'done'
+type Step = 'niveau' | 'form' | 'payment' | 'processing' | 'done'
 
 export default function BuyCardForm({ program, partenaireId, onCancel }: Props) {
-  const [step, setStep] = useState<Step>('form')
+  const hasNiveaux = program.niveaux && program.niveaux.length > 0
+  const [step, setStep] = useState<Step>(hasNiveaux ? 'niveau' : 'form')
+  const [selectedNiveauId, setSelectedNiveauId] = useState<string | null>(null)
   const [nom, setNom] = useState('')
   const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
   const [error, setError] = useState('')
   const [card, setCard] = useState<LoyaltyCard | null>(null)
+
+  const niveauChoisi = program.niveaux.find((n) => n.id === selectedNiveauId) ?? null
+  const prixAchat = niveauChoisi?.prix_fcfa ?? program.prix_fcfa
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +45,8 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
       client_nom: nom,
       client_prenom: prenom,
       client_phone: telephone,
-      montant_achat: program.prix_fcfa,
+      montant_achat: prixAchat,
+      niveau_choisi: selectedNiveauId ?? program.niveaux[0]?.id,
     })
 
     if (result.success && result.card_id) {
@@ -63,7 +69,8 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
         client_nom: nom,
         client_prenom: prenom,
         client_phone: telephone,
-        niveau_actuel: program.niveaux[0]?.id ?? 'bronze',
+        niveau_actuel: selectedNiveauId ?? program.niveaux[0]?.id ?? 'bronze',
+        niveau_initial: selectedNiveauId ?? program.niveaux[0]?.id ?? 'bronze',
         points_cumules: 0,
         nombre_utilisations: 0,
         qr_code_data: `loyalty://${result.card_id}`,
@@ -72,7 +79,8 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
         created_at: new Date(),
         expires_at: expiresAt,
         statut: 'PENDING',
-        montant_achat: program.prix_fcfa,
+        montant_achat: prixAchat,
+        prix_achat_fcfa: prixAchat,
         updated_at: new Date(),
       })
       setStep('done')
@@ -82,11 +90,82 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
     }
   }
 
+  // ── ÉTAPE 0 : Sélection du niveau ────────────────────────────────────────────
+  if (step === 'niveau') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-[#1A1A1A] text-base">🎫 Choisissez votre niveau</h4>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-[#1A1A1A]/40 hover:text-[#1A1A1A] text-sm"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {program.niveaux.map((niveau) => {
+            const prixNiveau = niveau.prix_fcfa ?? program.prix_fcfa
+            return (
+              <button
+                key={niveau.id}
+                onClick={() => {
+                  setSelectedNiveauId(niveau.id)
+                  setStep('form')
+                }}
+                className="p-4 rounded-xl border-2 border-[#C9A84C]/30 bg-[#F9F5F2] hover:border-[#C9A84C] hover:bg-[#FDF8F0] transition-all text-left space-y-2"
+              >
+                <div className="text-3xl">{niveau.emoji}</div>
+                <div className="font-semibold text-[#1A1A1A] text-sm">{niveau.nom}</div>
+                <div className="text-[#C9A84C] font-bold text-base">
+                  {prixNiveau.toLocaleString('fr-FR')} FCFA
+                </div>
+                <div className="text-[#1A1A1A]/40 text-xs">
+                  1 pt = {(program.taux_fcfa_par_point ?? 10000).toLocaleString('fr-FR')} FCFA
+                </div>
+                {niveau.avantages?.length > 0 && (
+                  <div className="text-[#1A1A1A]/40 text-xs border-t border-[#C9A84C]/20 pt-2">
+                    {niveau.avantages.length} avantage{niveau.avantages.length > 1 ? 's' : ''}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ── ÉTAPE 1 : Formulaire ─────────────────────────────────────────────────────
   if (step === 'form') {
     return (
       <form onSubmit={handleSubmitForm} className="space-y-4">
-        <h4 className="font-semibold text-[#1A1A1A] text-base">Vos informations</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-[#1A1A1A] text-base">Vos informations</h4>
+          {hasNiveaux && niveauChoisi && (
+            <button
+              type="button"
+              onClick={() => { setStep('niveau'); setError('') }}
+              className="text-[#C9A84C] text-xs hover:underline"
+            >
+              ← Changer de niveau
+            </button>
+          )}
+        </div>
+
+        {niveauChoisi && (
+          <div className="bg-[#FDF8F0] border border-[#C9A84C]/30 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-2xl">{niveauChoisi.emoji}</span>
+            <div>
+              <p className="font-semibold text-[#1A1A1A] text-sm">{niveauChoisi.nom}</p>
+              <p className="text-[#C9A84C] font-bold text-sm">
+                {prixAchat.toLocaleString('fr-FR')} FCFA
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
@@ -150,7 +229,7 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
           <div className="flex justify-between items-center">
             <span className="text-[#1A1A1A]/70">Montant à régler</span>
             <span className="text-[#C9A84C] font-bold text-xl">
-              {program.prix_fcfa.toLocaleString('fr-FR')} FCFA
+              {prixAchat.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
           <p className="text-[#1A1A1A]/40 text-xs mt-1">
@@ -206,7 +285,7 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
               <span>
                 Entrez le montant :{' '}
                 <strong className="text-[#C9A84C]">
-                  {program.prix_fcfa.toLocaleString('fr-FR')} FCFA
+                  {prixAchat.toLocaleString('fr-FR')} FCFA
                 </strong>
               </span>
             </li>
@@ -233,7 +312,7 @@ export default function BuyCardForm({ program, partenaireId, onCancel }: Props) 
           <div className="flex justify-between border-t border-[#DDD] pt-2 mt-1">
             <span className="text-[#1A1A1A]/60">Montant</span>
             <span className="font-bold text-[#C9A84C]">
-              {program.prix_fcfa.toLocaleString('fr-FR')} FCFA
+              {prixAchat.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
           <div className="flex justify-between">
