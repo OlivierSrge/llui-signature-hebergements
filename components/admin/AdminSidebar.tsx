@@ -7,7 +7,7 @@ import {
   Package, Tag, Inbox, Users, Bell, MessageCircle, Heart, FileSignature,
   FolderOpen, CreditCard, Wallet, Star, Gem, BarChart2, UserCircle,
   Banknote, TrendingUp, Globe, ClipboardList, FileText, Scale,
-  Camera, CalendarRange, QrCode, Briefcase, Bike, Settings,
+  Camera, CalendarRange, QrCode, Briefcase, Bike, Settings, BookOpen, Plus,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -73,6 +73,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/clients', label: 'Clients fidèles', icon: Heart },
       { href: '/admin/fidelite', label: 'Fidélité L&Lui Stars', icon: Star },
       { href: '/admin/loyalty-confirmations', label: 'Cartes à confirmer', icon: CreditCard },
+      { href: '/admin/loyalty-programs', label: 'Programmes fidélité', icon: BookOpen },
+      { href: '/admin/loyalty-programs/create', label: 'Créer un programme', icon: Plus },
       { href: '/admin/stars-mlm', label: 'Stars & MLM Wallets', icon: Wallet },
     ],
   },
