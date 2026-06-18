@@ -26,6 +26,7 @@ import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { updateSyncStatus, getMontantFinalParCode, lireAffiliésCodes } from '@/lib/sheetsCanal2'
 import { PASS_VIP_CONFIGS } from '@/types/pass-vip'
 import type { PassVipGrade } from '@/types/pass-vip'
+import { getMembershipStatus } from '@/lib/loyaltyEngine'
 
 export const dynamic = 'force-dynamic'
 
@@ -315,6 +316,79 @@ export async function POST(req: NextRequest) {
         total_commissions_fcfa: FieldValue.increment(commissionFcfa),
         total_utilisations: FieldValue.increment(1),
       })
+    }
+
+    // ── 5b. Attribution Points Stars (si client identifié via OTP) ──
+    // Non-bloquant : le catch interne ne remonte pas
+    if (estConfirme && sessionSnap.exists) {
+      const clientId = (sessionSnap.data()?.client_id as string | undefined)?.trim()
+      if (clientId) {
+        try {
+          const valeurStarFcfa = Math.max(1, params.fidelite_valeur_star_fcfa ?? 1)
+          const starsGagnees = Math.round(montantFcfa / valeurStarFcfa)
+
+          if (starsGagnees > 0) {
+            const clientRef = db.collection('clients_fidelite').doc(clientId)
+            const clientSnap = await clientRef.get()
+
+            const cd = clientSnap.exists ? clientSnap.data()! : {}
+            const pointsAvant = (cd.points_stars as number) ?? 0
+            const historiqueAvant = (cd.total_stars_historique as number) ?? 0
+
+            const newHistorique = historiqueAvant + starsGagnees
+            const newStatus = getMembershipStatus(newHistorique, {
+              seuil_novice:      params.fidelite_seuil_novice      ?? 0,
+              seuil_explorateur: params.fidelite_seuil_explorateur ?? 25000,
+              seuil_ambassadeur: params.fidelite_seuil_ambassadeur ?? 75000,
+              seuil_excellence:  params.fidelite_seuil_excellence  ?? 150000,
+            })
+
+            const txRef = db.collection('transactions_fidelite').doc()
+            await Promise.all([
+              // Enregistrer la transaction
+              txRef.set({
+                client_id: clientId,
+                partenaire_id: prescripteurId,
+                code_session: codeStr,
+                montant_brut: montantFcfa,
+                montant_net: montantFcfa,
+                remise_appliquee: 0,
+                stars_gagnees: starsGagnees,
+                remise_pct: 0,
+                multiplier: 1,
+                valeur_star_fcfa: valeurStarFcfa,
+                status: 'confirmed',
+                source: 'webhook_sheets',
+                created_at: FieldValue.serverTimestamp(),
+                confirmed_at: FieldValue.serverTimestamp(),
+              }),
+              // Mettre à jour (ou créer) le compte fidélité
+              clientSnap.exists
+                ? clientRef.update({
+                    points_stars: FieldValue.increment(starsGagnees),
+                    total_stars_historique: FieldValue.increment(starsGagnees),
+                    membership_status: newStatus,
+                    last_status_update: now,
+                    updated_at: FieldValue.serverTimestamp(),
+                  })
+                : clientRef.set({
+                    telephone: clientId,
+                    points_stars: starsGagnees,
+                    total_stars_historique: starsGagnees,
+                    membership_status: newStatus,
+                    last_status_update: now,
+                    phone_verified: false,
+                    created_at: FieldValue.serverTimestamp(),
+                    updated_at: FieldValue.serverTimestamp(),
+                  }, { merge: true }),
+            ])
+
+            console.log(`[sheets-webhook] ⭐ ${starsGagnees} stars → client ${clientId} | total=${pointsAvant + starsGagnees} | palier=${newStatus}`)
+          }
+        } catch (starsErr) {
+          console.warn('[sheets-webhook] attribution Stars non-bloquante — erreur:', starsErr)
+        }
+      }
     }
 
     // ── 6. Logging colonne O (Sync_Firebase) ─────────────────────
