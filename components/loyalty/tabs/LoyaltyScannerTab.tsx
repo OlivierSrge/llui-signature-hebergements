@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { addPointsToCard } from '@/actions/loyalty'
 import { calculerPoints } from '@/lib/loyalty-logic'
 import type { LoyaltyProgram } from '@/types/loyalty'
@@ -9,6 +10,18 @@ const NIVEAU_EMOJI: Record<string, string> = {
   bronze: '🤍',
   argent: '🩷',
   or: '💎',
+  diamant: '💠',
+}
+
+interface ScanResult {
+  success: boolean
+  message: string
+  card_id: string
+  client_nom?: string
+  points_ajoutes?: number
+  nouveau_total?: number
+  new_level?: string
+  montant: number
 }
 
 export default function LoyaltyScannerTab({
@@ -22,12 +35,8 @@ export default function LoyaltyScannerTab({
   const [montant, setMontant] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{
-    success: boolean
-    message: string
-    new_level?: string
-    points_ajoutes?: number
-  } | null>(null)
+  const [receipt, setReceipt] = useState<ScanResult | null>(null)
+  const [error, setError] = useState('')
 
   const taux = program?.taux_fcfa_par_point ?? 10000
   const pointsPreview = montant ? calculerPoints(Number(montant), taux) : 0
@@ -37,9 +46,8 @@ export default function LoyaltyScannerTab({
     if (!cardId || !montant) return
 
     setLoading(true)
-    setResult(null)
+    setError('')
 
-    // Extraire l'ID brut : accepte "loyalty://xxx" ou juste "xxx"
     const rawId = cardId.trim()
     const resolvedId = rawId.startsWith('loyalty://') ? rawId.slice('loyalty://'.length) : rawId
 
@@ -49,27 +57,125 @@ export default function LoyaltyScannerTab({
       description: description || undefined,
     })
 
-    setResult({
-      success: res.success,
-      message: res.success
-        ? `✅ +${res.points_ajoutes} points ajoutés !${res.new_level ? ` Nouveau niveau : ${NIVEAU_EMOJI[res.new_level] ?? ''} ${res.new_level.toUpperCase()}` : ''}`
-        : `❌ ${res.error}`,
-      new_level: res.new_level,
-      points_ajoutes: res.points_ajoutes,
-    })
-
     if (res.success) {
-      setCardId('')
-      setMontant('')
-      setDescription('')
+      // Récupérer le nouveau total depuis Firestore via l'API de polling
+      let nouveau_total = res.points_ajoutes ?? 0
+      try {
+        const snap = await fetch(`/api/loyalty/card-status?card_id=${resolvedId}`)
+        if (snap.ok) {
+          const data = await snap.json()
+          nouveau_total = data.points_cumules ?? nouveau_total
+        }
+      } catch { /* silencieux */ }
+
+      setReceipt({
+        success: true,
+        message: 'Points ajoutés avec succès',
+        card_id: resolvedId,
+        points_ajoutes: res.points_ajoutes,
+        nouveau_total,
+        new_level: res.new_level,
+        montant: Number(montant),
+      })
+    } else {
+      setError(res.error ?? 'Erreur lors de l\'ajout des points')
     }
+
     setLoading(false)
   }
 
+  const reset = () => {
+    setReceipt(null)
+    setError('')
+    setCardId('')
+    setMontant('')
+    setDescription('')
+  }
+
+  // ── REÇU VISUEL (écran à retourner vers le client) ─────────────────────────
+  if (receipt) {
+    const cardUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/loyalty/card/${receipt.card_id}`
+      : `/loyalty/card/${receipt.card_id}`
+
+    return (
+      <div className="max-w-sm mx-auto space-y-6">
+        {/* Titre */}
+        <div className="text-center">
+          <div className="text-5xl mb-2">✅</div>
+          <h2 className="text-[#C9A84C] text-xl font-semibold">Points crédités !</h2>
+          <p className="text-[#F5F0E8]/50 text-sm mt-1">Montrez cet écran au client</p>
+        </div>
+
+        {/* Reçu */}
+        <div className="bg-[#0A0A0A] border-2 border-[#C9A84C]/40 rounded-2xl p-6 space-y-4">
+          {/* Points ajoutés */}
+          <div className="text-center border-b border-[#C9A84C]/20 pb-4">
+            <p className="text-[#F5F0E8]/50 text-xs uppercase tracking-wider mb-1">Points crédités</p>
+            <p className="text-[#C9A84C] text-5xl font-bold">
+              +{receipt.points_ajoutes?.toLocaleString('fr-FR')}
+            </p>
+            <p className="text-[#F5F0E8]/40 text-xs mt-1">
+              pour {receipt.montant.toLocaleString('fr-FR')} FCFA d&apos;achat
+            </p>
+          </div>
+
+          {/* Total */}
+          <div className="flex justify-between items-center">
+            <span className="text-[#F5F0E8]/60 text-sm">Total cumulé</span>
+            <span className="text-[#F5F0E8] font-bold text-lg">
+              {receipt.nouveau_total?.toLocaleString('fr-FR')} pts
+            </span>
+          </div>
+
+          {/* Level-up */}
+          {receipt.new_level && (
+            <div className="bg-[#C9A84C]/10 border border-[#C9A84C]/30 rounded-xl px-4 py-3 text-center">
+              <p className="text-[#C9A84C] font-semibold text-sm">
+                {NIVEAU_EMOJI[receipt.new_level] ?? '🏆'} Nouveau niveau atteint !{' '}
+                <span className="uppercase">{receipt.new_level}</span>
+              </p>
+            </div>
+          )}
+
+          {/* QR Code — client peut scanner pour voir sa carte */}
+          <div className="flex flex-col items-center pt-2">
+            <p className="text-[#F5F0E8]/40 text-xs mb-3">Scannez pour voir votre carte</p>
+            <div className="bg-white rounded-xl p-3">
+              <QRCodeSVG
+                value={cardUrl}
+                size={140}
+                level="M"
+                includeMargin={false}
+              />
+            </div>
+            <p className="text-[#F5F0E8]/30 text-[10px] mt-2 text-center">
+              {cardUrl}
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="space-y-3">
+          <button
+            onClick={reset}
+            className="w-full bg-[#C9A84C] hover:bg-[#D4AF37] text-black font-semibold py-3 rounded-xl transition"
+          >
+            ➕ Nouvelle transaction
+          </button>
+          <p className="text-[#F5F0E8]/30 text-xs text-center">
+            Le solde du client se met à jour automatiquement sur sa page
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── FORMULAIRE ─────────────────────────────────────────────────────────────
   return (
     <div className="max-w-md mx-auto">
       <p className="text-[#F5F0E8]/60 text-sm mb-6">
-        Scannez le QR code du client ou saisissez son identifiant de carte pour ajouter des points après un achat.
+        Scannez le QR du client ou collez son identifiant · Le client voit ses points en temps réel sur sa page.
       </p>
 
       {/* Info programme */}
@@ -79,6 +185,12 @@ export default function LoyaltyScannerTab({
           <p className="text-[#F5F0E8]/50 text-xs mt-0.5">
             1 point = {taux.toLocaleString('fr-FR')} FCFA
           </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-500 text-red-300 px-4 py-3 rounded-lg text-sm mb-4">
+          ❌ {error}
         </div>
       )}
 
@@ -132,7 +244,7 @@ export default function LoyaltyScannerTab({
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Dîner du 4 juin..."
+            placeholder="Dîner du 18 juin..."
             className="w-full bg-[#0A0A0A] border border-[#C9A84C]/30 text-[#F5F0E8] px-3 py-2.5 rounded-lg placeholder-[#F5F0E8]/30 text-sm"
           />
         </div>
@@ -145,18 +257,6 @@ export default function LoyaltyScannerTab({
           {loading ? 'Ajout en cours...' : '➕ AJOUTER LES POINTS'}
         </button>
       </form>
-
-      {result && (
-        <div
-          className={`mt-5 px-4 py-4 rounded-lg text-sm font-medium ${
-            result.success
-              ? 'bg-green-900/30 border border-green-500 text-green-300'
-              : 'bg-red-900/30 border border-red-500 text-red-300'
-          }`}
-        >
-          {result.message}
-        </div>
-      )}
     </div>
   )
 }

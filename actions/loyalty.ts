@@ -344,13 +344,7 @@ export async function addPointsToCard(params: {
       created_by: 'partenaire',
     })
 
-    // Emails client (fire-and-forget)
-    void envoyerEmailPointsAjoutes(
-      card.client_email, card.client_nom, pointsAjoutes, nouveauxPoints, program, nouveauNiveau,
-    )
-    if (levelChanged) {
-      void envoyerEmailLevelUp(card.client_email, card.client_nom, program, nouveauNiveau)
-    }
+    // Emails client supprimés — le client voit les points via polling sur sa page carte
 
     console.log(`[Loyalty] +${pointsAjoutes} pts sur ${params.card_id} (${card.client_email})`)
     return {
@@ -792,6 +786,7 @@ export async function createLoyaltyCardPending(params: {
       confirmed_by_admin: null,
     })
 
+    // Admin reçoit un email pour valider le paiement (seul email conservé)
     void envoyerEmailAdminValidation(cardId, token, { ...params, niveau_choisi: niveauInitial }, program)
 
     console.log(`[Loyalty] Carte PENDING créée: ${cardId} pour ${params.client_email}`)
@@ -864,12 +859,7 @@ export async function confirmLoyaltyCard(
           created_by: 'admin',
         }),
         crediterWalletPartenaire(program.partenaire_id, commission_partner, `Vente carte ${program.nom}`),
-        envoyerEmailBienvenueLoyalty(
-          card_id,
-          card.client_email,
-          `${card.client_prenom ?? ''} ${card.client_nom}`.trim(),
-          program
-        ),
+        // Email client supprimé — le client voit l'activation via polling sur sa page carte
       ])
     } catch (e) {
       console.error('[Loyalty] Post-confirm error:', e)
