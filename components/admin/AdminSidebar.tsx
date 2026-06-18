@@ -133,6 +133,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/documents', label: 'Documents & Aide', icon: FolderOpen },
       { href: '/admin/registre-legal', label: 'Registre légal Kribi', icon: Scale },
       { href: '/admin/parametres', label: 'Paramètres', icon: Settings },
+      { href: '/help/admin', label: 'Guides utilisateurs', icon: BookOpen },
     ],
   },
 ]
