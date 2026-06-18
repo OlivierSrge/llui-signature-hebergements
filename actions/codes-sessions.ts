@@ -292,19 +292,68 @@ export async function genererCodeSession(
   }
 }
 
-/** Génère un code 6 chiffres lié à un client identifié (après OTP) */
+/** Génère un code 6 chiffres lié à un client identifié (après OTP), avec quota 1/mois */
 export async function genererCodeSessionLie(
   prescripteurId: string,
   telephone: string,
-): Promise<{ success: boolean; code?: string; redirection?: RedirectionPrioritaire; error?: string }> {
+): Promise<{
+  success: boolean
+  code?: string
+  redirection?: RedirectionPrioritaire
+  error?: string
+  nextAvailableAt?: string  // ISO — quand le client peut regénérer
+  remainingDays?: number
+}> {
+  // ── 1. Vérifier quota ──────────────────────────────────────────
+  try {
+    const params = await getParametresPlateforme()
+    const quotaJours = params.fidelite_qr_flash_quota_jours ?? 30
+
+    const clientSnap = await db.collection('clients_fidelite').doc(telephone).get()
+    if (clientSnap.exists) {
+      const clientData = clientSnap.data()!
+      const lastQR = clientData.last_qr_generated_at as string | undefined
+
+      if (lastQR) {
+        const lastDate = new Date(lastQR)
+        const nextAvailable = new Date(lastDate.getTime() + quotaJours * 24 * 3600 * 1000)
+        const now = new Date()
+
+        if (nextAvailable > now) {
+          const remainingMs = nextAvailable.getTime() - now.getTime()
+          const remainingDays = Math.ceil(remainingMs / (24 * 3600 * 1000))
+          console.log(`[genererCodeSessionLie] quota atteint pour ${telephone} — prochain: ${nextAvailable.toISOString()}`)
+          return {
+            success: false,
+            error: 'quota_atteint',
+            nextAvailableAt: nextAvailable.toISOString(),
+            remainingDays,
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Failsafe : quota non bloquant en cas d'erreur Firestore
+    console.warn('[genererCodeSessionLie] quota check failed (failsafe):', e)
+  }
+
+  // ── 2. Générer le code ─────────────────────────────────────────
   const result = await genererCodeSession(prescripteurId)
   if (!result.success || !result.code) return result
-  // Lier le téléphone au code session (non-bloquant si échec)
-  try {
-    await db.collection('codes_sessions').doc(result.code).update({ client_id: telephone })
-  } catch (e) {
-    console.warn('[genererCodeSessionLie] update client_id failed:', e)
-  }
+
+  // ── 3. Lier client_id + mettre à jour last_qr_generated_at ────
+  await Promise.all([
+    db.collection('codes_sessions').doc(result.code).update({ client_id: telephone }).catch((e) =>
+      console.warn('[genererCodeSessionLie] update client_id failed:', e)
+    ),
+    db.collection('clients_fidelite').doc(telephone).update({
+      last_qr_generated_at: new Date().toISOString(),
+      last_qr_code: result.code,
+    }).catch((e) =>
+      console.warn('[genererCodeSessionLie] update last_qr_generated_at failed:', e)
+    ),
+  ])
+
   return result
 }
 

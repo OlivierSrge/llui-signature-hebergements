@@ -44,6 +44,8 @@ export interface ClientFidelite {
   phone_verified: boolean
   has_pending_spend?: boolean
   pending_spend_id?: string
+  last_qr_generated_at?: string  // ISO — date du dernier code QR généré
+  last_qr_code?: string          // code session généré (pour affichage)
 }
 
 export interface TransactionFidelite {

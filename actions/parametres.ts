@@ -45,6 +45,7 @@ export interface ParametresPlateforme {
   fidelite_seuil_excellence: number       // seuil stars Excellence (défaut 150 000)
   fidelite_valeur_star_fcfa: number       // valeur d'1 star en FCFA (provision partenaire)
   fidelite_otp_template: string           // template message OTP WhatsApp
+  fidelite_qr_flash_quota_jours: number  // délai entre 2 codes QR par client (défaut 30j)
 
   // Métadonnées
   modifie_par?: string
@@ -79,6 +80,7 @@ const DEFAULTS: ParametresPlateforme = {
   fidelite_seuil_excellence: 150000,
   fidelite_valeur_star_fcfa: 1,
   fidelite_otp_template: '',
+  fidelite_qr_flash_quota_jours: 30,
 }
 
 /** Lit les paramètres. Si le document n'existe pas, le crée avec les valeurs par défaut. */
@@ -121,6 +123,7 @@ export async function getParametresPlateforme(): Promise<ParametresPlateforme> {
     fidelite_seuil_excellence: d.fidelite_seuil_excellence ?? DEFAULTS.fidelite_seuil_excellence,
     fidelite_valeur_star_fcfa: d.fidelite_valeur_star_fcfa ?? DEFAULTS.fidelite_valeur_star_fcfa,
     fidelite_otp_template: d.fidelite_otp_template ?? DEFAULTS.fidelite_otp_template,
+    fidelite_qr_flash_quota_jours: d.fidelite_qr_flash_quota_jours ?? DEFAULTS.fidelite_qr_flash_quota_jours,
     modifie_par: d.modifie_par,
     modifie_at: d.modifie_at,
     version: d.version,
