@@ -292,6 +292,22 @@ export async function genererCodeSession(
   }
 }
 
+/** Génère un code 6 chiffres lié à un client identifié (après OTP) */
+export async function genererCodeSessionLie(
+  prescripteurId: string,
+  telephone: string,
+): Promise<{ success: boolean; code?: string; redirection?: RedirectionPrioritaire; error?: string }> {
+  const result = await genererCodeSession(prescripteurId)
+  if (!result.success || !result.code) return result
+  // Lier le téléphone au code session (non-bloquant si échec)
+  try {
+    await db.collection('codes_sessions').doc(result.code).update({ client_id: telephone })
+  } catch (e) {
+    console.warn('[genererCodeSessionLie] update client_id failed:', e)
+  }
+  return result
+}
+
 /** Lit un code session */
 export async function getCodeSession(code: string): Promise<CodeSession | null> {
   const snap = await db.collection('codes_sessions').doc(code).get()
