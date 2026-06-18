@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test:loyalty": "npx tsx scripts/test-loyalty.ts",
-    "test:loyalty:no-create": "npx tsx scripts/test-loyalty.ts --no-create"
+    "test:loyalty:no-create": "npx tsx scripts/test-loyalty.ts --no-create",
+    "test:e2e": "npx tsx scripts/test-e2e-stars.ts",
+    "test:e2e:keep": "npx tsx scripts/test-e2e-stars.ts --keep"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
