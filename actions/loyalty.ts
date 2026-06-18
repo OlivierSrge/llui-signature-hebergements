@@ -5,6 +5,7 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import type { LoyaltyProgram, LoyaltyCard, Niveau } from '@/types/loyalty'
 import { calculerPoints, determinerNiveau } from '@/lib/loyalty-logic'
 import { getPartnerInfo, getPartnerName } from '@/lib/loyalty-partner'
+import { normalizePhoneToE164 } from '@/lib/phone-utils'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 
@@ -799,6 +800,52 @@ export async function createLoyaltyCardPending(params: {
 
 // ─── Confirmer une carte (PENDING → ACTIVE) ───────────────────────────────────
 
+// ─── Lier une loyalty_card à clients_fidelite via phone ──────────────────────
+
+/**
+ * Normalise client_phone, met à jour loyalty_cards.client_id (phone E.164),
+ * et crée le profil Stars si inexistant.
+ * Non-bloquant : les erreurs sont loggées mais ne remontent pas.
+ */
+export async function linkLoyaltyCardToStars(
+  card_id: string,
+  client_phone: string | undefined,
+): Promise<{ success: boolean; client_id?: string; created_profile?: boolean; message: string }> {
+  if (!client_phone) return { success: false, message: 'Pas de téléphone fourni' }
+
+  const phoneE164 = normalizePhoneToE164(client_phone)
+  if (!phoneE164) return { success: false, message: `Numéro invalide : ${client_phone}` }
+
+  try {
+    const clientRef = db.collection('clients_fidelite').doc(phoneE164)
+    const clientSnap = await clientRef.get()
+    const createdProfile = !clientSnap.exists
+
+    await Promise.all([
+      db.collection('loyalty_cards').doc(card_id).update({ client_id: phoneE164 }),
+      createdProfile
+        ? clientRef.set({
+            telephone: phoneE164,
+            points_stars: 0,
+            total_stars_historique: 0,
+            membership_status: 'novice',
+            last_status_update: new Date().toISOString(),
+            phone_verified: false,
+            created_at: Timestamp.now(),
+            updated_at: Timestamp.now(),
+          }, { merge: true })
+        : Promise.resolve(),
+    ])
+
+    console.log(`[Loyalty] ✅ Carte ${card_id} liée à clients_fidelite[${phoneE164}]${createdProfile ? ' (profil créé)' : ' (profil existant)'}`)
+    return { success: true, client_id: phoneE164, created_profile: createdProfile, message: 'OK' }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.warn('[Loyalty] linkLoyaltyCardToStars erreur:', msg)
+    return { success: false, message: msg }
+  }
+}
+
 export async function confirmLoyaltyCard(
   card_id: string,
   token: string
@@ -863,45 +910,7 @@ export async function confirmLoyaltyCard(
       ])
 
       // ── Unification identités : lier la carte à clients_fidelite via phone ──
-      if (card.client_phone) {
-        void (async () => {
-          try {
-            // Normaliser le numéro en E.164
-            let t = (card.client_phone as string).replace(/[\s\-().]/g, '')
-            if (t.startsWith('00')) t = '+' + t.slice(2)
-            if (/^237\d{8,9}$/.test(t)) t = '+' + t
-            if (!t.startsWith('+')) t = '+237' + t
-            const phoneE164 = t
-
-            const clientRef = db.collection('clients_fidelite').doc(phoneE164)
-            const clientSnap = await clientRef.get()
-
-            await Promise.all([
-              // Mettre à jour client_id de la carte : guest_${ts} → phone E.164
-              db.collection('loyalty_cards').doc(card_id).update({
-                client_id: phoneE164,
-              }),
-              // Créer le profil Stars si inexistant, sinon ne rien écraser
-              clientSnap.exists
-                ? Promise.resolve() // déjà lié, ne pas modifier
-                : clientRef.set({
-                    telephone: phoneE164,
-                    points_stars: 0,
-                    total_stars_historique: 0,
-                    membership_status: 'novice',
-                    last_status_update: new Date().toISOString(),
-                    phone_verified: false,
-                    created_at: Timestamp.now(),
-                    updated_at: Timestamp.now(),
-                  }, { merge: true }),
-            ])
-
-            console.log(`[Loyalty] ✅ Carte ${card_id} liée à clients_fidelite[${phoneE164}]`)
-          } catch (linkErr) {
-            console.warn('[Loyalty] link clients_fidelite non-bloquant:', linkErr)
-          }
-        })()
-      }
+      void linkLoyaltyCardToStars(card_id, card.client_phone)
     } catch (e) {
       console.error('[Loyalty] Post-confirm error:', e)
     }
