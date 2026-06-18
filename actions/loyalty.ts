@@ -861,6 +861,47 @@ export async function confirmLoyaltyCard(
         crediterWalletPartenaire(program.partenaire_id, commission_partner, `Vente carte ${program.nom}`),
         // Email client supprimé — le client voit l'activation via polling sur sa page carte
       ])
+
+      // ── Unification identités : lier la carte à clients_fidelite via phone ──
+      if (card.client_phone) {
+        void (async () => {
+          try {
+            // Normaliser le numéro en E.164
+            let t = (card.client_phone as string).replace(/[\s\-().]/g, '')
+            if (t.startsWith('00')) t = '+' + t.slice(2)
+            if (/^237\d{8,9}$/.test(t)) t = '+' + t
+            if (!t.startsWith('+')) t = '+237' + t
+            const phoneE164 = t
+
+            const clientRef = db.collection('clients_fidelite').doc(phoneE164)
+            const clientSnap = await clientRef.get()
+
+            await Promise.all([
+              // Mettre à jour client_id de la carte : guest_${ts} → phone E.164
+              db.collection('loyalty_cards').doc(card_id).update({
+                client_id: phoneE164,
+              }),
+              // Créer le profil Stars si inexistant, sinon ne rien écraser
+              clientSnap.exists
+                ? Promise.resolve() // déjà lié, ne pas modifier
+                : clientRef.set({
+                    telephone: phoneE164,
+                    points_stars: 0,
+                    total_stars_historique: 0,
+                    membership_status: 'novice',
+                    last_status_update: new Date().toISOString(),
+                    phone_verified: false,
+                    created_at: Timestamp.now(),
+                    updated_at: Timestamp.now(),
+                  }, { merge: true }),
+            ])
+
+            console.log(`[Loyalty] ✅ Carte ${card_id} liée à clients_fidelite[${phoneE164}]`)
+          } catch (linkErr) {
+            console.warn('[Loyalty] link clients_fidelite non-bloquant:', linkErr)
+          }
+        })()
+      }
     } catch (e) {
       console.error('[Loyalty] Post-confirm error:', e)
     }
