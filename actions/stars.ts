@@ -212,7 +212,6 @@ export async function getClientFidelite(telephone: string): Promise<ClientFideli
     const snap = await db.collection('clients_fidelite').doc(tel).get()
     if (!snap.exists) return null
     const d = snap.data()!
-    if (!d.phone_verified) return null
     return docToClient(tel, d)
   } catch (e) {
     console.error('[Fidelite] getClientFidelite erreur:', e)
@@ -260,7 +259,6 @@ export async function getClientFideliteById(clientId: string): Promise<ClientFid
     const snap = await db.collection('clients_fidelite').doc(clientId).get()
     if (!snap.exists) return null
     const d = snap.data()!
-    if (!d.phone_verified) return null
     return docToClient(clientId, d)
   } catch (e) {
     console.error('[Stars] getClientFideliteById erreur:', e)
@@ -287,7 +285,6 @@ export async function spendPointsRequest(params: {
       if (!clientSnap.exists) throw new Error('Client introuvable')
 
       const d = clientSnap.data()!
-      if (!d.phone_verified) throw new Error('Téléphone non vérifié')
       if (d.has_pending_spend) throw new Error('Une demande de réduction est déjà en cours')
 
       const currentPoints = (d.points_stars as number) ?? 0

@@ -87,8 +87,8 @@ export async function createQrScanRequest(
 
     // Vérifier client
     const clientSnap = await db.collection('clients_fidelite').doc(tel).get()
-    if (!clientSnap.exists || !(clientSnap.data()!.phone_verified as boolean)) {
-      return { success: false, error: 'Client non vérifié. Scannez le QR code pour vous inscrire.' }
+    if (!clientSnap.exists) {
+      return { success: false, error: 'Client introuvable. Scannez le QR code partenaire pour vous inscrire.' }
     }
     const clientData = clientSnap.data()!
 
