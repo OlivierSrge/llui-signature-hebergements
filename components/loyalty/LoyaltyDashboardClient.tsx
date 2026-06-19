@@ -165,19 +165,43 @@ export default function LoyaltyDashboardClient({ partenaireId }: { partenaireId:
   const [programs, setPrograms] = useState<(LoyaltyProgram & { program_id: string })[]>([])
   const [selectedProgram, setSelectedProgram] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    getLoyaltyPrograms(partenaireId).then(({ programs: p = [] }) => {
-      setPrograms(p)
-      if (p.length > 0) setSelectedProgram(p[0].program_id)
-      setLoading(false)
-    })
+    getLoyaltyPrograms(partenaireId)
+      .then(({ programs: p = [] }) => {
+        setPrograms(p)
+        if (p.length > 0) setSelectedProgram(p[0].program_id)
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
   }, [partenaireId])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="text-[#C9A84C] text-lg">Chargement...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+          <div className="text-[#C9A84C]/60 text-sm">Chargement des programmes...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="bg-[#1A1A1A] border border-red-500/30 rounded-xl p-8 text-center max-w-sm">
+          <p className="text-red-400 text-2xl mb-3">⚠️</p>
+          <p className="text-[#F5F0E8]/80 font-semibold mb-1">Erreur de chargement</p>
+          <p className="text-[#F5F0E8]/40 text-sm mb-4">Impossible de charger les programmes de fidélité.</p>
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); getLoyaltyPrograms(partenaireId).then(({ programs: p = [] }) => { setPrograms(p); if (p.length > 0) setSelectedProgram(p[0].program_id) }).catch(() => setLoadError(true)).finally(() => setLoading(false)) }}
+            className="px-4 py-2 bg-[#C9A84C] text-[#1A1A1A] font-semibold rounded-lg text-sm"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     )
   }
@@ -190,11 +214,21 @@ export default function LoyaltyDashboardClient({ partenaireId }: { partenaireId:
         </h1>
 
         {programs.length === 0 ? (
-          <div className="bg-[#1A1A1A] border border-[#C9A84C]/20 rounded-xl p-12 text-center">
-            <p className="text-[#F5F0E8]/60">Aucun programme de fidélité actif.</p>
-            <p className="text-[#F5F0E8]/30 text-sm mt-2">
-              Contactez L&amp;Lui pour créer votre programme personnalisé.
+          <div className="bg-[#1A1A1A] border border-[#C9A84C]/20 rounded-xl p-12 text-center space-y-3">
+            <p className="text-4xl">🎫</p>
+            <p className="text-[#F5F0E8]/80 font-semibold">Aucun programme de fidélité actif</p>
+            <p className="text-[#F5F0E8]/40 text-sm">
+              Vous n&apos;avez pas encore de programme de fidélité configuré.<br />
+              Contactez L&amp;Lui pour en créer un.
             </p>
+            <a
+              href="https://wa.me/237693407964"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 bg-[#C9A84C] text-[#1A1A1A] font-semibold rounded-xl text-sm"
+            >
+              📞 Contacter L&amp;Lui
+            </a>
           </div>
         ) : (
           <>
