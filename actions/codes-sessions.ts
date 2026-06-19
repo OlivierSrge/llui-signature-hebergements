@@ -338,8 +338,12 @@ export async function genererCodeSessionLie(
   }
 
   // ── 2. Générer le code ─────────────────────────────────────────
-  const result = await genererCodeSession(prescripteurId)
+  const [result, partSnap] = await Promise.all([
+    genererCodeSession(prescripteurId),
+    db.collection('prescripteurs_partenaires').doc(prescripteurId).get(),
+  ])
   if (!result.success || !result.code) return result
+  const nomPartenaire = partSnap.exists ? ((partSnap.data()!.nom_etablissement as string) ?? '') : ''
 
   // ── 3. Lier client_id + créer/mettre à jour profil client ────
   // Normaliser le téléphone en E.164 pour cohérence Firestore
@@ -352,14 +356,21 @@ export async function genererCodeSessionLie(
   }
   const normalizedTel = normalizeTel(telephone)
   const now = new Date().toISOString()
+  // boutique_expire_at : code utilisable en boutique 3 jours (indépendant du expire_at 48h de /sejour)
+  const boutiqueExpireAt = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString()
   await Promise.all([
-    db.collection('codes_sessions').doc(result.code).update({ client_id: normalizedTel }).catch((e) =>
+    db.collection('codes_sessions').doc(result.code).update({
+      client_id: normalizedTel,
+      boutique_expire_at: boutiqueExpireAt,
+    }).catch((e) =>
       console.warn('[genererCodeSessionLie] update client_id failed:', e)
     ),
     db.collection('clients_fidelite').doc(normalizedTel).set({
       telephone: normalizedTel,
       last_qr_generated_at: now,
       last_qr_code: result.code,
+      last_qr_boutique_expire_at: boutiqueExpireAt,
+      last_qr_partenaire_nom: nomPartenaire,
       phone_verified: false,
     }, { merge: true }).catch((e) =>
       console.warn('[genererCodeSessionLie] set clients_fidelite failed:', e)

@@ -44,8 +44,10 @@ export interface ClientFidelite {
   phone_verified: boolean
   has_pending_spend?: boolean
   pending_spend_id?: string
-  last_qr_generated_at?: string  // ISO — date du dernier code QR généré
-  last_qr_code?: string          // code session généré (pour affichage)
+  last_qr_generated_at?: string        // ISO — date du dernier code QR généré
+  last_qr_code?: string                // code session généré (pour affichage)
+  last_qr_boutique_expire_at?: string  // ISO — expiration boutique (3 jours)
+  last_qr_partenaire_nom?: string      // nom du partenaire associé au dernier code
 }
 
 export interface TransactionFidelite {

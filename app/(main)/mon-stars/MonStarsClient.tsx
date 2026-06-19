@@ -162,6 +162,92 @@ export default function MonStarsClient({ params, initialTel }: Props) {
               </button>
             </div>
 
+            {/* ── Code boutique ── */}
+            {client.last_qr_code && (() => {
+              const expireAt = client.last_qr_boutique_expire_at
+                ? new Date(client.last_qr_boutique_expire_at)
+                : null
+              const isValid = expireAt ? expireAt > new Date() : false
+              const msLeft = expireAt ? Math.max(0, expireAt.getTime() - Date.now()) : 0
+              const hoursLeft = Math.floor(msLeft / 3600000)
+              const minsLeft = Math.floor((msLeft % 3600000) / 60000)
+              const code = client.last_qr_code
+              const formatted = code.slice(0, 3) + ' ' + code.slice(3)
+
+              return (
+                <div className={`w-full rounded-2xl p-5 shadow-sm space-y-3 border-2 ${isValid ? 'bg-[#1A1A1A] border-[#C9A84C]' : 'bg-white border-[#E8E0D0]'}`}>
+                  <div className="flex items-center justify-between">
+                    <p className={`text-xs font-semibold uppercase tracking-widest ${isValid ? 'text-[#C9A84C]' : 'text-[#1A1A1A]/40'}`}>
+                      {isValid ? '🛍️ Mon code boutique' : '🛍️ Dernier code boutique'}
+                    </p>
+                    {isValid ? (
+                      <span className="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
+                        Actif
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-red-100 text-red-500 px-2 py-0.5 rounded-full">
+                        Expiré
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Code en gros */}
+                  <div className="text-center">
+                    <p className={`text-5xl font-black tracking-[0.25em] font-mono ${isValid ? 'text-[#C9A84C]' : 'text-[#1A1A1A]/30'}`}>
+                      {formatted}
+                    </p>
+                    {client.last_qr_partenaire_nom && (
+                      <p className={`text-xs mt-1 ${isValid ? 'text-white/60' : 'text-[#1A1A1A]/40'}`}>
+                        via {client.last_qr_partenaire_nom}
+                      </p>
+                    )}
+                  </div>
+
+                  {isValid && (
+                    <>
+                      {/* Compte à rebours */}
+                      <div className="bg-white/10 rounded-xl px-4 py-2 text-center">
+                        <p className="text-[10px] text-white/50 mb-0.5">Valable encore</p>
+                        <p className="text-lg font-bold text-white">
+                          {hoursLeft}h {String(minsLeft).padStart(2, '0')}min
+                        </p>
+                      </div>
+
+                      {/* Bouton copier */}
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(code).catch(() => {})
+                        }}
+                        className="w-full py-2.5 bg-[#C9A84C] text-[#1A1A1A] text-sm font-bold rounded-xl"
+                      >
+                        📋 Copier le code
+                      </button>
+
+                      {/* Lien boutique */}
+                      <a
+                        href={`${BOUTIQUE_URL}?code=${code}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-center text-xs text-[#C9A84C] font-semibold underline"
+                      >
+                        → Aller sur la boutique en ligne
+                      </a>
+
+                      <p className="text-[10px] text-center text-white/40">
+                        Renseignez ce code au moment de votre achat en boutique pour valider votre remise et créditer votre partenaire.
+                      </p>
+                    </>
+                  )}
+
+                  {!isValid && (
+                    <p className="text-xs text-center text-[#1A1A1A]/40">
+                      Scannez le QR d&apos;un partenaire pour obtenir un nouveau code.
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Pass électronique Stars */}
             <div className="w-full">
               <ElectronicPass client={client} params={params} />

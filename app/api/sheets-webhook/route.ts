@@ -157,6 +157,15 @@ export async function POST(req: NextRequest) {
     if (sessionSnap.exists) {
       console.log(`[sheets-webhook] code ${codeStr} trouvé dans codes_sessions ✅`)
       const session = sessionSnap.data()!
+
+      // ── Vérifier validité boutique (3 jours) ──────────────────
+      const boutiqueExpireAt = session.boutique_expire_at as string | undefined
+      if (boutiqueExpireAt && new Date(boutiqueExpireAt) < new Date()) {
+        console.warn(`[sheets-webhook] code ${codeStr} expiré en boutique (boutique_expire_at=${boutiqueExpireAt}) — commission refusée`)
+        updateSyncStatus(codeStr, 'error', `Code expiré en boutique depuis ${boutiqueExpireAt}`).catch(() => {})
+        return NextResponse.json({ error: 'Code expiré', detail: `Le code ${codeStr} n'est plus valide en boutique (3 jours max)` }, { status: 422 })
+      }
+
       prescripteurId = session.prescripteur_partenaire_id as string
       const prescSnap = await db.collection('prescripteurs_partenaires').doc(prescripteurId).get()
       prescData = prescSnap.exists ? prescSnap.data()! : {}
