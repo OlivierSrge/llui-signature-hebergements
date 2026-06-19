@@ -173,12 +173,14 @@ export default function MonStarsClient({ params, initialTel }: Props) {
               {activeCards.length === 0 ? (
                 <div className="text-center py-3 space-y-3">
                   <p className="text-sm text-[#1A1A1A]/50">Vous n'avez pas encore de carte active.</p>
-                  <Link
-                    href="/packs"
+                  <a
+                    href="https://l-et-lui-signature.com/produit.html?id=29&cat=PASS%20VIP"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-block px-4 py-2 bg-[#C9A84C] text-white text-xs font-semibold rounded-xl"
                   >
                     💎 Obtenir un Pass VIP
-                  </Link>
+                  </a>
                 </div>
               ) : (
                 activeCards.map((card) => (
@@ -203,9 +205,9 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 ))
               )}
               {activeCards.length > 0 && (
-                <Link href="/packs" className="block text-center text-xs text-[#C9A84C] font-semibold mt-1">
+                <a href="https://l-et-lui-signature.com/produit.html?id=29&cat=PASS%20VIP" target="_blank" rel="noopener noreferrer" className="block text-center text-xs text-[#C9A84C] font-semibold mt-1">
                   + Obtenir un autre Pass VIP
-                </Link>
+                </a>
               )}
             </div>
 
@@ -236,8 +238,10 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 </div>
                 <span className="ml-auto text-[#1A1A1A]/30 text-xs">→</span>
               </Link>
-              <Link
-                href="/packs"
+              <a
+                href="https://l-et-lui-signature.com/produit.html?id=29&cat=PASS%20VIP"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 bg-[#F5F0E8]/60 rounded-xl hover:bg-[#F5F0E8] transition-colors"
               >
                 <span className="text-2xl">💎</span>
@@ -246,7 +250,7 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                   <p className="text-xs text-[#1A1A1A]/50">Avantages exclusifs & réductions</p>
                 </div>
                 <span className="ml-auto text-[#1A1A1A]/30 text-xs">→</span>
-              </Link>
+              </a>
             </div>
 
             {/* Numéro connecté */}
