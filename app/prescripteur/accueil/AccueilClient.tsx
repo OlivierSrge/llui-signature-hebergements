@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, Home, Timer } from 'lucide-react'
+import { LogOut, QrCode, CheckCircle2, XCircle, Loader2, Wallet, FileText, Users, WifiOff, Home, Timer, BookOpen } from 'lucide-react'
 import { creerSessionPartenaire, getSessionActivePartenaire, scannerQrReservation, envoyerAlerte15Min } from '@/actions/prescripteurs'
 import { useFCM } from '@/lib/hooks/useFCM'
 import PartenairesProches from '@/components/prescripteur/PartenairesProches'
@@ -508,6 +508,15 @@ export default function AccueilClient() {
             >
               <FileText size={16} /> Mon rapport du mois
             </button>
+
+            <a
+              href="/help/prescripteur"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 rounded-2xl border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 font-medium text-xs flex items-center justify-center gap-2 transition-all"
+            >
+              <BookOpen size={14} /> Guide d&apos;utilisation
+            </a>
 
             {/* Partenaires proches (géolocalisation) */}
             <PartenairesProches onScannerPartenaire={handleScannerDepuisListe} />
