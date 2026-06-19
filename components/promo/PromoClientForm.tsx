@@ -174,7 +174,7 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
               <a href="/hebergements" className="flex items-center gap-2 text-sm text-[#1A1A1A]/70 hover:text-[#C9A84C]">
                 🏠 Découvrir nos hébergements partenaires
               </a>
-              <a href="/pass-vip" className="flex items-center gap-2 text-sm text-[#1A1A1A]/70 hover:text-[#C9A84C]">
+              <a href="/packs" className="flex items-center gap-2 text-sm text-[#1A1A1A]/70 hover:text-[#C9A84C]">
                 💎 Obtenir un Pass VIP L&Lui Signature
               </a>
             </div>

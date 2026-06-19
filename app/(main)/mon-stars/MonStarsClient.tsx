@@ -174,7 +174,7 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 <div className="text-center py-3 space-y-3">
                   <p className="text-sm text-[#1A1A1A]/50">Vous n'avez pas encore de carte active.</p>
                   <Link
-                    href="/pass-vip"
+                    href="/packs"
                     className="inline-block px-4 py-2 bg-[#C9A84C] text-white text-xs font-semibold rounded-xl"
                   >
                     💎 Obtenir un Pass VIP
@@ -203,7 +203,7 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 ))
               )}
               {activeCards.length > 0 && (
-                <Link href="/pass-vip" className="block text-center text-xs text-[#C9A84C] font-semibold mt-1">
+                <Link href="/packs" className="block text-center text-xs text-[#C9A84C] font-semibold mt-1">
                   + Obtenir un autre Pass VIP
                 </Link>
               )}
@@ -237,7 +237,7 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 <span className="ml-auto text-[#1A1A1A]/30 text-xs">→</span>
               </Link>
               <Link
-                href="/pass-vip"
+                href="/packs"
                 className="flex items-center gap-3 p-3 bg-[#F5F0E8]/60 rounded-xl hover:bg-[#F5F0E8] transition-colors"
               >
                 <span className="text-2xl">💎</span>
