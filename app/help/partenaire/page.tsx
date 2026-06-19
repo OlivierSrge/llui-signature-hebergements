@@ -184,8 +184,8 @@ export default function HelpPartenairePage() {
               <p className="font-semibold text-white mb-1">Comment ça fonctionne</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Client scanne votre QR code</li>
-                <li>Saisit son numéro WhatsApp → reçoit OTP</li>
-                <li>Valide OTP → code session généré (48h)</li>
+                <li>Saisit son numéro de téléphone</li>
+                <li>Code session généré immédiatement (48h)</li>
                 <li>Achète en boutique L&amp;Lui avec ce code</li>
                 <li>Paiement confirmé → commission automatiquement créée dans votre dashboard</li>
               </ol>

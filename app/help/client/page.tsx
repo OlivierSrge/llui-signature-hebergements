@@ -21,7 +21,7 @@ export default function HelpClientPage() {
           <h2 className="text-base font-semibold text-amber-300 mb-4">Les 3 façons d'accumuler des points</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             {[
-              { icon: '🎯', title: 'Scanner QR partenaire', desc: 'Gratuit • 1 fois par 30 jours', pts: 'Stars L&Lui' },
+              { icon: '🎯', title: 'Scanner QR partenaire', desc: 'Gratuit • 1 fois par 30 jours • Saisie numéro uniquement', pts: 'Stars L&Lui' },
               { icon: '🛍️', title: 'Acheter en boutique', desc: 'Prix produit • Illimité', pts: 'Stars L&Lui' },
               { icon: '🎫', title: 'Acheter carte fidélité', desc: '25k–150k FCFA • 1 par partenaire', pts: 'Points partenaire' },
             ].map(({ icon, title, desc, pts }) => (
@@ -37,31 +37,24 @@ export default function HelpClientPage() {
 
         {/* 1. Scanner QR */}
         <section>
-          <h2 className="text-xl font-bold text-amber-300 mb-4">1. Scanner QR Partenaire (OTP WhatsApp)</h2>
+          <h2 className="text-xl font-bold text-amber-300 mb-4">1. Scanner QR Partenaire</h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 text-sm text-gray-300 space-y-4">
             <div>
-              <p className="font-semibold text-white mb-1">Étape 1 : Saisir votre téléphone</p>
+              <p className="font-semibold text-white mb-1">Comment ça marche</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Scannez le QR code affiché chez le partenaire</li>
                 <li>Un formulaire s'affiche automatiquement</li>
-                <li>Saisissez votre numéro WhatsApp (ex : 690 123 456)</li>
-                <li>Cliquez [RECEVOIR MON CODE →]</li>
-              </ol>
-            </div>
-            <div>
-              <p className="font-semibold text-white mb-1">Étape 2 : Valider l'OTP</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Vous recevez un message WhatsApp : <em className="text-amber-200">"🔐 Votre code L&amp;Lui Stars : 123456"</em></li>
-                <li>Saisissez le code 6 chiffres</li>
-                <li>Cliquez [VALIDER MON CODE →]</li>
-              </ol>
-            </div>
-            <div>
-              <p className="font-semibold text-white mb-1">Étape 3 : Utiliser</p>
-              <ul className="list-disc list-inside space-y-1 text-gray-400">
+                <li>Saisissez votre numéro de téléphone (ex : 690 123 456)</li>
+                <li>Cliquez [OBTENIR MON CODE →]</li>
                 <li>Vous êtes redirigé vers la page de la boutique</li>
-                <li>Votre code est valable <strong className="text-white">48 heures</strong></li>
-                <li>Le code est à usage limité (5 utilisations max)</li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-semibold text-white mb-1">Votre code session</p>
+              <ul className="list-disc list-inside space-y-1 text-gray-400">
+                <li>Valable <strong className="text-white">48 heures</strong></li>
+                <li>Usage limité (5 utilisations max)</li>
+                <li>Lié à votre numéro pour cumuler des Stars</li>
               </ul>
             </div>
             <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
@@ -168,7 +161,7 @@ export default function HelpClientPage() {
           <h2 className="text-xl font-bold text-amber-300 mb-4">5. FAQ Client</h2>
           <div className="space-y-3">
             {[
-              { q: "Je n'ai pas reçu mon code OTP ?", a: "Vérifiez WhatsApp (pas SMS). Attendez 30 secondes, puis cliquez \"Renvoyer le code\"." },
+              { q: "Je n'ai pas été redirigé après avoir saisi mon numéro ?", a: "Vérifiez votre connexion internet et réessayez. Si le problème persiste, contactez le partenaire." },
               { q: "Mes points expirent-ils ?", a: "Non. Vos points restent à vie." },
               { q: "Je peux utiliser ma carte chez plusieurs partenaires ?", a: "Non. Chaque carte est liée à un seul partenaire." },
               { q: "J'ai perdu mon lien de carte ?", a: "Contactez le partenaire ou écrivez à contact@l-et-lui.com avec votre email d'achat." },

@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { requestOtp, verifyOtpAndLinkClient } from '@/actions/stars'
 import { genererCodeSessionLie } from '@/actions/codes-sessions'
 
-type Step = 'phone' | 'otp' | 'generating' | 'quota'
+type Step = 'phone' | 'generating' | 'quota'
 
 interface Props {
   partenaireId: string
@@ -17,68 +16,18 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
   const router = useRouter()
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
-  const [verifiedPhone, setVerifiedPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [resendCooldown, setResendCooldown] = useState(0)
   const [quotaInfo, setQuotaInfo] = useState<{ nextAvailableAt: string; remainingDays: number } | null>(null)
 
-  // ── Étape 1 : demander l'OTP ──────────────────────────────────
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const res = await requestOtp(phone.trim(), 'promo_pending')
-    setLoading(false)
-    if (res.success) {
-      setVerifiedPhone(phone.trim())
-      setStep('otp')
-      startCooldown()
-    } else {
-      setError(res.error ?? 'Impossible d\'envoyer le code. Vérifiez votre numéro.')
-    }
-  }
-
-  // ── Renvoi OTP ────────────────────────────────────────────────
-  const handleResend = async () => {
-    if (resendCooldown > 0) return
-    setError('')
-    setLoading(true)
-    const res = await requestOtp(verifiedPhone, 'promo_pending')
-    setLoading(false)
-    if (res.success) startCooldown()
-    else setError(res.error ?? 'Erreur envoi code')
-  }
-
-  const startCooldown = () => {
-    setResendCooldown(60)
-    const t = setInterval(() => {
-      setResendCooldown((c) => {
-        if (c <= 1) { clearInterval(t); return 0 }
-        return c - 1
-      })
-    }, 1000)
-  }
-
-  // ── Étape 2 : vérifier l'OTP puis générer le code ────────────
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const verify = await verifyOtpAndLinkClient(verifiedPhone, otp.trim(), 'promo_pending')
-    if (!verify.success) {
-      setLoading(false)
-      setError(verify.error ?? 'Code incorrect. Réessayez.')
-      return
-    }
-
-    // OTP validé — générer le code session lié
     setStep('generating')
-    const gen = await genererCodeSessionLie(partenaireId, verifiedPhone)
 
-    // Quota atteint
+    const gen = await genererCodeSessionLie(partenaireId, phone.trim())
+
     if (!gen.success && gen.error === 'quota_atteint' && gen.nextAvailableAt) {
       setQuotaInfo({
         nextAvailableAt: gen.nextAvailableAt,
@@ -91,7 +40,7 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
 
     if (!gen.success || !gen.code) {
       setLoading(false)
-      setStep('otp')
+      setStep('phone')
       setError('Erreur lors de la génération du code. Réessayez.')
       return
     }
@@ -99,7 +48,6 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
     router.push(`/sejour/${gen.code}`)
   }
 
-  // ── UI ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center px-4 py-8">
       <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-sm space-y-6">
@@ -124,12 +72,12 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
           <h1 className="text-xl font-serif font-semibold text-[#1A1A1A]">{partenaireNom}</h1>
         </div>
 
-        {/* ── Étape 1 : Saisie téléphone ── */}
+        {/* ── Saisie téléphone ── */}
         {step === 'phone' && (
           <>
             <div className="text-center">
               <p className="text-sm text-[#1A1A1A]/60">
-                Entrez votre numéro WhatsApp pour recevoir votre code de réduction et cumuler des points fidélité.
+                Entrez votre numéro de téléphone pour obtenir votre code et cumuler des points fidélité.
               </p>
             </div>
 
@@ -153,9 +101,6 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
                   required
                   autoFocus
                 />
-                <p className="text-xs text-[#1A1A1A]/40 mt-1">
-                  Un code à 6 chiffres vous sera envoyé sur WhatsApp
-                </p>
               </div>
 
               <button
@@ -163,77 +108,13 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
                 disabled={loading || !phone.trim()}
                 className="w-full py-3 bg-[#C9A84C] text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Envoi en cours...' : 'Recevoir mon code →'}
+                {loading ? 'Génération...' : 'Obtenir mon code →'}
               </button>
             </form>
           </>
         )}
 
-        {/* ── Étape 2 : Vérification OTP ── */}
-        {step === 'otp' && (
-          <>
-            <div className="text-center">
-              <div className="text-3xl mb-2">📱</div>
-              <p className="text-sm text-[#1A1A1A]/60">
-                Code envoyé sur WhatsApp au{' '}
-                <strong className="text-[#1A1A1A]">{verifiedPhone}</strong>
-              </p>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleOtpSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
-                  Code de vérification
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  className="w-full border border-[#1A1A1A]/20 rounded-xl px-4 py-3 text-[#1A1A1A] text-2xl text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/50"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || otp.length !== 6}
-                className="w-full py-3 bg-[#C9A84C] text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Vérification...' : 'Valider mon code →'}
-              </button>
-            </form>
-
-            <div className="text-center space-y-2">
-              <button
-                onClick={handleResend}
-                disabled={resendCooldown > 0 || loading}
-                className="text-sm text-[#C9A84C] disabled:text-[#1A1A1A]/30 disabled:cursor-not-allowed underline"
-              >
-                {resendCooldown > 0 ? `Renvoyer dans ${resendCooldown}s` : 'Renvoyer le code'}
-              </button>
-              <br />
-              <button
-                onClick={() => { setStep('phone'); setOtp(''); setError('') }}
-                className="text-xs text-[#1A1A1A]/40 underline"
-              >
-                Changer de numéro
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ── Étape 3 : Génération en cours ── */}
+        {/* ── Génération en cours ── */}
         {step === 'generating' && (
           <div className="text-center py-6 space-y-4">
             <div className="text-5xl animate-bounce">🎁</div>
@@ -242,7 +123,7 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
           </div>
         )}
 
-        {/* ── Étape 4 : Quota atteint ── */}
+        {/* ── Quota atteint ── */}
         {step === 'quota' && quotaInfo && (
           <div className="space-y-4">
             <div className="text-center py-4">
@@ -294,7 +175,7 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
             </div>
 
             <button
-              onClick={() => { setStep('phone'); setPhone(''); setOtp(''); setQuotaInfo(null); setError('') }}
+              onClick={() => { setStep('phone'); setPhone(''); setQuotaInfo(null); setError('') }}
               className="w-full py-3 border border-[#1A1A1A]/20 text-[#1A1A1A] font-medium rounded-xl transition hover:bg-[#1A1A1A]/5"
             >
               ← Retour
