@@ -1001,24 +1001,39 @@ export async function getActiveCardsForClient(telephone: string): Promise<{
     const phoneE164 = normalizePhoneToE164(telephone)
     if (!phoneE164) return { success: false, error: 'Numéro invalide' }
 
-    const snap = await db
-      .collection('loyalty_cards')
-      .where('client_id', '==', phoneE164)
-      .where('statut', '==', 'ACTIVE')
-      .get()
+    // Variantes possibles du numéro selon quand la carte a été créée
+    const raw = telephone.trim().replace(/[\s\-().]/g, '')
+    const variants = Array.from(new Set([phoneE164, raw, telephone.trim()]))
 
-    const cards = snap.docs.map((d) => {
-      const data = d.data()
-      return {
-        card_id: d.id,
-        programme_nom: (data.programme_nom as string) ?? 'Programme fidélité',
-        partenaire_id: (data.partenaire_id as string) ?? '',
-        niveau_actuel: (data.niveau_actuel as string) ?? '',
-        points_cumules: (data.points_cumules as number) ?? 0,
-        expires_at: data.expires_at?.toDate?.()?.toISOString?.() ?? (data.expires_at as string) ?? '',
-        statut: (data.statut as string) ?? 'ACTIVE',
-      }
-    })
+    // Requêtes parallèles sur client_id ET client_phone pour chaque variante
+    const queries = variants.flatMap((v) => [
+      db.collection('loyalty_cards').where('client_id', '==', v).where('statut', '==', 'ACTIVE').get(),
+      db.collection('loyalty_cards').where('client_phone', '==', v).where('statut', '==', 'ACTIVE').get(),
+    ])
+
+    const snaps = await Promise.all(queries)
+
+    // Dédupliquer par card_id
+    const seen = new Set<string>()
+    const cards = snaps
+      .flatMap((snap) => snap.docs)
+      .filter((doc) => {
+        if (seen.has(doc.id)) return false
+        seen.add(doc.id)
+        return true
+      })
+      .map((d) => {
+        const data = d.data()
+        return {
+          card_id: d.id,
+          programme_nom: (data.programme_nom as string) ?? 'Programme fidélité',
+          partenaire_id: (data.partenaire_id as string) ?? '',
+          niveau_actuel: (data.niveau_actuel as string) ?? '',
+          points_cumules: (data.points_cumules as number) ?? 0,
+          expires_at: data.expires_at?.toDate?.()?.toISOString?.() ?? (data.expires_at as string) ?? '',
+          statut: (data.statut as string) ?? 'ACTIVE',
+        }
+      })
 
     return { success: true, cards }
   } catch (e) {
