@@ -54,6 +54,7 @@ export default function HelpPartenairePage() {
                     ['📊 Stats', 'Vue d\'ensemble, KPIs'],
                     ['👥 Clients', 'Clients avec votre carte'],
                     ['📱 Scanner', 'Créditer des points en boutique'],
+                    ['⭐ Stars', 'Terminal Stars + statistiques fidélité'],
                     ['💰 Paiements', 'Commissions et revenus'],
                     ['📋 Historique', 'Toutes les transactions'],
                     ['🛍️ Boutique', 'Canal 2 — ventes et QR Flash'],
@@ -142,9 +143,42 @@ export default function HelpPartenairePage() {
           </div>
         </section>
 
-        {/* 4. Canal 2 */}
+        {/* 4. Stars Terminal */}
         <section>
-          <h2 className="text-xl font-bold text-emerald-300 mb-4">4. Canal 2 (Boutique QR Flash)</h2>
+          <h2 className="text-xl font-bold text-emerald-300 mb-4">4. Terminal Stars (Onglet ⭐ Stars)</h2>
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 text-sm text-gray-300 space-y-4">
+            <p className="text-gray-400">Le terminal Stars vous permet de créditer des points directement à un client fidèle lors d'un achat chez vous.</p>
+            <div>
+              <p className="font-semibold text-white mb-1">Créditer des Stars à un client</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Dashboard → Onglet ⭐ Stars</li>
+                <li>Saisissez le numéro de téléphone du client (ou son ID)</li>
+                <li>Entrez le montant de l'achat en FCFA</li>
+                <li>Les Stars calculées s'affichent en temps réel</li>
+                <li>Cliquez [CRÉDITER LES STARS]</li>
+                <li>Le client reçoit un lien de confirmation par WhatsApp</li>
+                <li>Il clique sur le lien → Stars créditées instantanément</li>
+              </ol>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-xs space-y-1">
+              <p className="text-emerald-300 font-semibold">Taux de conversion</p>
+              <p className="text-gray-400">1 FCFA dépensé = 1 Star (taux configurable par l'admin)</p>
+              <p className="text-gray-400">Exemple : achat 10 000 FCFA → 10 000 Stars créditées</p>
+            </div>
+            <div>
+              <p className="font-semibold text-white mb-1">Statistiques Stars</p>
+              <p className="text-gray-400">En haut de l'onglet Stars : total Stars distribuées, nombre de clients actifs, transactions du mois.</p>
+            </div>
+            <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 text-xs">
+              <p className="text-yellow-300 font-semibold">⚠️ Provision nécessaire</p>
+              <p className="mt-1">Votre compte doit avoir une provision suffisante pour créditer des Stars. Contactez l'admin si le bouton est désactivé.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Canal 2 */}
+        <section>
+          <h2 className="text-xl font-bold text-emerald-300 mb-4">5. Canal 2 (Boutique QR Flash)</h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 text-sm text-gray-300 space-y-4">
             <div>
               <p className="font-semibold text-white mb-1">Comment ça fonctionne</p>
@@ -176,7 +210,7 @@ export default function HelpPartenairePage() {
 
         {/* 5. Statistiques */}
         <section>
-          <h2 className="text-xl font-bold text-emerald-300 mb-4">5. Statistiques &amp; Revenus</h2>
+          <h2 className="text-xl font-bold text-emerald-300 mb-4">6. Statistiques &amp; Revenus</h2>
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 text-sm text-gray-300 space-y-4">
             <div>
               <p className="font-semibold text-white mb-2">Onglet 💰 Paiements</p>
@@ -202,7 +236,7 @@ export default function HelpPartenairePage() {
 
         {/* FAQ */}
         <section>
-          <h2 className="text-xl font-bold text-emerald-300 mb-4">6. FAQ Partenaire</h2>
+          <h2 className="text-xl font-bold text-emerald-300 mb-4">7. FAQ Partenaire</h2>
           <div className="space-y-3">
             {[
               { q: "Combien je gagne par carte ?", a: "65% du prix. ARGENT (50k) = 32 500 FCFA." },
