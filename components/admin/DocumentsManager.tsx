@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { toast } from 'react-hot-toast'
-import { Upload, Download, FileText, RefreshCw, Loader2, CheckCircle2 } from 'lucide-react'
+import { Upload, Download, FileText, RefreshCw, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import type { StoredDocument, DocKey } from '@/actions/documents'
 
 function formatBytes(bytes: number | null): string {
@@ -20,10 +20,43 @@ interface Props {
   documents: StoredDocument[]
 }
 
+const KEY_TO_HELP: Record<DocKey, string> = {
+  notice_partenaire: '/help/partenaire',
+  notice_client: '/help/client',
+  notice_administrateur: '/help/admin',
+}
+
 export default function DocumentsManager({ documents: initial }: Props) {
   const [docs, setDocs] = useState(initial)
   const [uploading, setUploading] = useState<DocKey | null>(null)
+  const [generating, setGenerating] = useState<DocKey | null>(null)
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const handleGenerate = async (key: DocKey) => {
+    setGenerating(key)
+    try {
+      const res = await fetch('/api/admin/generate-notice-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur génération')
+
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.key === key
+            ? { ...d, url: data.url, uploadedAt: new Date().toISOString(), size: null }
+            : d
+        )
+      )
+      toast.success('PDF généré et mis en ligne')
+    } catch (e: any) {
+      toast.error(e.message || 'Erreur lors de la génération PDF')
+    } finally {
+      setGenerating(null)
+    }
+  }
 
   const handleFileChange = async (key: DocKey, file: File | null) => {
     if (!file) return
@@ -105,10 +138,33 @@ export default function DocumentsManager({ documents: initial }: Props) {
                   </a>
                 )}
 
+                <a
+                  href={KEY_TO_HELP[doc.key]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-beige-50 border border-beige-200 text-dark/60 rounded-xl text-xs font-medium hover:border-dark/30 transition-colors"
+                >
+                  <FileText size={12} /> Guide en ligne
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => handleGenerate(doc.key)}
+                  disabled={generating === doc.key || uploading === doc.key}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  title="Génère le PDF depuis la page guide en ligne"
+                >
+                  {generating === doc.key ? (
+                    <><Loader2 size={12} className="animate-spin" /> Génération...</>
+                  ) : (
+                    <><Sparkles size={12} /> Générer PDF</>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => inputRefs.current[doc.key]?.click()}
-                  disabled={uploading === doc.key}
+                  disabled={uploading === doc.key || generating === doc.key}
                   className="flex items-center gap-1.5 px-3 py-2 bg-dark text-white rounded-xl text-xs font-medium hover:bg-dark/80 transition-colors disabled:opacity-50"
                 >
                   {uploading === doc.key ? (

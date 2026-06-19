@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 import { getDocument } from '@/actions/documents'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Download, MessageCircle, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, BookOpen, Download, MessageCircle, AlertTriangle, ExternalLink } from 'lucide-react'
 import HelpCenterAccordion from '@/components/partner/HelpCenterAccordion'
 
 async function getHelpCenter() {
@@ -74,6 +74,13 @@ export default async function PartnerGuidePage() {
                     <Download size={16} /> Télécharger le Guide Partenaire (PDF)
                   </a>
                   <Link
+                    href="/help/partenaire"
+                    target="_blank"
+                    className="flex items-center gap-2 px-4 py-3 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+                  >
+                    <ExternalLink size={15} /> Consulter le guide en ligne
+                  </Link>
+                  <Link
                     href="/partenaire/messages"
                     className="flex items-center gap-2 px-4 py-3 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
                   >
@@ -85,14 +92,23 @@ export default async function PartnerGuidePage() {
               <div className="flex flex-col sm:flex-row items-start gap-4">
                 <AlertTriangle size={24} className="text-amber-500 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-medium text-dark">Notice en cours de préparation</p>
-                  <p className="text-sm text-dark/50 mt-1">Le guide partenaire sera disponible prochainement. En attendant, contactez L&amp;Lui via la messagerie pour toute question.</p>
-                  <Link
-                    href="/partenaire/messages"
-                    className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold-500 text-white rounded-xl text-sm font-medium hover:bg-gold-600 transition-colors"
-                  >
-                    <MessageCircle size={15} /> Contacter L&amp;Lui
-                  </Link>
+                  <p className="font-medium text-dark">Guide disponible en ligne</p>
+                  <p className="text-sm text-dark/50 mt-1">Consultez le guide interactif complet ou contactez L&amp;Lui via la messagerie pour toute question.</p>
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    <Link
+                      href="/help/partenaire"
+                      target="_blank"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark text-white rounded-xl text-sm font-medium hover:bg-dark/80 transition-colors"
+                    >
+                      <ExternalLink size={15} /> Consulter le guide en ligne
+                    </Link>
+                    <Link
+                      href="/partenaire/messages"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-beige-200 text-dark/60 rounded-xl text-sm font-medium hover:border-dark/30 transition-colors"
+                    >
+                      <MessageCircle size={15} /> Contacter L&amp;Lui
+                    </Link>
+                  </div>
                 </div>
               </div>
             )}
