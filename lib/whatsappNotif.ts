@@ -1,60 +1,24 @@
-// lib/whatsappNotif.ts — Twilio WhatsApp : lib + messages prédéfinis
-// Import dynamique de twilio pour éviter le crash SSR Next.js (native modules non bundlables).
+// lib/whatsappNotif.ts — Notifications WhatsApp désactivées
+// Pour réactiver : brancher un provider (Fonnte, UltraMsg, Meta API…).
 
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
 
 export async function sendWhatsApp(
-  telephone: string,
-  message: string
+  _telephone: string,
+  _message: string
 ): Promise<{ success: boolean; error?: string }> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const fromNumber = process.env.TWILIO_WHATSAPP_FROM
-  if (!accountSid || !authToken || !fromNumber) {
-    console.warn('Twilio non configuré - skip WhatsApp')
-    return { success: false, error: 'Config manquante' }
-  }
-  try {
-    // Normalisation E.164 : +237XXXXXXXXX
-    let tel = telephone.replace(/[\s\-().]/g, '')
-    if (tel.startsWith('00')) tel = '+' + tel.slice(2)             // 00237... → +237...
-    if (/^237\d{8,9}$/.test(tel)) tel = '+' + tel                 // 237XXXXXXXX → +237XXXXXXXX
-    if (!tel.startsWith('+')) tel = '+237' + tel                   // 6XXXXXXXX → +2376XXXXXXXX
-
-    // Garantir le préfixe whatsapp: des deux côtés
-    const fromWa = fromNumber.startsWith('whatsapp:') ? fromNumber : 'whatsapp:' + fromNumber
-    const toWa   = 'whatsapp:' + tel
-
-    console.log(`[sendWhatsApp] from=${fromWa} to=${toWa}`)
-
-    const twilioModule = (await import('twilio')).default
-    const client = twilioModule(accountSid, authToken)
-    const msg = await client.messages.create({ from: fromWa, to: toWa, body: message })
-
-    console.log(`[sendWhatsApp] OK sid=${msg.sid} status=${msg.status}`)
-    return { success: true }
-  } catch (error: unknown) {
-    // Twilio errors expose .code et .moreInfo en plus de .message
-    const e = error as Record<string, unknown>
-    const detail = [
-      `message=${e.message ?? String(error)}`,
-      e.code    ? `code=${e.code}`         : null,
-      e.status  ? `httpStatus=${e.status}` : null,
-      e.moreInfo ? `info=${e.moreInfo}`    : null,
-    ].filter(Boolean).join(' | ')
-    console.error(`[sendWhatsApp] Twilio erreur: ${detail}`)
-    return { success: false, error: detail }
-  }
+  // Notifications désactivées — pas d'appel Twilio
+  return { success: true }
 }
 
-/** Compat : ancienne signature CallMeBot — redirige vers sendWhatsApp (apikey ignoré) */
-export async function sendCallMeBot(phone: string, message: string, _apikey?: string): Promise<void> {
-  await sendWhatsApp(phone, message)
+/** Compat : ancienne signature CallMeBot */
+export async function sendCallMeBot(_phone: string, _message: string, _apikey?: string): Promise<void> {
+  // Notifications désactivées
 }
 
-// ── Messages prédéfinis ────────────────────────────────────────
+// ── Messages prédéfinis (conservés pour compatibilité) ────────
 
 export function msgBienvenue(nom: string): string {
   return `🌟 Bienvenue ${nom} !\n\nVous rejoignez L&Lui Signature, le programme partenaires premium.\n\nAccédez à votre espace : ${process.env.NEXT_PUBLIC_APP_URL ?? ''}/portail\n\nBienvenue dans la famille L&Lui 💛`
