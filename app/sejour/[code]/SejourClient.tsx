@@ -348,6 +348,10 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
 
               <p className="text-[10px] text-[#1A1A1A]/40 text-center">
                 Compte Stars : {clientPhone} ·{' '}
+                <Link href={`/mon-compte?tel=${encodeURIComponent(clientPhone)}`} className="underline">
+                  Voir mon compte
+                </Link>
+                {' · '}
                 <button
                   className="underline"
                   onClick={() => { setClientPhone(''); setClientStars(null); setPhoneInput(''); localStorage.removeItem('stars_client_tel') }}

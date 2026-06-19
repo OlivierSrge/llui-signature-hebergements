@@ -321,7 +321,14 @@ export async function POST(req: NextRequest) {
     // ── 5b. Attribution Points Stars (si client identifié via OTP) ──
     // Non-bloquant : le catch interne ne remonte pas
     if (estConfirme && sessionSnap.exists) {
-      const clientId = (sessionSnap.data()?.client_id as string | undefined)?.trim()
+      const rawClientId = (sessionSnap.data()?.client_id as string | undefined)?.trim()
+      const clientId = rawClientId ? (() => {
+        let t = rawClientId.replace(/[\s\-().]/g, '')
+        if (t.startsWith('00')) t = '+' + t.slice(2)
+        if (/^237\d{8,9}$/.test(t)) t = '+' + t
+        if (!t.startsWith('+')) t = '+237' + t
+        return t
+      })() : undefined
       if (clientId) {
         try {
           const valeurStarFcfa = Math.max(1, params.fidelite_valeur_star_fcfa ?? 1)

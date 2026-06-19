@@ -214,7 +214,7 @@ export async function validateQrScanRequest(
       const now = new Date()
       if (now.toISOString() > (req.expires_at as string)) {
         tx.update(reqRef, { status: 'expired' })
-        throw new Error('Demande expirée (> 2 minutes).')
+        throw new Error('Demande expirée (> 10 minutes).')
       }
 
       const starsACrediter = req.stars_a_crediter as number

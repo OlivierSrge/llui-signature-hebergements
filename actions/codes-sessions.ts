@@ -342,13 +342,22 @@ export async function genererCodeSessionLie(
   if (!result.success || !result.code) return result
 
   // ── 3. Lier client_id + créer/mettre à jour profil client ────
+  // Normaliser le téléphone en E.164 pour cohérence Firestore
+  function normalizeTel(t: string): string {
+    let r = t.replace(/[\s\-().]/g, '')
+    if (r.startsWith('00')) r = '+' + r.slice(2)
+    if (/^237\d{8,9}$/.test(r)) r = '+' + r
+    if (!r.startsWith('+')) r = '+237' + r
+    return r
+  }
+  const normalizedTel = normalizeTel(telephone)
   const now = new Date().toISOString()
   await Promise.all([
-    db.collection('codes_sessions').doc(result.code).update({ client_id: telephone }).catch((e) =>
+    db.collection('codes_sessions').doc(result.code).update({ client_id: normalizedTel }).catch((e) =>
       console.warn('[genererCodeSessionLie] update client_id failed:', e)
     ),
-    db.collection('clients_fidelite').doc(telephone).set({
-      telephone,
+    db.collection('clients_fidelite').doc(normalizedTel).set({
+      telephone: normalizedTel,
       last_qr_generated_at: now,
       last_qr_code: result.code,
       phone_verified: false,
