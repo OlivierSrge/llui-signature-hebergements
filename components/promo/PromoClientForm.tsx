@@ -161,17 +161,22 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <p className="text-blue-900 text-sm">
-                <span className="font-semibold">💡 En attendant</span> — découvrez nos{' '}
-                <a href="/hebergements" className="font-semibold underline hover:text-blue-700">
-                  hébergements partenaires
-                </a>{' '}
-                ou procurez-vous une{' '}
-                <a href="/loyalty/buy" className="font-semibold underline hover:text-blue-700">
-                  carte de fidélité
-                </a>.
-              </p>
+            {/* Accès Stars dashboard */}
+            <a
+              href={`/mon-stars?tel=${encodeURIComponent(phone.trim())}`}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-[#C9A84C] text-white font-semibold rounded-xl"
+            >
+              ⭐ Voir mes Stars & mes avantages
+            </a>
+
+            <div className="bg-[#F5F0E8] rounded-xl p-4 space-y-2">
+              <p className="text-[#1A1A1A]/70 text-sm font-semibold">💡 En attendant :</p>
+              <a href="/hebergements" className="flex items-center gap-2 text-sm text-[#1A1A1A]/70 hover:text-[#C9A84C]">
+                🏠 Découvrir nos hébergements partenaires
+              </a>
+              <a href="/pass-vip" className="flex items-center gap-2 text-sm text-[#1A1A1A]/70 hover:text-[#C9A84C]">
+                💎 Obtenir un Pass VIP L&Lui Signature
+              </a>
             </div>
 
             <button
