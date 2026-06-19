@@ -982,6 +982,51 @@ export async function getPendingLoyaltyCards(): Promise<{
   }
 }
 
+// ─── Cartes actives d'un client (par téléphone E.164) ────────────────────────
+
+export async function getActiveCardsForClient(telephone: string): Promise<{
+  success: boolean
+  cards?: Array<{
+    card_id: string
+    programme_nom: string
+    partenaire_id: string
+    niveau_actuel: string
+    points_cumules: number
+    expires_at: string
+    statut: string
+  }>
+  error?: string
+}> {
+  try {
+    const phoneE164 = normalizePhoneToE164(telephone)
+    if (!phoneE164) return { success: false, error: 'Numéro invalide' }
+
+    const snap = await db
+      .collection('loyalty_cards')
+      .where('client_id', '==', phoneE164)
+      .where('statut', '==', 'ACTIVE')
+      .get()
+
+    const cards = snap.docs.map((d) => {
+      const data = d.data()
+      return {
+        card_id: d.id,
+        programme_nom: (data.programme_nom as string) ?? 'Programme fidélité',
+        partenaire_id: (data.partenaire_id as string) ?? '',
+        niveau_actuel: (data.niveau_actuel as string) ?? '',
+        points_cumules: (data.points_cumules as number) ?? 0,
+        expires_at: data.expires_at?.toDate?.()?.toISOString?.() ?? (data.expires_at as string) ?? '',
+        statut: (data.statut as string) ?? 'ACTIVE',
+      }
+    })
+
+    return { success: true, cards }
+  } catch (e) {
+    console.error('[Loyalty] getActiveCardsForClient:', e)
+    return { success: false, error: 'Erreur serveur' }
+  }
+}
+
 // ─── Email admin : validation demande ────────────────────────────────────────
 
 async function envoyerEmailAdminValidation(
