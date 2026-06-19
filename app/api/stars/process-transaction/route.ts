@@ -1,12 +1,9 @@
 // app/api/stars/process-transaction/route.ts
-// Route API publique (appelée depuis StarTerminal côté navigateur).
-// Contient la logique de processPartnerTransaction, isolée ici pour éviter
-// que actions/stars.ts n'importe twilio via whatsappNotif dans le bundle SSR.
+// Crédite les Stars directement au client sans confirmation WhatsApp.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
-import { randomBytes } from 'crypto'
 import { getParametresPlateforme } from '@/actions/parametres'
 import {
   getMembershipStatus,
@@ -18,29 +15,12 @@ import {
   getNiveauPass,
 } from '@/lib/loyaltyEngine'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
-
 function normalizePhone(tel: string): string {
   let t = tel.replace(/[\s\-().]/g, '')
   if (t.startsWith('00')) t = '+' + t.slice(2)
   if (/^237\d{8,9}$/.test(t)) t = '+' + t
   if (!t.startsWith('+')) t = '+237' + t
   return t
-}
-
-async function sendWhatsApp(telephone: string, message: string): Promise<void> {
-  try {
-    await fetch(`${APP_URL}/api/whatsapp/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ADMIN_API_KEY ?? ''}`,
-      },
-      body: JSON.stringify({ telephone, message }),
-    })
-  } catch (e) {
-    console.error('[Stars/process-transaction] sendWhatsApp erreur:', e)
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -74,12 +54,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Partenaire non lié à cette session' })
     }
 
-    // 2. Client vérifié
-    const clientSnap = await db.collection('clients_fidelite').doc(tel).get()
-    if (!clientSnap.exists || !(clientSnap.data()!.phone_verified as boolean)) {
-      return NextResponse.json({ success: false, error: 'Client non vérifié. Demandez-lui de scanner le QR code.' })
-    }
-    const clientData = clientSnap.data()!
+    // 2. Profil client (créé si absent)
+    const clientRef = db.collection('clients_fidelite').doc(tel)
+    const clientSnap = await clientRef.get()
+    const clientData = clientSnap.exists
+      ? clientSnap.data()!
+      : { points_stars: 0, total_stars_historique: 0, membership_status: 'novice' }
 
     // 3. Provision partenaire
     const partenaireSnap = await db.collection('prescripteurs_partenaires').doc(partenaireId).get()
@@ -124,46 +104,55 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 7. Transaction PENDING
-    const confirmationToken = randomBytes(24).toString('base64url')
-    const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString()
+    // 7. Crédit atomique via Firestore transaction
     const txRef = db.collection('transactions_fidelite').doc()
-    await txRef.set({
-      client_id: tel,
-      partenaire_id: partenaireId,
-      code_session,
-      montant_net: montantNet,
-      stars_gagnees: starsGagnees,
-      remise_appliquee: remiseAmount,
-      niveau_pass: niveauPass,
-      remise_pct: remisePct,
-      multiplier,
-      valeur_star_fcfa: valeurStarFcfa,
-      status: 'pending',
-      confirmation_token: confirmationToken,
-      created_at: FieldValue.serverTimestamp(),
-      expires_at: expiresAt,
+    const now = new Date()
+
+    await db.runTransaction(async (t) => {
+      // Créer la transaction confirmée
+      t.set(txRef, {
+        client_id: tel,
+        partenaire_id: partenaireId,
+        code_session,
+        montant_brut,
+        montant_net: montantNet,
+        stars_gagnees: starsGagnees,
+        remise_appliquee: remiseAmount,
+        niveau_pass: niveauPass,
+        remise_pct: remisePct,
+        multiplier,
+        valeur_star_fcfa: valeurStarFcfa,
+        status: 'confirmed',
+        confirmed_at: FieldValue.serverTimestamp(),
+        created_at: FieldValue.serverTimestamp(),
+        source: 'terminal_partenaire',
+      })
+
+      // Mettre à jour (ou créer) le profil client
+      t.set(clientRef, {
+        telephone: tel,
+        points_stars: FieldValue.increment(starsGagnees),
+        total_stars_historique: FieldValue.increment(starsGagnees),
+        membership_status: memberStatus,
+        updated_at: FieldValue.serverTimestamp(),
+        ...(clientSnap.exists ? {} : {
+          phone_verified: false,
+          created_at: FieldValue.serverTimestamp(),
+        }),
+      }, { merge: true })
+
+      // Décrémenter la provision du partenaire
+      t.update(db.collection('prescripteurs_partenaires').doc(partenaireId), {
+        solde_provision: FieldValue.increment(-(starsGagnees * valeurStarFcfa)),
+      })
     })
 
-    // 8. Lien de confirmation WhatsApp (usage unique, non bloquant)
-    const confirmUrl = `${APP_URL}/api/confirm-transaction?token=${confirmationToken}`
-    const msg =
-      `✅ *Confirmation L&Lui Stars*\n\n` +
-      `Montant réglé : *${montantNet.toLocaleString('fr-FR')} FCFA*\n` +
-      (remiseAmount > 0
-        ? `Remise ${niveauPass ? `Pass ${niveauPass}` : ''} : *-${remiseAmount.toLocaleString('fr-FR')} FCFA* (${remisePct}%)\n`
-        : '') +
-      `Stars à recevoir : *⭐ ${starsGagnees} Stars*\n\n` +
-      `Confirmez ici (valable 1h) :\n${confirmUrl}\n\n` +
-      `L&Lui Stars ✨`
-
-    void sendWhatsApp(tel, msg)
-    console.log(`[Stars] TX ${txRef.id} pending — client=${tel}, +${starsGagnees}⭐`)
+    console.log(`[Stars] TX ${txRef.id} confirmed direct — client=${tel}, +${starsGagnees}⭐`)
 
     return NextResponse.json({
       success: true,
       transactionId: txRef.id,
-      message: 'Transaction en attente. Lien de confirmation envoyé sur WhatsApp.',
+      message: `${starsGagnees} Stars crédités au client.`,
       montant_net: montantNet,
       stars_gagnees: starsGagnees,
       remise_appliquee: remiseAmount,

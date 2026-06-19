@@ -341,16 +341,19 @@ export async function genererCodeSessionLie(
   const result = await genererCodeSession(prescripteurId)
   if (!result.success || !result.code) return result
 
-  // ── 3. Lier client_id + mettre à jour last_qr_generated_at ────
+  // ── 3. Lier client_id + créer/mettre à jour profil client ────
+  const now = new Date().toISOString()
   await Promise.all([
     db.collection('codes_sessions').doc(result.code).update({ client_id: telephone }).catch((e) =>
       console.warn('[genererCodeSessionLie] update client_id failed:', e)
     ),
-    db.collection('clients_fidelite').doc(telephone).update({
-      last_qr_generated_at: new Date().toISOString(),
+    db.collection('clients_fidelite').doc(telephone).set({
+      telephone,
+      last_qr_generated_at: now,
       last_qr_code: result.code,
-    }).catch((e) =>
-      console.warn('[genererCodeSessionLie] update last_qr_generated_at failed:', e)
+      phone_verified: false,
+    }, { merge: true }).catch((e) =>
+      console.warn('[genererCodeSessionLie] set clients_fidelite failed:', e)
     ),
   ])
 

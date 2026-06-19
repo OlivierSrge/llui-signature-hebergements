@@ -181,11 +181,8 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
     setErrorMsg('')
     const found = await getClientFidelite(phone.trim())
     setLoading(false)
-    if (!found) {
-      setErrorMsg("Client non trouvé ou non vérifié. Demandez-lui de scanner le QR code et de s'inscrire.")
-      return
-    }
-    setClient(found)
+    // Client peut ne pas encore exister en base (première transaction) — on continue quand même
+    setClient(found ?? { telephone: phone.trim(), points_stars: 0, total_stars_historique: 0, membership_status: 'novice' } as any)
     setStep('montant')
   }
 
@@ -384,7 +381,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
           {step === 'phone' && (
             <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
               <p className="text-sm font-semibold text-[#1A1A1A]">📱 Téléphone du client</p>
-              <p className="text-xs text-[#1A1A1A]/50">Saisissez le numéro WhatsApp vérifié du client.</p>
+              <p className="text-xs text-[#1A1A1A]/50">Saisissez le numéro de téléphone du client.</p>
               <input
                 type="tel"
                 value={phone}
@@ -477,7 +474,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
                     disabled={montantBrut <= 0 || !provisionOk || loading}
                     className="flex-2 flex-grow py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
                   >
-                    ✅ Envoyer le lien
+                    ⭐ Créditer les Stars
                   </button>
                 </div>
               </div>
@@ -487,7 +484,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
           {step === 'confirming' && (
             <div className="bg-white rounded-2xl p-8 shadow-sm text-center space-y-3">
               <div className="w-10 h-10 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-sm text-[#1A1A1A]/60">Envoi du lien WhatsApp au client...</p>
+              <p className="text-sm text-[#1A1A1A]/60">Crédit des Stars en cours...</p>
             </div>
           )}
 
@@ -496,7 +493,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
               <div className="text-center space-y-1">
                 <div className="text-4xl">⭐</div>
                 <p className="text-lg font-bold text-[#1A1A1A]">+{result.stars_gagnees} Stars</p>
-                <p className="text-xs text-[#1A1A1A]/50">Lien de confirmation envoyé sur WhatsApp</p>
+                <p className="text-xs text-[#1A1A1A]/50">Stars créditées instantanément</p>
               </div>
               <div className="bg-[#F5F0E8]/60 rounded-xl p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between">
@@ -511,7 +508,7 @@ export default function StarTerminal({ codeSession, partnerId, soldeProvision, p
                 )}
               </div>
               <p className="text-[10px] text-[#1A1A1A]/40 text-center">
-                Le client doit confirmer via le lien WhatsApp reçu pour créditer ses Stars.
+                Le client peut consulter son solde sur sa page fidélité.
               </p>
               <button
                 onClick={reset}
