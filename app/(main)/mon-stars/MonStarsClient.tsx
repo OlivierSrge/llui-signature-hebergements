@@ -1,5 +1,5 @@
 'use client'
-// app/mon-compte/MonCompteClient.tsx — Dashboard client Stars accessible par téléphone
+// app/(main)/mon-stars/MonStarsClient.tsx — Dashboard client L&Lui Stars (QR scan)
 
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
@@ -23,7 +23,7 @@ function normalizePhone(tel: string): string {
   return t
 }
 
-export default function MonCompteClient({ params, initialTel }: Props) {
+export default function MonStarsClient({ params, initialTel }: Props) {
   const [phoneInput, setPhoneInput] = useState(initialTel ?? '')
   const [client, setClient] = useState<ClientFidelite | null>(null)
   const [loading, setLoading] = useState(false)
@@ -44,9 +44,8 @@ export default function MonCompteClient({ params, initialTel }: Props) {
     }
   }, [])
 
-  // Auto-load depuis localStorage ou param URL
   useEffect(() => {
-    const stored = localStorage.getItem('stars_client_tel')
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('stars_client_tel') : null
     const tel = initialTel ?? stored ?? ''
     if (tel) {
       setPhoneInput(tel)
@@ -72,7 +71,7 @@ export default function MonCompteClient({ params, initialTel }: Props) {
       {/* Header */}
       <div className="w-full max-w-sm text-center space-y-1">
         <p className="text-xs text-[#C9A84C] font-semibold tracking-widest uppercase">L&amp;Lui Stars</p>
-        <h1 className="text-2xl font-serif font-bold text-[#1A1A1A]">Mon Compte</h1>
+        <h1 className="text-2xl font-serif font-bold text-[#1A1A1A]">Mes Stars</h1>
         <p className="text-xs text-[#1A1A1A]/50">Consultez vos Stars et gérez vos avantages</p>
       </div>
 
@@ -134,7 +133,6 @@ export default function MonCompteClient({ params, initialTel }: Props) {
 
           <ElectronicPass client={client} params={params} />
 
-          {/* Info téléphone connecté */}
           <p className="text-[10px] text-center text-[#1A1A1A]/30">
             Compte : {normalizedTel}
           </p>

@@ -1,20 +1,20 @@
-// app/mon-compte/page.tsx — Dashboard client Stars (accessible par n° de téléphone)
+// app/(main)/mon-stars/page.tsx — Dashboard client L&Lui Stars (QR scan, par téléphone)
 
 import { getParametresPlateforme } from '@/actions/parametres'
-import MonCompteClient from './MonCompteClient'
+import MonStarsClient from './MonStarsClient'
 
 interface Props {
   searchParams: { tel?: string }
 }
 
 export const metadata = {
-  title: 'Mon Compte Stars — L&Lui',
+  title: 'Mes Stars — L&Lui',
   description: 'Consultez vos L&Lui Stars, votre palier et vos avantages fidélité.',
 }
 
-export default async function MonComptePage({ searchParams }: Props) {
+export default async function MonStarsPage({ searchParams }: Props) {
   const params = await getParametresPlateforme()
   const initialTel = searchParams.tel ?? null
 
-  return <MonCompteClient params={params} initialTel={initialTel} />
+  return <MonStarsClient params={params} initialTel={initialTel} />
 }
