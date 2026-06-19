@@ -182,17 +182,24 @@ export default function MonStarsClient({ params, initialTel }: Props) {
                 </div>
               ) : (
                 activeCards.map((card) => (
-                  <div key={card.card_id} className="bg-[#F5F0E8]/60 rounded-xl p-3 space-y-1.5">
+                  <Link
+                    key={card.card_id}
+                    href={`/loyalty/card/${card.card_id}`}
+                    className="block bg-gradient-to-r from-[#C9A84C]/10 to-[#F5F0E8] border border-[#C9A84C]/30 rounded-xl p-3 space-y-1.5 hover:border-[#C9A84C] hover:shadow-sm transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-bold text-[#1A1A1A]">{card.programme_nom}</p>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active ✓</span>
                     </div>
                     <div className="flex items-center justify-between text-xs text-[#1A1A1A]/60">
                       <span>Niveau : <strong className="text-[#C9A84C]">{card.niveau_actuel || '—'}</strong></span>
                       <span>{card.points_cumules.toLocaleString('fr-FR')} pts</span>
                     </div>
-                    <p className="text-[10px] text-[#1A1A1A]/40">Expire le {formatDate(card.expires_at)}</p>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-[#1A1A1A]/40">Expire le {formatDate(card.expires_at)}</p>
+                      <p className="text-[10px] text-[#C9A84C] font-semibold">Voir ma carte →</p>
+                    </div>
+                  </Link>
                 ))
               )}
               {activeCards.length > 0 && (
