@@ -7,6 +7,7 @@ import { validatePromoCode } from '@/actions/promo-codes'
 import type { ReservationFormData } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { syncClientFromReservationId } from '@/actions/clients'
+import { crediterWalletHebergement } from '@/actions/wallet-partenaire'
 
 type ActionResult = { success: true; reservationId?: string } | { success: false; error: string }
 
@@ -193,6 +194,32 @@ export async function updateReservationStatus(
 
     // Créer/mettre à jour le profil client L&Lui Stars à la confirmation
     if (status === 'confirmee') {
+      // Crédit wallet prescripteur-partenaire Canal 2 (2% hébergement) — non-bloquant
+      ;(async () => {
+        try {
+          const resSnap = await db.collection('reservations').doc(reservationId).get()
+          const res = resSnap.data()
+          const prescPartId = res?.prescripteur_partenaire_id as string | undefined
+          const montant = (res?.total_price as number) ?? 0
+          if (prescPartId && montant > 0) {
+            const { credited, commission_fcfa } = await crediterWalletHebergement({
+              partenaire_id: prescPartId,
+              montant_vente: montant,
+              reference_vente: reservationId,
+            })
+            if (credited) {
+              await db.collection('reservations').doc(reservationId).update({
+                commission_prescripteur_partenaire_statut: 'creditee',
+                commission_prescripteur_partenaire_fcfa: commission_fcfa,
+              })
+              console.log(`[updateReservationStatus] 💰 wallet ${prescPartId} crédité +${commission_fcfa} FCFA (2% hébergement, résa ${reservationId})`)
+            }
+          }
+        } catch (e) {
+          console.warn('[updateReservationStatus] crédit wallet hébergement non-bloquant:', e)
+        }
+      })()
+
       await syncClientFromReservationId(reservationId).catch(() => {})
 
       // Notifier le partenaire du logement par email (non-bloquant)

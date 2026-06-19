@@ -528,6 +528,17 @@ export async function confirmerUtilisation(data: {
     else updateStats.total_ca_boutique_fcfa = FieldValue.increment(data.montant_fcfa)
     await db.collection('prescripteurs_partenaires').doc(session.prescripteur_partenaire_id).update(updateStats)
 
+    // Lier le prescripteur-partenaire à la réservation (pour crédit wallet à la confirmation)
+    if (data.canal === 'hebergement' && data.reservation_id) {
+      const taux2pct = Math.round(data.montant_fcfa * 0.02)
+      await db.collection('reservations').doc(data.reservation_id).update({
+        prescripteur_partenaire_id: session.prescripteur_partenaire_id,
+        commission_prescripteur_partenaire_fcfa: taux2pct,
+        commission_prescripteur_partenaire_statut: 'en_attente',
+        code_sejour: data.code,
+      }).catch((e) => console.warn('[confirmerUtilisation] update réservation prescripteur non-bloquant:', e))
+    }
+
     // Commission spéciale hôtel/résidence si réservation hébergement
     const partenaire = await getPrescripteurPartenaire(session.prescripteur_partenaire_id)
     if (data.canal === 'hebergement' &&

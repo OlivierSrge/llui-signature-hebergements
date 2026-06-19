@@ -415,6 +415,83 @@ export async function crediterWalletBoutique(params: CrediterWalletBoutiqueParam
   return { credited: true }
 }
 
+// ─── 11. crediterWalletHebergement ───────────────────────────────────────────
+// 2% du montant hébergement → wallet prescripteur-partenaire Canal 2
+// Appelé à la CONFIRMATION de réservation (admin ou partenaire hôtelier).
+// Idempotent : vérifie commissions_partenaires.reference_vente avant crédit.
+
+export interface CrediterWalletHebergementParams {
+  partenaire_id: string
+  montant_vente: number   // total_price de la réservation (net, après réduction)
+  reference_vente: string // reservation_id (dédup)
+}
+
+export async function crediterWalletHebergement(params: CrediterWalletHebergementParams): Promise<{ credited: boolean; commission_fcfa: number }> {
+  const { partenaire_id, montant_vente, reference_vente } = params
+
+  if (montant_vente <= 0) return { credited: false, commission_fcfa: 0 }
+
+  // Idempotence
+  const existSnap = await db.collection('commissions_partenaires')
+    .where('partenaire_id', '==', partenaire_id)
+    .where('reference_vente', '==', reference_vente)
+    .limit(1)
+    .get()
+  if (!existSnap.empty) return { credited: false, commission_fcfa: 0 }
+
+  const taux = TAUX_COMMISSION['hebergement'][1]  // 0.02 = 2%
+  const commission_fcfa = Math.round(montant_vente * taux)
+  if (commission_fcfa <= 0) return { credited: false, commission_fcfa: 0 }
+
+  const montant_cash    = Math.round(commission_fcfa * SPLIT_CASH)
+  const montant_credits = Math.round(commission_fcfa * SPLIT_CREDITS)
+  const rev_generes     = Math.floor(montant_vente / REV_PAR_FCFA['hebergement'])
+  const now = new Date().toISOString()
+
+  const walletRef = db.collection('wallets_partenaires').doc(partenaire_id)
+  const commRef   = db.collection('commissions_partenaires').doc()
+
+  await db.runTransaction(async (tx) => {
+    const walletSnap = await tx.get(walletRef)
+    const revAvant: number = walletSnap.exists ? ((walletSnap.data()!.rev_total as number) ?? 0) : 0
+    const newRev = revAvant + rev_generes
+    const nouveauGrade = gradeFromRev(newRev)
+
+    const walletUpdate: Record<string, unknown> = {
+      partenaire_id,
+      cash:    FieldValue.increment(montant_cash),
+      credits: FieldValue.increment(montant_credits),
+      rev_total:    FieldValue.increment(rev_generes),
+      grade_actuel: nouveauGrade,
+      updated_at: now,
+    }
+    if (!walletSnap.exists) {
+      walletUpdate.created_at = now
+      walletUpdate.cash_en_attente = 0
+      walletUpdate.credits_en_attente = 0
+    }
+    tx.set(walletRef, walletUpdate, { merge: true })
+
+    tx.set(commRef, {
+      partenaire_id,
+      partenaire_source_id: partenaire_id,
+      partenaire_source_grade: 'BRONZE',
+      type_vente: 'hebergement' as const,
+      niveau: 1,
+      montant_vente,
+      taux_commission: taux,
+      montant_commission: commission_fcfa,
+      montant_cash, montant_credits, rev_generes,
+      statut: 'validee',
+      reference_vente,
+      source: 'canal2_hebergement',
+      created_at: now, validee_at: now,
+    })
+  })
+
+  return { credited: true, commission_fcfa }
+}
+
 // ─── 9. getAllRetraitsAdmin ───────────────────────────────────────────────────
 // Bonus : liste tous les retraits pour admin (tous statuts)
 
