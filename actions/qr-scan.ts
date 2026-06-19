@@ -287,11 +287,87 @@ export async function validateQrScanRequest(
     )
 
     console.log(`[QrScan] Demande ${requestId} validée — +${result}⭐ → ${req.client_uid}`)
+
+    // ── Créditer aussi la carte fidélité si le client en possède une active ──
+    void creditLoyaltyCardIfExists(
+      req.client_uid as string,
+      req.client_tel as string,
+      partenaireId,
+      req.montant_net as number,
+    )
+
     return { success: true, starsCredites: result }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erreur inconnue'
     console.error('[QrScan] validateQrScanRequest erreur:', e)
     return { success: false, error: msg }
+  }
+}
+
+/**
+ * Crédite les points sur la carte de fidélité partenaire du client (si elle existe et est ACTIVE).
+ * Appelé en arrière-plan après la validation QR — non bloquant.
+ */
+async function creditLoyaltyCardIfExists(
+  clientUid: string,
+  clientTel: string,
+  partenaireId: string,
+  montantNet: number,
+): Promise<void> {
+  try {
+    // Chercher une carte active par téléphone (plusieurs formats possibles)
+    const phonesToTry = Array.from(new Set([clientUid, clientTel].filter(Boolean)))
+    let cardDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null
+
+    for (const phone of phonesToTry) {
+      const snap = await db
+        .collection('loyalty_cards')
+        .where('partenaire_id', '==', partenaireId)
+        .where('client_phone', '==', phone)
+        .where('statut', '==', 'ACTIVE')
+        .limit(1)
+        .get()
+      if (!snap.empty) { cardDoc = snap.docs[0]; break }
+    }
+
+    if (!cardDoc) return // Pas de carte active — rien à faire
+
+    const card = cardDoc.data()
+    const programSnap = await db.collection('loyalty_programs').doc(card.program_id as string).get()
+    if (!programSnap.exists) return
+
+    const taux = (programSnap.data()!.taux_fcfa_par_point as number) ?? 10000
+    const pointsAjoutes = Math.max(1, Math.floor(montantNet / taux))
+    const nouveauxPoints = ((card.points_cumules as number) ?? 0) + pointsAjoutes
+
+    // Déterminer le nouveau niveau
+    const niveaux = (programSnap.data()!.niveaux ?? []) as Array<{ id: string; seuil_points: number }>
+    const sorted = [...niveaux].sort((a, b) => b.seuil_points - a.seuil_points)
+    const nouveauNiveau = sorted.find((n) => nouveauxPoints >= n.seuil_points)?.id ?? card.niveau_actuel
+
+    await db.collection('loyalty_cards').doc(cardDoc.id).update({
+      points_cumules: nouveauxPoints,
+      niveau_actuel: nouveauNiveau,
+      nombre_utilisations: FieldValue.increment(1),
+      updated_at: FieldValue.serverTimestamp(),
+    })
+
+    await db.collection('loyalty_transactions').add({
+      card_id: cardDoc.id,
+      program_id: card.program_id,
+      partenaire_id: partenaireId,
+      type: 'POINTS_AJOUTES',
+      points_ajoutes: pointsAjoutes,
+      montant_depense: montantNet,
+      description: `Achat via QR scan L&Lui Stars — ${montantNet.toLocaleString('fr-FR')} FCFA`,
+      created_at: FieldValue.serverTimestamp(),
+      created_by: 'qr_scan_auto',
+    })
+
+    console.log(`[QrScan] Carte fidélité ${cardDoc.id} → +${pointsAjoutes} pts (total: ${nouveauxPoints})`)
+  } catch (e) {
+    // Non bloquant — la validation Stars est déjà confirmée
+    console.error('[QrScan] creditLoyaltyCardIfExists erreur (non bloquant):', e)
   }
 }
 

@@ -9,6 +9,10 @@ import Image from 'next/image'
 import type { PartenaireAvecLocation } from '@/types/geolocation'
 import type { LoyaltyProgram } from '@/types/loyalty'
 import BuyCardSection from '@/components/loyalty/BuyCardSection'
+import { getClientFidelite } from '@/actions/stars'
+import type { ClientFidelite } from '@/actions/stars'
+
+const ElectronicPass = dynamic(() => import('@/components/ElectronicPass'), { ssr: false })
 
 const PartenairesMap = dynamic(
   () => import('@/components/PartenairesMap'),
@@ -61,10 +65,14 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   // ── Stars — téléphone client (persisté localStorage) ───────────
   const [clientPhone, setClientPhone] = useState('')
   const [phoneInput, setPhoneInput] = useState('')
+  const [clientStars, setClientStars] = useState<ClientFidelite | null>(null)
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('stars_client_tel') : null
-    if (saved) setClientPhone(saved)
+    if (saved) {
+      setClientPhone(saved)
+      getClientFidelite(saved).then(setClientStars).catch(() => {})
+    }
   }, [])
 
   function handleSavePhone() {
@@ -72,6 +80,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     if (!raw) return
     localStorage.setItem('stars_client_tel', raw)
     setClientPhone(raw)
+    getClientFidelite(raw).then(setClientStars).catch(() => {})
     // Ouvrir directement le scan pour le partenaire courant
     setQrPartenaire(session.prescripteur_partenaire_id ?? null)
     setQrPartenaireNom(session.nom_partenaire ?? null)
@@ -312,7 +321,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
 
           {clientPhone ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <button
                 onClick={() => {
                   setQrPartenaire(session.prescripteur_partenaire_id ?? null)
@@ -323,11 +332,25 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
               >
                 📷 Scanner & enregistrer mon achat
               </button>
+
+              {/* Solde Stars */}
+              {clientStars && (
+                <ElectronicPass
+                  client={clientStars}
+                  params={plateformeParams}
+                />
+              )}
+              {!clientStars && (
+                <p className="text-xs text-[#1A1A1A]/40 text-center">
+                  Effectuez votre premier achat pour créer votre compte Stars.
+                </p>
+              )}
+
               <p className="text-[10px] text-[#1A1A1A]/40 text-center">
                 Compte Stars : {clientPhone} ·{' '}
                 <button
                   className="underline"
-                  onClick={() => { setClientPhone(''); setPhoneInput(''); localStorage.removeItem('stars_client_tel') }}
+                  onClick={() => { setClientPhone(''); setClientStars(null); setPhoneInput(''); localStorage.removeItem('stars_client_tel') }}
                 >
                   Changer
                 </button>
