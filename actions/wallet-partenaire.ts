@@ -340,6 +340,81 @@ export async function traiterRetraitPartenaire(
   })
 }
 
+// ─── 10. crediterWalletBoutique ──────────────────────────────────────────────
+// Crédit direct wallet pour vente Canal 2 boutique confirmée.
+// Bypass de la vérification de grade (prescripteurs démarrent à START).
+// Appelé depuis sheets-webhook quand statut = "Payé"/"Confirmé".
+// Idempotent : ignore si une commission_partenaires avec ce reference_vente existe déjà.
+
+export interface CrediterWalletBoutiqueParams {
+  partenaire_id: string
+  montant_vente: number
+  commission_fcfa: number
+  reference_vente: string // code 6 chiffres (dédup)
+}
+
+export async function crediterWalletBoutique(params: CrediterWalletBoutiqueParams): Promise<{ credited: boolean }> {
+  const { partenaire_id, montant_vente, commission_fcfa, reference_vente } = params
+
+  if (commission_fcfa <= 0) return { credited: false }
+
+  // ── Idempotence : vérifier si déjà crédité pour ce code ─────────
+  const existSnap = await db.collection('commissions_partenaires')
+    .where('partenaire_id', '==', partenaire_id)
+    .where('reference_vente', '==', reference_vente)
+    .limit(1)
+    .get()
+  if (!existSnap.empty) return { credited: false }
+
+  const montant_cash    = Math.round(commission_fcfa * SPLIT_CASH)
+  const montant_credits = Math.round(commission_fcfa * SPLIT_CREDITS)
+  const rev_generes     = Math.floor(montant_vente / REV_PAR_FCFA['boutique'])
+  const now = new Date().toISOString()
+
+  const walletRef = db.collection('wallets_partenaires').doc(partenaire_id)
+  const commRef   = db.collection('commissions_partenaires').doc()
+
+  await db.runTransaction(async (tx) => {
+    const walletSnap = await tx.get(walletRef)
+    const revAvant: number = walletSnap.exists ? ((walletSnap.data()!.rev_total as number) ?? 0) : 0
+    const newRev = revAvant + rev_generes
+    const nouveauGrade = gradeFromRev(newRev)
+
+    const walletUpdate: Record<string, unknown> = {
+      partenaire_id,
+      cash:    FieldValue.increment(montant_cash),
+      credits: FieldValue.increment(montant_credits),
+      rev_total:    FieldValue.increment(rev_generes),
+      grade_actuel: nouveauGrade,
+      updated_at: now,
+    }
+    if (!walletSnap.exists) {
+      walletUpdate.created_at = now
+      walletUpdate.cash_en_attente = 0
+      walletUpdate.credits_en_attente = 0
+    }
+    tx.set(walletRef, walletUpdate, { merge: true })
+
+    tx.set(commRef, {
+      partenaire_id,
+      partenaire_source_id: partenaire_id,       // vente directe (auto-référence)
+      partenaire_source_grade: 'BRONZE',          // grade fictif pour vente directe Canal 2
+      type_vente: 'boutique' as const,
+      niveau: 1,
+      montant_vente,
+      taux_commission: montant_vente > 0 ? commission_fcfa / montant_vente : 0,
+      montant_commission: commission_fcfa,
+      montant_cash, montant_credits, rev_generes,
+      statut: 'validee',
+      reference_vente,
+      source: 'canal2_boutique',
+      created_at: now, validee_at: now,
+    })
+  })
+
+  return { credited: true }
+}
+
 // ─── 9. getAllRetraitsAdmin ───────────────────────────────────────────────────
 // Bonus : liste tous les retraits pour admin (tous statuts)
 

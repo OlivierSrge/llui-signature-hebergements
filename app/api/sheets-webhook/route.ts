@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { FieldValue } from 'firebase-admin/firestore'
 import { getParametresPlateforme } from '@/actions/parametres'
+import { crediterWalletBoutique } from '@/actions/wallet-partenaire'
 import { sendWhatsApp } from '@/lib/whatsappNotif'
 import { updateSyncStatus, getMontantFinalParCode, lireAffiliésCodes } from '@/lib/sheetsCanal2'
 import { PASS_VIP_CONFIGS } from '@/types/pass-vip'
@@ -327,7 +328,21 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── 5b. Attribution Points Stars (si client identifié via OTP) ──
+    // ── 5b. Crédit wallet partenaire (Canal 2 boutique) ─────────────
+    // Non-bloquant : le catch interne ne remonte pas
+    if (estConfirme && commissionFcfa > 0) {
+      crediterWalletBoutique({
+        partenaire_id: prescripteurId,
+        montant_vente: montantFcfa,
+        commission_fcfa: commissionFcfa,
+        reference_vente: codeStr,
+      }).then(({ credited }) => {
+        if (credited) console.log(`[sheets-webhook] 💰 wallet ${prescripteurId} crédité +${commissionFcfa} FCFA (cash=${Math.round(commissionFcfa * 0.7)}, credits=${Math.round(commissionFcfa * 0.3)})`)
+        else console.log(`[sheets-webhook] 💰 wallet ${prescripteurId} — déjà crédité pour code ${codeStr}, ignoré`)
+      }).catch((e) => console.warn('[sheets-webhook] crédit wallet non-bloquant — erreur:', e))
+    }
+
+    // ── 5d. Attribution Points Stars (si client identifié via OTP) ──
     // Non-bloquant : le catch interne ne remonte pas
     if (estConfirme && sessionSnap.exists) {
       const rawClientId = (sessionSnap.data()?.client_id as string | undefined)?.trim()
