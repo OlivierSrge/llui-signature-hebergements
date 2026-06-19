@@ -79,10 +79,6 @@ export async function POST(request: NextRequest) {
     let logs: string[] = []
     let isDryRun = false
 
-    // Si pas de Twilio configuré ou collection vide → dry run
-    const accountSid = process.env.TWILIO_ACCOUNT_SID
-    const authToken = process.env.TWILIO_AUTH_TOKEN
-
     if (subscribers.length === 0) {
       isDryRun = true
       logs.push('DRY RUN — Aucun abonné actif')
