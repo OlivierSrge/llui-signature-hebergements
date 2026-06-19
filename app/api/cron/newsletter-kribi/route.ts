@@ -83,21 +83,12 @@ export async function POST(request: NextRequest) {
     const accountSid = process.env.TWILIO_ACCOUNT_SID
     const authToken = process.env.TWILIO_AUTH_TOKEN
 
-    if (!accountSid || !authToken) {
-      isDryRun = true
-      logs.push('DRY RUN — Variables TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN manquantes')
-      sent = 0
-      errors = 0
-    } else if (subscribers.length === 0) {
+    if (subscribers.length === 0) {
       isDryRun = true
       logs.push('DRY RUN — Aucun abonné actif')
     } else {
-      const Twilio = (await import('twilio')).default as any
-      const client = new Twilio(accountSid, authToken)
-      const result = await sendNewsletterBatch(subscribers, message, client)
-      sent = result.sent
-      errors = result.errors
-      logs = result.logs
+      isDryRun = true
+      logs.push('DRY RUN — Notifications désactivées')
     }
 
     // Sauvegarder les stats dans Firestore

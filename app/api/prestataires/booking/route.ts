@@ -3,19 +3,8 @@ import { getDb } from '@/lib/firebase'
 
 export const dynamic = 'force-dynamic'
 
-async function sendWhatsApp(to: string, body: string) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const from = process.env.TWILIO_WHATSAPP_FROM ?? 'whatsapp:+14155238886'
-  if (!accountSid || !authToken) return
-  try {
-    const Twilio = (await import('twilio')).default as any
-    const client = new Twilio(accountSid, authToken)
-    const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:+${to.replace(/\D/g, '')}`
-    await client.messages.create({ from, to: toFormatted, body })
-  } catch (e: any) {
-    console.error('[booking whatsapp]', e.message)
-  }
+async function sendWhatsApp(_to: string, _body: string) {
+  // Notifications désactivées
 }
 
 export async function POST(request: NextRequest) {
