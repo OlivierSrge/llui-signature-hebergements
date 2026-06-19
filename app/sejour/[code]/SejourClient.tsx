@@ -58,6 +58,26 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
   const [qrPartenaire, setQrPartenaire] = useState<string | null>(null)
   const [qrPartenaireNom, setQrPartenaireNom] = useState<string | null>(null)
 
+  // ── Stars — téléphone client (persisté localStorage) ───────────
+  const [clientPhone, setClientPhone] = useState('')
+  const [phoneInput, setPhoneInput] = useState('')
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('stars_client_tel') : null
+    if (saved) setClientPhone(saved)
+  }, [])
+
+  function handleSavePhone() {
+    const raw = phoneInput.trim()
+    if (!raw) return
+    localStorage.setItem('stars_client_tel', raw)
+    setClientPhone(raw)
+    // Ouvrir directement le scan pour le partenaire courant
+    setQrPartenaire(session.prescripteur_partenaire_id ?? null)
+    setQrPartenaireNom(session.nom_partenaire ?? null)
+    setShowQrModal(true)
+  }
+
   useEffect(() => {
     const timer = setInterval(() => setMaintenant(new Date()), 1000)
     return () => clearInterval(timer)
@@ -280,6 +300,62 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
             partenaireId={session.prescripteur_partenaire_id}
           />
         )}
+
+        {/* ── ⭐ Stars — Enregistrer un achat ─────────────────── */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">⭐</span>
+            <div>
+              <p className="text-sm font-semibold text-[#1A1A1A]">L&Lui Stars</p>
+              <p className="text-xs text-[#1A1A1A]/50">Cumulez des Stars à chaque achat</p>
+            </div>
+          </div>
+
+          {clientPhone ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setQrPartenaire(session.prescripteur_partenaire_id ?? null)
+                  setQrPartenaireNom(session.nom_partenaire ?? null)
+                  setShowQrModal(true)
+                }}
+                className="w-full py-3 bg-[#C9A84C] text-white text-sm font-bold rounded-xl hover:bg-[#b8963e] transition-colors"
+              >
+                📷 Scanner & enregistrer mon achat
+              </button>
+              <p className="text-[10px] text-[#1A1A1A]/40 text-center">
+                Compte Stars : {clientPhone} ·{' '}
+                <button
+                  className="underline"
+                  onClick={() => { setClientPhone(''); setPhoneInput(''); localStorage.removeItem('stars_client_tel') }}
+                >
+                  Changer
+                </button>
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-[#1A1A1A]/60 mb-2">
+                Saisissez votre numéro pour gagner des Stars sur cet achat.
+              </p>
+              <input
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSavePhone() }}
+                placeholder="Ex : 690 123 456"
+                className="w-full border border-[#F5F0E8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+              />
+              <button
+                onClick={handleSavePhone}
+                disabled={!phoneInput.trim()}
+                className="w-full py-2.5 bg-[#C9A84C] text-white text-sm font-semibold rounded-xl disabled:opacity-40 hover:bg-[#b8963e] transition-colors"
+              >
+                ⭐ Continuer et enregistrer mon achat
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Avantage */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
@@ -525,7 +601,7 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
       {showQrModal && (
         <QrScanModal
           client_uid=""
-          client_tel=""
+          client_tel={clientPhone}
           partenaire_id_preselect={qrPartenaire}
           partenaire_nom_preselect={qrPartenaireNom}
           onClose={() => { setShowQrModal(false); setQrPartenaire(null); setQrPartenaireNom(null) }}

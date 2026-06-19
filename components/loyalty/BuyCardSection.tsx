@@ -17,7 +17,14 @@ export default function BuyCardSection({ program, partenaireId }: Props) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const id = localStorage.getItem('loyalty_card_id')
-      if (id) setSavedCardId(id)
+      // Valider que c'est un vrai ID Firestore (pas 'undefined', pas null, pas vide)
+      if (id && id !== 'undefined' && id !== 'null' && id.length >= 10) {
+        setSavedCardId(id)
+      } else if (id) {
+        // Nettoyer un ID corrompu
+        localStorage.removeItem('loyalty_card_id')
+        localStorage.removeItem('loyalty_card_program')
+      }
     }
   }, [])
 
