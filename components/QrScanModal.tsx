@@ -30,7 +30,7 @@ export default function QrScanModal({ client_uid, client_tel, partenaire_id_pres
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [request, setRequest] = useState<QrScanRequest | null>(null)
-  const [countdown, setCountdown] = useState(120)
+  const [countdown, setCountdown] = useState(600)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -91,7 +91,7 @@ export default function QrScanModal({ client_uid, client_tel, partenaire_id_pres
     const update = () => {
       const rem = Math.max(0, Math.floor((new Date(request.expires_at).getTime() - Date.now()) / 1000))
       setCountdown(rem)
-      if (rem === 0) { clearInterval(cdRef.current!); setStep('error'); setErrorMsg('Délai expiré. Réessayez.') }
+      if (rem === 0) { clearInterval(cdRef.current!); setStep('error'); setErrorMsg('Délai expiré (10 min). Réessayez.') }
     }
     update()
     cdRef.current = setInterval(update, 1000)
@@ -127,7 +127,7 @@ export default function QrScanModal({ client_uid, client_tel, partenaire_id_pres
     if (!result.success) { setErrorMsg(result.error); return }
     setRequest(result.request)
     setPartenaireName(result.request.partenaire_nom)
-    setCountdown(120)
+    setCountdown(600)
     setStep('pending')
   }
 

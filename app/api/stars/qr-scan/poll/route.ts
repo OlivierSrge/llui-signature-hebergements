@@ -8,9 +8,18 @@ import { serializeFirestoreDoc } from '@/lib/serialization'
 
 export const dynamic = 'force-dynamic'
 
+function normalizePhone(tel: string): string {
+  let t = tel.replace(/[\s\-().]/g, '')
+  if (t.startsWith('00')) t = '+' + t.slice(2)
+  if (/^237\d{8,9}$/.test(t)) t = '+' + t
+  if (!t.startsWith('+')) t = '+237' + t
+  return t
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const clientTel = searchParams.get('client_tel')
+  const rawClientTel = searchParams.get('client_tel')
+  const clientTel = rawClientTel ? normalizePhone(rawClientTel) : null
   const partnerId = searchParams.get('partner_id')
 
   if (!clientTel && !partnerId) {

@@ -146,7 +146,7 @@ export async function createQrScanRequest(
     }
 
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 120 * 1000).toISOString()
+    const expiresAt = new Date(now.getTime() + 600 * 1000).toISOString() // 10 minutes
 
     const ref = db.collection('qr_scan_requests').doc()
     const docData = {

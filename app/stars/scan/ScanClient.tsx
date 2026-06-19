@@ -25,7 +25,7 @@ export default function ScanClient({ clientTel }: Props) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [request, setRequest] = useState<QrScanRequest | null>(null)
-  const [countdown, setCountdown] = useState(120)
+  const [countdown, setCountdown] = useState(600)
   const [pollStatus, setPollStatus] = useState<'pending' | 'validated' | 'rejected' | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -109,7 +109,7 @@ export default function ScanClient({ clientTel }: Props) {
         clearInterval(cdRef.current!)
         setPollStatus(null)
         setStep('error')
-        setErrorMsg('Délai expiré (2 min). Rescannez le QR code et réessayez.')
+        setErrorMsg('Délai expiré (10 min). Rescannez le QR code et réessayez.')
       }
     }
     update()
