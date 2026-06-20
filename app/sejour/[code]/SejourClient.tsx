@@ -50,6 +50,40 @@ function getBarreColor(heures: number) {
   return 'bg-red-500'
 }
 
+function DiscoverOthersAccordion({
+  excludePartenaireId,
+  defaultOpen,
+}: {
+  excludePartenaireId: string
+  defaultOpen: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🛍️</span>
+          <div>
+            <p className="text-sm font-semibold text-[#1A1A1A]">Autres établissements partenaires</p>
+            <p className="text-xs text-[#1A1A1A]/50">Achetez une carte chez un autre partenaire L&amp;Lui</p>
+          </div>
+        </div>
+        <span className={`text-[#1A1A1A]/30 text-lg transition-transform ${open ? 'rotate-180' : ''}`}>
+          ›
+        </span>
+      </button>
+      {open && (
+        <div className="px-5 pb-5">
+          <LoyaltyMarketplace excludePartenaireId={excludePartenaireId} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SejourClient({ session, plateformeParams, partenaires = [], loyaltyProgram }: Props) {
   const expireAt = new Date(session.expire_at)
   const [maintenant, setMaintenant] = useState(new Date())
@@ -317,39 +351,60 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
           </div>
         </div>
 
-        {/* ── Carte de fidélité partenaire ── après code promo, avant avantage */}
-        {loyaltyProgram && session.prescripteur_partenaire_id && (
-          <BuyCardSection
-            program={loyaltyProgram}
-            partenaireId={session.prescripteur_partenaire_id}
-          />
-        )}
-
-        {/* ── 💳 Mes cartes fidélité ── visible si téléphone connu ─ */}
-        {clientPhone && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">💳</span>
-              <div>
-                <p className="text-sm font-semibold text-[#1A1A1A]">Mes cartes fidélité</p>
-                <p className="text-xs text-[#1A1A1A]/50">Toutes vos cartes partenaires L&amp;Lui</p>
+        {/* ── 🎫 Cartes fidélité — expérience contextuelle ─────── */}
+        {loyaltyProgram && session.prescripteur_partenaire_id ? (
+          /* Client reconnu ou non : l'établissement actuel a un programme → le mettre en avant */
+          <>
+            <BuyCardSection
+              program={loyaltyProgram}
+              partenaireId={session.prescripteur_partenaire_id}
+            />
+            {/* Mes cartes (client reconnu) */}
+            {clientPhone && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">💳</span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Mes cartes fidélité</p>
+                    <p className="text-xs text-[#1A1A1A]/50">Toutes vos cartes partenaires L&amp;Lui</p>
+                  </div>
+                </div>
+                <MyLoyaltyCards phone={clientPhone} />
               </div>
+            )}
+            {/* Découvrir d'autres établissements — replié par défaut si client reconnu */}
+            <DiscoverOthersAccordion
+              excludePartenaireId={session.prescripteur_partenaire_id}
+              defaultOpen={!clientPhone}
+            />
+          </>
+        ) : (
+          /* Pas de programme sur ce lieu : ouvrir directement le catalogue */
+          <>
+            {clientPhone && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">💳</span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">Mes cartes fidélité</p>
+                    <p className="text-xs text-[#1A1A1A]/50">Toutes vos cartes partenaires L&amp;Lui</p>
+                  </div>
+                </div>
+                <MyLoyaltyCards phone={clientPhone} />
+              </div>
+            )}
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🛍️</span>
+                <div>
+                  <p className="text-sm font-semibold text-[#1A1A1A]">Cartes fidélité partenaires</p>
+                  <p className="text-xs text-[#1A1A1A]/50">Profitez de remises exclusives chez nos partenaires</p>
+                </div>
+              </div>
+              <LoyaltyMarketplace excludePartenaireId={session.prescripteur_partenaire_id ?? undefined} />
             </div>
-            <MyLoyaltyCards phone={clientPhone} />
-          </div>
+          </>
         )}
-
-        {/* ── 🛍️ Catalogue cartes partenaires ──────────────────── */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">🛍️</span>
-            <div>
-              <p className="text-sm font-semibold text-[#1A1A1A]">Cartes partenaires L&amp;Lui</p>
-              <p className="text-xs text-[#1A1A1A]/50">Achetez une carte et profitez de remises exclusives</p>
-            </div>
-          </div>
-          <LoyaltyMarketplace excludePartenaireId={session.prescripteur_partenaire_id ?? undefined} />
-        </div>
 
         {/* ── ⭐ Stars — Enregistrer un achat ─────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
