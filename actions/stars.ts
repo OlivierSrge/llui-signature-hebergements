@@ -112,6 +112,11 @@ function docToClient(tel: string, d: Record<string, unknown>): ClientFidelite {
     phone_verified: (s.phone_verified as boolean) ?? false,
     has_pending_spend: (s.has_pending_spend as boolean) ?? false,
     pending_spend_id: (s.pending_spend_id as string) ?? undefined,
+    // Dernier code QR généré (affiché dans /mon-stars et PromoClientForm)
+    last_qr_generated_at: (s.last_qr_generated_at as string) ?? undefined,
+    last_qr_code: (s.last_qr_code as string) ?? undefined,
+    last_qr_boutique_expire_at: (s.last_qr_boutique_expire_at as string) ?? undefined,
+    last_qr_partenaire_nom: (s.last_qr_partenaire_nom as string) ?? undefined,
   }
 }
 

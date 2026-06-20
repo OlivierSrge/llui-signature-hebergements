@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { genererCodeSessionLie } from '@/actions/codes-sessions'
+import { getClientFidelite } from '@/actions/stars'
 
 type Step = 'phone' | 'generating' | 'quota'
 
@@ -19,6 +20,11 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [quotaInfo, setQuotaInfo] = useState<{ nextAvailableAt: string; remainingDays: number } | null>(null)
+  const [existingCode, setExistingCode] = useState<{
+    code: string
+    partenaire_nom?: string
+    expire_at?: string
+  } | null>(null)
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +39,16 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
         nextAvailableAt: gen.nextAvailableAt,
         remainingDays: gen.remainingDays ?? 0,
       })
+      // Charger le dernier code existant depuis le compte client
+      getClientFidelite(phone.trim()).then((client) => {
+        if (client?.last_qr_code) {
+          setExistingCode({
+            code: client.last_qr_code,
+            partenaire_nom: client.last_qr_partenaire_nom,
+            expire_at: client.last_qr_boutique_expire_at,
+          })
+        }
+      }).catch(() => {})
       setLoading(false)
       setStep('quota')
       return
@@ -126,17 +142,68 @@ export default function PromoClientForm({ partenaireId, partenaireNom, partenair
         {/* ── Quota atteint ── */}
         {step === 'quota' && quotaInfo && (
           <div className="space-y-4">
-            <div className="text-center py-4">
-              <div className="text-5xl mb-3">⏳</div>
-              <h2 className="text-xl font-bold text-[#1A1A1A]">Code encore valide</h2>
-              <p className="text-[#1A1A1A]/60 text-sm mt-1">
+            <div className="text-center py-2">
+              <div className="text-4xl mb-2">⏳</div>
+              <h2 className="text-lg font-bold text-[#1A1A1A]">Code encore valide</h2>
+              <p className="text-[#1A1A1A]/60 text-xs mt-1">
                 Vous avez déjà généré un code récemment.
               </p>
             </div>
 
+            {/* ── Code existant mis en avant ── */}
+            {existingCode && (() => {
+              const expireAt = existingCode.expire_at ? new Date(existingCode.expire_at) : null
+              const isValid = expireAt ? expireAt > new Date() : false
+              const msLeft = expireAt ? Math.max(0, expireAt.getTime() - Date.now()) : 0
+              const hoursLeft = Math.floor(msLeft / 3600000)
+              const minsLeft = Math.floor((msLeft % 3600000) / 60000)
+              const formatted = existingCode.code.slice(0, 3) + ' ' + existingCode.code.slice(3)
+              return (
+                <div className={`rounded-2xl p-5 space-y-3 border-2 ${isValid ? 'bg-[#1A1A1A] border-[#C9A84C]' : 'bg-white border-[#E8E0D0]'}`}>
+                  <div className="flex items-center justify-between">
+                    <p className={`text-[10px] font-semibold uppercase tracking-widest ${isValid ? 'text-[#C9A84C]' : 'text-[#1A1A1A]/40'}`}>
+                      🎟️ Votre code actuel
+                    </p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isValid ? 'bg-green-500 text-white animate-pulse' : 'bg-red-100 text-red-500'}`}>
+                      {isValid ? 'Actif' : 'Expiré'}
+                    </span>
+                  </div>
+
+                  <div className="text-center">
+                    <p className={`text-4xl font-black tracking-[0.25em] font-mono ${isValid ? 'text-[#C9A84C]' : 'text-[#1A1A1A]/30'}`}>
+                      {formatted}
+                    </p>
+                    {existingCode.partenaire_nom && (
+                      <p className={`text-xs mt-1 ${isValid ? 'text-white/50' : 'text-[#1A1A1A]/40'}`}>
+                        via {existingCode.partenaire_nom}
+                      </p>
+                    )}
+                  </div>
+
+                  {isValid && (
+                    <>
+                      <div className="bg-white/10 rounded-xl px-3 py-2 text-center">
+                        <p className="text-[10px] text-white/50">Valable encore</p>
+                        <p className="text-base font-bold text-white">{hoursLeft}h {String(minsLeft).padStart(2, '0')}min</p>
+                      </div>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(existingCode.code).catch(() => {})}
+                        className="w-full py-2 bg-[#C9A84C] text-[#1A1A1A] text-sm font-bold rounded-xl"
+                      >
+                        📋 Copier le code
+                      </button>
+                      <p className="text-[10px] text-center text-white/40">
+                        Utilisez ce code pour un achat en boutique en ligne ou une réservation hébergement L&Lui.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <span className="text-2xl flex-shrink-0">📅</span>
+                <span className="text-xl flex-shrink-0">📅</span>
                 <div>
                   <p className="font-semibold text-amber-900 text-sm">Prochain code disponible :</p>
                   <p className="text-amber-800 text-sm mt-0.5">
