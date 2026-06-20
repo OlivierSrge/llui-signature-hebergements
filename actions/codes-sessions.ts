@@ -306,11 +306,22 @@ export async function genererCodeSessionLie(
   remainingDays?: number
 }> {
   // ── 1. Vérifier quota ──────────────────────────────────────────
+  // Normaliser le téléphone DÈS ICI pour que le check pointe sur le même doc
+  // que celui où last_qr_generated_at est écrit (normalizeTel plus bas).
+  function normalizeTelEarly(t: string): string {
+    let r = t.replace(/[\s\-().]/g, '')
+    if (r.startsWith('00')) r = '+' + r.slice(2)
+    if (/^237\d{8,9}$/.test(r)) r = '+' + r
+    if (!r.startsWith('+')) r = '+237' + r
+    return r
+  }
+  const telephoneNormalized = normalizeTelEarly(telephone)
+
   try {
     const params = await getParametresPlateforme()
     const quotaJours = params.fidelite_qr_flash_quota_jours ?? 30
 
-    const clientSnap = await db.collection('clients_fidelite').doc(telephone).get()
+    const clientSnap = await db.collection('clients_fidelite').doc(telephoneNormalized).get()
     if (clientSnap.exists) {
       const clientData = clientSnap.data()!
       const lastQR = clientData.last_qr_generated_at as string | undefined
@@ -347,15 +358,7 @@ export async function genererCodeSessionLie(
   const nomPartenaire = partSnap.exists ? ((partSnap.data()!.nom_etablissement as string) ?? '') : ''
 
   // ── 3. Lier client_id + créer/mettre à jour profil client ────
-  // Normaliser le téléphone en E.164 pour cohérence Firestore
-  function normalizeTel(t: string): string {
-    let r = t.replace(/[\s\-().]/g, '')
-    if (r.startsWith('00')) r = '+' + r.slice(2)
-    if (/^237\d{8,9}$/.test(r)) r = '+' + r
-    if (!r.startsWith('+')) r = '+237' + r
-    return r
-  }
-  const normalizedTel = normalizeTel(telephone)
+  const normalizedTel = telephoneNormalized // déjà normalisé en étape 1
   const now = new Date().toISOString()
   // boutique_expire_at : code utilisable en boutique 3 jours (indépendant du expire_at 48h de /sejour)
   const boutiqueExpireAt = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString()
