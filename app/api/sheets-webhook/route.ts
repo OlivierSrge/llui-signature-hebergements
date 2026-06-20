@@ -140,7 +140,25 @@ export async function POST(req: NextRequest) {
         console.log(`[sheets-webhook] vente_en_cours déjà enregistrée pour ${codeStr} — ignoré`)
         return NextResponse.json({ ignored: true, reason: 'vente_en_cours_deja_enregistree' })
       } else if (['en_attente', 'versee'].includes(existingStatut ?? '')) {
-        console.log(`[sheets-webhook] commission ${existingStatut} déjà enregistrée pour ${codeStr} — ignoré`)
+        // Commission déjà confirmée — mais le wallet n'a peut-être pas encore été crédité
+        // (transactions antérieures au déploiement du wallet credit).
+        // crediterWalletBoutique est idempotente : elle ignore si déjà fait.
+        const existingData = doc.data()
+        const existingPrescId = existingData.prescripteur_partenaire_id as string | undefined
+        const existingCommFcfa = (existingData.commission_fcfa as number) ?? 0
+        const existingMontantFcfa = (existingData.montant_transaction_fcfa as number) ?? 0
+        if (existingPrescId && existingCommFcfa > 0) {
+          crediterWalletBoutique({
+            partenaire_id: existingPrescId,
+            montant_vente: existingMontantFcfa,
+            commission_fcfa: existingCommFcfa,
+            reference_vente: codeStr,
+          }).then(({ credited }) => {
+            if (credited) console.log(`[sheets-webhook] 💰 wallet crédité rétroactivement ${existingPrescId} +${existingCommFcfa} FCFA pour code ${codeStr}`)
+            else console.log(`[sheets-webhook] 💰 wallet déjà crédité pour code ${codeStr} — ignoré`)
+          }).catch((e) => console.warn('[sheets-webhook] crédit wallet rétroactif — erreur:', e))
+        }
+        console.log(`[sheets-webhook] commission ${existingStatut} déjà enregistrée pour ${codeStr} — ignoré (wallet crédité si absent)`)
         return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
       } else if (estConfirme && existingStatut === 'vente_en_cours') {
         console.log(`[sheets-webhook] vente_en_cours → en_attente pour ${codeStr}`)
