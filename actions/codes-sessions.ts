@@ -87,7 +87,8 @@ export interface CodeSession {
   remise_description: string | null
   redirection_prioritaire: RedirectionPrioritaire
   created_at: string
-  expire_at: string
+  expire_at: string                // validité /sejour (48h)
+  boutique_expire_at?: string      // validité boutique + hébergement (3 jours)
   max_utilisations: number
   nb_utilisations: number
   statut: StatutCode
@@ -440,23 +441,27 @@ export async function validerCode(
   expire_dans_heures?: number
 }> {
   const session = await getCodeSession(code)
-  if (!session) return { valide: false, raison: 'invalide', message: 'Code introuvable' }
+  if (!session) return { valide: false, raison: 'invalide', message: 'Code introuvable. Vérifiez le code ou repassez chez votre partenaire.' }
 
   const now = new Date()
-  if (session.statut === 'expire' || new Date(session.expire_at) < now)
-    return { valide: false, raison: 'expire', message: 'Ce code a expiré. Repassez chez votre partenaire.' }
+
+  // Utiliser boutique_expire_at (3 j) quand disponible, sinon expire_at (48h)
+  // boutique_expire_at est défini pour tous les codes générés via le formulaire QR partenaire
+  const effectiveExpireAt = session.boutique_expire_at ?? session.expire_at
+  if (session.statut === 'expire' || new Date(effectiveExpireAt) < now)
+    return { valide: false, raison: 'expire', message: 'Ce code a expiré (validité 3 jours). Repassez chez votre partenaire pour en obtenir un nouveau.' }
   if (session.statut === 'epuise' || session.nb_utilisations >= session.max_utilisations)
     return { valide: false, raison: 'epuise', message: 'Ce code a été entièrement utilisé (5/5).' }
 
   const partenaire = await getPrescripteurPartenaire(session.prescripteur_partenaire_id)
   if (!partenaire || partenaire.statut !== 'actif' || new Date(partenaire.forfait_expire_at) < now)
-    return { valide: false, raison: 'partenaire_inactif', message: 'Ce code n\'est plus actif.' }
+    return { valide: false, raison: 'partenaire_inactif', message: 'Ce code n\'est plus actif. Le partenaire a peut-être un abonnement expiré.' }
 
   const reduction_fcfa = session.remise_type === 'reduction_pct' && session.remise_valeur_pct
     ? Math.round(montant_fcfa * session.remise_valeur_pct / 100)
     : 0
   const montant_final_fcfa = montant_fcfa - reduction_fcfa
-  const expire_dans_heures = Math.max(0, Math.round((new Date(session.expire_at).getTime() - now.getTime()) / 3600000))
+  const expire_dans_heures = Math.max(0, Math.round((new Date(effectiveExpireAt).getTime() - now.getTime()) / 3600000))
 
   return {
     valide: true,
