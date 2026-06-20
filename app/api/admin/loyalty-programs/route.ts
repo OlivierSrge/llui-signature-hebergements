@@ -12,6 +12,7 @@ interface Niveau {
   couleur: string
   seuil_points: number
   prix_fcfa?: number
+  duree_validite_mois?: number
   avantages: string[]
 }
 

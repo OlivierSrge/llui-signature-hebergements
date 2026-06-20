@@ -11,6 +11,7 @@ interface Niveau {
   couleur: string
   seuil_points: number
   prix_fcfa?: number
+  duree_validite_mois?: number
   avantages: string[]
 }
 
@@ -127,8 +128,8 @@ function NiveauEditor({ niveau, programPrixFcfa, onSave, onDelete, saving }: Niv
         </div>
       </div>
 
-      {/* Ligne 2 : seuil, prix optionnel */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Ligne 2 : seuil, prix optionnel, durée optionnelle */}
+      <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">Seuil points</label>
           <input
@@ -141,7 +142,7 @@ function NiveauEditor({ niveau, programPrixFcfa, onSave, onDelete, saving }: Niv
         </div>
         <div>
           <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">
-            Prix FCFA <span className="text-[#C9A84C]/60">(vide = prix global {programPrixFcfa.toLocaleString('fr-FR')})</span>
+            Prix FCFA <span className="text-[#C9A84C]/60">(vide = global {programPrixFcfa.toLocaleString('fr-FR')})</span>
           </label>
           <input
             type="number"
@@ -149,6 +150,20 @@ function NiveauEditor({ niveau, programPrixFcfa, onSave, onDelete, saving }: Niv
             value={local.prix_fcfa ?? ''}
             onChange={(e) => set('prix_fcfa', e.target.value === '' ? undefined : Number(e.target.value))}
             placeholder={`défaut: ${programPrixFcfa.toLocaleString('fr-FR')}`}
+            className="w-full border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#C9A84C] placeholder-[#1A1A1A]/20"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">
+            Durée (mois) <span className="text-[#C9A84C]/60">(vide = globale)</span>
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={local.duree_validite_mois ?? ''}
+            onChange={(e) => set('duree_validite_mois', e.target.value === '' ? undefined : Number(e.target.value))}
+            placeholder="défaut global"
             className="w-full border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#C9A84C] placeholder-[#1A1A1A]/20"
           />
         </div>
@@ -242,6 +257,11 @@ function NiveauCard({ niveau, programPrixFcfa, selected, onClick }: NiveauCardPr
       <div className="text-[10px] text-[#1A1A1A]/40">
         Seuil: {niveau.seuil_points} pts
       </div>
+      {niveau.duree_validite_mois !== undefined && (
+        <div className="text-[10px] text-indigo-500 font-medium">
+          {niveau.duree_validite_mois} mois
+        </div>
+      )}
       <div className="text-[10px] text-[#1A1A1A]/40">
         {niveau.avantages.length} avantage{niveau.avantages.length !== 1 ? 's' : ''}
       </div>
@@ -312,17 +332,24 @@ function NewNiveauForm({ programPrixFcfa, onAdd, onCancel }: NewNiveauFormProps)
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">Seuil points</label>
           <input type="number" min={0} value={local.seuil_points} onChange={(e) => set('seuil_points', Number(e.target.value))}
             className="w-full border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400" />
         </div>
         <div>
-          <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">Prix FCFA <span className="text-[#C9A84C]/60">(vide = global {programPrixFcfa.toLocaleString('fr-FR')})</span></label>
+          <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">Prix FCFA <span className="text-[#C9A84C]/60">(vide = global)</span></label>
           <input type="number" min={0} value={local.prix_fcfa ?? ''}
             onChange={(e) => set('prix_fcfa', e.target.value === '' ? undefined : Number(e.target.value))}
             placeholder={`défaut: ${programPrixFcfa.toLocaleString('fr-FR')}`}
+            className="w-full border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400 placeholder-[#1A1A1A]/20" />
+        </div>
+        <div>
+          <label className="text-[10px] text-[#1A1A1A]/50 mb-0.5 block">Durée (mois) <span className="text-[#C9A84C]/60">(vide = globale)</span></label>
+          <input type="number" min={1} max={120} value={local.duree_validite_mois ?? ''}
+            onChange={(e) => set('duree_validite_mois', e.target.value === '' ? undefined : Number(e.target.value))}
+            placeholder="défaut global"
             className="w-full border border-[#F5F0E8] rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400 placeholder-[#1A1A1A]/20" />
         </div>
       </div>
