@@ -5,9 +5,13 @@ import { serializeFirestoreDoc } from '@/lib/serialization'
 export const dynamic = 'force-dynamic'
 
 // GET /api/admin/loyalty-programs — liste tous les programmes de fidélité
-export async function GET() {
+// ?partenaire_id=xxx → filtre par partenaire
+export async function GET(req: NextRequest) {
   try {
-    const snap = await db.collection('loyalty_programs').get()
+    const partenaireId = req.nextUrl.searchParams.get('partenaire_id')
+    const snap = partenaireId
+      ? await db.collection('loyalty_programs').where('partenaire_id', '==', partenaireId).get()
+      : await db.collection('loyalty_programs').get()
     const programs = snap.docs.map((doc) => ({
       program_id: doc.id,
       ...serializeFirestoreDoc(doc.data()),
