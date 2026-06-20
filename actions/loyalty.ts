@@ -149,14 +149,19 @@ export async function getLoyaltyProgramForPartenaire(partenaire_id: string): Pro
   error?: string
 }> {
   try {
+    // Inclure ACTIVE et DRAFT (seul PAUSED est masqué aux clients)
     const snap = await db
       .collection('loyalty_programs')
       .where('partenaire_id', '==', partenaire_id)
-      .where('statut', '==', 'ACTIVE')
-      .limit(1)
       .get()
-    if (snap.empty) return { success: false }
-    const doc = snap.docs[0]
+    const docs = snap.docs.filter((d) => d.data().statut !== 'PAUSED')
+    // Priorité ACTIVE > DRAFT
+    const sorted = docs.sort((a, b) => {
+      const order = (s: string) => (s === 'ACTIVE' ? 0 : 1)
+      return order(a.data().statut as string) - order(b.data().statut as string)
+    })
+    if (sorted.length === 0) return { success: false }
+    const doc = sorted[0]
     return { success: true, program: { program_id: doc.id, ...(doc.data() as Omit<LoyaltyProgram, 'program_id'>) } }
   } catch (error) {
     console.error('[Loyalty] Erreur lecture programme partenaire:', error)

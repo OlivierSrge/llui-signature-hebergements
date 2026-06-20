@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
     const excludeId = req.nextUrl.searchParams.get('exclude') ?? ''
 
     const [progSnap, partSnap] = await Promise.all([
-      db.collection('loyalty_programs').where('statut', '==', 'ACTIVE').get(),
+      // Inclure ACTIVE et DRAFT — seul PAUSED est masqué aux clients
+      db.collection('loyalty_programs').get(),
       db.collection('prescripteurs_partenaires').where('statut', '==', 'actif').get(),
     ])
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     const programs = progSnap.docs
-      .filter((d) => d.data().partenaire_id !== excludeId)
+      .filter((d) => d.data().statut !== 'PAUSED' && d.data().partenaire_id !== excludeId)
       .map((doc) => {
         const data = serializeFirestoreDoc(doc.data())
         const part = partMap.get(data.partenaire_id as string) ?? {}

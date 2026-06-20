@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       commission_lui_percent: commissionLui,
       commission_partner_percent: 100 - commissionLui,
       taux_fcfa_par_point: Number(taux_fcfa_par_point ?? 10000),
-      statut: 'DRAFT' as const,
+      statut: 'ACTIVE' as const,
       niveaux: niveaux ?? [],
       created_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp(),
