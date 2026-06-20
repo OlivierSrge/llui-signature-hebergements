@@ -24,6 +24,8 @@ const PartenairesMap = dynamic(
 )
 
 const QrScanModal = dynamic(() => import('@/components/QrScanModal'), { ssr: false })
+const LoyaltyMarketplace = dynamic(() => import('@/components/loyalty/LoyaltyMarketplace'), { ssr: false })
+const MyLoyaltyCards = dynamic(() => import('@/components/loyalty/MyLoyaltyCards'), { ssr: false })
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://llui-signature-hebergements.vercel.app'
 const BOUTIQUE_URL = process.env.NEXT_PUBLIC_BOUTIQUE_URL ?? 'https://l-et-lui-signature.com'
@@ -322,6 +324,32 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
             partenaireId={session.prescripteur_partenaire_id}
           />
         )}
+
+        {/* ── 💳 Mes cartes fidélité ── visible si téléphone connu ─ */}
+        {clientPhone && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">💳</span>
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">Mes cartes fidélité</p>
+                <p className="text-xs text-[#1A1A1A]/50">Toutes vos cartes partenaires L&amp;Lui</p>
+              </div>
+            </div>
+            <MyLoyaltyCards phone={clientPhone} />
+          </div>
+        )}
+
+        {/* ── 🛍️ Catalogue cartes partenaires ──────────────────── */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">🛍️</span>
+            <div>
+              <p className="text-sm font-semibold text-[#1A1A1A]">Cartes partenaires L&amp;Lui</p>
+              <p className="text-xs text-[#1A1A1A]/50">Achetez une carte et profitez de remises exclusives</p>
+            </div>
+          </div>
+          <LoyaltyMarketplace excludePartenaireId={session.prescripteur_partenaire_id ?? undefined} />
+        </div>
 
         {/* ── ⭐ Stars — Enregistrer un achat ─────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
