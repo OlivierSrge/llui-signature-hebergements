@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { updateParametresPlateforme, type ParametresPlateforme } from '@/actions/parametres'
+import { updateLoyaltyProgram } from '@/actions/loyalty'
+import type { LoyaltyProgram } from '@/types/loyalty'
 import { toast } from 'react-hot-toast'
 
 function formatFCFA(n: number) {
@@ -14,13 +17,15 @@ function fmt(d: string) {
 }
 
 type Historique = { id: string; modifie_par: string; modifie_at: string; differences: string[] }
+type LoyaltyProgramFull = LoyaltyProgram & { program_id: string }
 
 interface Props {
   params: ParametresPlateforme
   historique: Historique[]
+  loyaltyPrograms: LoyaltyProgramFull[]
 }
 
-export default function ParametresClient({ params, historique }: Props) {
+export default function ParametresClient({ params, historique, loyaltyPrograms }: Props) {
   const [form, setForm] = useState({
     commission_partenaire_pct: params.commission_partenaire_pct,
     forfait_prescripteur_mensuel_fcfa: params.forfait_prescripteur_mensuel_fcfa,
@@ -308,6 +313,9 @@ export default function ParametresClient({ params, historique }: Props) {
         </div>
       </Section>
 
+      {/* ─── Cartes de Fidélité partenaires ─── */}
+      <LoyaltyCardsSection programs={loyaltyPrograms} />
+
       {/* Erreurs */}
       {errors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-1">
@@ -380,6 +388,155 @@ function Apercu({ label, lines }: { label: string; lines: string[] }) {
       <p className="text-xs text-[#1A1A1A]/50 mb-1">{label} :</p>
       {lines.map((l, i) => <p key={i} className="text-sm font-medium text-[#C9A84C]">{l}</p>)}
       <p className="text-[10px] text-[#1A1A1A]/30 mt-1">(mis à jour en temps réel)</p>
+    </div>
+  )
+}
+
+// ─── Section Cartes de Fidélité ───────────────────────────────────────────────
+
+function LoyaltyCardsSection({ programs }: { programs: (LoyaltyProgram & { program_id: string })[] }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#F5F0E8]">
+        <h2 className="text-sm font-semibold text-[#1A1A1A]">🎫 Cartes de Fidélité partenaires</h2>
+        <Link
+          href="/admin/loyalty-programs"
+          className="text-xs text-[#C9A84C] font-semibold hover:underline flex items-center gap-1"
+        >
+          Gérer tous les programmes →
+        </Link>
+      </div>
+
+      {programs.length === 0 ? (
+        <div className="text-center py-6 text-[#1A1A1A]/40 text-sm">
+          <p>Aucun programme créé.</p>
+          <Link
+            href="/admin/loyalty-programs/create"
+            className="mt-2 inline-block text-[#C9A84C] font-semibold hover:underline"
+          >
+            + Créer un premier programme →
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {programs.map((p) => (
+            <LoyaltyProgramRow key={p.program_id} program={p} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LoyaltyProgramRow({ program }: { program: LoyaltyProgram & { program_id: string } }) {
+  const [prixFcfa, setPrixFcfa] = useState(program.prix_fcfa)
+  const [duree, setDuree] = useState(program.duree_validite_mois)
+  const [commissionLui, setCommissionLui] = useState(program.commission_lui_percent)
+  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    const result = await updateLoyaltyProgram(program.program_id, {
+      prix_fcfa: prixFcfa,
+      duree_validite_mois: duree,
+      commission_lui_percent: commissionLui,
+      commission_partner_percent: 100 - commissionLui,
+    })
+    setSaving(false)
+    if (result.success) {
+      toast.success(`✅ ${program.nom} mis à jour`)
+      setDirty(false)
+    } else {
+      toast.error(result.error ?? 'Erreur')
+    }
+  }
+
+  return (
+    <div className={`rounded-xl border p-4 transition-colors ${dirty ? 'border-[#C9A84C]/50 bg-[#C9A84C]/5' : 'border-[#F5F0E8]'}`}>
+      {/* En-tête programme */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-sm font-semibold text-[#1A1A1A]">{program.nom}</p>
+          <p className="text-xs text-[#1A1A1A]/50">
+            {(program as any).partenaire_name ?? program.partenaire_id}
+            {' · '}
+            <span className={`font-medium ${program.statut === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`}>
+              {program.statut}
+            </span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Niveaux */}
+          <div className="flex gap-1">
+            {program.niveaux?.map((n) => (
+              <span
+                key={n.id}
+                title={n.nom}
+                className="text-base"
+              >
+                {n.emoji}
+              </span>
+            ))}
+          </div>
+          <Link
+            href={`/admin/loyalty-programs/${program.program_id}/configure`}
+            className="text-xs px-2.5 py-1 rounded-lg bg-[#F5F0E8] text-[#1A1A1A]/60 hover:bg-[#C9A84C]/10 hover:text-[#C9A84C] transition-colors"
+          >
+            ⚙️ Config complète
+          </Link>
+        </div>
+      </div>
+
+      {/* Champs tarif */}
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-xs text-[#1A1A1A]/60 mb-1">Prix carte (FCFA)</p>
+          <input
+            type="number"
+            value={prixFcfa}
+            onChange={(e) => { setPrixFcfa(Number(e.target.value)); setDirty(true) }}
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
+          />
+        </div>
+        <div>
+          <p className="text-xs text-[#1A1A1A]/60 mb-1">Durée (mois)</p>
+          <input
+            type="number"
+            min={1}
+            value={duree}
+            onChange={(e) => { setDuree(Number(e.target.value)); setDirty(true) }}
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
+          />
+        </div>
+        <div>
+          <p className="text-xs text-[#1A1A1A]/60 mb-1">Part L&Lui (%)</p>
+          <input
+            type="number"
+            min={0} max={100}
+            value={commissionLui}
+            onChange={(e) => { setCommissionLui(Number(e.target.value)); setDirty(true) }}
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
+          />
+        </div>
+      </div>
+
+      {/* Aperçu + bouton save */}
+      {dirty && (
+        <div className="flex items-center justify-between mt-3">
+          <p className="text-xs text-[#1A1A1A]/50">
+            L&Lui : {Math.round(prixFcfa * commissionLui / 100).toLocaleString('fr-FR')} FCFA
+            · Partenaire : {Math.round(prixFcfa * (100 - commissionLui) / 100).toLocaleString('fr-FR')} FCFA
+          </p>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="text-xs px-4 py-2 bg-[#C9A84C] text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
+          >
+            {saving ? 'Sauvegarde...' : '💾 Sauvegarder'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
