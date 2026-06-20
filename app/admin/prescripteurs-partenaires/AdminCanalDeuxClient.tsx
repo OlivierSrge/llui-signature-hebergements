@@ -30,6 +30,11 @@ const MapPickerPartenaire = dynamic(
   { ssr: false, loading: () => <div className="h-[300px] rounded-2xl border border-[#F5F0E8] bg-[#F5F0E8]/50 flex items-center justify-center text-sm text-[#1A1A1A]/40">Chargement de la carte...</div> }
 )
 
+const LoyaltyProgramPanel = dynamic(
+  () => import('@/components/loyalty/admin/LoyaltyProgramPanel'),
+  { ssr: false, loading: () => <div className="text-xs text-center py-4 text-[#1A1A1A]/40">Chargement...</div> }
+)
+
 function formatFCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA'
 }
@@ -49,16 +54,6 @@ interface Stats {
   top_partenaires: PrescripteurPartenaire[]
   commissions_par_partenaire: Record<string, number>
   tous_partenaires: PrescripteurPartenaire[]
-}
-
-interface LoyaltyProgAdm {
-  program_id: string
-  partenaire_id?: string
-  nom?: string
-  prix_fcfa?: number
-  duree_validite_mois?: number
-  commission_lui_percent?: number
-  commission_partner_percent?: number
 }
 
 const TYPES: TypePartenaire[] = ['hotel', 'restaurant', 'agence', 'bar', 'plage', 'autre']
@@ -271,10 +266,6 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
 
   // Cartes fidélité partenaire
   const [loyaltyEditId, setLoyaltyEditId] = useState<string | null>(null)
-  const [loyaltyPrograms, setLoyaltyPrograms] = useState<LoyaltyProgAdm[]>([])
-  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
-  const [loyaltySaving, setLoyaltySaving] = useState<string | null>(null)
-  const [loyaltyEdits, setLoyaltyEdits] = useState<Record<string, { prix: number; duree: number; commission: number }>>({})
 
   const [form, setForm] = useState(formDefault)
 
@@ -608,64 +599,6 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
     setAvantagesEditing((prev) =>
       prev.map((a) => (a.id === id ? { ...a, grade_minimum: grade } : a)),
     )
-  }
-
-  async function openLoyaltyEdit(partnerId: string) {
-    if (loyaltyEditId === partnerId) { setLoyaltyEditId(null); return }
-    setLoyaltyEditId(partnerId)
-    setLoyaltyLoading(true)
-    try {
-      const res = await fetch(`/api/admin/loyalty-programs?partenaire_id=${encodeURIComponent(partnerId)}`)
-      const data = await res.json() as { programs: LoyaltyProgAdm[] }
-      const progs = data.programs ?? []
-      setLoyaltyPrograms(progs)
-      const edits: Record<string, { prix: number; duree: number; commission: number }> = {}
-      for (const prog of progs) {
-        edits[prog.program_id] = {
-          prix: prog.prix_fcfa ?? 0,
-          duree: prog.duree_validite_mois ?? 12,
-          commission: prog.commission_lui_percent ?? 50,
-        }
-      }
-      setLoyaltyEdits(edits)
-    } catch {
-      toast.error('Erreur chargement programmes fidélité')
-    } finally {
-      setLoyaltyLoading(false)
-    }
-  }
-
-  async function handleSaveLoyalty(programId: string) {
-    const edit = loyaltyEdits[programId]
-    if (!edit) return
-    setLoyaltySaving(programId)
-    try {
-      const res = await fetch('/api/admin/loyalty-programs', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          program_id: programId,
-          prix_fcfa: edit.prix,
-          duree_validite_mois: edit.duree,
-          commission_lui_percent: edit.commission,
-        }),
-      })
-      const data = await res.json() as { success: boolean; error?: string }
-      if (data.success) {
-        toast.success('Programme mis à jour ✅')
-        setLoyaltyPrograms((prev) => prev.map((p) =>
-          p.program_id === programId
-            ? { ...p, prix_fcfa: edit.prix, duree_validite_mois: edit.duree, commission_lui_percent: edit.commission, commission_partner_percent: 100 - edit.commission }
-            : p,
-        ))
-      } else {
-        toast.error(data.error ?? 'Erreur')
-      }
-    } catch {
-      toast.error('Erreur réseau')
-    } finally {
-      setLoyaltySaving(null)
-    }
   }
 
   // Helper onChange pour les deux formulaires (création + édition)
@@ -1054,7 +987,7 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                       </button>
                       {/* Cartes fidélité */}
                       <button
-                        onClick={() => openLoyaltyEdit(p.uid)}
+                        onClick={() => setLoyaltyEditId(loyaltyEditId === p.uid ? null : p.uid)}
                         title="Gérer les cartes de fidélité"
                         className={`text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
                           loyaltyEditId === p.uid
@@ -1361,77 +1294,7 @@ export default function AdminCanalDeuxClient({ stats, plateformeParams }: { stat
                           <p className="text-xs font-semibold text-[#1A1A1A]">🎫 Cartes de fidélité</p>
                           <button onClick={() => setLoyaltyEditId(null)} className="text-[10px] text-[#1A1A1A]/40 hover:text-[#1A1A1A]">✕ Fermer</button>
                         </div>
-                        {loyaltyLoading ? (
-                          <div className="flex justify-center py-6">
-                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                          </div>
-                        ) : loyaltyPrograms.length === 0 ? (
-                          <p className="text-xs text-[#1A1A1A]/40 text-center py-4">
-                            Aucune carte fidélité configurée pour ce partenaire.
-                          </p>
-                        ) : (
-                          <div className="space-y-4">
-                            {loyaltyPrograms.map((prog) => {
-                              const edit = loyaltyEdits[prog.program_id] ?? { prix: prog.prix_fcfa ?? 0, duree: prog.duree_validite_mois ?? 12, commission: prog.commission_lui_percent ?? 50 }
-                              const dirty =
-                                edit.prix !== (prog.prix_fcfa ?? 0) ||
-                                edit.duree !== (prog.duree_validite_mois ?? 12) ||
-                                edit.commission !== (prog.commission_lui_percent ?? 50)
-                              return (
-                                <div key={prog.program_id} className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                                  <p className="text-xs font-semibold text-indigo-800 mb-3">{prog.nom ?? prog.program_id}</p>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <div>
-                                      <label className="text-[10px] text-[#1A1A1A]/50 mb-1 block">Prix (FCFA)</label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        value={edit.prix}
-                                        onChange={(e) => setLoyaltyEdits((prev) => ({ ...prev, [prog.program_id]: { ...edit, prix: Number(e.target.value) } }))}
-                                        className="w-full border border-indigo-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400 bg-white"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-[10px] text-[#1A1A1A]/50 mb-1 block">Durée (mois)</label>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        max={24}
-                                        value={edit.duree}
-                                        onChange={(e) => setLoyaltyEdits((prev) => ({ ...prev, [prog.program_id]: { ...edit, duree: Number(e.target.value) } }))}
-                                        className="w-full border border-indigo-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400 bg-white"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-[10px] text-[#1A1A1A]/50 mb-1 block">Part L&amp;Lui (%)</label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        value={edit.commission}
-                                        onChange={(e) => setLoyaltyEdits((prev) => ({ ...prev, [prog.program_id]: { ...edit, commission: Number(e.target.value) } }))}
-                                        className="w-full border border-indigo-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-400 bg-white"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between mt-2">
-                                    <p className="text-[10px] text-indigo-600">
-                                      Part partenaire : {100 - edit.commission}% · {edit.prix > 0 ? formatFCFA(edit.prix) : '—'}
-                                    </p>
-                                    {dirty && (
-                                      <button
-                                        onClick={() => handleSaveLoyalty(prog.program_id)}
-                                        disabled={loyaltySaving === prog.program_id}
-                                        className="text-xs px-3 py-1 bg-indigo-600 text-white rounded-lg disabled:opacity-60 hover:bg-indigo-700 transition-colors">
-                                        {loyaltySaving === prog.program_id ? '...' : '💾 Enregistrer'}
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+                        <LoyaltyProgramPanel partenaireId={p.uid} partenaireName={p.nom_etablissement} />
                       </div>
                     )}
 
