@@ -75,6 +75,19 @@ export default function SejourClient({ session, plateformeParams, partenaires = 
     }
   }, [])
 
+  // ── Mémoriser le code séjour pour pré-remplissage formulaire hébergement ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.setItem('llui_code_sejour', JSON.stringify({
+        code: session.code,
+        nom_partenaire: session.nom_partenaire,
+        expire_at: session.boutique_expire_at ?? session.expire_at,
+        saved_at: new Date().toISOString(),
+      }))
+    } catch { /* localStorage indisponible */ }
+  }, [session.code, session.nom_partenaire, session.boutique_expire_at, session.expire_at])
+
   function handleSavePhone() {
     const raw = phoneInput.trim()
     if (!raw) return

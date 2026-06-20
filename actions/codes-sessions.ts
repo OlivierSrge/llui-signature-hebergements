@@ -446,10 +446,9 @@ export async function validerCode(
   const now = new Date()
 
   // Utiliser boutique_expire_at (3 j) quand disponible, sinon expire_at (48h)
-  // boutique_expire_at est défini pour tous les codes générés via le formulaire QR partenaire
   const effectiveExpireAt = session.boutique_expire_at ?? session.expire_at
   if (session.statut === 'expire' || new Date(effectiveExpireAt) < now)
-    return { valide: false, raison: 'expire', message: 'Ce code a expiré (validité 3 jours). Repassez chez votre partenaire pour en obtenir un nouveau.' }
+    return { valide: false, raison: 'expire', message: 'Ce code a expiré. Repassez chez votre partenaire pour en obtenir un nouveau.' }
   if (session.statut === 'epuise' || session.nb_utilisations >= session.max_utilisations)
     return { valide: false, raison: 'epuise', message: 'Ce code a été entièrement utilisé (5/5).' }
 

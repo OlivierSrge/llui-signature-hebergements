@@ -123,6 +123,24 @@ export default function ReservationForm({
   const [sejourLoading, setSejourLoading] = useState(false)
   const [sejourResult, setSejourResult] = useState<SejourValidation | null>(null)
 
+  // Pré-remplir depuis localStorage si le client a visité une page /sejour/[code] récemment
+  useEffect(() => {
+    if (codeSejour) return // déjà fourni par le parent
+    if (sejourInput) return // déjà renseigné
+    try {
+      const raw = localStorage.getItem('llui_code_sejour')
+      if (!raw) return
+      const stored = JSON.parse(raw) as { code: string; nom_partenaire: string; expire_at: string; saved_at: string }
+      if (!stored.code || !/^\d{6}$/.test(stored.code)) return
+      // Vérifier que le code n'est pas expiré côté client (évite un aller-serveur inutile)
+      if (new Date(stored.expire_at) < new Date()) {
+        localStorage.removeItem('llui_code_sejour')
+        return
+      }
+      setSejourInput(stored.code)
+    } catch { /* localStorage indisponible */ }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const sejourReduction = sejourResult?.valide ? (sejourResult.reduction_fcfa ?? 0) : 0
   const finalPrice = sejourResult?.valide
     ? totalPrice - sejourReduction
@@ -212,6 +230,9 @@ export default function ReservationForm({
           }),
         }).catch(() => {})
       }
+
+      // Effacer le code séjour utilisé (usage unique par réservation)
+      try { localStorage.removeItem('llui_code_sejour') } catch { /* noop */ }
 
       // Mémoriser les coordonnées pour les prochaines visites
       try {
