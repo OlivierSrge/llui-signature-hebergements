@@ -73,33 +73,36 @@ export async function getCommissionsPartenaire(
   partenaire_id: string,
   limit = 20
 ): Promise<CommissionPartenaire[]> {
+  // Pas de orderBy pour éviter l'index composite Firestore (where + orderBy différents)
+  // Tri effectué en mémoire après fetch
   const snap = await db.collection('commissions_partenaires')
     .where('partenaire_id', '==', partenaire_id)
-    .orderBy('created_at', 'desc')
-    .limit(limit)
     .get()
 
-  return snap.docs.map((doc) => {
-    const d = serializeFirestoreDoc(doc.data())
-    return {
-      id: doc.id,
-      partenaire_id: d.partenaire_id as string,
-      partenaire_source_id: d.partenaire_source_id as string,
-      partenaire_source_grade: (d.partenaire_source_grade as string) ?? 'START',
-      type_vente: d.type_vente as TypeVente,
-      niveau: d.niveau as NiveauCommission,
-      montant_vente: (d.montant_vente as number) ?? 0,
-      taux_commission: (d.taux_commission as number) ?? 0,
-      montant_commission: (d.montant_commission as number) ?? 0,
-      montant_cash: (d.montant_cash as number) ?? 0,
-      montant_credits: (d.montant_credits as number) ?? 0,
-      rev_generes: (d.rev_generes as number) ?? 0,
-      statut: (d.statut as CommissionPartenaire['statut']) ?? 'pending',
-      reference_vente: (d.reference_vente as string) ?? '',
-      created_at: (d.created_at as string) ?? new Date().toISOString(),
-      validee_at: d.validee_at as string | undefined,
-    }
-  })
+  return snap.docs
+    .map((doc) => {
+      const d = serializeFirestoreDoc(doc.data())
+      return {
+        id: doc.id,
+        partenaire_id: d.partenaire_id as string,
+        partenaire_source_id: d.partenaire_source_id as string,
+        partenaire_source_grade: (d.partenaire_source_grade as string) ?? 'START',
+        type_vente: d.type_vente as TypeVente,
+        niveau: d.niveau as NiveauCommission,
+        montant_vente: (d.montant_vente as number) ?? 0,
+        taux_commission: (d.taux_commission as number) ?? 0,
+        montant_commission: (d.montant_commission as number) ?? 0,
+        montant_cash: (d.montant_cash as number) ?? 0,
+        montant_credits: (d.montant_credits as number) ?? 0,
+        rev_generes: (d.rev_generes as number) ?? 0,
+        statut: (d.statut as CommissionPartenaire['statut']) ?? 'pending',
+        reference_vente: (d.reference_vente as string) ?? '',
+        created_at: (d.created_at as string) ?? new Date().toISOString(),
+        validee_at: d.validee_at as string | undefined,
+      }
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit)
 }
 
 // ─── 3. creerCommissionPartenaire ─────────────────────────────────────────────
@@ -236,26 +239,28 @@ export async function demanderRetraitPartenaire(
 // ─── 6. getRetraitsPartenaire ─────────────────────────────────────────────────
 
 export async function getRetraitsPartenaire(partenaire_id: string, limit = 10): Promise<RetraitPartenaire[]> {
+  // Pas de orderBy pour éviter l'index composite Firestore (where + orderBy différents)
   const snap = await db.collection('retraits_partenaires')
     .where('partenaire_id', '==', partenaire_id)
-    .orderBy('created_at', 'desc')
-    .limit(limit)
     .get()
 
-  return snap.docs.map((doc) => {
-    const d = serializeFirestoreDoc(doc.data())
-    return {
-      id: doc.id,
-      partenaire_id: d.partenaire_id as string,
-      montant: (d.montant as number) ?? 0,
-      operateur: (d.operateur as OperateurMobileMoney) ?? 'MTN',
-      numero_mobile_money: (d.numero_mobile_money as string) ?? '',
-      statut: (d.statut as RetraitPartenaire['statut']) ?? 'demande',
-      note_admin: d.note_admin as string | undefined,
-      created_at: (d.created_at as string) ?? new Date().toISOString(),
-      traitee_at: d.traitee_at as string | undefined,
-    }
-  })
+  return snap.docs
+    .map((doc) => {
+      const d = serializeFirestoreDoc(doc.data())
+      return {
+        id: doc.id,
+        partenaire_id: d.partenaire_id as string,
+        montant: (d.montant as number) ?? 0,
+        operateur: (d.operateur as OperateurMobileMoney) ?? 'MTN',
+        numero_mobile_money: (d.numero_mobile_money as string) ?? '',
+        statut: (d.statut as RetraitPartenaire['statut']) ?? 'demande',
+        note_admin: d.note_admin as string | undefined,
+        created_at: (d.created_at as string) ?? new Date().toISOString(),
+        traitee_at: d.traitee_at as string | undefined,
+      }
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit)
 }
 
 // ─── 7. getAllWalletsAdmin ────────────────────────────────────────────────────
