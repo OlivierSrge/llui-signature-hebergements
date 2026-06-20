@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { updateParametresPlateforme, type ParametresPlateforme } from '@/actions/parametres'
-import { updateLoyaltyProgram } from '@/actions/loyalty'
-import type { LoyaltyProgram } from '@/types/loyalty'
 import { toast } from 'react-hot-toast'
 
 function formatFCFA(n: number) {
@@ -17,15 +15,13 @@ function fmt(d: string) {
 }
 
 type Historique = { id: string; modifie_par: string; modifie_at: string; differences: string[] }
-type LoyaltyProgramFull = LoyaltyProgram & { program_id: string }
 
 interface Props {
   params: ParametresPlateforme
   historique: Historique[]
-  loyaltyPrograms: LoyaltyProgramFull[]
 }
 
-export default function ParametresClient({ params, historique, loyaltyPrograms }: Props) {
+export default function ParametresClient({ params, historique }: Props) {
   const [form, setForm] = useState({
     commission_partenaire_pct: params.commission_partenaire_pct,
     forfait_prescripteur_mensuel_fcfa: params.forfait_prescripteur_mensuel_fcfa,
@@ -314,7 +310,7 @@ export default function ParametresClient({ params, historique, loyaltyPrograms }
       </Section>
 
       {/* ─── Cartes de Fidélité partenaires ─── */}
-      <LoyaltyCardsSection programs={loyaltyPrograms} />
+      <LoyaltyCardsSection />
 
       {/* Erreurs */}
       {errors.length > 0 && (
@@ -392,28 +388,61 @@ function Apercu({ label, lines }: { label: string; lines: string[] }) {
   )
 }
 
-// ─── Section Cartes de Fidélité ───────────────────────────────────────────────
+// ─── Types loyalty (sans import de actions/loyalty) ───────────────────────────
 
-function LoyaltyCardsSection({ programs }: { programs: (LoyaltyProgram & { program_id: string })[] }) {
+interface LoyaltyNiveau {
+  id: string
+  nom: string
+  emoji: string
+}
+
+interface LoyaltyProg {
+  program_id: string
+  partenaire_id: string
+  partenaire_name?: string
+  nom: string
+  statut: string
+  prix_fcfa: number
+  duree_validite_mois: number
+  commission_lui_percent: number
+  commission_partner_percent: number
+  niveaux?: LoyaltyNiveau[]
+}
+
+// ─── Section Cartes de Fidélité (100% client-side fetch) ──────────────────────
+
+function LoyaltyCardsSection() {
+  const [programs, setPrograms] = useState<LoyaltyProg[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/loyalty-programs')
+      .then((r) => r.json())
+      .then((d) => setPrograms(d.programs ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#F5F0E8]">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#F5F0E8]">
         <h2 className="text-sm font-semibold text-[#1A1A1A]">🎫 Cartes de Fidélité partenaires</h2>
         <Link
           href="/admin/loyalty-programs"
-          className="text-xs text-[#C9A84C] font-semibold hover:underline flex items-center gap-1"
+          className="text-xs text-[#C9A84C] font-semibold hover:underline"
         >
           Gérer tous les programmes →
         </Link>
       </div>
 
-      {programs.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : programs.length === 0 ? (
         <div className="text-center py-6 text-[#1A1A1A]/40 text-sm">
           <p>Aucun programme créé.</p>
-          <Link
-            href="/admin/loyalty-programs/create"
-            className="mt-2 inline-block text-[#C9A84C] font-semibold hover:underline"
-          >
+          <Link href="/admin/loyalty-programs/create" className="mt-2 inline-block text-[#C9A84C] font-semibold hover:underline">
             + Créer un premier programme →
           </Link>
         </div>
@@ -428,7 +457,7 @@ function LoyaltyCardsSection({ programs }: { programs: (LoyaltyProgram & { progr
   )
 }
 
-function LoyaltyProgramRow({ program }: { program: LoyaltyProgram & { program_id: string } }) {
+function LoyaltyProgramRow({ program }: { program: LoyaltyProg }) {
   const [prixFcfa, setPrixFcfa] = useState(program.prix_fcfa)
   const [duree, setDuree] = useState(program.duree_validite_mois)
   const [commissionLui, setCommissionLui] = useState(program.commission_lui_percent)
@@ -437,29 +466,38 @@ function LoyaltyProgramRow({ program }: { program: LoyaltyProgram & { program_id
 
   async function handleSave() {
     setSaving(true)
-    const result = await updateLoyaltyProgram(program.program_id, {
-      prix_fcfa: prixFcfa,
-      duree_validite_mois: duree,
-      commission_lui_percent: commissionLui,
-      commission_partner_percent: 100 - commissionLui,
-    })
-    setSaving(false)
-    if (result.success) {
-      toast.success(`✅ ${program.nom} mis à jour`)
-      setDirty(false)
-    } else {
-      toast.error(result.error ?? 'Erreur')
+    try {
+      const res = await fetch('/api/admin/loyalty-programs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: program.program_id,
+          prix_fcfa: prixFcfa,
+          duree_validite_mois: duree,
+          commission_lui_percent: commissionLui,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`✅ ${program.nom} mis à jour`)
+        setDirty(false)
+      } else {
+        toast.error(data.error ?? 'Erreur')
+      }
+    } catch {
+      toast.error('Erreur réseau')
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
     <div className={`rounded-xl border p-4 transition-colors ${dirty ? 'border-[#C9A84C]/50 bg-[#C9A84C]/5' : 'border-[#F5F0E8]'}`}>
-      {/* En-tête programme */}
       <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-sm font-semibold text-[#1A1A1A]">{program.nom}</p>
           <p className="text-xs text-[#1A1A1A]/50">
-            {(program as any).partenaire_name ?? program.partenaire_id}
+            {program.partenaire_name ?? program.partenaire_id}
             {' · '}
             <span className={`font-medium ${program.statut === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`}>
               {program.statut}
@@ -467,16 +505,9 @@ function LoyaltyProgramRow({ program }: { program: LoyaltyProgram & { program_id
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Niveaux */}
           <div className="flex gap-1">
             {program.niveaux?.map((n) => (
-              <span
-                key={n.id}
-                title={n.nom}
-                className="text-base"
-              >
-                {n.emoji}
-              </span>
+              <span key={n.id} title={n.nom} className="text-base">{n.emoji}</span>
             ))}
           </div>
           <Link
@@ -488,51 +519,35 @@ function LoyaltyProgramRow({ program }: { program: LoyaltyProgram & { program_id
         </div>
       </div>
 
-      {/* Champs tarif */}
       <div className="grid grid-cols-3 gap-3">
         <div>
           <p className="text-xs text-[#1A1A1A]/60 mb-1">Prix carte (FCFA)</p>
-          <input
-            type="number"
-            value={prixFcfa}
+          <input type="number" value={prixFcfa}
             onChange={(e) => { setPrixFcfa(Number(e.target.value)); setDirty(true) }}
-            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
-          />
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30" />
         </div>
         <div>
           <p className="text-xs text-[#1A1A1A]/60 mb-1">Durée (mois)</p>
-          <input
-            type="number"
-            min={1}
-            value={duree}
+          <input type="number" min={1} value={duree}
             onChange={(e) => { setDuree(Number(e.target.value)); setDirty(true) }}
-            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
-          />
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30" />
         </div>
         <div>
           <p className="text-xs text-[#1A1A1A]/60 mb-1">Part L&Lui (%)</p>
-          <input
-            type="number"
-            min={0} max={100}
-            value={commissionLui}
+          <input type="number" min={0} max={100} value={commissionLui}
             onChange={(e) => { setCommissionLui(Number(e.target.value)); setDirty(true) }}
-            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30"
-          />
+            className="w-full border border-[#F5F0E8] rounded-lg px-3 py-2 text-sm font-medium text-[#1A1A1A] focus:outline-none focus:border-[#C9A84C] bg-[#F5F0E8]/30" />
         </div>
       </div>
 
-      {/* Aperçu + bouton save */}
       {dirty && (
         <div className="flex items-center justify-between mt-3">
           <p className="text-xs text-[#1A1A1A]/50">
             L&Lui : {Math.round(prixFcfa * commissionLui / 100).toLocaleString('fr-FR')} FCFA
             · Partenaire : {Math.round(prixFcfa * (100 - commissionLui) / 100).toLocaleString('fr-FR')} FCFA
           </p>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="text-xs px-4 py-2 bg-[#C9A84C] text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-[#b8963e] transition-colors"
-          >
+          <button onClick={handleSave} disabled={saving}
+            className="text-xs px-4 py-2 bg-[#C9A84C] text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-[#b8963e] transition-colors">
             {saving ? 'Sauvegarde...' : '💾 Sauvegarder'}
           </button>
         </div>
