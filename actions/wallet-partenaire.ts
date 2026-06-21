@@ -363,59 +363,71 @@ export async function crediterWalletBoutique(params: CrediterWalletBoutiqueParam
 
   if (commission_fcfa <= 0) return { credited: false }
 
-  // ── Idempotence : vérifier si déjà crédité pour ce code ─────────
-  const existSnap = await db.collection('commissions_partenaires')
-    .where('partenaire_id', '==', partenaire_id)
-    .where('reference_vente', '==', reference_vente)
-    .limit(1)
-    .get()
-  if (!existSnap.empty) return { credited: false }
+  // ── Idempotence : ID déterministe → évite toute requête composite (pas d'index requis)
+  // Si le doc existe déjà, tx.create() lève une erreur → on catche proprement
+  const commDocId = `boutique_${partenaire_id}_${reference_vente}`
+  const commRef   = db.collection('commissions_partenaires').doc(commDocId)
+  const walletRef = db.collection('wallets_partenaires').doc(partenaire_id)
 
   const montant_cash    = Math.round(commission_fcfa * SPLIT_CASH)
   const montant_credits = Math.round(commission_fcfa * SPLIT_CREDITS)
   const rev_generes     = Math.floor(montant_vente / REV_PAR_FCFA['boutique'])
   const now = new Date().toISOString()
 
-  const walletRef = db.collection('wallets_partenaires').doc(partenaire_id)
-  const commRef   = db.collection('commissions_partenaires').doc()
+  try {
+    await db.runTransaction(async (tx) => {
+      const [walletSnap, commSnap] = await Promise.all([
+        tx.get(walletRef),
+        tx.get(commRef),
+      ])
 
-  await db.runTransaction(async (tx) => {
-    const walletSnap = await tx.get(walletRef)
-    const revAvant: number = walletSnap.exists ? ((walletSnap.data()!.rev_total as number) ?? 0) : 0
-    const newRev = revAvant + rev_generes
-    const nouveauGrade = gradeFromRev(newRev)
+      // Idempotence : doc déjà présent → transaction annulée proprement
+      if (commSnap.exists) return
 
-    const walletUpdate: Record<string, unknown> = {
-      partenaire_id,
-      cash:    FieldValue.increment(montant_cash),
-      credits: FieldValue.increment(montant_credits),
-      rev_total:    FieldValue.increment(rev_generes),
-      grade_actuel: nouveauGrade,
-      updated_at: now,
-    }
-    if (!walletSnap.exists) {
-      walletUpdate.created_at = now
-      walletUpdate.cash_en_attente = 0
-      walletUpdate.credits_en_attente = 0
-    }
-    tx.set(walletRef, walletUpdate, { merge: true })
+      const revAvant: number = walletSnap.exists ? ((walletSnap.data()!.rev_total as number) ?? 0) : 0
+      const newRev = revAvant + rev_generes
+      const nouveauGrade = gradeFromRev(newRev)
 
-    tx.set(commRef, {
-      partenaire_id,
-      partenaire_source_id: partenaire_id,       // vente directe (auto-référence)
-      partenaire_source_grade: 'BRONZE',          // grade fictif pour vente directe Canal 2
-      type_vente: 'boutique' as const,
-      niveau: 1,
-      montant_vente,
-      taux_commission: montant_vente > 0 ? commission_fcfa / montant_vente : 0,
-      montant_commission: commission_fcfa,
-      montant_cash, montant_credits, rev_generes,
-      statut: 'validee',
-      reference_vente,
-      source: 'canal2_boutique',
-      created_at: now, validee_at: now,
+      const walletUpdate: Record<string, unknown> = {
+        partenaire_id,
+        cash:    FieldValue.increment(montant_cash),
+        credits: FieldValue.increment(montant_credits),
+        rev_total:    FieldValue.increment(rev_generes),
+        grade_actuel: nouveauGrade,
+        updated_at: now,
+      }
+      if (!walletSnap.exists) {
+        walletUpdate.created_at = now
+        walletUpdate.cash_en_attente = 0
+        walletUpdate.credits_en_attente = 0
+      }
+      tx.set(walletRef, walletUpdate, { merge: true })
+
+      tx.set(commRef, {
+        partenaire_id,
+        partenaire_source_id: partenaire_id,
+        partenaire_source_grade: 'BRONZE',
+        type_vente: 'boutique' as const,
+        niveau: 1,
+        montant_vente,
+        taux_commission: montant_vente > 0 ? commission_fcfa / montant_vente : 0,
+        montant_commission: commission_fcfa,
+        montant_cash, montant_credits, rev_generes,
+        statut: 'validee',
+        reference_vente,
+        source: 'canal2_boutique',
+        created_at: now, validee_at: now,
+      })
     })
-  })
+  } catch (err) {
+    // Si le doc existe (race condition), on considère le crédit déjà effectué
+    const msg = (err as Error).message ?? ''
+    if (msg.includes('ALREADY_EXISTS') || msg.includes('already exists')) {
+      console.log(`[crediterWalletBoutique] déjà crédité pour ${commDocId}`)
+      return { credited: false }
+    }
+    throw err
+  }
 
   return { credited: true }
 }

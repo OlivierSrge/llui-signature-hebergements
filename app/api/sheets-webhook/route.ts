@@ -148,15 +148,16 @@ export async function POST(req: NextRequest) {
         const existingCommFcfa = (existingData.commission_fcfa as number) ?? 0
         const existingMontantFcfa = (existingData.montant_transaction_fcfa as number) ?? 0
         if (existingPrescId && existingCommFcfa > 0) {
-          crediterWalletBoutique({
-            partenaire_id: existingPrescId,
-            montant_vente: existingMontantFcfa,
-            commission_fcfa: existingCommFcfa,
-            reference_vente: codeStr,
-          }).then(({ credited }) => {
+          try {
+            const { credited } = await crediterWalletBoutique({
+              partenaire_id: existingPrescId,
+              montant_vente: existingMontantFcfa,
+              commission_fcfa: existingCommFcfa,
+              reference_vente: codeStr,
+            })
             if (credited) console.log(`[sheets-webhook] 💰 wallet crédité rétroactivement ${existingPrescId} +${existingCommFcfa} FCFA pour code ${codeStr}`)
             else console.log(`[sheets-webhook] 💰 wallet déjà crédité pour code ${codeStr} — ignoré`)
-          }).catch((e) => console.warn('[sheets-webhook] crédit wallet rétroactif — erreur:', e))
+          } catch (e) { console.warn('[sheets-webhook] crédit wallet rétroactif — erreur:', e) }
         }
         console.log(`[sheets-webhook] commission ${existingStatut} déjà enregistrée pour ${codeStr} — ignoré (wallet crédité si absent)`)
         return NextResponse.json({ ignored: true, reason: 'commission_deja_enregistree' })
@@ -347,17 +348,17 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5b. Crédit wallet partenaire (Canal 2 boutique) ─────────────
-    // Non-bloquant : le catch interne ne remonte pas
     if (estConfirme && commissionFcfa > 0) {
-      crediterWalletBoutique({
-        partenaire_id: prescripteurId,
-        montant_vente: montantFcfa,
-        commission_fcfa: commissionFcfa,
-        reference_vente: codeStr,
-      }).then(({ credited }) => {
+      try {
+        const { credited } = await crediterWalletBoutique({
+          partenaire_id: prescripteurId,
+          montant_vente: montantFcfa,
+          commission_fcfa: commissionFcfa,
+          reference_vente: codeStr,
+        })
         if (credited) console.log(`[sheets-webhook] 💰 wallet ${prescripteurId} crédité +${commissionFcfa} FCFA (cash=${Math.round(commissionFcfa * 0.7)}, credits=${Math.round(commissionFcfa * 0.3)})`)
         else console.log(`[sheets-webhook] 💰 wallet ${prescripteurId} — déjà crédité pour code ${codeStr}, ignoré`)
-      }).catch((e) => console.warn('[sheets-webhook] crédit wallet non-bloquant — erreur:', e))
+      } catch (e) { console.warn('[sheets-webhook] crédit wallet — erreur:', e) }
     }
 
     // ── 5d. Attribution Points Stars (si client identifié via OTP) ──
