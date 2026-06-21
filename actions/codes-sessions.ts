@@ -305,9 +305,9 @@ export async function genererCodeSessionLie(
   nextAvailableAt?: string  // ISO — quand le client peut regénérer
   remainingDays?: number
 }> {
-  // ── 1. Vérifier quota ──────────────────────────────────────────
-  // Normaliser le téléphone DÈS ICI pour que le check pointe sur le même doc
-  // que celui où last_qr_generated_at est écrit (normalizeTel plus bas).
+  // ── 1. Vérifier quota PAR PARTENAIRE ──────────────────────────
+  // Quota scopé au partenaire : un client peut visiter plusieurs établissements
+  // sans être bloqué globalement. Champ : last_qr_per_partenaire.{prescripteurId}
   function normalizeTelEarly(t: string): string {
     let r = t.replace(/[\s\-().]/g, '')
     if (r.startsWith('00')) r = '+' + r.slice(2)
@@ -324,7 +324,9 @@ export async function genererCodeSessionLie(
     const clientSnap = await db.collection('clients_fidelite').doc(telephoneNormalized).get()
     if (clientSnap.exists) {
       const clientData = clientSnap.data()!
-      const lastQR = clientData.last_qr_generated_at as string | undefined
+      // Quota par partenaire en priorité ; fallback sur champ global (rétro-compatibilité)
+      const perPartenaire = clientData.last_qr_per_partenaire as Record<string, string> | undefined
+      const lastQR = perPartenaire?.[prescripteurId] ?? (clientData.last_qr_generated_at as string | undefined)
 
       if (lastQR) {
         const lastDate = new Date(lastQR)
@@ -334,7 +336,7 @@ export async function genererCodeSessionLie(
         if (nextAvailable > now) {
           const remainingMs = nextAvailable.getTime() - now.getTime()
           const remainingDays = Math.ceil(remainingMs / (24 * 3600 * 1000))
-          console.log(`[genererCodeSessionLie] quota atteint pour ${telephone} — prochain: ${nextAvailable.toISOString()}`)
+          console.log(`[genererCodeSessionLie] quota atteint pour ${telephone} chez ${prescripteurId} — prochain: ${nextAvailable.toISOString()}`)
           return {
             success: false,
             error: 'quota_atteint',
@@ -371,7 +373,8 @@ export async function genererCodeSessionLie(
     ),
     db.collection('clients_fidelite').doc(normalizedTel).set({
       telephone: normalizedTel,
-      last_qr_generated_at: now,
+      last_qr_generated_at: now,           // garde le champ global pour rétro-compatibilité
+      [`last_qr_per_partenaire.${prescripteurId}`]: now,  // quota par partenaire
       last_qr_code: result.code,
       last_qr_boutique_expire_at: boutiqueExpireAt,
       last_qr_partenaire_nom: nomPartenaire,
