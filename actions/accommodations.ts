@@ -187,6 +187,7 @@ export async function activateAccommodation(id: string): Promise<ActionResult> {
       updated_at: new Date().toISOString(),
     })
     revalidatePath('/admin/hebergements')
+    revalidatePath(`/admin/hebergements/${id}`)
     revalidatePath('/')
     return { success: true }
   } catch (e: any) {

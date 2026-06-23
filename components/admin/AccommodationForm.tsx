@@ -390,7 +390,12 @@ export default function AccommodationForm({ accommodation, partners }: Props) {
           {isEdit && (
             <div>
               <label className="label">Statut</label>
-              <select name="status" defaultValue={accommodation?.status || 'active'} className="input-field">
+              <select
+                name="status"
+                value={currentStatus}
+                onChange={(e) => setCurrentStatus(e.target.value)}
+                className="input-field"
+              >
                 <option value="active">Actif</option>
                 <option value="inactive">Inactif</option>
               </select>
