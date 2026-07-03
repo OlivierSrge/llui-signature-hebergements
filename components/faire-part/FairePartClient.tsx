@@ -332,6 +332,7 @@ function SectionLieu({ lieu, adresse_exacte, google_maps_url, plans_acces_url, p
 function SectionHebergements({ hebergements, contact_whatsapp, accent, principal, fond }: {
   hebergements: Hebergement[]; contact_whatsapp: string; accent: string; principal: string; fond: string
 }) {
+  const [vue, setVue] = useState<'liste' | 'mosaique'>('mosaique')
   const waNum = contact_whatsapp.replace(/\D/g, '')
   const waMsg = encodeURIComponent('Bonjour Olivier, je cherche un hébergement pour le mariage de Diane & Charly à Kribi.')
   const waUrl = waNum ? `https://wa.me/${waNum}?text=${waMsg}` : null
@@ -349,32 +350,94 @@ function SectionHebergements({ hebergements, contact_whatsapp, accent, principal
             <span style={{ color: accent }}>✦</span>
             <div className="flex-1 h-px" style={{ background: `${accent}40` }} />
           </div>
-          <p className="text-sm text-[#0D2137]/45">Sélectionnés à Kribi pour votre confort</p>
+          <p className="text-sm text-[#0D2137]/45 mb-5">Sélectionnés à Kribi pour votre confort</p>
+
+          {/* Toggle vue liste / mosaïque */}
+          <div className="inline-flex rounded-2xl p-1 gap-1" style={{ background: `${principal}10` }}>
+            <button
+              type="button"
+              onClick={() => setVue('liste')}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
+              style={vue === 'liste'
+                ? { background: 'white', color: principal, boxShadow: `0 2px 8px ${principal}20` }
+                : { color: `${principal}70` }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="0" y="1" width="14" height="2.5" rx="1.25" />
+                <rect x="0" y="5.75" width="14" height="2.5" rx="1.25" />
+                <rect x="0" y="10.5" width="14" height="2.5" rx="1.25" />
+              </svg>
+              Liste
+            </button>
+            <button
+              type="button"
+              onClick={() => setVue('mosaique')}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all"
+              style={vue === 'mosaique'
+                ? { background: 'white', color: principal, boxShadow: `0 2px 8px ${principal}20` }
+                : { color: `${principal}70` }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="0" y="0" width="6" height="6" rx="1.5" />
+                <rect x="8" y="0" width="6" height="6" rx="1.5" />
+                <rect x="0" y="8" width="6" height="6" rx="1.5" />
+                <rect x="8" y="8" width="6" height="6" rx="1.5" />
+              </svg>
+              Mosaïque
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-4 mb-8">
-          {hebergements.map((h, i) => (
-            <div key={i} className="rounded-2xl p-5 shadow-sm"
-              style={{ background: 'white', border: `1px solid ${accent}12` }}>
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                  style={{ background: `${principal}0e` }}>🏨</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#0D2137] text-sm">{h.nom}</p>
-                  <p className="text-xs text-[#0D2137]/40 mb-1">{h.type}</p>
-                  <p className="text-xs text-[#0D2137]/55 leading-relaxed mb-2">{h.description}</p>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-xs font-medium" style={{ color: accent }}>{h.prix_indicatif}</span>
-                    {h.maps_url && (
-                      <a href={h.maps_url} target="_blank" rel="noopener noreferrer"
-                        className="text-xs underline" style={{ color: principal }}>📍 Localiser</a>
-                    )}
+        {/* Vue Liste */}
+        {vue === 'liste' && (
+          <div className="space-y-4 mb-8">
+            {hebergements.map((h, i) => (
+              <div key={i} className="rounded-2xl p-5 shadow-sm"
+                style={{ background: 'white', border: `1px solid ${accent}12` }}>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ background: `${principal}0e` }}>🏨</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#0D2137] text-sm">{h.nom}</p>
+                    <p className="text-xs text-[#0D2137]/40 mb-1">{h.type}</p>
+                    <p className="text-xs text-[#0D2137]/55 leading-relaxed mb-2">{h.description}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs font-medium" style={{ color: accent }}>{h.prix_indicatif}</span>
+                      {h.maps_url && (
+                        <a href={h.maps_url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs underline" style={{ color: principal }}>📍 Localiser</a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {/* Vue Mosaïque */}
+        {vue === 'mosaique' && (
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            {hebergements.map((h, i) => (
+              <div key={i} className="rounded-2xl p-4 shadow-sm flex flex-col"
+                style={{ background: 'white', border: `1px solid ${accent}12` }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base mb-3"
+                  style={{ background: `${principal}0e` }}>🏨</div>
+                <p className="font-semibold text-[#0D2137] text-xs leading-snug mb-0.5 line-clamp-2">{h.nom}</p>
+                <p className="text-[10px] text-[#0D2137]/40 mb-2">{h.type}</p>
+                <p className="text-[10px] text-[#0D2137]/50 leading-relaxed mb-3 line-clamp-3 flex-1">{h.description}</p>
+                <div className="mt-auto flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold" style={{ color: accent }}>{h.prix_indicatif}</span>
+                  {h.maps_url && (
+                    <a href={h.maps_url} target="_blank" rel="noopener noreferrer"
+                      className="text-[10px] font-medium flex items-center gap-1"
+                      style={{ color: principal }}>
+                      <span>📍</span> Localiser
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {waUrl && (
           <div className="text-center">
